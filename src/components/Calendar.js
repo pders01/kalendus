@@ -2,6 +2,7 @@ import { LitElement, css, html } from 'lit';
 import Header from './Header';
 import Body from './Body';
 import Context from './Context';
+import getDateByMonthInDirection from './utils/getDateByMonthInDirection';
 
 customElements.define('lms-calendar-header', Header);
 customElements.define('lms-calendar-body', Body);
@@ -61,24 +62,8 @@ export default class LMSCalendar extends LitElement {
     </div>`;
   }
 
-  getDateByMonthInDirection(date, direction) {
-    if (direction === 'previous') {
-      return date.month - 1 === 0
-        ? { ...date, year: date.year - 1, month: 12 }
-        : { ...date, month: date.month - 1 };
-    }
-
-    if (direction === 'next') {
-      return date.month + 1 === 13
-        ? { ...date, year: date.year + 1, month: 1 }
-        : { ...date, month: date.month + 1 };
-    }
-
-    return date;
-  }
-
   _handleSwitchMonth(e) {
-    this.activeDate = this.getDateByMonthInDirection(
+    this.activeDate = getDateByMonthInDirection(
       this.activeDate,
       e.detail.direction
     );

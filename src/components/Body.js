@@ -1,5 +1,6 @@
 import { LitElement, css, html } from 'lit';
 import localize from '../localization/localize';
+import getDateByMonthInDirection from './utils/getDateByMonthInDirection';
 
 export default class Body extends LitElement {
   static properties = {
@@ -64,16 +65,19 @@ export default class Body extends LitElement {
     return offset === -1 ? 6 : offset;
   }
 
-  getDaysInMonthAsArray(numberOfDays, sliceArgs) {
+  getDaysInMonthAsArray(date, numberOfDays, sliceArgs) {
     return [
-      ...Array.from(Array(numberOfDays).keys(), (_, n) => n + 1).slice(
-        ...sliceArgs
-      ),
+      ...Array.from(Array(numberOfDays).keys(), (_, n) => ({
+        year: date.year,
+        month: date.month,
+        day: n + 1,
+      })).slice(...sliceArgs),
     ];
   }
 
   render() {
     const previousMonth = this.getDaysInMonthAsArray(
+      getDateByMonthInDirection(this.activeDate, 'previous'),
       this.getDaysInMonth({
         ...this.activeDate,
         month:
@@ -84,10 +88,12 @@ export default class Body extends LitElement {
         : [-0, -0]
     );
     const activeMonth = this.getDaysInMonthAsArray(
+      this.activeDate,
       this.getDaysInMonth(this.activeDate),
       []
     );
     const nextMonth = this.getDaysInMonthAsArray(
+      getDateByMonthInDirection(this.activeDate, 'previous'),
       this.getDaysInMonth({
         ...this.activeDate,
         month: this.activeDate.month + 1 === 12 ? 0 : this.activeDate.month + 1,
@@ -95,32 +101,24 @@ export default class Body extends LitElement {
       [0, 42 - (previousMonth.length + activeMonth.length)]
     );
 
-    const calendar = previousMonth
-      .concat(activeMonth, nextMonth)
-      .map((day, index, array) =>
-        day === 1
-          ? index < array.length / 2
-            ? `${day}. ${localize({
-              locale: window.navigator.language,
-              topic: 'months',
-              string: this.activeDate.month,
-            })}`
-            : `${day}. ${localize({
-              locale: window.navigator.language,
-              topic: 'months',
-              string:
-                  this.activeDate.month + 1 === 13
-                    ? 1
-                    : this.activeDate.month + 1,
-            })}`
-          : day
-      );
+    const calendar = previousMonth.concat(activeMonth, nextMonth);
 
     return html`
       <div class="month">
         ${calendar.map(
-          (day) =>
-            html`<div class="day"><div class="indicator">${day}</div></div>`
+          ({ year, month, day }) =>
+            html`<div class="day">
+              <div class="indicator">
+                ${day === 1
+                  ? `${day}. ${localize({
+                    locale: window.navigator.language,
+                    topic: 'months',
+                    string: month,
+                  })}`
+                  : day}
+              </div>
+              <slot name="${year}-${month}-${day}"></slot>
+            </div>`
         )}
       </div>
     `;
