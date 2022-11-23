@@ -1,12 +1,11 @@
 import { LitElement, css, html } from 'lit';
-
+import localize from '../localization/localize';
 export default class Header extends LitElement {
   static properties = {
     heading: {},
     activeDate: {},
   };
 
-  // Define scoped styles right with your component, in plain CSS
   static styles = css`
     .controls {
       height: 37px;
@@ -42,12 +41,10 @@ export default class Header extends LitElement {
 
   constructor() {
     super();
-    // Declare reactive properties
     this.heading = 'Info';
     this.activeDate = {};
   }
 
-  // Render the UI as a function of component state
   render() {
     return html`<div class="controls">
       <div class="info">
@@ -55,21 +52,30 @@ export default class Header extends LitElement {
           <strong>${this.heading}</strong>
         </span>
         <br />
-        <span class="month">${this.activeDate.month}</span>
+        <span class="month">
+          ${localize({
+      locale: window.navigator.language,
+      topic: 'months',
+      string: this.activeDate.month,
+    })}
+        </span>
         <span class="year">${this.activeDate.year}</span>
       </div>
-      <div class="buttons">
-        <button @click="${this._previousMonth}">«</button>
-        <button @click="${this._nextMonth}">»</button>
+      <div class="buttons" @click="${this._dispatchSwitchMonth}">
+        <button name="previous">«</button>
+        <button name="next">»</button>
       </div>
     </div>`;
   }
 
-  _previousMonth() {
-    console.log('showing previous month');
-  }
-
-  _nextMonth() {
-    console.log('showing next month');
+  _dispatchSwitchMonth(e) {
+    const direction =
+      e.target === e.currentTarget ? 'container' : e.target.name;
+    const event = new CustomEvent('switchmonth', {
+      detail: { direction },
+      bubbles: true,
+      composed: true,
+    });
+    this.dispatchEvent(event);
   }
 }

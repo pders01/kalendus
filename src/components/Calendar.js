@@ -1,4 +1,4 @@
-import {LitElement, css, html} from 'lit';
+import { LitElement, css, html } from 'lit';
 import Header from './Header';
 import Body from './Body';
 import Context from './Context';
@@ -44,16 +44,43 @@ export default class LMSCalendar extends LitElement {
   constructor() {
     super();
     this.heading = 'Current Bookings';
-    this.activeDate = {day: '1', month: '12', year: '2023'};
+    this.activeDate = { day: 1, month: 1, year: 2023 };
     this.weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
   }
 
   render() {
     return html`<div>
-      <lms-calendar-header .heading=${this.heading} .activeDate=${this.activeDate}></lms-calendar-header>
+      <lms-calendar-header
+        @switchmonth=${this._handleSwitchMonth}
+        .heading=${this.heading}
+        .activeDate=${this.activeDate}
+      ></lms-calendar-header>
       <lms-calendar-context .weekdays=${this.weekdays}></lms-calendar-context>
       <lms-calendar-body .activeDate=${this.activeDate}></lms-calendar-body>
       <lms-calendar-footer></lms-calendar-footer>
     </div>`;
+  }
+
+  getDateByMonthInDirection(date, direction) {
+    if (direction === 'previous') {
+      return date.month - 1 === 0
+        ? { ...date, year: date.year - 1, month: 12 }
+        : { ...date, month: date.month - 1 };
+    }
+
+    if (direction === 'next') {
+      return date.month + 1 === 13
+        ? { ...date, year: date.year + 1, month: 1 }
+        : { ...date, month: date.month + 1 };
+    }
+
+    return date;
+  }
+
+  _handleSwitchMonth(e) {
+    this.activeDate = this.getDateByMonthInDirection(
+      this.activeDate,
+      e.detail.direction
+    );
   }
 }

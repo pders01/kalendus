@@ -1,4 +1,5 @@
 import { LitElement, css, html } from 'lit';
+import localize from '../localization/localize';
 
 export default class Body extends LitElement {
   static properties = {
@@ -53,6 +54,8 @@ export default class Body extends LitElement {
   }
 
   getDaysInMonth(date) {
+    /** Important note: Passing 0 as the date shifts the
+     *  months indices by positive 1, so 1-12 */
     return new Date(date.year, date.month, 0).getDate();
   }
 
@@ -61,50 +64,64 @@ export default class Body extends LitElement {
     return offset === -1 ? 6 : offset;
   }
 
-  render() {
-    const daysInMonth = this.getDaysInMonth(this.activeDate);
-    const offset = this.getOffsetOfFirstDayInMonth(this.activeDate);
-    const previousMonth = [
-      ...Array.from(
-        Array(
-          this.getDaysInMonth({
-            ...this.activeDate,
-            month:
-              this.activeDate.month - 1 === -1 ? 11 : this.activeDate.month - 1,
-          })
-        ).keys(),
-        (_, x) => (x !== 0 ? x + 1 : `${x + 1}. ${this.activeDate.month - 1}`)
-      ).slice(offset * -1),
-    ];
-    const activeMonth = [
-      ...Array.from(Array(daysInMonth).keys(), (_, x) =>
-        x !== 0 ? x + 1 : `${x + 1}. ${this.activeDate.month}`
+  getDaysInMonthAsArray(numberOfDays, sliceArgs) {
+    return [
+      ...Array.from(Array(numberOfDays).keys(), (_, n) => n + 1).slice(
+        ...sliceArgs
       ),
     ];
-    const nextMonth = [
-      ...Array.from(
-        Array(
-          this.getDaysInMonth({
-            ...this.activeDate,
-            month: this.activeDate.month === 12 ? 0 : this.activeDate.month + 1,
-          })
-        ).keys(),
-        (_, x) => (x !== 0 ? x + 1 : `${x + 1}. ${parseInt(this.activeDate.month, 10) + 1}`)
-      ).slice(0, 42 - (previousMonth.length + activeMonth.length))
-    ];
+  }
 
-    console.log(nextMonth);
+  render() {
+    const previousMonth = this.getDaysInMonthAsArray(
+      this.getDaysInMonth({
+        ...this.activeDate,
+        month:
+          this.activeDate.month - 1 === -1 ? 11 : this.activeDate.month - 1,
+      }),
+      this.getOffsetOfFirstDayInMonth(this.activeDate)
+        ? [this.getOffsetOfFirstDayInMonth(this.activeDate) * -1]
+        : [-0, -0]
+    );
+    const activeMonth = this.getDaysInMonthAsArray(
+      this.getDaysInMonth(this.activeDate),
+      []
+    );
+    const nextMonth = this.getDaysInMonthAsArray(
+      this.getDaysInMonth({
+        ...this.activeDate,
+        month: this.activeDate.month + 1 === 12 ? 0 : this.activeDate.month + 1,
+      }),
+      [0, 42 - (previousMonth.length + activeMonth.length)]
+    );
 
-    const calendar = previousMonth.concat(activeMonth, nextMonth);
-
-    // console.log(calendar);
+    const calendar = previousMonth
+      .concat(activeMonth, nextMonth)
+      .map((day, index, array) =>
+        day === 1
+          ? index < array.length / 2
+            ? `${day}. ${localize({
+              locale: window.navigator.language,
+              topic: 'months',
+              string: this.activeDate.month,
+            })}`
+            : `${day}. ${localize({
+              locale: window.navigator.language,
+              topic: 'months',
+              string:
+                  this.activeDate.month + 1 === 13
+                    ? 1
+                    : this.activeDate.month + 1,
+            })}`
+          : day
+      );
 
     return html`
       <div class="month">
         ${calendar.map(
-    (day) =>
-      html`<div class="day"><div class="indicator">${day}</div></div>`
-  )}
+          (day) =>
+            html`<div class="day"><div class="indicator">${day}</div></div>`
+        )}
       </div>
     `;
   }
