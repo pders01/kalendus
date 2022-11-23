@@ -65,9 +65,9 @@ export default class Body extends LitElement {
     return offset === -1 ? 6 : offset;
   }
 
-  getDaysInMonthAsArray(date, numberOfDays, sliceArgs) {
+  getDatesInMonthAsArray(date, sliceArgs) {
     return [
-      ...Array.from(Array(numberOfDays).keys(), (_, n) => ({
+      ...Array.from(Array(this.getDaysInMonth(date)).keys(), (_, n) => ({
         year: date.year,
         month: date.month,
         day: n + 1,
@@ -76,28 +76,18 @@ export default class Body extends LitElement {
   }
 
   render() {
-    const previousMonth = this.getDaysInMonthAsArray(
+    const previousMonth = this.getDatesInMonthAsArray(
       getDateByMonthInDirection(this.activeDate, 'previous'),
-      this.getDaysInMonth({
-        ...this.activeDate,
-        month:
-          this.activeDate.month - 1 === -1 ? 11 : this.activeDate.month - 1,
-      }),
       this.getOffsetOfFirstDayInMonth(this.activeDate)
         ? [this.getOffsetOfFirstDayInMonth(this.activeDate) * -1]
         : [-0, -0]
     );
-    const activeMonth = this.getDaysInMonthAsArray(
+    const activeMonth = this.getDatesInMonthAsArray(
       this.activeDate,
-      this.getDaysInMonth(this.activeDate),
       []
     );
-    const nextMonth = this.getDaysInMonthAsArray(
+    const nextMonth = this.getDatesInMonthAsArray(
       getDateByMonthInDirection(this.activeDate, 'previous'),
-      this.getDaysInMonth({
-        ...this.activeDate,
-        month: this.activeDate.month + 1 === 12 ? 0 : this.activeDate.month + 1,
-      }),
       [0, 42 - (previousMonth.length + activeMonth.length)]
     );
 
