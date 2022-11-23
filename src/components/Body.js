@@ -1,6 +1,6 @@
 import { LitElement, css, html } from 'lit';
 import localize from '../localization/localize';
-import getDateByMonthInDirection from './utils/getDateByMonthInDirection';
+import getDateByMonthInDirection from '../utils/getDateByMonthInDirection';
 
 export default class Body extends LitElement {
   static properties = {
@@ -9,7 +9,7 @@ export default class Body extends LitElement {
 
   static styles = css`
     .month {
-      /* There has to be a way to make this dynamic with just CSS
+      /* TODO: There has to be a way to make this dynamic with just CSS
          Currently we add the heights of Header and Context and sub
          it from 100% of the parent container. */
       height: calc(100% - 95px);
@@ -53,7 +53,7 @@ export default class Body extends LitElement {
 
     this.activeDate = {};
   }
-
+  
   getDaysInMonth(date) {
     /** Important note: Passing 0 as the date shifts the
      *  months indices by positive 1, so 1-12 */

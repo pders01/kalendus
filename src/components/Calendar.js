@@ -2,17 +2,20 @@ import { LitElement, css, html } from 'lit';
 import Header from './Header';
 import Body from './Body';
 import Context from './Context';
-import getDateByMonthInDirection from './utils/getDateByMonthInDirection';
+import Entry from './Entry';
+import getDateByMonthInDirection from '../utils/getDateByMonthInDirection';
 
 customElements.define('lms-calendar-header', Header);
 customElements.define('lms-calendar-body', Body);
 customElements.define('lms-calendar-context', Context);
+customElements.define('lms-calendar-entry', Entry);
 
 export default class LMSCalendar extends LitElement {
   static properties = {
     heading: {},
     activeDate: {},
     weekdays: {},
+    entries: {},
   };
 
   static styles = css`
@@ -47,6 +50,21 @@ export default class LMSCalendar extends LitElement {
     this.heading = 'Current Bookings';
     this.activeDate = { day: 1, month: 1, year: 2023 };
     this.weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+    this.entries = [
+      {
+        date: { day: 4, month: 1, year: 2023 },
+        time: { hours: 9, minutes: 30 },
+        title: 'My super important event',
+        content: 'Some super important content that stretches for a while...',
+      },
+      {
+        date: { day: 4, month: 1, year: 2023 },
+        //TODO: Auto suffix for full hours so time can remain integer based
+        time: { hours: 10, minutes: '00' },
+        title: 'My other super important event with a slightly longer title...',
+        content: 'Some super important content that stretches for a while...',
+      },
+    ];
   }
 
   render() {
@@ -57,7 +75,17 @@ export default class LMSCalendar extends LitElement {
         .activeDate=${this.activeDate}
       ></lms-calendar-header>
       <lms-calendar-context .weekdays=${this.weekdays}></lms-calendar-context>
-      <lms-calendar-body .activeDate=${this.activeDate}></lms-calendar-body>
+      <lms-calendar-body .activeDate=${this.activeDate}>
+        ${this.entries.map(
+          ({ date, time, title, content }) =>
+            html`<lms-calendar-entry
+              slot="${date.year}-${date.month}-${date.day}"
+              .time=${time}
+              .title=${title}
+              .content=${content}
+            ></lms-calendar-entry>`
+        )}
+      </lms-calendar-body>
       <lms-calendar-footer></lms-calendar-footer>
     </div>`;
   }
