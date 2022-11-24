@@ -5,11 +5,12 @@ export default class Entry extends LitElement {
     time: {},
     title: {},
     content: {},
+    _highlighted: { state: true },
+    _extended: { state: true },
   };
 
   static styles = css`
     :host {
-      padding: 0.25em;
       /*TODO: Margins are subject to change */
       margin-right: 0.25em;
       margin-left: 1.5em;
@@ -20,12 +21,18 @@ export default class Entry extends LitElement {
     .main {
       display: flex;
       justify-content: space-between;
+      padding: 0.25em;
+      border-radius: 5px;
     }
-    
+
     .main > span:first-child {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    div[highlighted] {
+      background: var(--separator-light);
     }
   `;
 
@@ -34,15 +41,29 @@ export default class Entry extends LitElement {
     this.time = {};
     this.title = {};
     this.content = {};
+    this._highlighted = false;
+    this._extended = false;
+  }
+
+  _handleClick() {
+    this._highlighted = true;
+    this._extended = true;
   }
 
   render() {
     return html`
-      <div class="main">
-        <span>${this.title}</span>
-        <span>${this.time.hours}:${this.time.minutes}</span>
+      <div
+        class="main"
+        ?highlighted=${this._highlighted}
+        ?extended=${this._extended}
+      >
+        <span @click=${this._handleClick}>${this.title}</span>
+        <span
+          >${this.time.hours}:${this.time.minutes < 10
+            ? `${this.time.minutes}0`
+            : this.time.minutes}</span
+        >
       </div>
-      <div hidden>${this.content}</div>
     `;
   }
 }

@@ -8,9 +8,9 @@ export default class Header extends LitElement {
 
   static styles = css`
     .controls {
-      height: 37px;
+      height: 3.5em;
       width: 100%;
-      padding: 0.75em 0;
+      /* padding: 0.75em 0; */
       display: flex;
       flex-direction: row;
       flex-wrap: nowrap;

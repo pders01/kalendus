@@ -7,12 +7,12 @@ export default class Context extends LitElement {
 
   static styles = css`
     div {
-      height: 34px;
+      height: 1.75em;
       display: grid;
       grid-template-columns: repeat(7, 1fr);
     }
     span {
-      padding: 0.5em 0.25em;
+      padding: 0.25em;
       text-align: left;
     }
   `;

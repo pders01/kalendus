@@ -1,12 +1,16 @@
 import { LitElement, css, html } from 'lit';
 import Header from './Header';
-import Body from './Body';
+import Month from './Month';
+import Day from './Day';
 import Context from './Context';
 import Entry from './Entry';
 import getDateByMonthInDirection from '../utils/getDateByMonthInDirection';
+import objectsAreEqual from '../utils/objectsAreEqual';
+import isEmptyObject from '../utils/isEmptyObject';
 
 customElements.define('lms-calendar-header', Header);
-customElements.define('lms-calendar-body', Body);
+customElements.define('lms-calendar-month', Month);
+customElements.define('lms-calendar-day', Day);
 customElements.define('lms-calendar-context', Context);
 customElements.define('lms-calendar-entry', Entry);
 
@@ -16,6 +20,7 @@ export default class LMSCalendar extends LitElement {
     activeDate: {},
     weekdays: {},
     entries: {},
+    _expandedDate: {},
   };
 
   static styles = css`
@@ -30,6 +35,8 @@ export default class LMSCalendar extends LitElement {
       --breakpoint-md: 1024px;
 
       --separator-light: rgba(0, 0, 0, 0.1);
+      --separator-mid: rgba(0, 0, 0, 0.4);
+      --separator-dark: rgba(0, 0, 0, 0.7);
 
       --system-ui: system, -apple-system, ".SFNSText-Regular", "San Francisco",
         "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;
@@ -40,7 +47,7 @@ export default class LMSCalendar extends LitElement {
       border-radius: 12px;
       border: 1px solid var(--separator-light);
       font-family: var(--system-ui);
-      color: rgba(0, 0, 0, 0.8);
+      color: var(--separator-dark);
       box-shadow: var(--shadow-md);
     }
   `;
@@ -48,46 +55,41 @@ export default class LMSCalendar extends LitElement {
   constructor() {
     super();
     this.heading = 'Current Bookings';
-    this.activeDate = { day: 1, month: 1, year: 2023 };
+    this.activeDate = {};
     this.weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-    this.entries = [
-      {
-        date: { day: 4, month: 1, year: 2023 },
-        time: { hours: 9, minutes: 30 },
-        title: 'My super important event',
-        content: 'Some super important content that stretches for a while...',
-      },
-      {
-        date: { day: 4, month: 1, year: 2023 },
-        //TODO: Auto suffix for full hours so time can remain integer based
-        time: { hours: 10, minutes: '00' },
-        title: 'My other super important event with a slightly longer title...',
-        content: 'Some super important content that stretches for a while...',
-      },
-    ];
+    this.entries = [];
+    this._expandedDate = {};
   }
 
   render() {
-    return html`<div>
-      <lms-calendar-header
-        @switchmonth=${this._handleSwitchMonth}
-        .heading=${this.heading}
-        .activeDate=${this.activeDate}
-      ></lms-calendar-header>
-      <lms-calendar-context .weekdays=${this.weekdays}></lms-calendar-context>
-      <lms-calendar-body .activeDate=${this.activeDate}>
-        ${this.entries.map(
-          ({ date, time, title, content }) =>
-            html`<lms-calendar-entry
-              slot="${date.year}-${date.month}-${date.day}"
-              .time=${time}
-              .title=${title}
-              .content=${content}
-            ></lms-calendar-entry>`
-        )}
-      </lms-calendar-body>
-      <lms-calendar-footer></lms-calendar-footer>
-    </div>`;
+    return html`
+      <div>
+        <lms-calendar-header
+          @switchmonth=${this._handleSwitchMonth}
+          .heading=${this.heading}
+          .activeDate=${this.activeDate}
+        ></lms-calendar-header>
+
+        <lms-calendar-context
+          .weekdays=${this.weekdays}
+          ?hidden=${!isEmptyObject(this._expandedDate)}
+        ></lms-calendar-context>
+
+        <lms-calendar-month
+          @expand=${this._handleExpand}
+          .activeDate=${this.activeDate}
+          ?hidden=${!isEmptyObject(this._expandedDate)}
+        >
+          ${this._getEntries()}
+        </lms-calendar-month>
+
+        <lms-calendar-day ?hidden=${isEmptyObject(this._expandedDate)}>
+          ${this._getEntriesByDate()}
+        </lms-calendar-day>
+
+        <lms-calendar-footer></lms-calendar-footer>
+      </div>
+    `;
   }
 
   _handleSwitchMonth(e) {
@@ -95,5 +97,41 @@ export default class LMSCalendar extends LitElement {
       this.activeDate,
       e.detail.direction
     );
+  }
+
+  _handleExpand(e) {
+    this._expandedDate = e.detail.date;
+  }
+
+  _getEntries() {
+    return this.entries.length !== 0
+      ? html`${this.entries.map(
+          ({ date, time, title, }) =>
+            html`<lms-calendar-entry
+              slot="${date.year}-${date.month}-${date.day}"
+              .time=${time}
+              .title=${title}
+            ></lms-calendar-entry>`
+        )}`
+      : html``;
+  }
+
+  _getEntriesByDate() {
+    return this.entries
+      .filter((entry) => objectsAreEqual(entry.date, this._expandedDate))
+      .map(
+        ({ time, title, content }) =>
+          html`<lms-calendar-entry
+            slot="entry"
+            .time=${time}
+            .title=${title}
+            .content=${content}
+            style=${this._getGridSlotByTime(time)}
+          ></lms-calendar-entry>`
+      );
+  }
+
+  _getGridSlotByTime({ hours, minutes }) {
+    return `grid-row: ${hours * 60 + minutes}/${hours * 60 + minutes + 30}`;
   }
 }
