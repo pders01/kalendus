@@ -105,14 +105,16 @@ export default class LMSCalendar extends LitElement {
 
   _getEntries() {
     return this.entries.length !== 0
-      ? html`${this.entries.map(
-          ({ date, time, title, }) =>
-            html`<lms-calendar-entry
-              slot="${date.year}-${date.month}-${date.day}"
-              .time=${time}
-              .title=${title}
-            ></lms-calendar-entry>`
-        )}`
+      ? html`${this.entries
+        .sort((a, b) => a.time.hours - b.time.hours || a.time.minutes - b.time.minutes)
+        .map(
+            ({ date, time, title }) =>
+              html`<lms-calendar-entry
+                slot="${date.year}-${date.month}-${date.day}"
+                .time=${time}
+                .title=${title}
+              ></lms-calendar-entry>`
+          )}`
       : html``;
   }
 
@@ -122,7 +124,7 @@ export default class LMSCalendar extends LitElement {
       .map(
         ({ time, title, content }) =>
           html`<lms-calendar-entry
-            slot="entry"
+            slot=${time.hours}
             .time=${time}
             .title=${title}
             .content=${content}
@@ -132,6 +134,6 @@ export default class LMSCalendar extends LitElement {
   }
 
   _getGridSlotByTime({ hours, minutes }) {
-    return `grid-row: ${hours * 60 + minutes}/${hours * 60 + minutes + 30}`;
+    return `grid-row: ${hours * 60 + (minutes + 1)}/${hours * 60 + minutes + 30}`;
   }
 }

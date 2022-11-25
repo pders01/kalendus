@@ -14,16 +14,31 @@ export default class Day extends LitElement {
       height: calc(100% - 3.5em);
       width: 100%;
     }
-    
+
     .main {
       display: grid;
-      grid-template-columns: 3em 1fr;
+      grid-template-columns: 4em 1fr;
       grid-template-rows: repeat(1440, 1fr);
       width: 70%;
-      height: 100%;
-      gap: calc(3em / 60);
+      height: calc(100% - 1em);
+      gap: 1px;
       overflow-y: scroll;
-      padding-left: 1em;
+      text-align: center;
+      padding: 0.5em;
+    }
+
+    .hour {
+      text-align: center;
+    }
+
+    .indicator {
+      position: relative;
+      top: -0.6em;
+    }
+
+    .separator {
+      grid-column: 2 / 3;
+      border-top: 1px solid var(--separator-light);
     }
 
     .sidebar {
@@ -41,18 +56,25 @@ export default class Day extends LitElement {
 
   render() {
     return html`<div class="container">
+      <div class="indicators"></div>
       <div class="main">
         ${this._hours.map(
-          (hour) =>
+          (hour, index) =>
             html`
               <div class="hour" style=${this._getHourIndicator(hour)}>
                 <span class="indicator">
                   ${hour < 10 ? `0${hour}:00` : `${hour}:00`}
                 </span>
               </div>
+              ${index
+                ? html`<div
+                    class="separator"
+                    style="grid-row: ${hour * 60}"
+                  ></div>`
+                : html``}
+              <slot name="${hour}" class="entry"></slot>
             `
         )}
-        <slot name="entry"></slot>
       </div>
       <div class="sidebar"></div>
     </div>`;

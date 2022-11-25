@@ -1,4 +1,5 @@
 import { LitElement, css, html } from 'lit';
+import isEmptyObject from '../utils/isEmptyObject';
 
 export default class Entry extends LitElement {
   static properties = {
@@ -57,10 +58,15 @@ export default class Entry extends LitElement {
         ?highlighted=${this._highlighted}
         ?extended=${this._extended}
       >
-        <span @click=${this._handleClick}>${this.title}</span>
+        <span @click=${this._handleClick}>
+          <span>
+            ${this.title}
+          </span>
+          <span ?hidden=${isEmptyObject(this.content)}>· ${this.content}</span>
+        </span>
         <span
           >${this.time.hours}:${this.time.minutes < 10
-            ? `${this.time.minutes}0`
+            ? `0${this.time.minutes}`
             : this.time.minutes}</span
         >
       </div>
