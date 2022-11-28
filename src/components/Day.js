@@ -2,8 +2,6 @@ import { LitElement, css, html } from 'lit';
 
 export default class Day extends LitElement {
   static properties = {
-    
-
     _hours: {},
   };
 
@@ -25,6 +23,7 @@ export default class Day extends LitElement {
       overflow-y: scroll;
       text-align: center;
       padding: 0.5em;
+      position: relative;
     }
 
     .hour {
@@ -39,6 +38,9 @@ export default class Day extends LitElement {
     .separator {
       grid-column: 2 / 3;
       border-top: 1px solid var(--separator-light);
+      position: absolute;
+      width: 100%;
+      z-index: -1;
     }
 
     .sidebar {
@@ -56,7 +58,6 @@ export default class Day extends LitElement {
 
   render() {
     return html`<div class="container">
-      <div class="indicators"></div>
       <div class="main">
         ${this._hours.map(
           (hour, index) =>

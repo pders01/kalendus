@@ -7,6 +7,7 @@ import Entry from './Entry';
 import getDateByMonthInDirection from '../utils/getDateByMonthInDirection';
 import objectsAreEqual from '../utils/objectsAreEqual';
 import isEmptyObject from '../utils/isEmptyObject';
+import getColorWithTextContrast from '../utils/getColorWithTextContrast';
 
 customElements.define('lms-calendar-header', Header);
 customElements.define('lms-calendar-month', Month);
@@ -20,6 +21,7 @@ export default class LMSCalendar extends LitElement {
     activeDate: {},
     weekdays: {},
     entries: {},
+    color: {},
     _expandedDate: {},
   };
 
@@ -40,11 +42,15 @@ export default class LMSCalendar extends LitElement {
 
       --system-ui: system, -apple-system, ".SFNSText-Regular", "San Francisco",
         "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif;
+
+      --border-radius-sm: 5px;
+      --border-radius-md: 7px;
+      --border-radius-lg: 12px;
     }
     div {
       height: 100%;
       width: 100%;
-      border-radius: 12px;
+      border-radius: var(--border-radius-lg);
       border: 1px solid var(--separator-light);
       font-family: var(--system-ui);
       color: var(--separator-dark);
@@ -58,6 +64,7 @@ export default class LMSCalendar extends LitElement {
     this.activeDate = {};
     this.weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     this.entries = [];
+    this.color = {};
     this._expandedDate = {};
   }
 
@@ -66,8 +73,10 @@ export default class LMSCalendar extends LitElement {
       <div>
         <lms-calendar-header
           @switchmonth=${this._handleSwitchMonth}
+          @switchview=${this._handleSwitchView}
           .heading=${this.heading}
           .activeDate=${this.activeDate}
+          .expandedDate=${this._expandedDate}
         ></lms-calendar-header>
 
         <lms-calendar-context
@@ -99,6 +108,18 @@ export default class LMSCalendar extends LitElement {
     );
   }
 
+  _handleSwitchView(e) {
+    if (e.detail.view === 'day') {
+      this._expandedDate = !isEmptyObject(this._expandedDate)
+        ? this._expandedDate
+        : this.activeDate;
+    }
+
+    if (e.detail.view === 'month') {
+      this._expandedDate = {};
+    }
+  }
+
   _handleExpand(e) {
     this._expandedDate = e.detail.date;
   }
@@ -106,34 +127,47 @@ export default class LMSCalendar extends LitElement {
   _getEntries() {
     return this.entries.length !== 0
       ? html`${this.entries
-        .sort((a, b) => a.time.hours - b.time.hours || a.time.minutes - b.time.minutes)
-        .map(
-            ({ date, time, title }) =>
-              html`<lms-calendar-entry
-                slot="${date.year}-${date.month}-${date.day}"
-                .time=${time}
-                .title=${title}
-              ></lms-calendar-entry>`
-          )}`
+        .sort(
+          (a, b) =>
+            a.time.start.hours - b.time.start.hours ||
+              a.time.start.minutes - b.time.start.minutes
+        )
+        .map(({ date, time, title, color }) => {
+          const [background, text] = getColorWithTextContrast(color);
+          return html` <lms-calendar-entry
+              slot="${date.start.year}-${date.start.month}-${date.start.day}"
+              .time=${time}
+              .title=${title}
+              style="background-color: ${background};
+                  color: ${text}"
+            >
+            </lms-calendar-entry>`;
+        })}`
       : html``;
   }
 
   _getEntriesByDate() {
     return this.entries
-      .filter((entry) => objectsAreEqual(entry.date, this._expandedDate))
-      .map(
-        ({ time, title, content }) =>
-          html`<lms-calendar-entry
-            slot=${time.hours}
-            .time=${time}
-            .title=${title}
-            .content=${content}
-            style=${this._getGridSlotByTime(time)}
-          ></lms-calendar-entry>`
-      );
+      .filter((entry) => objectsAreEqual(entry.date.start, this._expandedDate))
+      .map(({ time, title, content, color }) => {
+        const [background, text] = getColorWithTextContrast(color);
+        return html` <lms-calendar-entry
+          slot=${time.start.hours}
+          .time=${time}
+          .title=${title}
+          .content=${content}
+          style="${this._getGridSlotByTime(time)};
+              grid-column: 2;
+              background-color: ${background};
+              color: ${text}"
+        ></lms-calendar-entry>`;
+      });
   }
 
-  _getGridSlotByTime({ hours, minutes }) {
-    return `grid-row: ${hours * 60 + (minutes + 1)}/${hours * 60 + minutes + 30}`;
+  _getGridSlotByTime({ start, end }) {
+    const startRow = start.hours * 60 + (start.minutes + 1);
+    return `grid-row: ${startRow}/${
+      startRow + (end.hours * 60 + end.minutes - startRow)
+    }`;
   }
 }

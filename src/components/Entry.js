@@ -16,14 +16,14 @@ export default class Entry extends LitElement {
       margin-right: 0.25em;
       margin-left: 1.5em;
       font-size: small;
-      border-radius: 5px;
+      border-radius: var(--border-radius-sm);
     }
 
     .main {
       display: flex;
       justify-content: space-between;
       padding: 0.25em;
-      border-radius: 5px;
+      border-radius: var(--border-radius-sm);
     }
 
     .main > span:first-child {
@@ -46,11 +46,6 @@ export default class Entry extends LitElement {
     this._extended = false;
   }
 
-  _handleClick() {
-    this._highlighted = true;
-    this._extended = true;
-  }
-
   render() {
     return html`
       <div
@@ -59,17 +54,20 @@ export default class Entry extends LitElement {
         ?extended=${this._extended}
       >
         <span @click=${this._handleClick}>
-          <span>
-            ${this.title}
-          </span>
+          <span> ${this.title} </span>
           <span ?hidden=${isEmptyObject(this.content)}>· ${this.content}</span>
         </span>
         <span
-          >${this.time.hours}:${this.time.minutes < 10
-            ? `0${this.time.minutes}`
-            : this.time.minutes}</span
+          >${this.time.start.hours}:${this.time.start.minutes < 10
+            ? `0${this.time.start.minutes}`
+            : this.time.start.minutes}</span
         >
       </div>
     `;
+  }
+
+  _handleClick() {
+    this._highlighted = true;
+    this._extended = true;
   }
 }

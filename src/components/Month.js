@@ -35,6 +35,7 @@ export default class Month extends LitElement {
       display: flex;
       flex-direction: column;
       overflow-y: scroll;
+      gap: 1px;
     }
 
     .indicator {
