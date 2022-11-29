@@ -8,6 +8,8 @@ import getDateByMonthInDirection from '../utils/getDateByMonthInDirection';
 import objectsAreEqual from '../utils/objectsAreEqual';
 import isEmptyObject from '../utils/isEmptyObject';
 import getColorWithTextContrast from '../utils/getColorWithTextContrast';
+import partitionOverlappingIntervals from '../utils/partitionOverlappingIntervals';
+import getOverlappingEntitiesIndices from '../utils/getOverlappingEntitiesIndices';
 
 customElements.define('lms-calendar-header', Header);
 customElements.define('lms-calendar-month', Month);
@@ -147,21 +149,35 @@ export default class LMSCalendar extends LitElement {
   }
 
   _getEntriesByDate() {
-    return this.entries
-      .filter((entry) => objectsAreEqual(entry.date.start, this._expandedDate))
-      .map(({ time, title, content, color }) => {
-        const [background, text] = getColorWithTextContrast(color);
-        return html` <lms-calendar-entry
-          slot=${time.start.hours}
-          .time=${time}
-          .title=${title}
-          .content=${content}
-          style="${this._getGridSlotByTime(time)};
+    const entriesByDate = this.entries.filter((entry) =>
+      objectsAreEqual(entry.date.start, this._expandedDate)
+    );
+
+    const grading = !isEmptyObject(entriesByDate)
+      ? getOverlappingEntitiesIndices(
+        this._getPartitionedSlottedItems(entriesByDate)
+      )
+      : [];
+
+    console.log(grading);
+    return entriesByDate.map(({ time, title, content, color }, index) => {
+      const [background, text] = getColorWithTextContrast(color);
+      return html`<lms-calendar-entry
+        slot=${time.start.hours}
+        .time=${time}
+        .title=${title}
+        .content=${content}
+        style="${this._getGridSlotByTime(time)};
               grid-column: 2;
+              width: ${100 / // PROTOTYPE
+        (Math.max(...[...grading.map((item) => item.depth)]) + 1)}%;
+              margin-left: ${grading[index].depth === 0
+          ? 0
+          : grading[index].depth * 20}%; 
               background-color: ${background};
               color: ${text}"
-        ></lms-calendar-entry>`;
-      });
+      ></lms-calendar-entry>`;
+    });
   }
 
   _getGridSlotByTime({ start, end }) {
@@ -169,5 +185,18 @@ export default class LMSCalendar extends LitElement {
     return `grid-row: ${startRow}/${
       startRow + (end.hours * 60 + end.minutes - startRow)
     }`;
+  }
+
+  _getPartitionedSlottedItems(items) {
+    return partitionOverlappingIntervals(
+      items
+        .map((entry) =>
+          this._getGridSlotByTime(entry.time)
+            .replace(/[^0-9/]+/g, '')
+            .split('/')
+        )
+        .map(([start, end]) => [parseInt(start, 10), parseInt(end, 10)])
+        .map(([start, end]) => ({ start, end }))
+    );
   }
 }

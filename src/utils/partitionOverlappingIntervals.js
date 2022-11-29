@@ -9,7 +9,7 @@
  * @returns {Array} - Partitioned Array of of arrays of interval objects.
  */
 export default function partitionOverlappingIntervals(intervals) {
-  var rightEndValues = intervals.map((r) => r.end).sort((a, b) => a - b);
+  const rightEndValues = intervals.map((r) => r.end).sort((a, b) => a - b);
   intervals.sort((a, b) => a.start - b.start);
 
   let i = 0;
