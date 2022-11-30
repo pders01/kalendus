@@ -136,16 +136,17 @@ export default class LMSCalendar extends LitElement {
         )
         .map(({ date, time, title, color }, index) => {
           const [background, text] = getColorWithTextContrast(color);
+          const id = `_${index}`;
           return html`
               <style>
-                lms-calendar-entry.lms-entry-${index} {
+                lms-calendar-entry.${id} {
                   --entry-m: 0 0.25em 0 1.5em;
                   --entry-bc: ${background};
                   --entry-c: ${text};
                 }
               </style>
               <lms-calendar-entry
-                class="lms-entry-${index}"
+                class=${id}
                 slot="${date.start.year}-${date.start.month}-${date.start.day}"
                 .time=${time}
                 .title=${title}
@@ -169,9 +170,10 @@ export default class LMSCalendar extends LitElement {
 
     return entriesByDate.map(({ time, title, content, color }, index) => {
       const [background, text] = getColorWithTextContrast(color);
+      const id = `_${index}`;
       return html`
         <style>
-          lms-calendar-entry.lms-entry-${index} {
+          lms-calendar-entry.${id} {
             --start-slot: ${this._getGridSlotByTime(time)};
             --entry-w: ${this._getWidthByGroupSize({ grading, index })}%;
             --entry-m: 0 1.5em 0 ${this._getOffsetByDepth({ grading, index })}%;
@@ -180,7 +182,7 @@ export default class LMSCalendar extends LitElement {
           }
         </style>
         <lms-calendar-entry
-          class="lms-entry-${index}"
+          class=${id}
           slot=${time.start.hours}
           .time=${time}
           .title=${title}

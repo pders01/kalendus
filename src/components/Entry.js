@@ -29,6 +29,7 @@ export default class Entry extends LitElement {
       justify-content: space-between;
       padding: 0.25em;
       border-radius: var(--border-radius-sm);
+      background-color: inherit;
     }
 
     .main > span:first-child {
