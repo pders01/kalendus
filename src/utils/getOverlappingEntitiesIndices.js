@@ -27,7 +27,10 @@ export default function getOverlappingEntitiesIndices(partitions) {
     .map((partition, index) =>
       partition.map((item, _index) => ({
         ...item,
-        index: index + _index,
+        index:
+          [partitions.slice(0, index)].flatMap(
+            (item) => item.flat().length
+          )[0] + _index,
         group: index,
       }))
     )
@@ -37,9 +40,18 @@ export default function getOverlappingEntitiesIndices(partitions) {
    *  TODO: Add indictor for partition group; document...
    */
   let depth = 0;
-  function recursiveBubbleSort({ partitions, recursive = false }) {
-    depth = recursive ? (depth += 1) : 0;
+  let openGroup = Math.min(
+    ...[..._partitions.map((partition) => partition[0].group)]
+  );
+  function recursiveBubbleSort({ partitions, isNested = false }) {
+    depth = isNested ? (depth += 1) : 0;
     partitions.forEach((partition) => {
+      const { group } = partition[0];
+      if (openGroup !== group) {
+        depth = 0;
+      }
+      openGroup = group;
+
       const delta = [...partition.map(({ start, end }) => end - start)];
       const maxDelta = Math.max(...delta);
 
@@ -53,13 +65,12 @@ export default function getOverlappingEntitiesIndices(partitions) {
 
       recursiveBubbleSort({
         partitions: partitionOverlappingIntervals(partition),
-        recursive: true,
+        isNested: true,
       });
     });
   }
 
   recursiveBubbleSort({ partitions: _partitions });
-  // console.log(result.sort((a, b) => a.index - b.index));
 
   return result.sort((a, b) => a.index - b.index);
 }
