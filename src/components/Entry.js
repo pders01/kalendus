@@ -6,17 +6,22 @@ export default class Entry extends LitElement {
     time: {},
     title: {},
     content: {},
+    styles: {},
     _highlighted: { state: true },
     _extended: { state: true },
   };
 
   static styles = css`
     :host {
-      /*TODO: Margins are subject to change */
-      margin-right: 0.25em;
-      margin-left: 1.5em;
       font-size: small;
+      grid-column: 2;
+
       border-radius: var(--border-radius-sm);
+      grid-row: var(--start-slot);
+      width: var(--entry-w);
+      margin: var(--entry-m);
+      background-color: var(--entry-bc);
+      color: var(--entry-c);
     }
 
     .main {
@@ -42,6 +47,7 @@ export default class Entry extends LitElement {
     this.time = {};
     this.title = {};
     this.content = {};
+    this.styles = { backgroundColor: 'transparent', color: 'black' };
     this._highlighted = false;
     this._extended = false;
   }

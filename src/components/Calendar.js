@@ -134,16 +134,24 @@ export default class LMSCalendar extends LitElement {
             a.time.start.hours - b.time.start.hours ||
               a.time.start.minutes - b.time.start.minutes
         )
-        .map(({ date, time, title, color }) => {
+        .map(({ date, time, title, color }, index) => {
           const [background, text] = getColorWithTextContrast(color);
-          return html` <lms-calendar-entry
-              slot="${date.start.year}-${date.start.month}-${date.start.day}"
-              .time=${time}
-              .title=${title}
-              style="background-color: ${background};
-                  color: ${text}"
-            >
-            </lms-calendar-entry>`;
+          return html`
+              <style>
+                lms-calendar-entry.lms-entry-${index} {
+                  --entry-m: 0 0.25em 0 1.5em;
+                  --entry-bc: ${background};
+                  --entry-c: ${text};
+                }
+              </style>
+              <lms-calendar-entry
+                class="lms-entry-${index}"
+                slot="${date.start.year}-${date.start.month}-${date.start.day}"
+                .time=${time}
+                .title=${title}
+              >
+              </lms-calendar-entry>
+            `;
         })}`
       : html``;
   }
@@ -161,26 +169,48 @@ export default class LMSCalendar extends LitElement {
 
     return entriesByDate.map(({ time, title, content, color }, index) => {
       const [background, text] = getColorWithTextContrast(color);
-      return html`<lms-calendar-entry
-        slot=${time.start.hours}
-        .time=${time}
-        .title=${title}
-        .content=${content}
-        style="${this._getGridSlotByTime(time)};
-              grid-column: 2;
-              width: ${100 / (grading.filter((item) => item.group === grading[index].group).length)}%;
-              margin-left: ${(grading[index].depth === 0 ? 0 : (grading[index].depth * (100 / grading.filter((item) => item.group === grading[index].group).length)))}%; 
-              background-color: ${background};
-              color: ${text}"
-      ></lms-calendar-entry>`;
+      return html`
+        <style>
+          lms-calendar-entry.lms-entry-${index} {
+            --start-slot: ${this._getGridSlotByTime(time)};
+            --entry-w: ${this._getWidthByGroupSize({ grading, index })}%;
+            --entry-m: 0 1.5em 0 ${this._getOffsetByDepth({ grading, index })}%;
+            --entry-bc: ${background};
+            --entry-c: ${text};
+          }
+        </style>
+        <lms-calendar-entry
+          class="lms-entry-${index}"
+          slot=${time.start.hours}
+          .time=${time}
+          .title=${title}
+          .content=${content}
+        >
+        </lms-calendar-entry>
+      `;
     });
   }
 
   _getGridSlotByTime({ start, end }) {
     const startRow = start.hours * 60 + (start.minutes + 1);
-    return `grid-row: ${startRow}/${
+    return `${startRow}/${
       startRow + (end.hours * 60 + end.minutes - startRow)
     }`;
+  }
+
+  _getWidthByGroupSize({ grading, index }) {
+    return (
+      100 / grading.filter((item) => item.group === grading[index].group).length
+    );
+  }
+
+  _getOffsetByDepth({ grading, index }) {
+    return grading[index].depth === 0
+      ? 0
+      : grading[index].depth *
+          (100 /
+            grading.filter((item) => item.group === grading[index].group)
+              .length);
   }
 
   _getPartitionedSlottedItems(items) {
