@@ -15,6 +15,7 @@ export default function getOverlappingEntitiesIndices(partitions) {
               (item) => item.flat().length
             )[0],
             depth: 0,
+            group: index,
           },
         ]
         : [...accumulator],
@@ -24,7 +25,11 @@ export default function getOverlappingEntitiesIndices(partitions) {
   /** Then we filter the non-overlapping partitions out */
   const _partitions = partitions
     .map((partition, index) =>
-      partition.map((item, _index) => ({ ...item, index: index + _index }))
+      partition.map((item, _index) => ({
+        ...item,
+        index: index + _index,
+        group: index,
+      }))
     )
     .filter((partition) => partition.length > 1);
 
@@ -38,7 +43,11 @@ export default function getOverlappingEntitiesIndices(partitions) {
       const delta = [...partition.map(({ start, end }) => end - start)];
       const maxDelta = Math.max(...delta);
 
-      result.push({ index: partition[delta.indexOf(maxDelta)].index, depth });
+      result.push({
+        index: partition[delta.indexOf(maxDelta)].index,
+        depth,
+        group: partition[delta.indexOf(maxDelta)].group,
+      });
 
       partition.splice(delta.indexOf(maxDelta), 1);
 

@@ -159,7 +159,6 @@ export default class LMSCalendar extends LitElement {
       )
       : [];
 
-    console.log(grading);
     return entriesByDate.map(({ time, title, content, color }, index) => {
       const [background, text] = getColorWithTextContrast(color);
       return html`<lms-calendar-entry
@@ -169,11 +168,8 @@ export default class LMSCalendar extends LitElement {
         .content=${content}
         style="${this._getGridSlotByTime(time)};
               grid-column: 2;
-              width: ${100 / // PROTOTYPE
-        (Math.max(...[...grading.map((item) => item.depth)]) + 1)}%;
-              margin-left: ${grading[index].depth === 0
-          ? 0
-          : grading[index].depth * 20}%; 
+              width: ${100 / (grading.filter((item) => item.group === grading[index].group).length)}%;
+              margin-left: ${(grading[index].depth === 0 ? 0 : (grading[index].depth * (100 / grading.filter((item) => item.group === grading[index].group).length)))}%; 
               background-color: ${background};
               color: ${text}"
       ></lms-calendar-entry>`;
