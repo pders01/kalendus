@@ -1,11 +1,12 @@
-import { LitElement, css, html } from 'lit';
+import {LitElement, css, html} from 'lit';
+import {customElement, state} from 'lit/decorators';
 
+@customElement('lms-calendar-day')
 export default class Day extends LitElement {
-  static properties = {
-    _hours: {},
-  };
+  @state()
+  _hours = [...Array(25).keys()];
 
-  static styles = css`
+  static override styles = css`
     .container {
       display: flex;
       /* Header: 3.5em */
@@ -50,13 +51,7 @@ export default class Day extends LitElement {
     }
   `;
 
-  constructor() {
-    super();
-
-    this._hours = [...Array(25).keys()];
-  }
-
-  render() {
+  override render() {
     return html`<div class="container">
       <div class="main">
         ${this._hours.map(
@@ -81,7 +76,9 @@ export default class Day extends LitElement {
     </div>`;
   }
 
-  _getHourIndicator(hour) {
-    return hour !== 24 ? `grid-row: ${(hour + 1) * 60 - 59}/${(hour + 1) * 60}` : 'grid-row: 1440';
+  _getHourIndicator(hour: number) {
+    return hour !== 24
+      ? `grid-row: ${(hour + 1) * 60 - 59}/${(hour + 1) * 60}`
+      : 'grid-row: 1440';
   }
 }

@@ -1,11 +1,12 @@
-import { LitElement, css, html, nothing } from 'lit';
+import {LitElement, css, html, nothing} from 'lit';
+import {customElement, property} from 'lit/decorators';
 
+@customElement('lms-calendar-context')
 export default class Context extends LitElement {
-  static properties = {
-    weekdays: {},
-  };
+  @property({attribute: false})
+  weekdays: string[] = [];
 
-  static styles = css`
+  static override styles = css`
     div {
       height: 1.75em;
       display: grid;
@@ -17,13 +18,7 @@ export default class Context extends LitElement {
     }
   `;
 
-  constructor() {
-    super();
-
-    this.weekdays = [];
-  }
-
-  render() {
+  override render() {
     return this.weekdays
       ? html`<div>
           ${this.weekdays.map((item) => html`<span>${item}</span>`)}

@@ -1,14 +1,19 @@
-import { LitElement, css, html } from 'lit';
-import localize from '../localization/localize';
+import {LitElement, css, html} from 'lit';
+import {customElement, property} from 'lit/decorators';
 import isEmptyObject from '../utils/isEmptyObject';
-export default class Header extends LitElement {
-  static properties = {
-    heading: {},
-    activeDate: {},
-    expandedDate: {},
-  };
 
-  static styles = css`
+@customElement('lms-calendar-header')
+export default class Header extends LitElement {
+  @property({type: String})
+  heading?: string;
+
+  @property({type: Object})
+  activeDate?: CalendarDate;
+
+  @property({type: Object})
+  expandedDate?: CalendarDate;
+
+  static override styles = css`
     .controls {
       height: 3.5em;
       width: 100%;
@@ -56,38 +61,36 @@ export default class Header extends LitElement {
       line-height: 0.5em;
       border: 1px solid transparent;
     }
-    span[active] {
+    span[data-active] {
       background-color: var(--separator-light);
     }
   `;
 
-  constructor() {
-    super();
-    this.heading = 'Info';
-    this.activeDate = {};
-    this.expandedDate = {};
-  }
-
-  render() {
+  override render() {
+    console.log('test');
     return html`<div class="controls">
       <div class="info">
         <span>
           <strong>${this.heading}</strong>
         </span>
         <br />
-        <span class="day" ?hidden=${isEmptyObject(this.expandedDate)}>${this.expandedDate.day}</span>
-        <span class="month">
-          ${localize({
-      locale: window.navigator.language,
-      topic: 'months',
-      string: this.activeDate.month,
-    })}
-        </span>
-        <span class="year">${this.activeDate.year}</span>
+        <span class="day" ?hidden=${isEmptyObject(this.expandedDate)}
+          >${this.expandedDate?.day}</span
+        >
+        <span class="month"> ${this.activeDate?.month} </span>
+        <span class="year">${this.activeDate?.year}</span>
       </div>
       <div class="context" @click=${this._dispatchSwitchView}>
-        <span ?active=${!isEmptyObject(this.expandedDate)} data-context="day">Day</span>
-        <span ?active=${isEmptyObject(this.expandedDate)} data-context="month">Month</span>
+        <span
+          ?data-active=${!isEmptyObject(this.expandedDate)}
+          data-context="day"
+          >Day</span
+        >
+        <span
+          ?data-active=${isEmptyObject(this.expandedDate)}
+          data-context="month"
+          >Month</span
+        >
       </div>
       <div class="buttons" @click=${this._dispatchSwitchMonth}>
         <button name="previous">«</button>
@@ -96,24 +99,25 @@ export default class Header extends LitElement {
     </div>`;
   }
 
-  _dispatchSwitchMonth(e) {
-    const direction =
-      e.target === e.currentTarget ? 'container' : e.target.name;
+  _dispatchSwitchMonth(e: Event) {
+    const target = e.target as HTMLButtonElement;
+    const direction = e.target === e.currentTarget ? 'container' : target.name;
     const event = new CustomEvent('switchmonth', {
-      detail: { direction },
+      detail: {direction},
       bubbles: true,
       composed: true,
     });
     this.dispatchEvent(event);
   }
 
-  _dispatchSwitchView(e) {
+  _dispatchSwitchView(e: Event) {
+    const target = e.target as HTMLElement;
     const view =
-      e.target === e.currentTarget ? 'container' : e.target.dataset.context;
+      e.target === e.currentTarget ? 'container' : target.dataset.context;
     const event = new CustomEvent('switchview', {
-      detail: { view },
+      detail: {view},
       bubbles: true,
-      compose: true,
+      composed: true,
     });
     this.dispatchEvent(event);
   }

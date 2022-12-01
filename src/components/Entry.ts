@@ -1,17 +1,25 @@
-import { LitElement, css, html } from 'lit';
+import {LitElement, css, html} from 'lit';
+import {customElement, property, state} from 'lit/decorators';
 import isEmptyObject from '../utils/isEmptyObject';
 
+@customElement('lms-calendar-entry')
 export default class Entry extends LitElement {
-  static properties = {
-    time: {},
-    title: {},
-    content: {},
-    styles: {},
-    _highlighted: { state: true },
-    _extended: { state: true },
-  };
+  @property({attribute: false})
+  time?: CalendarTimeInterval;
 
-  static styles = css`
+  @property()
+  heading = '';
+
+  @property()
+  content?: string;
+
+  @state()
+  _highlighted?: Boolean;
+
+  @state()
+  _extended?: Boolean;
+
+  static override styles = css`
     :host {
       font-size: small;
       grid-column: 2;
@@ -38,37 +46,29 @@ export default class Entry extends LitElement {
       text-overflow: ellipsis;
     }
 
-    div[highlighted] {
+    div[data-highlighted] {
       background: var(--separator-light);
     }
   `;
 
-  constructor() {
-    super();
-    this.time = {};
-    this.title = {};
-    this.content = {};
-    this.styles = { backgroundColor: 'transparent', color: 'black' };
-    this._highlighted = false;
-    this._extended = false;
-  }
-
-  render() {
+  override render() {
     return html`
       <div
         class="main"
-        ?highlighted=${this._highlighted}
-        ?extended=${this._extended}
+        ?data-highlighted=${this._highlighted}
+        ?data-extended=${this._extended}
       >
         <span @click=${this._handleClick}>
           <span> ${this.title} </span>
           <span ?hidden=${isEmptyObject(this.content)}>· ${this.content}</span>
         </span>
-        <span
-          >${this.time.start.hours}:${this.time.start.minutes < 10
-            ? `0${this.time.start.minutes}`
-            : this.time.start.minutes}</span
-        >
+        <span>
+          ${this.time?.start.hours}:${this.time
+            ? this.time.start.minutes < 10
+              ? `0${this.time.start.minutes}`
+              : this.time.start.minutes
+            : '00'}
+        </span>
       </div>
     `;
   }
