@@ -1,27 +1,27 @@
-import partitionOverlappingIntervals from './partitionOverlappingIntervals';
+import partitionOverlappingIntervals from './partitionOverlappingIntervals.js';
 
 export default function getOverlappingEntitiesIndices(partitions: Interval[][]): Grading[] {
   /** First we determine all non-overlapping partitions and save their indices.
    *  Indices go into the index portion of the resolving objects and we add
    *  a depth of 0 to indicate, that this is a full-width element.
    */
-  const result: Grading[] = [];
-  // const result = partitions.reduce(
-  //   (accumulator: [], partition , index: number) =>
-  //     partition.length === 1
-  //       ? [
-  //           ...accumulator,
-  //           {
-  //             index: [partitions.slice(0, index)].flatMap(
-  //               (item) => item.flat().length
-  //             )[0],
-  //             depth: 0,
-  //             group: index,
-  //           },
-  //         ]
-  //       : [...accumulator],
-  //   []
-  // );
+
+  const result = partitions.reduce(
+    (accumulator: Grading[], partition, index: number) =>
+      partition.length === 1
+        ? [
+            ...accumulator,
+            {
+              index: [partitions.slice(0, index)].flatMap(
+                (item) => item.flat().length
+              )[0],
+              depth: 0,
+              group: index,
+            },
+          ]
+        : [...accumulator],
+    []
+  );
 
   /** Then we filter the non-overlapping partitions out */
   const _partitions = partitions

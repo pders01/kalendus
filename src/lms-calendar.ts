@@ -1,17 +1,18 @@
 import {LitElement, css, html} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 
-import Header from './components/Header';
-import Month from './components/Month';
-import Day from './components/Day';
-import Context from './components/Context';
-import Entry from './components/Entry';
-import getDateByMonthInDirection from './utils/getDateByMonthInDirection';
-import isEmptyObject from './utils/isEmptyObject';
-import getColorTextWithContrast from './utils/getColorTextWithContrast';
-import partitionOverlappingIntervals from './utils/partitionOverlappingIntervals';
-import getOverlappingEntitiesIndices from './utils/getOverlappingEntitiesIndices';
-import haveEqualValues from './utils/haveEqualValues';
+import './components/Header.js';
+import './components/Month.js';
+import './components/Day.js';
+import './components/Context.js';
+import './components/Entry.js';
+import getDateByMonthInDirection from './utils/getDateByMonthInDirection.js';
+import isEmptyObjectOrUndefined from './utils/isEmptyObjectOrUndefined.js';
+import getColorTextWithContrast from './utils/getColorTextWithContrast.js';
+import partitionOverlappingIntervals from './utils/partitionOverlappingIntervals.js';
+import getOverlappingEntitiesIndices from './utils/getOverlappingEntitiesIndices.js';
+import haveSameValues from './utils/haveSameValues.js';
+import getSortedGradingsByIndex from './utils/getSortedGradingsByIndex.js';
 
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
@@ -84,19 +85,21 @@ export default class LMSCalendar extends LitElement {
 
         <lms-calendar-context
           .weekdays=${this.weekdays}
-          ?hidden=${!isEmptyObject(this._expandedDate)}
+          ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
         >
         </lms-calendar-context>
 
         <lms-calendar-month
           @expand=${this._handleExpand}
           .activeDate=${this.activeDate}
-          ?hidden=${!isEmptyObject(this._expandedDate)}
+          ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
         >
           ${this._getEntries()}
         </lms-calendar-month>
 
-        <lms-calendar-day ?hidden=${isEmptyObject(this._expandedDate)}>
+        <lms-calendar-day
+          ?hidden=${isEmptyObjectOrUndefined(this._expandedDate)}
+        >
           ${this._getEntriesByDate()}
         </lms-calendar-day>
       </div>
@@ -112,7 +115,7 @@ export default class LMSCalendar extends LitElement {
 
   _handleSwitchView(e: CustomEvent) {
     if (e.detail.view === 'day') {
-      this._expandedDate = !isEmptyObject(this._expandedDate)
+      this._expandedDate = !isEmptyObjectOrUndefined(this._expandedDate)
         ? this._expandedDate
         : this.activeDate;
     }
@@ -157,15 +160,22 @@ export default class LMSCalendar extends LitElement {
   }
 
   _getEntriesByDate() {
-    const entriesByDate = this.entries.filter((entry) =>
-      haveEqualValues(entry.date.start, this._expandedDate || {})
+    if (isEmptyObjectOrUndefined(this._expandedDate)) {
+      return;
+    }
+    const entriesByDate = this.entries.filter((entry) => {
+      return haveSameValues(entry.date.start, this._expandedDate || {});
+    });
+
+    const grading = getSortedGradingsByIndex(
+      !isEmptyObjectOrUndefined(entriesByDate)
+        ? getOverlappingEntitiesIndices(
+            this._getPartitionedSlottedItems(entriesByDate)
+          )
+        : []
     );
 
-    const grading = !isEmptyObject(entriesByDate)
-      ? getOverlappingEntitiesIndices(
-          this._getPartitionedSlottedItems(entriesByDate)
-        )
-      : [];
+    console.log(grading);
 
     return entriesByDate.map(({time, heading, content, color}, index) => {
       const [background, text] = getColorTextWithContrast(color);
@@ -229,11 +239,7 @@ export default class LMSCalendar extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'lms-calendar-month': Month;
-    'lms-calendar-header': Header;
-    'lms-calendar-context': Context;
-    'lms-calendar-day': Day;
-    'lms-calendar-entry': Entry;
+    'lms-calendar': LMSCalendar;
   }
 
   interface CalendarDate {

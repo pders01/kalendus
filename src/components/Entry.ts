@@ -1,6 +1,6 @@
 import {LitElement, css, html} from 'lit';
-import {customElement, property, state} from 'lit/decorators';
-import isEmptyObject from '../utils/isEmptyObject';
+import {customElement, property, state} from 'lit/decorators.js';
+import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
 
 @customElement('lms-calendar-entry')
 export default class Entry extends LitElement {
@@ -59,8 +59,8 @@ export default class Entry extends LitElement {
         ?data-extended=${this._extended}
       >
         <span @click=${this._handleClick}>
-          <span> ${this.title} </span>
-          <span ?hidden=${isEmptyObject(this.content)}>· ${this.content}</span>
+          <span> ${this.heading} </span>
+          <span ?hidden=${isEmptyObjectOrUndefined(this.content)}>· ${this.content}</span>
         </span>
         <span>
           ${this.time?.start.hours}:${this.time

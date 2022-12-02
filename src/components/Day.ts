@@ -1,5 +1,5 @@
 import {LitElement, css, html} from 'lit';
-import {customElement, state} from 'lit/decorators';
+import {customElement, state} from 'lit/decorators.js';
 
 @customElement('lms-calendar-day')
 export default class Day extends LitElement {

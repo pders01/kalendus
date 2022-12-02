@@ -1,6 +1,7 @@
 import {LitElement, css, html} from 'lit';
-import {customElement, property} from 'lit/decorators';
-import isEmptyObject from '../utils/isEmptyObject';
+import {msg, str} from '@lit/localize';
+import {customElement, property} from 'lit/decorators.js';
+import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
 
 @customElement('lms-calendar-header')
 export default class Header extends LitElement {
@@ -67,29 +68,28 @@ export default class Header extends LitElement {
   `;
 
   override render() {
-    console.log('test');
     return html`<div class="controls">
       <div class="info">
         <span>
           <strong>${this.heading}</strong>
         </span>
         <br />
-        <span class="day" ?hidden=${isEmptyObject(this.expandedDate)}
+        <span class="day" ?hidden=${isEmptyObjectOrUndefined(this.expandedDate)}
           >${this.expandedDate?.day}</span
         >
-        <span class="month"> ${this.activeDate?.month} </span>
+        <span class="month">${msg(str`${this.activeDate?.month}`)}</span>
         <span class="year">${this.activeDate?.year}</span>
       </div>
       <div class="context" @click=${this._dispatchSwitchView}>
         <span
-          ?data-active=${!isEmptyObject(this.expandedDate)}
+          ?data-active=${!isEmptyObjectOrUndefined(this.expandedDate)}
           data-context="day"
-          >Day</span
+          >${msg(str`Day`)}</span
         >
         <span
-          ?data-active=${isEmptyObject(this.expandedDate)}
+          ?data-active=${isEmptyObjectOrUndefined(this.expandedDate)}
           data-context="month"
-          >Month</span
+          >${msg(str`Month`)}</span
         >
       </div>
       <div class="buttons" @click=${this._dispatchSwitchMonth}>

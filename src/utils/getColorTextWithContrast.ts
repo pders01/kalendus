@@ -3,13 +3,6 @@ export default function getColorTextWithContrast(color: string) {
   let green = 0;
   let blue = 0;
 
-  if (!color) {
-    // Generate random RGB values
-    red = Math.floor(Math.random() * 256 - 1);
-    green = Math.floor(Math.random() * 256 - 1);
-    blue = Math.floor(Math.random() * 256 - 1);
-  }
-
   if (color) {
     const matches: RegExpMatchArray | null = color
       .replace(
@@ -20,7 +13,8 @@ export default function getColorTextWithContrast(color: string) {
       .match(/.{2}/g);
 
     if (!matches) {
-      return [undefined, undefined];
+      // Return default background and text colors
+      return ['rgb(255,255,255)', 'rgb(0,0,0)'];
     }
 
     [red, green, blue] = matches.map((x) => parseInt(x, 16));
