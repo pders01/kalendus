@@ -3,6 +3,7 @@ export default class Entry extends LitElement {
     time?: CalendarTimeInterval;
     heading: string;
     content?: string;
+    isContinuation: Boolean;
     _highlighted?: Boolean;
     _extended?: Boolean;
     static styles: import("lit").CSSResult;

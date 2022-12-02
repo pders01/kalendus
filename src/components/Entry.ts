@@ -13,6 +13,9 @@ export default class Entry extends LitElement {
   @property()
   content?: string;
 
+  @property()
+  isContinuation: Boolean = false;
+
   @state()
   _highlighted?: Boolean;
 
@@ -24,7 +27,7 @@ export default class Entry extends LitElement {
       font-size: small;
       grid-column: 2;
 
-      border-radius: var(--border-radius-sm);
+      border-radius: var(--entry-br);
       grid-row: var(--start-slot);
       width: var(--entry-w);
       margin: var(--entry-m);
@@ -60,15 +63,19 @@ export default class Entry extends LitElement {
       >
         <span @click=${this._handleClick}>
           <span> ${this.heading} </span>
-          <span ?hidden=${isEmptyObjectOrUndefined(this.content)}>· ${this.content}</span>
+          <span ?hidden=${isEmptyObjectOrUndefined(this.content)}
+            >· ${this.content}</span
+          >
         </span>
-        <span>
-          ${this.time?.start.hours}:${this.time
-            ? this.time.start.minutes < 10
-              ? `0${this.time.start.minutes}`
-              : this.time.start.minutes
-            : '00'}
-        </span>
+        ${this.isContinuation
+          ? html`<span>
+              ${this.time?.start.hours}:${this.time
+                ? this.time.start.minutes < 10
+                  ? `0${this.time.start.minutes}`
+                  : this.time.start.minutes
+                : '00'}
+            </span>`
+          : html``}
       </div>
     `;
   }
