@@ -63,6 +63,7 @@ export default class LMSCalendar extends LitElement {
     div {
       height: 100%;
       width: 100%;
+      background-color: #fff;
       border-radius: var(--border-radius-lg);
       border: 1px solid var(--separator-light);
       font-family: var(--system-ui);
