@@ -43,6 +43,7 @@ export default class Month extends LitElement {
       top: 0.25em;
       text-align: right;
       padding: 0 0.25em;
+      margin-bottom: 0.25em;
       text-align: left;
     }
   `;
