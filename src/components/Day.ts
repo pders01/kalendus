@@ -21,7 +21,7 @@ export default class Day extends LitElement {
       width: 70%;
       height: calc(100% - 1em);
       gap: 1px;
-      overflow-y: scroll;
+      overflow-y: hidden;
       text-align: center;
       padding: 0.5em;
       position: relative;
@@ -41,7 +41,7 @@ export default class Day extends LitElement {
       border-top: 1px solid var(--separator-light);
       position: absolute;
       width: 100%;
-      z-index: -1;
+      z-index: 0;
     }
 
     .sidebar {

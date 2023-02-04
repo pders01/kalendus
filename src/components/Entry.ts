@@ -33,6 +33,8 @@ export default class Entry extends LitElement {
       margin: var(--entry-m);
       background-color: var(--entry-bc);
       color: var(--entry-c);
+      /* z-index of separators in day view is 0 */
+      z-index: 1;
     }
 
     .main {
@@ -68,16 +70,25 @@ export default class Entry extends LitElement {
           >
         </span>
         ${this.isContinuation
-          ? html`<span>
-              ${this.time?.start.hours}:${this.time
-                ? this.time.start.minutes < 10
-                  ? `0${this.time.start.minutes}`
-                  : this.time.start.minutes
-                : '00'}
-            </span>`
+          ? html`<span>${this._displayStartTime(this.time)}</span>`
           : html``}
       </div>
     `;
+  }
+
+  _displayStartTime(time?: CalendarTimeInterval) {
+    if (!time) {
+      return 'Error: No time provided';
+    }
+
+    const hours = time.start.hours;
+    let minutes: number | string = time.start.minutes;
+
+    if (minutes < 10) {
+      minutes = `0${minutes}`;
+    }
+
+    return `${hours}:${minutes}` === '0:00' ? '•' : `${hours}:${minutes}`;
   }
 
   _handleClick() {
