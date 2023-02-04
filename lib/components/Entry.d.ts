@@ -8,6 +8,7 @@ export default class Entry extends LitElement {
     _extended?: Boolean;
     static styles: import("lit").CSSResult;
     render(): import("lit-html").TemplateResult<1>;
+    _displayStartTime(time?: CalendarTimeInterval): string;
     _handleClick(): void;
 }
 //# sourceMappingURL=Entry.d.ts.map

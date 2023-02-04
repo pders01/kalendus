@@ -1,9 +1,14 @@
 import { LitElement } from 'lit';
 import './components/Header.js';
+import LMSCalendarHeader from './components/Header';
 import './components/Month.js';
+import LMSCalendarMonth from './components/Month';
 import './components/Day.js';
+import LMSCalendarDay from './components/Day';
 import './components/Context.js';
+import LMSCalendarContext from './components/Context';
 import './components/Entry.js';
+import LMSCalendarEntry from './components/Entry';
 export default class LMSCalendar extends LitElement {
     heading: string;
     activeDate: CalendarDate;
@@ -11,6 +16,7 @@ export default class LMSCalendar extends LitElement {
     entries: CalendarEntry[];
     color: string;
     _expandedDate?: CalendarDate;
+    _viewportWidth: number;
     static styles: import("lit").CSSResult;
     render(): import("lit-html").TemplateResult<1>;
     _handleSwitchMonth(e: CustomEvent): void;
@@ -32,6 +38,11 @@ export default class LMSCalendar extends LitElement {
 declare global {
     interface HTMLElementTagNameMap {
         'lms-calendar': LMSCalendar;
+        'lms-calendar-header': LMSCalendarHeader;
+        'lms-calendar-month': LMSCalendarMonth;
+        'lms-calendar-day': LMSCalendarDay;
+        'lms-calendar-context': LMSCalendarContext;
+        'lms-calendar-entry': LMSCalendarEntry;
     }
     interface CalendarDate {
         day: number;

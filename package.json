@@ -42,7 +42,9 @@
   "license": "BSD-3-Clause",
   "dependencies": {
     "@lit/localize": "^0.11.4",
-    "lit": "^2.2.4"
+    "@types/luxon": "^3.2.0",
+    "lit": "^2.2.4",
+    "luxon": "^3.2.1"
   },
   "devDependencies": {
     "@11ty/eleventy": "^1.0.1",
