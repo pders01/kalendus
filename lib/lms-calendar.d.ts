@@ -34,6 +34,7 @@ export default class LMSCalendar extends LitElement {
         index: number;
     }): number;
     _getPartitionedSlottedItems(items: CalendarEntry[]): Interval[][];
+    _getDaysRange(date: CalendarDateInterval): [Date, Date, number];
 }
 declare global {
     interface HTMLElementTagNameMap {
