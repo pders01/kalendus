@@ -215,6 +215,7 @@ export default class LMSCalendar extends LitElement {
                   slot="${currentEntry.date.start.year}-${currentEntry.date.start.month}-${currentEntry.date.start.day}"
                   .time=${currentEntry.time}
                   .heading=${rangeDays > 1 && i > 0 ? '' : currentEntry.heading}
+                  .isContinuation=${rangeDays > 1 && i > 0 ? '' : true}
                 >
                 </lms-calendar-entry>
               `);

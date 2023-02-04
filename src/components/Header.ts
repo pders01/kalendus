@@ -1,5 +1,4 @@
 import {LitElement, css, html} from 'lit';
-import {msg, str} from '@lit/localize';
 import {customElement, property} from 'lit/decorators.js';
 import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
 
@@ -77,19 +76,19 @@ export default class Header extends LitElement {
         <span class="day" ?hidden=${isEmptyObjectOrUndefined(this.expandedDate)}
           >${this.expandedDate?.day}</span
         >
-        <span class="month">${msg(str`${this.activeDate?.month}`)}</span>
+        <span class="month">${this.activeDate?.month}</span>
         <span class="year">${this.activeDate?.year}</span>
       </div>
       <div class="context" @click=${this._dispatchSwitchView}>
         <span
           ?data-active=${!isEmptyObjectOrUndefined(this.expandedDate)}
           data-context="day"
-          >${msg(str`Day`)}</span
+          >Day</span
         >
         <span
           ?data-active=${isEmptyObjectOrUndefined(this.expandedDate)}
           data-context="month"
-          >${msg(str`Month`)}</span
+          >Month</span
         >
       </div>
       <div class="buttons" @click=${this._dispatchSwitchMonth}>

@@ -81,7 +81,7 @@ export default class Entry extends LitElement {
   }
 
   _handleClick() {
-    this._highlighted = true;
-    this._extended = true;
+    this._highlighted = !this._highlighted;
+    this._extended = !this._extended;
   }
 }
