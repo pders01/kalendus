@@ -2,10 +2,15 @@ import {LitElement, css, html} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 
 import './components/Header.js';
+import LMSCalendarHeader from './components/Header';
 import './components/Month.js';
+import LMSCalendarMonth from './components/Month';
 import './components/Day.js';
+import LMSCalendarDay from './components/Day';
 import './components/Context.js';
+import LMSCalendarContext from './components/Context';
 import './components/Entry.js';
+import LMSCalendarEntry from './components/Entry';
 import getDateByMonthInDirection from './utils/getDateByMonthInDirection.js';
 import isEmptyObjectOrUndefined from './utils/isEmptyObjectOrUndefined.js';
 import getColorTextWithContrast from './utils/getColorTextWithContrast.js';
@@ -37,6 +42,8 @@ export default class LMSCalendar extends LitElement {
 
   @state()
   _expandedDate?: CalendarDate;
+
+  @state() _viewportWidth: number = window.innerWidth;
 
   static override styles = css`
     :host {
@@ -130,36 +137,6 @@ export default class LMSCalendar extends LitElement {
     this._expandedDate = e.detail.date;
   }
 
-  // _getEntries() {
-  //   return this.entries.length !== 0
-  //     ? html`${this.entries
-  //         .sort(
-  //           (a, b) =>
-  //             a.time.start.hours - b.time.start.hours ||
-  //             a.time.start.minutes - b.time.start.minutes
-  //         )
-  //         .map(({date, time, heading, color}, index) => {
-  //           const [background, text] = getColorTextWithContrast(color);
-  //           return html`
-  //             <style>
-  //               lms-calendar-entry.${`_${index}`} {
-  //                 --entry-m: 0 0.25em 0 1.5em;
-  //                 --entry-bc: ${background};
-  //                 --entry-c: ${text};
-  //               }
-  //             </style>
-  //             <lms-calendar-entry
-  //               class=${`_${index}`}
-  //               slot="${date.start.year}-${date.start.month}-${date.start.day}"
-  //               .time=${time}
-  //               .heading=${heading}
-  //             >
-  //             </lms-calendar-entry>
-  //           `;
-  //         })}`
-  //     : html``;
-  // }
-
   _getEntries() {
     return this.entries.length !== 0
       ? html`${this.entries
@@ -171,17 +148,31 @@ export default class LMSCalendar extends LitElement {
           .map(({date, time, heading, color}, index) => {
             const [background, text] = getColorTextWithContrast(color);
             // Calculate the number of days the entry spans
-            const startDate = new Date(date.start.year, date.start.month - 1, date.start.day);
-            const endDate = new Date(date.end.year, date.end.month - 1, date.end.day);
-            const rangeDays = (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) + 1;
-  
+            const startDate = new Date(
+              date.start.year,
+              date.start.month - 1,
+              date.start.day
+            );
+            const endDate = new Date(
+              date.end.year,
+              date.end.month - 1,
+              date.end.day
+            );
+            const rangeDays =
+              (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) +
+              1;
+
             // Create an array of <lms-calendar-entry> elements for each day the entry spans
             const entries = [];
             for (let i = 0; i < rangeDays; i++) {
               // Calculate the start and end date for the current entry
-              const currentStartDate = new Date(startDate.getTime() + i * (1000 * 3600 * 24));
-              const currentEndDate = new Date(currentStartDate.getTime() + (1000 * 3600 * 24) - 1);
-  
+              const currentStartDate = new Date(
+                startDate.getTime() + i * (1000 * 3600 * 24)
+              );
+              const currentEndDate = new Date(
+                currentStartDate.getTime() + 1000 * 3600 * 24 - 1
+              );
+
               // Create the entry object for the current day
               const currentEntry = {
                 date: {
@@ -200,28 +191,34 @@ export default class LMSCalendar extends LitElement {
                 heading,
                 color,
               };
-  
+
+              // Calculate whether the entry is a continuation of the previous entry
+              const isContinuation = i > 0 && rangeDays > 1;
               // Add the <lms-calendar-entry> element to the array
               entries.push(html`
                 <style>
                   lms-calendar-entry.${`_${index}`} {
-                    --entry-br: ${rangeDays > 1 ? 0 : `var(--border-radius-sm)`};
-                    --entry-m: 0 ${i !== 0 ? 0 : `0.25em`} 0 ${i !== 0 ? 0 : `1.5em`};
+                    --entry-br: ${rangeDays > 1
+                      ? 0
+                      : `var(--border-radius-sm)`};
+                    --entry-m: 0 ${i !== 0 ? 0 : `0.25em`} 0
+                      ${i !== 0 ? 0 : `1.5em`};
                     --entry-bc: ${background};
                     --entry-c: ${text};
                   }
                 </style>
                 <lms-calendar-entry
                   class=${`_${index}`}
-                  slot="${currentEntry.date.start.year}-${currentEntry.date.start.month}-${currentEntry.date.start.day}"
+                  slot="${currentEntry.date.start.year}-${currentEntry.date
+                    .start.month}-${currentEntry.date.start.day}"
                   .time=${currentEntry.time}
-                  .heading=${rangeDays > 1 && i > 0 ? '' : currentEntry.heading}
-                  .isContinuation=${rangeDays > 1 && i > 0 ? '' : true}
+                  .heading=${isContinuation ? '' : currentEntry.heading}
+                  .isContinuation=${isContinuation}
                 >
                 </lms-calendar-entry>
               `);
             }
-  
+
             // Return the array of <lms-calendar-entry> elements
             return entries;
           })}`
@@ -307,6 +304,11 @@ export default class LMSCalendar extends LitElement {
 declare global {
   interface HTMLElementTagNameMap {
     'lms-calendar': LMSCalendar;
+    'lms-calendar-header': LMSCalendarHeader;
+    'lms-calendar-month': LMSCalendarMonth;
+    'lms-calendar-day': LMSCalendarDay;
+    'lms-calendar-context': LMSCalendarContext;
+    'lms-calendar-entry': LMSCalendarEntry;
   }
 
   interface CalendarDate {
