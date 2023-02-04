@@ -18,7 +18,7 @@ import partitionOverlappingIntervals from './utils/partitionOverlappingIntervals
 import getOverlappingEntitiesIndices from './utils/getOverlappingEntitiesIndices.js';
 import haveSameValues from './utils/haveSameValues.js';
 import getSortedGradingsByIndex from './utils/getSortedGradingsByIndex.js';
-
+import EntryTransformer from './utils/EntryTransformer.js';
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
   @property({type: String})
@@ -147,55 +147,20 @@ export default class LMSCalendar extends LitElement {
           )
           .map(({date, time, heading, color}, index) => {
             const [background, text] = getColorTextWithContrast(color);
-            // Calculate the number of days the entry spans
-            const startDate = new Date(
-              date.start.year,
-              date.start.month - 1,
-              date.start.day
-            );
-            const endDate = new Date(
-              date.end.year,
-              date.end.month - 1,
-              date.end.day
-            );
-            const rangeDays =
-              (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) +
-              1;
+            const [startDate, , rangeDays] = this._getDaysRange(date);
 
-            // Create an array of <lms-calendar-entry> elements for each day the entry spans
+            /** Create an array of <lms-calendar-entry> elements for each day the entry spans
+             *  and add them to the entries array. */
             const entries = [];
             for (let i = 0; i < rangeDays; i++) {
-              // Calculate the start and end date for the current entry
-              const currentStartDate = new Date(
-                startDate.getTime() + i * (1000 * 3600 * 24)
-              );
-              const currentEndDate = new Date(
-                currentStartDate.getTime() + 1000 * 3600 * 24 - 1
-              );
+              const currentEntry = new EntryTransformer(
+                {date, time, heading, color, content: ''},
+                startDate,
+                i
+              ).getEntry();
 
-              // Create the entry object for the current day
-              const currentEntry = {
-                date: {
-                  start: {
-                    day: currentStartDate.getDate(),
-                    month: currentStartDate.getMonth() + 1,
-                    year: currentStartDate.getFullYear(),
-                  },
-                  end: {
-                    day: currentEndDate.getDate(),
-                    month: currentEndDate.getMonth() + 1,
-                    year: currentEndDate.getFullYear(),
-                  },
-                },
-                time,
-                heading,
-                color,
-              };
-
-              // Calculate whether the entry is a continuation of the previous entry
               const isContinuation = i > 0 && rangeDays > 1;
-              // Add the <lms-calendar-entry> element to the array
-              entries.push(html`
+              const lmsCalendarEntry = html`
                 <style>
                   lms-calendar-entry.${`_${index}`} {
                     --entry-br: ${rangeDays > 1
@@ -216,10 +181,10 @@ export default class LMSCalendar extends LitElement {
                   .isContinuation=${isContinuation}
                 >
                 </lms-calendar-entry>
-              `);
+              `;
+              entries.push(lmsCalendarEntry);
             }
 
-            // Return the array of <lms-calendar-entry> elements
             return entries;
           })}`
       : html``;
@@ -298,6 +263,18 @@ export default class LMSCalendar extends LitElement {
         .map(([start, end]) => [parseInt(start, 10), parseInt(end, 10)])
         .map(([start, end]) => ({start, end}))
     );
+  }
+
+  _getDaysRange(date: CalendarDateInterval): [Date, Date, number] {
+    const {start, end} = date;
+    const startDate = new Date(start.year, start.month - 1, start.day);
+    const endDate = new Date(end.year, end.month - 1, end.day);
+
+    return [
+      startDate,
+      endDate,
+      (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) + 1,
+    ];
   }
 }
 
