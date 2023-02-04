@@ -26,6 +26,13 @@ export default class Header extends LitElement {
       align-items: center;
       border-bottom: 1px solid var(--separator-light);
     }
+
+    @media (max-width: 360px) {
+      .controls {
+        font-size: small;
+        height: 4.5em;
+      }
+    }
     .info {
       padding-left: 1em;
       text-align: right;
