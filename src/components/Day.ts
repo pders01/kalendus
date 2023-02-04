@@ -6,6 +6,9 @@ export default class Day extends LitElement {
   @state()
   _hours = [...Array(25).keys()];
 
+  @state()
+  _hasActiveSidebar = false;
+
   static override styles = css`
     .container {
       display: flex;
@@ -18,7 +21,6 @@ export default class Day extends LitElement {
       display: grid;
       grid-template-columns: 4em 1fr;
       grid-template-rows: repeat(1440, 1fr);
-      width: 70%;
       height: calc(100% - 1em);
       gap: 1px;
       overflow-y: hidden;
@@ -45,15 +47,30 @@ export default class Day extends LitElement {
     }
 
     .sidebar {
-      width: 30%;
       height: 100%;
       border-left: 1px solid var(--separator-light);
+    }
+
+    .w-100 {
+      width: 100%;
+    }
+
+    .w-70 {
+      width: 70%;
+    }
+
+    .w-30 {
+      width: 30%;
+    }
+
+    .w-0 {
+      width: 0;
     }
   `;
 
   override render() {
     return html`<div class="container">
-      <div class="main">
+      <div class="main w${!this._hasActiveSidebar ? '100' : '70' ?? '100'}">
         ${this._hours.map(
           (hour, index) =>
             html`
@@ -72,7 +89,10 @@ export default class Day extends LitElement {
             `
         )}
       </div>
-      <div class="sidebar"></div>
+      <div
+        class="sidebar w-${!this._hasActiveSidebar ? '0' : '30' ?? '0'}"
+        ?hidden=${!this._hasActiveSidebar}
+      ></div>
     </div>`;
   }
 
