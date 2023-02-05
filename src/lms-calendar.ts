@@ -1,4 +1,4 @@
-import {LitElement, css, html} from 'lit';
+import {LitElement, css, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 
 import './components/Header.js';
@@ -138,56 +138,60 @@ export default class LMSCalendar extends LitElement {
   }
 
   _getEntries() {
-    return this.entries.length !== 0
-      ? html`${this.entries
-          .sort(
-            (a, b) =>
-              a.time.start.hours - b.time.start.hours ||
-              a.time.start.minutes - b.time.start.minutes
-          )
-          .map(({date, time, heading, color}, index) => {
-            const [background, text] = getColorTextWithContrast(color);
-            const [startDate, , rangeDays] = this._getDaysRange(date);
+    if (this.entries.length) {
+      const chronologicalEntries = this.entries.sort(
+        (a, b) =>
+          a.time.start.hours - b.time.start.hours ||
+          a.time.start.minutes - b.time.start.minutes
+      );
 
-            /** Create an array of <lms-calendar-entry> elements for each day the entry spans
-             *  and add them to the entries array. */
-            const entries = [];
-            for (let i = 0; i < rangeDays; i++) {
-              const currentEntry = new EntryTransformer(
-                {date, time, heading, color, content: ''},
-                startDate,
-                i
-              ).getEntry();
+      const entriesTemplateResults = chronologicalEntries.map(
+        ({date, time, heading, color}, index) => {
+          const [background, text] = getColorTextWithContrast(color);
+          const [startDate, , rangeDays] = this._getDaysRange(date);
 
-              const isContinuation = i > 0 && rangeDays > 1;
-              const lmsCalendarEntry = html`
-                <style>
-                  lms-calendar-entry.${`_${index}`} {
-                    --entry-br: ${rangeDays > 1
-                      ? 0
-                      : `var(--border-radius-sm)`};
-                    --entry-m: 0 ${i !== 0 ? 0 : `0.25em`} 0
-                      ${i !== 0 ? 0 : `1.5em`};
-                    --entry-bc: ${background};
-                    --entry-c: ${text};
-                  }
-                </style>
-                <lms-calendar-entry
-                  class=${`_${index}`}
-                  slot="${currentEntry.date.start.year}-${currentEntry.date
-                    .start.month}-${currentEntry.date.start.day}"
-                  .time=${currentEntry.time}
-                  .heading=${isContinuation ? '' : currentEntry.heading}
-                  .isContinuation=${isContinuation}
-                >
-                </lms-calendar-entry>
-              `;
-              entries.push(lmsCalendarEntry);
-            }
+          /** Create an array of <lms-calendar-entry> elements for each day the entry spans
+           *  and add them to the entries array. */
+          const entries = [];
+          for (let i = 0; i < rangeDays; i++) {
+            const currentEntry = new EntryTransformer(
+              {date, time, heading, color, content: ''},
+              startDate,
+              i
+            ).getEntry();
 
-            return entries;
-          })}`
-      : html``;
+            const isContinuation = i > 0 && rangeDays > 1;
+            const lmsCalendarEntry = html`
+              <style>
+                lms-calendar-entry.${`_${index}`} {
+                  --entry-br: ${rangeDays > 1 ? 0 : `var(--border-radius-sm)`};
+                  --entry-m: 0 ${i !== 0 ? 0 : `0.25em`} 0
+                    ${i !== 0 ? 0 : `1.5em`};
+                  --entry-bc: ${background};
+                  --entry-c: ${text};
+                }
+              </style>
+              <lms-calendar-entry
+                class=${`_${index}`}
+                slot="${currentEntry.date.start.year}-${currentEntry.date.start
+                  .month}-${currentEntry.date.start.day}"
+                .time=${currentEntry.time}
+                .heading=${isContinuation ? '' : currentEntry.heading}
+                .isContinuation=${isContinuation}
+              >
+              </lms-calendar-entry>
+            `;
+            entries.push(lmsCalendarEntry);
+          }
+
+          return entries;
+        }
+      );
+
+      return entriesTemplateResults.flat();
+    }
+
+    return nothing;
   }
 
   _getEntriesByDate() {

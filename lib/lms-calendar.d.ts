@@ -1,4 +1,4 @@
-import { LitElement } from 'lit';
+import { LitElement, nothing } from 'lit';
 import './components/Header.js';
 import LMSCalendarHeader from './components/Header';
 import './components/Month.js';
@@ -22,7 +22,7 @@ export default class LMSCalendar extends LitElement {
     _handleSwitchMonth(e: CustomEvent): void;
     _handleSwitchView(e: CustomEvent): void;
     _handleExpand(e: CustomEvent): void;
-    _getEntries(): import("lit-html").TemplateResult<1>;
+    _getEntries(): typeof nothing | import("lit-html").TemplateResult<1>[];
     _getEntriesByDate(): import("lit-html").TemplateResult<1>[] | undefined;
     _getGridSlotByTime({ start, end }: CalendarTimeInterval): string;
     _getWidthByGroupSize({ grading, index }: {
