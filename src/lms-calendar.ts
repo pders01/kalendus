@@ -129,6 +129,7 @@ export default class LMSCalendar extends LitElement {
     }
 
     if (e.detail.view === 'month') {
+      this.activeDate = this._expandedDate ?? this.activeDate;
       this._expandedDate = undefined;
     }
   }
