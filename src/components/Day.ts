@@ -23,7 +23,7 @@ export default class Day extends LitElement {
       grid-template-rows: repeat(1440, 1fr);
       height: calc(100% - 1em);
       gap: 1px;
-      overflow-y: hidden;
+      overflow-y: scroll;
       text-align: center;
       padding: 0.5em;
       position: relative;
@@ -70,7 +70,7 @@ export default class Day extends LitElement {
 
   override render() {
     return html`<div class="container">
-      <div class="main w${!this._hasActiveSidebar ? '100' : '70' ?? '100'}">
+      <div class="main w-${!this._hasActiveSidebar ? '100' : '70' ?? '100'}">
         ${this._hours.map(
           (hour, index) =>
             html`
