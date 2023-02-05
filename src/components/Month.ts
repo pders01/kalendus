@@ -1,6 +1,6 @@
 import {LitElement, css, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import getDateByMonthInDirection from '../utils/getDateByMonthInDirection';
+import DateTransformer from '../utils/DateTransformer';
 
 @customElement('lms-calendar-month')
 export default class Month extends LitElement {
@@ -119,16 +119,21 @@ export default class Month extends LitElement {
     if (!this.activeDate) {
       return;
     }
+    const dateTransformer = new DateTransformer({
+      date: this.activeDate || {day: 1, month: 1, year: 2022},
+    });
 
+    dateTransformer._direction = 'previous';
     const previousMonth = this._getDatesInMonthAsArray(
-      getDateByMonthInDirection(this.activeDate, 'previous'),
+      dateTransformer.getDateByMonthInDirection(),
       this._getOffsetOfFirstDayInMonth(this.activeDate)
         ? [this._getOffsetOfFirstDayInMonth(this.activeDate) * -1]
         : [-0, -0]
     );
     const activeMonth = this._getDatesInMonthAsArray(this.activeDate, []);
+    dateTransformer._direction = 'next';
     const nextMonth = this._getDatesInMonthAsArray(
-      getDateByMonthInDirection(this.activeDate, 'next'),
+      dateTransformer.getDateByMonthInDirection(),
       [0, 42 - (previousMonth.length + activeMonth.length)]
     );
 

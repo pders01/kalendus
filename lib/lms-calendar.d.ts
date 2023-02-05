@@ -19,7 +19,7 @@ export default class LMSCalendar extends LitElement {
     _viewportWidth: number;
     static styles: import("lit").CSSResult;
     render(): import("lit-html").TemplateResult<1>;
-    _handleSwitchMonth(e: CustomEvent): void;
+    _handleSwitchDate(e: CustomEvent): void;
     _handleSwitchView(e: CustomEvent): void;
     _handleExpand(e: CustomEvent): void;
     _getEntries(): import("lit-html").TemplateResult<1>[] | typeof nothing;

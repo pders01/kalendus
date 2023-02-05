@@ -98,21 +98,22 @@ export default class Header extends LitElement {
           >Month</span
         >
       </div>
-      <div class="buttons" @click=${this._dispatchSwitchMonth}>
+      <div class="buttons" @click=${this._dispatchSwitchDate}>
         <button name="previous">«</button>
         <button name="next">»</button>
       </div>
     </div>`;
   }
 
-  _dispatchSwitchMonth(e: Event) {
+  _dispatchSwitchDate(e: Event) {
     const target = e.target as HTMLButtonElement;
     const direction = e.target === e.currentTarget ? 'container' : target.name;
-    const event = new CustomEvent('switchmonth', {
+    const event = new CustomEvent('switchdate', {
       detail: {direction},
       bubbles: true,
       composed: true,
     });
+    console.log(event);
     this.dispatchEvent(event);
   }
 

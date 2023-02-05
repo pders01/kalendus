@@ -11,7 +11,6 @@ import './components/Context.js';
 import LMSCalendarContext from './components/Context';
 import './components/Entry.js';
 import LMSCalendarEntry from './components/Entry';
-import getDateByMonthInDirection from './utils/getDateByMonthInDirection.js';
 import isEmptyObjectOrUndefined from './utils/isEmptyObjectOrUndefined.js';
 import getColorTextWithContrast from './utils/getColorTextWithContrast.js';
 import partitionOverlappingIntervals from './utils/partitionOverlappingIntervals.js';
@@ -19,6 +18,7 @@ import getOverlappingEntitiesIndices from './utils/getOverlappingEntitiesIndices
 import haveSameValues from './utils/haveSameValues.js';
 import getSortedGradingsByIndex from './utils/getSortedGradingsByIndex.js';
 import EntryTransformer from './utils/EntryTransformer.js';
+import DateTransformer from './utils/DateTransformer.js';
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
   @property({type: String})
@@ -83,7 +83,7 @@ export default class LMSCalendar extends LitElement {
     return html`
       <div>
         <lms-calendar-header
-          @switchmonth=${this._handleSwitchMonth}
+          @switchdate=${this._handleSwitchDate}
           @switchview=${this._handleSwitchView}
           .heading=${this.heading}
           .activeDate=${this.activeDate}
@@ -114,11 +114,21 @@ export default class LMSCalendar extends LitElement {
     `;
   }
 
-  _handleSwitchMonth(e: CustomEvent) {
-    this.activeDate = getDateByMonthInDirection(
-      this.activeDate,
-      e.detail.direction
-    );
+  _handleSwitchDate(e: CustomEvent) {
+    console.log('Fired');
+    const dateTransformer = new DateTransformer({});
+    dateTransformer._direction = e.detail.direction;
+
+    if (this._expandedDate) {
+      dateTransformer._date = this._expandedDate;
+      const dateInDirection = dateTransformer.getDateByDayInDirection();
+      this._expandedDate = dateInDirection;
+      this.activeDate = dateInDirection;
+      return;
+    }
+
+    dateTransformer._date = this.activeDate;
+    this.activeDate = dateTransformer.getDateByMonthInDirection();
   }
 
   _handleSwitchView(e: CustomEvent) {
