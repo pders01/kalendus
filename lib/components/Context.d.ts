@@ -1,7 +1,6 @@
-import { LitElement, nothing } from 'lit';
+import { LitElement } from 'lit';
 export default class Context extends LitElement {
-    weekdays: string[];
     static styles: import("lit").CSSResult;
-    render(): import("lit-html").TemplateResult<1> | typeof nothing;
+    render(): import("lit-html").TemplateResult<1>;
 }
 //# sourceMappingURL=Context.d.ts.map

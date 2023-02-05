@@ -1,11 +1,10 @@
-import {LitElement, css, html, nothing} from 'lit';
-import {customElement, property} from 'lit/decorators.js';
+import {localized, msg} from '@lit/localize';
+import {LitElement, css, html} from 'lit';
+import {customElement} from 'lit/decorators.js';
 
+@localized()
 @customElement('lms-calendar-context')
 export default class Context extends LitElement {
-  @property({attribute: false})
-  weekdays: string[] = [];
-
   static override styles = css`
     div {
       height: 1.75em;
@@ -19,10 +18,14 @@ export default class Context extends LitElement {
   `;
 
   override render() {
-    return this.weekdays
-      ? html`<div>
-          ${this.weekdays.map((item) => html`<span>${item}</span>`)}
-        </div>`
-      : nothing;
+    return html` <div>
+      <span>${msg('Mon')}</span>
+      <span>${msg('Tues')}</span>
+      <span>${msg('Wed')}</span>
+      <span>${msg('Thurs')}</span>
+      <span>${msg('Fri')}</span>
+      <span>${msg('Sat')}</span>
+      <span>${msg('Sun')}</span>
+    </div>`;
   }
 }

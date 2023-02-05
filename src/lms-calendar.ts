@@ -1,7 +1,8 @@
 import {LitElement, css, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import {msg} from '@lit/localize';
+import {localized} from '@lit/localize';
 
+import {setLocaleFromLangAttribute} from './localization.js';
 import './components/Header.js';
 import LMSCalendarHeader from './components/Header';
 import './components/Month.js';
@@ -20,10 +21,11 @@ import haveSameValues from './utils/haveSameValues.js';
 import getSortedGradingsByIndex from './utils/getSortedGradingsByIndex.js';
 import EntryTransformer from './Transformers/EntryTransformer.js';
 import DateTransformer from './Transformers/DateTransformer.js';
+@localized()
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
   @property({type: String})
-  heading = msg('Current Month');
+  heading = '';
 
   @property({type: Object})
   activeDate: CalendarDate = {
@@ -31,17 +33,6 @@ export default class LMSCalendar extends LitElement {
     month: 1,
     year: 2022,
   };
-
-  @property({type: Array})
-  weekdays: string[] = [
-    msg('Mon'),
-    msg('Tues'),
-    msg('Wed'),
-    msg('Thurs'),
-    msg('Fri'),
-    msg('Sat'),
-    msg('Sun'),
-  ];
 
   @property({type: Array})
   entries: CalendarEntry[] = [];
@@ -88,6 +79,11 @@ export default class LMSCalendar extends LitElement {
     }
   `;
 
+  override connectedCallback() {
+    super.connectedCallback();
+    this._setLocale();
+  }
+
   override render() {
     return html`
       <div>
@@ -101,7 +97,6 @@ export default class LMSCalendar extends LitElement {
         </lms-calendar-header>
 
         <lms-calendar-context
-          .weekdays=${this.weekdays}
           ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
         >
         </lms-calendar-context>
@@ -121,6 +116,18 @@ export default class LMSCalendar extends LitElement {
         </lms-calendar-day>
       </div>
     `;
+  }
+
+  async _setLocale() {
+    try {
+      // Defer first render until our initial locale is ready, to avoid a flash of
+      // the wrong locale.
+      await setLocaleFromLangAttribute();
+    } catch (e) {
+      // Either the URL locale code was invalid, or there was a problem loading
+      // the locale module.
+      console.error(`Error loading locale: ${(e as Error).message}`);
+    }
   }
 
   _handleSwitchDate(e: CustomEvent) {

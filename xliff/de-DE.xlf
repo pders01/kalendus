@@ -10,10 +10,6 @@
   <source>Month</source>
   <target>Monat</target>
 </trans-unit>
-<trans-unit id="s15ba5784a11e0b88">
-  <source>Current Month</source>
-  <target>Aktueller Monat</target>
-</trans-unit>
 <trans-unit id="s1e118319b5202c41">
   <source>Mon</source>
   <target>Mo</target>
@@ -41,6 +37,10 @@
 <trans-unit id="s987ac119fac8d621">
   <source>Sun</source>
   <target>So</target>
+</trans-unit>
+<trans-unit id="s15ba5784a11e0b88">
+  <source>Current Month</source>
+  <target>Aktueller Monat</target>
 </trans-unit>
 </body>
 </file>

@@ -1,8 +1,9 @@
 import {LitElement, css, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
-import {msg} from '@lit/localize';
+import {localized, msg} from '@lit/localize';
 
+@localized()
 @customElement('lms-calendar-header')
 export default class Header extends LitElement {
   @property({type: String})
@@ -78,7 +79,7 @@ export default class Header extends LitElement {
     return html`<div class="controls">
       <div class="info">
         <span>
-          <strong>${this.heading}</strong>
+          <strong>${this.heading || msg('Current Month')}</strong>
         </span>
         <br />
         <span class="day" ?hidden=${isEmptyObjectOrUndefined(this.expandedDate)}
