@@ -1,6 +1,7 @@
 import {LitElement, css, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
+import {msg} from '@lit/localize';
 
 @customElement('lms-calendar-header')
 export default class Header extends LitElement {
@@ -90,12 +91,12 @@ export default class Header extends LitElement {
         <span
           ?data-active=${!isEmptyObjectOrUndefined(this.expandedDate)}
           data-context="day"
-          >Day</span
+          >${msg('Day')}</span
         >
         <span
           ?data-active=${isEmptyObjectOrUndefined(this.expandedDate)}
           data-context="month"
-          >Month</span
+          >${msg('Month')}</span
         >
       </div>
       <div class="buttons" @click=${this._dispatchSwitchDate}>

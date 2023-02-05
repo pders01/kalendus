@@ -16,7 +16,7 @@ export default class DateTransformer {
     this.date = date;
   }
 
-  set _direction(direction: string | undefined) {
+  set _direction(direction: string) {
     this.direction = direction;
   }
 

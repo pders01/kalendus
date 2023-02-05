@@ -1,6 +1,6 @@
 import {LitElement, css, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import DateTransformer from '../utils/DateTransformer';
+import DateTransformer from '../Transformers/DateTransformer';
 
 @customElement('lms-calendar-month')
 export default class Month extends LitElement {
@@ -34,7 +34,7 @@ export default class Month extends LitElement {
       position: relative;
       display: flex;
       flex-direction: column;
-      overflow-y: scroll;
+      overflow-x: hidden;
       gap: 1px;
     }
 

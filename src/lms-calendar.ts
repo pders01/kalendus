@@ -1,5 +1,6 @@
 import {LitElement, css, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
+import {msg} from '@lit/localize';
 
 import './components/Header.js';
 import LMSCalendarHeader from './components/Header';
@@ -17,12 +18,12 @@ import partitionOverlappingIntervals from './utils/partitionOverlappingIntervals
 import getOverlappingEntitiesIndices from './utils/getOverlappingEntitiesIndices.js';
 import haveSameValues from './utils/haveSameValues.js';
 import getSortedGradingsByIndex from './utils/getSortedGradingsByIndex.js';
-import EntryTransformer from './utils/EntryTransformer.js';
-import DateTransformer from './utils/DateTransformer.js';
+import EntryTransformer from './Transformers/EntryTransformer.js';
+import DateTransformer from './Transformers/DateTransformer.js';
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
   @property({type: String})
-  heading = 'Current Bookings';
+  heading = msg('Current Month');
 
   @property({type: Object})
   activeDate: CalendarDate = {
@@ -32,7 +33,15 @@ export default class LMSCalendar extends LitElement {
   };
 
   @property({type: Array})
-  weekdays: string[] = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  weekdays: string[] = [
+    msg('Mon'),
+    msg('Tues'),
+    msg('Wed'),
+    msg('Thurs'),
+    msg('Fri'),
+    msg('Sat'),
+    msg('Sun'),
+  ];
 
   @property({type: Array})
   entries: CalendarEntry[] = [];
