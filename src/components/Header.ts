@@ -115,7 +115,6 @@ export default class Header extends LitElement {
       bubbles: true,
       composed: true,
     });
-    console.log(event);
     this.dispatchEvent(event);
   }
 

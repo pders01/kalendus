@@ -131,7 +131,6 @@ export default class LMSCalendar extends LitElement {
   }
 
   _handleSwitchDate(e: CustomEvent) {
-    console.log('Fired');
     const dateTransformer = new DateTransformer({});
     dateTransformer._direction = e.detail.direction;
 
