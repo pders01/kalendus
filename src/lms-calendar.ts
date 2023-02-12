@@ -1,8 +1,6 @@
 import {LitElement, css, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import {localized} from '@lit/localize';
 
-import {setLocaleFromLangAttribute} from './localization.js';
 import './components/Header.js';
 import LMSCalendarHeader from './components/Header';
 import './components/Month.js';
@@ -19,9 +17,9 @@ import partitionOverlappingIntervals from './utils/partitionOverlappingIntervals
 import getOverlappingEntitiesIndices from './utils/getOverlappingEntitiesIndices.js';
 import haveSameValues from './utils/haveSameValues.js';
 import getSortedGradingsByIndex from './utils/getSortedGradingsByIndex.js';
-import EntryTransformer from './Transformers/EntryTransformer.js';
-import DateTransformer from './Transformers/DateTransformer.js';
-@localized()
+import EntryTransformer from './lib/EntryTransformer.js';
+import DateTransformer from './lib/DateTransformer.js';
+
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
   @property({type: String})
@@ -79,11 +77,6 @@ export default class LMSCalendar extends LitElement {
     }
   `;
 
-  override connectedCallback() {
-    super.connectedCallback();
-    this._setLocale();
-  }
-
   override render() {
     return html`
       <div>
@@ -116,18 +109,6 @@ export default class LMSCalendar extends LitElement {
         </lms-calendar-day>
       </div>
     `;
-  }
-
-  async _setLocale() {
-    try {
-      // Defer first render until our initial locale is ready, to avoid a flash of
-      // the wrong locale.
-      await setLocaleFromLangAttribute();
-    } catch (e) {
-      // Either the URL locale code was invalid, or there was a problem loading
-      // the locale module.
-      console.error(`Error loading locale: ${(e as Error).message}`);
-    }
   }
 
   _handleSwitchDate(e: CustomEvent) {

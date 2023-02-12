@@ -57,6 +57,7 @@ export default class Entry extends LitElement {
   `;
 
   override render() {
+    console.log(this.time);
     return html`
       <div
         class="main"
@@ -70,8 +71,8 @@ export default class Entry extends LitElement {
           >
         </span>
         ${this.isContinuation
-          ? html`<span>${this._displayStartTime(this.time)}</span>`
-          : html``}
+          ? "..."
+          : html`<span>${this._displayStartTime(this.time)}</span> `}
       </div>
     `;
   }
@@ -88,7 +89,7 @@ export default class Entry extends LitElement {
       minutes = `0${minutes}`;
     }
 
-    return `${hours}:${minutes}` === '0:00' ? '•' : `${hours}:${minutes}`;
+    return `${hours}:${minutes}` === '0:00' ? '+' : `${hours}:${minutes}`;
   }
 
   _handleClick() {

@@ -17,9 +17,7 @@ export default class LMSCalendar extends LitElement {
     _expandedDate?: CalendarDate;
     _viewportWidth: number;
     static styles: import("lit").CSSResult;
-    connectedCallback(): void;
     render(): import("lit-html").TemplateResult<1>;
-    _setLocale(): Promise<void>;
     _handleSwitchDate(e: CustomEvent): void;
     _handleSwitchView(e: CustomEvent): void;
     _handleExpand(e: CustomEvent): void;

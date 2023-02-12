@@ -1,5 +1,6 @@
 import { LitElement } from 'lit';
 export default class Header extends LitElement {
+    private translations;
     heading?: string;
     activeDate?: CalendarDate;
     expandedDate?: CalendarDate;

@@ -1,11 +1,12 @@
 import {LitElement, css, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
-import {localized, msg} from '@lit/localize';
+import Translations from '../translations/Translations';
 
-@localized()
 @customElement('lms-calendar-header')
 export default class Header extends LitElement {
+  private translations = new Translations();
+
   @property({type: String})
   heading?: string;
 
@@ -29,7 +30,7 @@ export default class Header extends LitElement {
       border-bottom: 1px solid var(--separator-light);
     }
 
-    @media (max-width: 360px) {
+    @media (max-width: 375px) {
       .controls {
         font-size: small;
         height: 4.5em;
@@ -79,7 +80,7 @@ export default class Header extends LitElement {
     return html`<div class="controls">
       <div class="info">
         <span>
-          <strong>${this.heading || msg('Current Month')}</strong>
+          <strong>${this.heading || this.translations.getTranslation('Current Month')}</strong>
         </span>
         <br />
         <span class="day" ?hidden=${isEmptyObjectOrUndefined(this.expandedDate)}
@@ -92,12 +93,12 @@ export default class Header extends LitElement {
         <span
           ?data-active=${!isEmptyObjectOrUndefined(this.expandedDate)}
           data-context="day"
-          >${msg('Day')}</span
+          >${this.translations.getTranslation('Day')}</span
         >
         <span
           ?data-active=${isEmptyObjectOrUndefined(this.expandedDate)}
           data-context="month"
-          >${msg('Month')}</span
+          >${this.translations.getTranslation('Month')}</span
         >
       </div>
       <div class="buttons" @click=${this._dispatchSwitchDate}>
