@@ -206,7 +206,18 @@ export default class LMSCalendar extends LitElement {
       return;
     }
     const entriesByDate = this.entries.filter((entry) => {
-      return haveSameValues(entry.date.start, this._expandedDate || {});
+      const start = entry.time.start;
+      const end = entry.time.end;
+      const sameDay = haveSameValues(
+        entry.date.start,
+        this._expandedDate || {}
+      );
+
+      return (
+        sameDay &&
+        (start.hours < end.hours ||
+          (start.hours === end.hours && start.minutes < end.minutes))
+      );
     });
 
     const grading = getSortedGradingsByIndex(
