@@ -249,12 +249,22 @@ export default class LMSCalendar extends LitElement {
   }
 
   _getWidthByGroupSize({grading, index}: {grading: Grading[]; index: number}) {
+    /** We have to return a default if there are no groups defined on the items */
+    if (!grading.length) {
+      return 100;
+    }
+
     return (
       100 / grading.filter((item) => item.group === grading[index].group).length
     );
   }
 
   _getOffsetByDepth({grading, index}: {grading: Grading[]; index: number}) {
+    /** We have to return a default if there are no groups defined on the items */
+    if (!grading.length) {
+      return 0;
+    }
+
     return grading[index].depth === 0
       ? 0
       : grading[index].depth *
