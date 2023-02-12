@@ -1,9 +1,11 @@
 import {LitElement, css, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
 import DateTransformer from '../lib/DateTransformer';
+import Translations from '../locales/Translations';
 
 @customElement('lms-calendar-month')
 export default class Month extends LitElement {
+  private translations = new Translations();
   @property({attribute: false})
   activeDate?: CalendarDate;
 
@@ -61,7 +63,9 @@ export default class Month extends LitElement {
                   @click=${this._handleExpand}
                 >
                   <div class="indicator">
-                    ${day === 1 ? `${day}. ${month}` : day}
+                    ${day === 1
+                      ? `${day}. ${this.translations.getTranslation(month)}`
+                      : day}
                   </div>
                   <slot name="${year}-${month}-${day}"></slot>
                 </div>`

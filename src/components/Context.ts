@@ -1,6 +1,6 @@
 import {LitElement, css, html} from 'lit';
 import {customElement} from 'lit/decorators.js';
-import Translations from '../translations/Translations';
+import Translations from '../locales/Translations';
 
 @customElement('lms-calendar-context')
 export default class Context extends LitElement {
