@@ -57,7 +57,6 @@ export default class Entry extends LitElement {
   `;
 
   override render() {
-    console.log(this.time);
     return html`
       <div
         class="main"
