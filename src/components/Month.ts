@@ -1,6 +1,6 @@
 import {LitElement, css, html} from 'lit';
 import {customElement, property} from 'lit/decorators.js';
-import DateTransformer from '../Transformers/DateTransformer';
+import DateTransformer from '../lib/DateTransformer';
 
 @customElement('lms-calendar-month')
 export default class Month extends LitElement {
