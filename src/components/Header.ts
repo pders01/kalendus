@@ -80,14 +80,20 @@ export default class Header extends LitElement {
     return html`<div class="controls">
       <div class="info">
         <span>
-          <strong>${this.heading || this.translations.getTranslation('Current Month')}</strong>
+          <strong
+            >${this.heading ||
+            this.translations.getTranslation('Current Month')}</strong
+          >
         </span>
-        <br />
-        <span class="day" ?hidden=${isEmptyObjectOrUndefined(this.expandedDate)}
-          >${this.expandedDate?.day}</span
-        >
-        <span class="month">${this.activeDate?.month}</span>
-        <span class="year">${this.activeDate?.year}</span>
+        <div ?hidden=${isEmptyObjectOrUndefined(this.expandedDate)}>
+          <span class="day">${this.expandedDate?.day}</span>
+          <span class="month">${this.expandedDate?.month}</span>
+          <span class="year">${this.expandedDate?.year}</span>
+        </div>
+        <div ?hidden=${!isEmptyObjectOrUndefined(this.expandedDate)}>
+          <span class="month">${this.activeDate?.month}</span>
+          <span class="year">${this.activeDate?.year}</span>
+        </div>
       </div>
       <div class="context" @click=${this._dispatchSwitchView}>
         <span
