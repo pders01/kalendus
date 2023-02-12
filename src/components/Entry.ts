@@ -88,7 +88,7 @@ export default class Entry extends LitElement {
       minutes = `0${minutes}`;
     }
 
-    return `${hours}:${minutes}` === '0:00' ? '+' : `${hours}:${minutes}`;
+    return `${hours}:${minutes}`;
   }
 
   _handleClick() {
