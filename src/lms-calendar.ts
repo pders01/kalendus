@@ -1,5 +1,6 @@
 import {LitElement, css, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
+import {ResizeObserver} from '@juggle/resize-observer';
 
 import './components/Header.js';
 import LMSCalendarHeader from './components/Header';
@@ -42,6 +43,10 @@ export default class LMSCalendar extends LitElement {
   _expandedDate?: CalendarDate;
 
   @state() _viewportWidth: number = window.innerWidth;
+
+  @state() resizeObserver: ResizeObserver = new ResizeObserver((entries) => {
+    this._viewportWidth = entries[0].contentRect.width;
+  });
 
   static override styles = css`
     :host {
@@ -99,7 +104,9 @@ export default class LMSCalendar extends LitElement {
           .activeDate=${this.activeDate}
           ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
         >
-          ${this._getEntries()}
+          ${this._viewportWidth < 768
+            ? this._getEntriesSumByDay()
+            : this._getEntries()}
         </lms-calendar-month>
 
         <lms-calendar-day
@@ -109,6 +116,21 @@ export default class LMSCalendar extends LitElement {
         </lms-calendar-day>
       </div>
     `;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.resizeObserver.observe(this);
+  }
+
+  resizedCallback(rect: DOMRect) {
+    if (rect.width !== this._viewportWidth) {
+      this._viewportWidth = rect.width;
+    }
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
   }
 
   _handleSwitchDate(e: CustomEvent) {
@@ -146,6 +168,9 @@ export default class LMSCalendar extends LitElement {
 
   _getEntries() {
     if (this.entries.length) {
+      /** If the viewportWidth is under 768px we just sum the number of entries
+       *  for a given day and add a single entry containing the sum. */
+
       const chronologicalEntries = this.entries.sort(
         (a, b) =>
           a.time.start.hours - b.time.start.hours ||
@@ -248,6 +273,35 @@ export default class LMSCalendar extends LitElement {
           .content=${content}
         >
         </lms-calendar-entry>
+      `;
+    });
+  }
+
+  _getEntriesSumByDay() {
+    const entriesByDay = this.entries.reduce((acc, entry) => {
+      const {day, month, year} = entry.date.start;
+      const key = `${day}-${month}-${year}`;
+      acc[key] = acc[key] ? acc[key] + 1 : 1;
+      return acc;
+    }, {} as {[key: string]: number});
+
+    return Object.keys(entriesByDay).map((key, index) => {
+      const [day, month, year] = key.split('-');
+      return html`
+        <style>
+          lms-calendar-entry.${`_${index}`} {
+            --entry-br: var(--border-radius-sm);
+            --entry-m: 0 auto;
+            --entry-bc: whitesmoke;
+            --entry-c: black;
+          }
+        </style>
+        <lms-calendar-entry
+          class=${`_${index}`}
+          slot="${+year}-${+month}-${+day}"
+          .time=${undefined}
+          .heading="[ ${entriesByDay[key].toString()} ]"
+        ></lms-calendar-entry>
       `;
     });
   }

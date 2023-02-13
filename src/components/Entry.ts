@@ -1,4 +1,4 @@
-import {LitElement, css, html} from 'lit';
+import {LitElement, css, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
 import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
 
@@ -78,7 +78,7 @@ export default class Entry extends LitElement {
 
   _displayStartTime(time?: CalendarTimeInterval) {
     if (!time) {
-      return 'Error: No time provided';
+      return nothing;
     }
 
     const hours = time.start.hours;
