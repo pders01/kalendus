@@ -54,7 +54,7 @@ export default class Translations {
 
   getTranslation(key: string | number | undefined) {
     if (!key) {
-        return key;
+      return key;
     }
     const locale = this._locales[this.lang];
     if (locale) {

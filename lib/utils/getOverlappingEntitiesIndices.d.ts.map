@@ -1,1 +1,1 @@
-{"version":3,"file":"getOverlappingEntitiesIndices.d.ts","sourceRoot":"","sources":["../../src/utils/getOverlappingEntitiesIndices.ts"],"names":[],"mappings":"AAEA,MAAM,CAAC,OAAO,UAAU,6BAA6B,CAAC,UAAU,EAAE,QAAQ,EAAE,EAAE,GAAG,OAAO,EAAE,CA2EzF"}
+{"version":3,"file":"getOverlappingEntitiesIndices.d.ts","sourceRoot":"","sources":["../../src/utils/getOverlappingEntitiesIndices.ts"],"names":[],"mappings":"AAEA,MAAM,CAAC,OAAO,UAAU,6BAA6B,CACnD,UAAU,EAAE,QAAQ,EAAE,EAAE,GACvB,OAAO,EAAE,CAqFX"}

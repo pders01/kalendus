@@ -1,6 +1,8 @@
 import partitionOverlappingIntervals from './partitionOverlappingIntervals.js';
 
-export default function getOverlappingEntitiesIndices(partitions: Interval[][]): Grading[] {
+export default function getOverlappingEntitiesIndices(
+  partitions: Interval[][]
+): Grading[] {
   /** First we determine all non-overlapping partitions and save their indices.
    *  Indices go into the index portion of the resolving objects and we add
    *  a depth of 0 to indicate, that this is a full-width element.
@@ -44,7 +46,13 @@ export default function getOverlappingEntitiesIndices(partitions: Interval[][]):
   let openGroup: number | undefined = Math.min(
     ...[..._partitions.map((partition) => partition[0].group)]
   );
-  function recursiveBubbleSort({partitions, isNested = false}: { partitions: Partition[][], isNested?: Boolean}) {
+  function recursiveBubbleSort({
+    partitions,
+    isNested = false,
+  }: {
+    partitions: Partition[][];
+    isNested?: Boolean;
+  }) {
     depth = isNested ? (depth += 1) : 0;
     partitions.forEach((partition: Partition[]) => {
       const {group} = partition[0];
@@ -53,7 +61,9 @@ export default function getOverlappingEntitiesIndices(partitions: Interval[][]):
       }
       openGroup = group;
 
-      const delta = [...partition.map(({start, end}: Partition) => end - start)];
+      const delta = [
+        ...partition.map(({start, end}: Partition) => end - start),
+      ];
       const maxDelta = Math.max(...delta);
       const indexMaxDelta: number = delta.indexOf(maxDelta);
 
@@ -66,7 +76,9 @@ export default function getOverlappingEntitiesIndices(partitions: Interval[][]):
       partition.splice(delta.indexOf(maxDelta), 1);
 
       recursiveBubbleSort({
-        partitions: partitionOverlappingIntervals(partition as Interval[]) as Partition[][],
+        partitions: partitionOverlappingIntervals(
+          partition as Interval[]
+        ) as Partition[][],
         isNested: true,
       });
     });

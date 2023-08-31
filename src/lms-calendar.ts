@@ -278,12 +278,15 @@ export default class LMSCalendar extends LitElement {
   }
 
   _getEntriesSumByDay() {
-    const entriesByDay = this.entries.reduce((acc, entry) => {
-      const {day, month, year} = entry.date.start;
-      const key = `${day}-${month}-${year}`;
-      acc[key] = acc[key] ? acc[key] + 1 : 1;
-      return acc;
-    }, {} as {[key: string]: number});
+    const entriesByDay = this.entries.reduce(
+      (acc, entry) => {
+        const {day, month, year} = entry.date.start;
+        const key = `${day}-${month}-${year}`;
+        acc[key] = acc[key] ? acc[key] + 1 : 1;
+        return acc;
+      },
+      {} as {[key: string]: number}
+    );
 
     return Object.keys(entriesByDay).map((key, index) => {
       const [day, month, year] = key.split('-');

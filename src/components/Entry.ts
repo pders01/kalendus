@@ -70,7 +70,7 @@ export default class Entry extends LitElement {
           >
         </span>
         ${this.isContinuation
-          ? "..."
+          ? '...'
           : html`<span>${this._displayStartTime(this.time)}</span> `}
       </div>
     `;

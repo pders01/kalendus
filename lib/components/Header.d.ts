@@ -5,7 +5,7 @@ export default class Header extends LitElement {
     activeDate?: CalendarDate;
     expandedDate?: CalendarDate;
     static styles: import("lit").CSSResult;
-    render(): import("lit-html").TemplateResult<1>;
+    render(): import("lit").TemplateResult<1>;
     _dispatchSwitchDate(e: Event): void;
     _dispatchSwitchView(e: Event): void;
 }

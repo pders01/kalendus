@@ -3,11 +3,11 @@
  *  We just import the strings directly as a JS object.
  */
 export default class Translations {
-    private _lang;
-    private _locales;
-    constructor();
-    get lang(): string;
-    set lang(lang: string);
-    getTranslation(key: string): string;
+  private _lang;
+  private _locales;
+  constructor();
+  get lang(): string;
+  set lang(lang: string);
+  getTranslation(key: string): string;
 }
 //# sourceMappingURL=Translations.d.ts.map

@@ -19,16 +19,16 @@ export default class LMSCalendar extends LitElement {
     _viewportWidth: number;
     resizeObserver: ResizeObserver;
     static styles: import("lit").CSSResult;
-    render(): import("lit-html").TemplateResult<1>;
+    render(): import("lit").TemplateResult<1>;
     connectedCallback(): void;
     resizedCallback(rect: DOMRect): void;
     disconnectedCallback(): void;
     _handleSwitchDate(e: CustomEvent): void;
     _handleSwitchView(e: CustomEvent): void;
     _handleExpand(e: CustomEvent): void;
-    _getEntries(): import("lit-html").TemplateResult<1>[] | typeof nothing;
-    _getEntriesByDate(): import("lit-html").TemplateResult<1>[] | undefined;
-    _getEntriesSumByDay(): import("lit-html").TemplateResult<1>[];
+    _getEntries(): typeof nothing | import("lit").TemplateResult<1>[];
+    _getEntriesByDate(): import("lit").TemplateResult<1>[] | undefined;
+    _getEntriesSumByDay(): import("lit").TemplateResult<1>[];
     _getGridSlotByTime({ start, end }: CalendarTimeInterval): string;
     _getWidthByGroupSize({ grading, index }: {
         grading: Grading[];

@@ -72,21 +72,20 @@ export default class Day extends LitElement {
     return html`<div class="container">
       <div class="main w-${!this._hasActiveSidebar ? '100' : '70' ?? '100'}">
         ${this._hours.map(
-          (hour, index) =>
-            html`
-              <div class="hour" style=${this._getHourIndicator(hour)}>
-                <span class="indicator">
-                  ${hour < 10 ? `0${hour}:00` : `${hour}:00`}
-                </span>
-              </div>
-              ${index
-                ? html`<div
-                    class="separator"
-                    style="grid-row: ${hour * 60}"
-                  ></div>`
-                : html``}
-              <slot name="${hour}" class="entry"></slot>
-            `
+          (hour, index) => html`
+            <div class="hour" style=${this._getHourIndicator(hour)}>
+              <span class="indicator">
+                ${hour < 10 ? `0${hour}:00` : `${hour}:00`}
+              </span>
+            </div>
+            ${index
+              ? html`<div
+                  class="separator"
+                  style="grid-row: ${hour * 60}"
+                ></div>`
+              : html``}
+            <slot name="${hour}" class="entry"></slot>
+          `
         )}
       </div>
       <div
