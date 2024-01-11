@@ -3,7 +3,7 @@ import typescript from '@rollup/plugin-typescript';
 import {copy} from '@web/rollup-plugin-copy';
 import resolve from '@rollup/plugin-node-resolve';
 import terser from '@rollup/plugin-terser';
-import minifyHTML from "rollup-plugin-html-literals";
+import { minifyTemplateLiterals } from "rollup-plugin-minify-template-literals";
 // import summary from 'rollup-plugin-summary';
 
 export default {
@@ -13,7 +13,7 @@ export default {
     // Minify HTML template literals
     typescript(),
     // Resolve bare module specifiers to relative paths
-    minifyHTML(),
+    minifyTemplateLiterals(),
     // Minify JS
     terser({
       ecma: 2020,
