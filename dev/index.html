@@ -5,7 +5,7 @@
     <title>&lt;lms-calendar> Demo</title>
     <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
     <script src="../node_modules/lit/polyfill-support.js"></script>
-    <script type="module" src="../lib/lms-calendar.js"></script>
+    <script type="module" src="../build/lms-calendar.bundled.js"></script>
     <style>
       body {
         height: calc(100vh - 16px);
@@ -68,7 +68,7 @@
             end: {day: 4, month: 1, year: 2023},
           },
           time: {
-            start: {hours: 10, minutes: 00},
+            start: {hours: 10, minutes: 0},
             end: {hours: 11, minutes: 30},
           },
           heading: 'Base Case 2.3',
@@ -81,7 +81,7 @@
             end: {day: 4, month: 1, year: 2023},
           },
           time: {
-            start: {hours: 16, minutes: 00},
+            start: {hours: 16, minutes: 0},
             end: {hours: 17, minutes: 30},
           },
           heading: 'Base Case 2.4',
@@ -93,7 +93,7 @@
             start: {day: 4, month: 1, year: 2023},
             end: {day: 4, month: 1, year: 2023},
           },
-          time: {start: {hours: 5, minutes: 00}, end: {hours: 6, minutes: 0}},
+          time: {start: {hours: 5, minutes: 0}, end: {hours: 6, minutes: 0}},
           heading: 'Base Case 2.5',
           content: 'A prepended event',
           color: '#444beb',
@@ -103,7 +103,7 @@
             start: {day: 4, month: 1, year: 2023},
             end: {day: 4, month: 1, year: 2023},
           },
-          time: {start: {hours: 11, minutes: 00}, end: {hours: 13, minutes: 0}},
+          time: {start: {hours: 11, minutes: 0}, end: {hours: 13, minutes: 0}},
           heading: 'Base Case 2.6',
           content: 'Another test case',
           color: '#4242eb',
@@ -114,7 +114,7 @@
             end: {day: 4, month: 1, year: 2023},
           },
           time: {
-            start: {hours: 13, minutes: 00},
+            start: {hours: 13, minutes: 0},
             end: {hours: 13, minutes: 20},
           },
           heading: 'Base Case 2.7',
@@ -149,7 +149,7 @@
             start: {day: 5, month: 1, year: 2023},
             end: {day: 5, month: 1, year: 2023},
           },
-          time: {start: {hours: 11, minutes: 00}, end: {hours: 13, minutes: 0}},
+          time: {start: {hours: 11, minutes: 0}, end: {hours: 13, minutes: 0}},
           heading: 'Base Case 3.1',
           content: 'Test case for display of multiple days',
           color: '#4242eb',
