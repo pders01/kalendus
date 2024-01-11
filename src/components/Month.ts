@@ -105,8 +105,8 @@ export default class Month extends LitElement {
   }
 
   _getOffsetOfFirstDayInMonth(date: CalendarDate) {
-    const offset = new Date(`${date.year}-${date.month}-01`).getDay() - 1;
-    return offset === -1 ? 6 : offset;
+    const offset = new Date(`${date.year}/${date.month}/01`).getDay();
+    return offset === 0 ? 6 : offset - 1;
   }
 
   _getDatesInMonthAsArray(date: CalendarDate, sliceArgs: number[]) {
