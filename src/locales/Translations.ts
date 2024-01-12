@@ -40,6 +40,7 @@ export default class Translations {
         Day: 'Tag',
         Month: 'Monat',
         'Current Month': 'Aktueller Monat',
+        'all day': 'ganztägig',
       },
     };
   }
