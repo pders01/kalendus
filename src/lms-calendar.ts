@@ -23,14 +23,16 @@ import DateTransformer from './lib/DateTransformer.js';
 
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
+  private currentDate = new Date();
+
   @property({type: String})
-  heading = '';
+  heading = '&zwnj;';
 
   @property({type: Object})
   activeDate: CalendarDate = {
-    day: 1,
-    month: 1,
-    year: 2022,
+    day: this.currentDate.getDate(),
+    month: this.currentDate.getMonth() + 1,
+    year: this.currentDate.getFullYear(),
   };
 
   @property({type: Array})
@@ -278,15 +280,12 @@ export default class LMSCalendar extends LitElement {
   }
 
   _getEntriesSumByDay() {
-    const entriesByDay = this.entries.reduce(
-      (acc, entry) => {
-        const {day, month, year} = entry.date.start;
-        const key = `${day}-${month}-${year}`;
-        acc[key] = acc[key] ? acc[key] + 1 : 1;
-        return acc;
-      },
-      {} as {[key: string]: number}
-    );
+    const entriesByDay = this.entries.reduce((acc, entry) => {
+      const {day, month, year} = entry.date.start;
+      const key = `${day}-${month}-${year}`;
+      acc[key] = acc[key] ? acc[key] + 1 : 1;
+      return acc;
+    }, {} as {[key: string]: number});
 
     return Object.keys(entriesByDay).map((key, index) => {
       const [day, month, year] = key.split('-');
@@ -323,6 +322,10 @@ export default class LMSCalendar extends LitElement {
   }
 
   _getOffsetByDepth({grading, index}: {grading: Grading[]; index: number}) {
+    if (!grading[index]) {
+      return 0;
+    }
+
     return grading[index].depth === 0
       ? 0
       : grading[index].depth *
