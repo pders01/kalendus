@@ -11,6 +11,7 @@ import LMSCalendarContext from './components/Context';
 import './components/Entry.js';
 import LMSCalendarEntry from './components/Entry';
 export default class LMSCalendar extends LitElement {
+    private currentDate;
     heading: string;
     activeDate: CalendarDate;
     entries: CalendarEntry[];
