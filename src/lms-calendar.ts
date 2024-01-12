@@ -26,7 +26,7 @@ export default class LMSCalendar extends LitElement {
   private currentDate = new Date();
 
   @property({type: String})
-  heading = '&zwnj;';
+  heading?: string;
 
   @property({type: Object})
   activeDate: CalendarDate = {

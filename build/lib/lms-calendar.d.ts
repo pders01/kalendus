@@ -12,7 +12,7 @@ import './components/Entry.js';
 import LMSCalendarEntry from './components/Entry';
 export default class LMSCalendar extends LitElement {
     private currentDate;
-    heading: string;
+    heading?: string;
     activeDate: CalendarDate;
     entries: CalendarEntry[];
     color: string;
