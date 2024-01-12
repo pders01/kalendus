@@ -1,5 +1,4 @@
-import { LitElement, nothing } from 'lit';
-import { ResizeObserver } from '@juggle/resize-observer';
+import { LitElement, PropertyValueMap, nothing } from 'lit';
 import './components/Header.js';
 import LMSCalendarHeader from './components/Header';
 import './components/Month.js';
@@ -17,13 +16,12 @@ export default class LMSCalendar extends LitElement {
     entries: CalendarEntry[];
     color: string;
     _expandedDate?: CalendarDate;
-    _viewportWidth: number;
-    resizeObserver: ResizeObserver;
+    _calendarWidth: number;
+    private _handleResize;
+    private _resizeController;
     static styles: import("lit").CSSResult;
+    protected firstUpdated(_changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>): void;
     render(): import("lit").TemplateResult<1>;
-    connectedCallback(): void;
-    resizedCallback(rect: DOMRect): void;
-    disconnectedCallback(): void;
     _handleSwitchDate(e: CustomEvent): void;
     _handleSwitchView(e: CustomEvent): void;
     _handleExpand(e: CustomEvent): void;

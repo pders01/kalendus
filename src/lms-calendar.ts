@@ -1,6 +1,6 @@
-import {LitElement, css, html, nothing} from 'lit';
+import {LitElement, PropertyValueMap, css, html, nothing} from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import {ResizeObserver} from '@juggle/resize-observer';
+import {ResizeController} from '@lit-labs/observers/resize-controller.js';
 
 import './components/Header.js';
 import LMSCalendarHeader from './components/Header';
@@ -44,11 +44,20 @@ export default class LMSCalendar extends LitElement {
   @state()
   _expandedDate?: CalendarDate;
 
-  @state() _viewportWidth: number = window.innerWidth;
+  @state() _calendarWidth: number = window.innerWidth;
 
-  @state() resizeObserver: ResizeObserver = new ResizeObserver((entries) => {
-    this._viewportWidth = entries[0].contentRect.width;
-  });
+  private _handleResize = (entries: ResizeObserverEntry[]): void => {
+    const [div] = entries;
+
+    this._calendarWidth = div.contentRect.width || this._calendarWidth;
+  };
+
+  private _resizeController: ResizeController<void> =
+    new ResizeController<void>(this, {
+      target: null,
+      callback: this._handleResize,
+      skipInitial: true,
+    });
 
   static override styles = css`
     :host {
@@ -84,7 +93,14 @@ export default class LMSCalendar extends LitElement {
     }
   `;
 
+  protected override firstUpdated(
+    _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
+  ): void {
+    this._resizeController.observe(this.shadowRoot?.firstElementChild!);
+  }
+
   override render() {
+    console.log('rerendering');
     return html`
       <div>
         <lms-calendar-header
@@ -106,7 +122,7 @@ export default class LMSCalendar extends LitElement {
           .activeDate=${this.activeDate}
           ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
         >
-          ${this._viewportWidth < 768
+          ${this._calendarWidth < 768
             ? this._getEntriesSumByDay()
             : this._getEntries()}
         </lms-calendar-month>
@@ -118,21 +134,6 @@ export default class LMSCalendar extends LitElement {
         </lms-calendar-day>
       </div>
     `;
-  }
-
-  override connectedCallback() {
-    super.connectedCallback();
-    this.resizeObserver.observe(this);
-  }
-
-  resizedCallback(rect: DOMRect) {
-    if (rect.width !== this._viewportWidth) {
-      this._viewportWidth = rect.width;
-    }
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
   }
 
   _handleSwitchDate(e: CustomEvent) {
