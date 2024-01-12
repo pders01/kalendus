@@ -80,7 +80,7 @@ export default class Entry extends LitElement {
           @click=${this._handleClick}
           title="${this.heading}${!contentIsEmptyOrUndefined
             ? `&middot; ${this.content}`
-            : '&zwnj;'}"
+            : ''}"
         >
           <span> ${this.heading} </span>
           <span ?hidden=${contentIsEmptyOrUndefined}
