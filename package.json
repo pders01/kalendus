@@ -7,8 +7,8 @@
   "module": "lms-calendar.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "build:watch": "tsc --watch",
+    "build": "rollup -c",
+    "build:watch": "rollup -c --watch",
     "clean": "rimraf lms-calendar.{d.ts,d.ts.map,js,js.map} test/lms-calendar.{d.ts,d.ts.map,js,js.map} test/lms-calendar_test.{d.ts,d.ts.map,js,js.map}",
     "lint": "npm run lint:lit-analyzer && npm run lint:eslint",
     "lint:eslint": "eslint 'src/**/*.ts'",
