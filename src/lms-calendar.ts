@@ -100,7 +100,6 @@ export default class LMSCalendar extends LitElement {
   }
 
   override render() {
-    console.log('rerendering');
     return html`
       <div>
         <lms-calendar-header
