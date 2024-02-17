@@ -17,7 +17,7 @@ export default class Entry extends LitElement {
     content?: string;
 
     @property({ type: Boolean })
-    isContinuation: boolean = false;
+    isContinuation = false;
 
     @state()
     _highlighted?: boolean;

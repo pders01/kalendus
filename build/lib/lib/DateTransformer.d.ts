@@ -1,13 +1,25 @@
-export default class DateTransformer {
-    date: CalendarDate | undefined;
-    direction: string | undefined;
-    constructor({ date, direction, }: {
+import { DateTime } from 'luxon';
+export default class DirectionalCalendarDateCalculator {
+    date?: CalendarDate | DateTime;
+    direction?: string;
+    constructor({
+        date,
+        direction,
+    }: {
         date?: CalendarDate;
-        direction?: string;
+        direction?: 'previous' | 'next';
     });
     set _date(date: CalendarDate);
     set _direction(direction: string);
-    getDateByDayInDirection(): CalendarDate;
-    getDateByMonthInDirection(): CalendarDate;
+    getDateByDayInDirection(): {
+        day: number;
+        month: number;
+        year: number;
+    };
+    getDateByMonthInDirection(): {
+        day: number;
+        month: number;
+        year: number;
+    };
 }
 //# sourceMappingURL=DateTransformer.d.ts.map

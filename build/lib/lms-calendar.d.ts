@@ -21,13 +21,27 @@ export default class LMSCalendar extends LitElement {
     private _resizeController;
     static styles: import("lit").CSSResult;
     protected firstUpdated(_changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>): void;
+    protected willUpdate(_changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>): void;
     render(): import("lit").TemplateResult<1>;
     _handleSwitchDate(e: CustomEvent): void;
     _handleSwitchView(e: CustomEvent): void;
     _handleExpand(e: CustomEvent): void;
-    _getEntries(): import("lit").TemplateResult<1>[] | typeof nothing;
-    _getEntriesByDate(): import("lit").TemplateResult<1>[] | undefined;
-    _getEntriesSumByDay(): import("lit").TemplateResult<1>[];
+    _composeEntry(index: number, slot: string, styles: CalendarEntryStyles, data: CalendarEntryData): import("lit").TemplateResult<1>;
+    /** Create an array of <lms-calendar-entry> elements for each day the entry spans
+     *  and add them to the entries array. */
+    _expandEntryMaybe({ entry, entryIndex, startDate, rangeDays, styles, }: {
+        entry: CalendarEntry;
+        entryIndex: number;
+        startDate: Date;
+        rangeDays: number;
+        styles: {
+            background: string;
+            text: string;
+        };
+    }): import("lit").TemplateResult<1>[];
+    _renderEntries(): import("lit").TemplateResult<1>[] | typeof nothing;
+    _renderEntriesByDate(): import("lit").TemplateResult<1>[] | undefined;
+    _renderEntriesSumByDay(): import("lit").TemplateResult<1>[];
     _getGridSlotByTime({ start, end }: CalendarTimeInterval): string;
     _getWidthByGroupSize({ grading, index, }: {
         grading: Grading[];
@@ -49,45 +63,59 @@ declare global {
         'lms-calendar-context': LMSCalendarContext;
         'lms-calendar-entry': LMSCalendarEntry;
     }
-    interface CalendarDate {
+    type CalendarDate = {
         day: number;
         month: number;
         year: number;
-    }
-    interface CalendarDateInterval {
+    };
+    type CalendarDateInterval = {
         start: CalendarDate;
         end: CalendarDate;
-    }
-    interface CalendarTime {
+    };
+    type CalendarTime = {
         hours: number;
         minutes: number;
-    }
-    interface CalendarTimeInterval {
+    };
+    type CalendarTimeInterval = {
         start: CalendarTime;
         end: CalendarTime;
-    }
-    interface CalendarEntry {
+    };
+    type CalendarEntry = {
         date: CalendarDateInterval;
         time: CalendarTimeInterval;
         heading: string;
         content: string;
         color: string;
-    }
-    interface Interval {
+    };
+    type CalendarEntryStyles = {
+        startSlot?: string;
+        w?: string;
+        br?: string;
+        m: string;
+        bc: string;
+        c: string;
+    };
+    type CalendarEntryData = {
+        time?: CalendarTimeInterval;
+        heading: string;
+        content?: string;
+        isContinuation?: boolean;
+    };
+    type Interval = {
         start: number;
         end: number;
-    }
-    interface Grading {
+    };
+    type Grading = {
         index: number;
         depth: number;
         group: number;
-    }
-    interface Partition {
-        index: number | undefined;
-        depth: number | undefined;
-        group: number | undefined;
+    };
+    type Partition = {
+        index?: number;
+        depth?: number;
+        group?: number;
         start: number;
         end: number;
-    }
+    };
 }
 //# sourceMappingURL=lms-calendar.d.ts.map
