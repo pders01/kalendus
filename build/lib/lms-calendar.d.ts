@@ -19,29 +19,21 @@ export default class LMSCalendar extends LitElement {
     _calendarWidth: number;
     private _handleResize;
     private _resizeController;
-    static styles: import('lit').CSSResult;
-    protected firstUpdated(
-        _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>,
-    ): void;
-    render(): import('lit').TemplateResult<1>;
+    static styles: import("lit").CSSResult;
+    protected firstUpdated(_changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>): void;
+    render(): import("lit").TemplateResult<1>;
     _handleSwitchDate(e: CustomEvent): void;
     _handleSwitchView(e: CustomEvent): void;
     _handleExpand(e: CustomEvent): void;
-    _getEntries(): import('lit').TemplateResult<1>[] | typeof nothing;
-    _getEntriesByDate(): import('lit').TemplateResult<1>[] | undefined;
-    _getEntriesSumByDay(): import('lit').TemplateResult<1>[];
+    _getEntries(): import("lit").TemplateResult<1>[] | typeof nothing;
+    _getEntriesByDate(): import("lit").TemplateResult<1>[] | undefined;
+    _getEntriesSumByDay(): import("lit").TemplateResult<1>[];
     _getGridSlotByTime({ start, end }: CalendarTimeInterval): string;
-    _getWidthByGroupSize({
-        grading,
-        index,
-    }: {
+    _getWidthByGroupSize({ grading, index, }: {
         grading: Grading[];
         index: number;
     }): number;
-    _getOffsetByDepth({
-        grading,
-        index,
-    }: {
+    _getOffsetByDepth({ grading, index, }: {
         grading: Grading[];
         index: number;
     }): number;
