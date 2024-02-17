@@ -1,7 +1,10 @@
 export default class DateTransformer {
     date: CalendarDate | undefined;
     direction: string | undefined;
-    constructor({ date, direction, }: {
+    constructor({
+        date,
+        direction,
+    }: {
         date?: CalendarDate;
         direction?: string;
     });

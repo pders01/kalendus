@@ -4,32 +4,32 @@
  */
 
 export default function partitionOverlappingIntervals(intervals: Interval[]) {
-  const rightEndValues = intervals.map((r) => r.end).sort((a, b) => a - b);
-  intervals.sort((a, b) => a.start - b.start);
+    const rightEndValues = intervals.map((r) => r.end).sort((a, b) => a - b);
+    intervals.sort((a, b) => a.start - b.start);
 
-  let i = 0;
-  let j = 0;
-  let active = 0;
+    let i = 0;
+    let j = 0;
+    let active = 0;
 
-  const groups = [];
-  let cur = [];
+    const groups = [];
+    let cur = [];
 
-  while (i < intervals.length && j < rightEndValues.length) {
-    if (intervals[i].start < rightEndValues[j]) {
-      cur.push(intervals[i++]);
-      ++active;
-    } else {
-      ++j;
-      if (--active === 0) {
-        groups.push(cur);
-        cur = [];
-      }
+    while (i < intervals.length && j < rightEndValues.length) {
+        if (intervals[i].start < rightEndValues[j]) {
+            cur.push(intervals[i++]);
+            ++active;
+        } else {
+            ++j;
+            if (--active === 0) {
+                groups.push(cur);
+                cur = [];
+            }
+        }
     }
-  }
 
-  if (cur.length > 0) {
-    groups.push(cur);
-  }
+    if (cur.length > 0) {
+        groups.push(cur);
+    }
 
-  return groups;
+    return groups;
 }

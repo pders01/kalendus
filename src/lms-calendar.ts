@@ -1,6 +1,6 @@
-import {LitElement, PropertyValueMap, css, html, nothing} from 'lit';
-import {customElement, property, state} from 'lit/decorators.js';
-import {ResizeController} from '@lit-labs/observers/resize-controller.js';
+import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+import { ResizeController } from '@lit-labs/observers/resize-controller.js';
 
 import './components/Header.js';
 import LMSCalendarHeader from './components/Header';
@@ -23,398 +23,427 @@ import DateTransformer from './lib/DateTransformer.js';
 
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
-  private currentDate = new Date();
+    private currentDate = new Date();
 
-  @property({type: String})
-  heading?: string;
+    @property({ type: String })
+    heading?: string;
 
-  @property({type: Object})
-  activeDate: CalendarDate = {
-    day: this.currentDate.getDate(),
-    month: this.currentDate.getMonth() + 1,
-    year: this.currentDate.getFullYear(),
-  };
+    @property({ type: Object })
+    activeDate: CalendarDate = {
+        day: this.currentDate.getDate(),
+        month: this.currentDate.getMonth() + 1,
+        year: this.currentDate.getFullYear(),
+    };
 
-  @property({type: Array})
-  entries: CalendarEntry[] = [];
+    @property({ type: Array })
+    entries: CalendarEntry[] = [];
 
-  @property({type: String})
-  color = '#000000';
+    @property({ type: String })
+    color = '#000000';
 
-  @state()
-  _expandedDate?: CalendarDate;
+    @state()
+    _expandedDate?: CalendarDate;
 
-  @state() _calendarWidth: number = window.innerWidth;
+    @state() _calendarWidth: number = window.innerWidth;
 
-  private _handleResize = (entries: ResizeObserverEntry[]): void => {
-    const [div] = entries;
+    private _handleResize = (entries: ResizeObserverEntry[]): void => {
+        const [div] = entries;
 
-    this._calendarWidth = div.contentRect.width || this._calendarWidth;
-  };
+        this._calendarWidth = div.contentRect.width || this._calendarWidth;
+    };
 
-  private _resizeController: ResizeController<void> =
-    new ResizeController<void>(this, {
-      target: null,
-      callback: this._handleResize,
-      skipInitial: true,
-    });
+    private _resizeController: ResizeController<void> =
+        new ResizeController<void>(this, {
+            target: null,
+            callback: this._handleResize,
+            skipInitial: true,
+        });
 
-  static override styles = css`
-    :host {
-      --shadow-sm: rgba(0, 0, 0, 0.18) 0px 2px 4px;
-      --shadow-md: rgba(0, 0, 0, 0.15) 0px 3px 3px 0px;
-      --shadow-lg: rgba(0, 0, 0, 0.15) 0px 2px 8px;
-      --shadow-hv: rgba(0, 0, 0, 0.08) 0px 4px 12px;
+    static override styles = css`
+        :host {
+            --shadow-sm: rgba(0, 0, 0, 0.18) 0px 2px 4px;
+            --shadow-md: rgba(0, 0, 0, 0.15) 0px 3px 3px 0px;
+            --shadow-lg: rgba(0, 0, 0, 0.15) 0px 2px 8px;
+            --shadow-hv: rgba(0, 0, 0, 0.08) 0px 4px 12px;
 
-      --breakpoint-xs: 425px;
-      --breakpoint-sm: 768px;
-      --breakpoint-md: 1024px;
+            --breakpoint-xs: 425px;
+            --breakpoint-sm: 768px;
+            --breakpoint-md: 1024px;
 
-      --separator-light: rgba(0, 0, 0, 0.1);
-      --separator-mid: rgba(0, 0, 0, 0.4);
-      --separator-dark: rgba(0, 0, 0, 0.7);
+            --separator-light: rgba(0, 0, 0, 0.1);
+            --separator-mid: rgba(0, 0, 0, 0.4);
+            --separator-dark: rgba(0, 0, 0, 0.7);
 
-      --system-ui: system, -apple-system, '.SFNSText-Regular', 'San Francisco',
-        'Roboto', 'Segoe UI', 'Helvetica Neue', 'Lucida Grande', sans-serif;
+            --system-ui: system, -apple-system, '.SFNSText-Regular',
+                'San Francisco', 'Roboto', 'Segoe UI', 'Helvetica Neue',
+                'Lucida Grande', sans-serif;
 
-      --border-radius-sm: 5px;
-      --border-radius-md: 7px;
-      --border-radius-lg: 12px;
-    }
-    div {
-      height: 100%;
-      width: 100%;
-      background-color: #fff;
-      border-radius: var(--border-radius-lg);
-      border: 1px solid var(--separator-light);
-      font-family: var(--system-ui);
-      color: var(--separator-dark);
-      box-shadow: var(--shadow-md);
-    }
-  `;
-
-  protected override firstUpdated(
-    _changedProperties: PropertyValueMap<any> | Map<PropertyKey, unknown>
-  ): void {
-    this._resizeController.observe(this.shadowRoot?.firstElementChild!);
-  }
-
-  override render() {
-    return html`
-      <div>
-        <lms-calendar-header
-          @switchdate=${this._handleSwitchDate}
-          @switchview=${this._handleSwitchView}
-          .heading=${this.heading}
-          .activeDate=${this.activeDate}
-          .expandedDate=${this._expandedDate}
-        >
-        </lms-calendar-header>
-
-        <lms-calendar-context
-          ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
-        >
-        </lms-calendar-context>
-
-        <lms-calendar-month
-          @expand=${this._handleExpand}
-          .activeDate=${this.activeDate}
-          ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
-        >
-          ${this._calendarWidth < 768
-            ? this._getEntriesSumByDay()
-            : this._getEntries()}
-        </lms-calendar-month>
-
-        <lms-calendar-day
-          ?hidden=${isEmptyObjectOrUndefined(this._expandedDate)}
-        >
-          ${this._getEntriesByDate()}
-        </lms-calendar-day>
-      </div>
-    `;
-  }
-
-  _handleSwitchDate(e: CustomEvent) {
-    const dateTransformer = new DateTransformer({});
-    dateTransformer._direction = e.detail.direction;
-
-    if (this._expandedDate) {
-      dateTransformer._date = this._expandedDate;
-      const dateInDirection = dateTransformer.getDateByDayInDirection();
-      this._expandedDate = dateInDirection;
-      this.activeDate = dateInDirection;
-      return;
-    }
-
-    dateTransformer._date = this.activeDate;
-    this.activeDate = dateTransformer.getDateByMonthInDirection();
-  }
-
-  _handleSwitchView(e: CustomEvent) {
-    if (e.detail.view === 'day') {
-      this._expandedDate = !isEmptyObjectOrUndefined(this._expandedDate)
-        ? this._expandedDate
-        : this.activeDate;
-    }
-
-    if (e.detail.view === 'month') {
-      this.activeDate = this._expandedDate ?? this.activeDate;
-      this._expandedDate = undefined;
-    }
-  }
-
-  _handleExpand(e: CustomEvent) {
-    this._expandedDate = e.detail.date;
-  }
-
-  _getEntries() {
-    if (this.entries.length) {
-      /** If the viewportWidth is under 768px we just sum the number of entries
-       *  for a given day and add a single entry containing the sum. */
-
-      const chronologicalEntries = this.entries.sort(
-        (a, b) =>
-          a.time.start.hours - b.time.start.hours ||
-          a.time.start.minutes - b.time.start.minutes
-      );
-
-      const entriesTemplateResults = chronologicalEntries.map(
-        ({date, time, heading, color}, index) => {
-          const [background, text] = getColorTextWithContrast(color);
-          const [startDate, , rangeDays] = this._getDaysRange(date);
-
-          /** Create an array of <lms-calendar-entry> elements for each day the entry spans
-           *  and add them to the entries array. */
-          const entries = [];
-          for (let i = 0; i < rangeDays; i++) {
-            const currentEntry = new EntryTransformer(
-              {date, time, heading, color, content: ''},
-              startDate,
-              i
-            ).getEntry();
-
-            const isContinuation = i > 0 && rangeDays > 1;
-            const lmsCalendarEntry = html`
-              <style>
-                lms-calendar-entry.${`_${index}`} {
-                  --entry-br: ${rangeDays > 1 ? 0 : `var(--border-radius-sm)`};
-                  --entry-m: 0 ${i !== 0 ? 0 : `0.25em`} 0
-                    ${i !== 0 ? 0 : `1.5em`};
-                  --entry-bc: ${background};
-                  --entry-c: ${text};
-                }
-              </style>
-              <lms-calendar-entry
-                class=${`_${index}`}
-                slot="${currentEntry.date.start.year}-${currentEntry.date.start
-                  .month}-${currentEntry.date.start.day}"
-                .time=${currentEntry.time}
-                .heading=${isContinuation ? '' : currentEntry.heading}
-                .isContinuation=${isContinuation}
-              >
-              </lms-calendar-entry>
-            `;
-            entries.push(lmsCalendarEntry);
-          }
-
-          return entries;
+            --border-radius-sm: 5px;
+            --border-radius-md: 7px;
+            --border-radius-lg: 12px;
         }
-      );
+        div {
+            height: 100%;
+            width: 100%;
+            background-color: #fff;
+            border-radius: var(--border-radius-lg);
+            border: 1px solid var(--separator-light);
+            font-family: var(--system-ui);
+            color: var(--separator-dark);
+            box-shadow: var(--shadow-md);
+        }
+    `;
 
-      return entriesTemplateResults.flat();
+    protected override firstUpdated(
+        _changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
+    ): void {
+        const firstElementChild = this.shadowRoot?.firstElementChild;
+        if (!firstElementChild) {
+            return;
+        }
+
+        this._resizeController.observe(firstElementChild);
     }
 
-    return nothing;
-  }
+    override render() {
+        return html`
+            <div>
+                <lms-calendar-header
+                    @switchdate=${this._handleSwitchDate}
+                    @switchview=${this._handleSwitchView}
+                    .heading=${this.heading}
+                    .activeDate=${this.activeDate}
+                    .expandedDate=${this._expandedDate}
+                >
+                </lms-calendar-header>
 
-  _getEntriesByDate() {
-    if (isEmptyObjectOrUndefined(this._expandedDate)) {
-      return;
-    }
-    const entriesByDate = this.entries.filter((entry) => {
-      const start = entry.time.start;
-      const end = entry.time.end;
-      const sameDay = haveSameValues(
-        entry.date.start,
-        this._expandedDate || {}
-      );
+                <lms-calendar-context
+                    ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
+                >
+                </lms-calendar-context>
 
-      return (
-        sameDay &&
-        (start.hours < end.hours ||
-          (start.hours === end.hours && start.minutes < end.minutes))
-      );
-    });
+                <lms-calendar-month
+                    @expand=${this._handleExpand}
+                    .activeDate=${this.activeDate}
+                    ?hidden=${!isEmptyObjectOrUndefined(this._expandedDate)}
+                >
+                    ${this._calendarWidth < 768
+                        ? this._getEntriesSumByDay()
+                        : this._getEntries()}
+                </lms-calendar-month>
 
-    const grading = getSortedGradingsByIndex(
-      !isEmptyObjectOrUndefined(entriesByDate)
-        ? getOverlappingEntitiesIndices(
-            this._getPartitionedSlottedItems(entriesByDate)
-          )
-        : []
-    );
-
-    return entriesByDate.map(({time, heading, content, color}, index) => {
-      const [background, text] = getColorTextWithContrast(color);
-      return html`
-        <style>
-          lms-calendar-entry.${`_${index}`} {
-            --start-slot: ${this._getGridSlotByTime(time)};
-            --entry-w: ${this._getWidthByGroupSize({grading, index})}%;
-            --entry-m: 0 1.5em 0 ${this._getOffsetByDepth({grading, index})}%;
-            --entry-bc: ${background};
-            --entry-c: ${text};
-          }
-        </style>
-        <lms-calendar-entry
-          class=${`_${index}`}
-          slot=${time.start.hours}
-          .time=${time}
-          .heading=${heading}
-          .content=${content}
-        >
-        </lms-calendar-entry>
-      `;
-    });
-  }
-
-  _getEntriesSumByDay() {
-    const entriesByDay = this.entries.reduce((acc, entry) => {
-      const {day, month, year} = entry.date.start;
-      const key = `${day}-${month}-${year}`;
-      acc[key] = acc[key] ? acc[key] + 1 : 1;
-      return acc;
-    }, {} as {[key: string]: number});
-
-    return Object.keys(entriesByDay).map((key, index) => {
-      const [day, month, year] = key.split('-');
-      return html`
-        <style>
-          lms-calendar-entry.${`_${index}`} {
-            --entry-br: var(--border-radius-sm);
-            --entry-m: 0 auto;
-            --entry-bc: whitesmoke;
-            --entry-c: black;
-          }
-        </style>
-        <lms-calendar-entry
-          class=${`_${index}`}
-          slot="${+year}-${+month}-${+day}"
-          .time=${undefined}
-          .heading="[ ${entriesByDay[key].toString()} ]"
-        ></lms-calendar-entry>
-      `;
-    });
-  }
-
-  _getGridSlotByTime({start, end}: CalendarTimeInterval) {
-    const startRow = start.hours * 60 + (start.minutes + 1);
-    return `${startRow}/${
-      startRow + (end.hours * 60 + end.minutes - startRow)
-    }`;
-  }
-
-  _getWidthByGroupSize({grading, index}: {grading: Grading[]; index: number}) {
-    return (
-      100 / grading.filter((item) => item.group === grading[index].group).length
-    );
-  }
-
-  _getOffsetByDepth({grading, index}: {grading: Grading[]; index: number}) {
-    if (!grading[index]) {
-      return 0;
+                <lms-calendar-day
+                    ?hidden=${isEmptyObjectOrUndefined(this._expandedDate)}
+                >
+                    ${this._getEntriesByDate()}
+                </lms-calendar-day>
+            </div>
+        `;
     }
 
-    return grading[index].depth === 0
-      ? 0
-      : grading[index].depth *
-          (100 /
-            grading.filter((item) => item.group === grading[index].group)
-              .length);
-  }
+    _handleSwitchDate(e: CustomEvent) {
+        const dateTransformer = new DateTransformer({});
+        dateTransformer._direction = e.detail.direction;
 
-  _getPartitionedSlottedItems(items: CalendarEntry[]) {
-    return partitionOverlappingIntervals(
-      items
-        .map((entry: CalendarEntry) =>
-          this._getGridSlotByTime(entry.time)
-            .replace(/[^0-9/]+/g, '')
-            .split('/')
-        )
-        .map(([start, end]) => [parseInt(start, 10), parseInt(end, 10)])
-        .map(([start, end]) => ({start, end}))
-    );
-  }
+        if (this._expandedDate) {
+            dateTransformer._date = this._expandedDate;
+            const dateInDirection = dateTransformer.getDateByDayInDirection();
+            this._expandedDate = dateInDirection;
+            this.activeDate = dateInDirection;
+            return;
+        }
 
-  _getDaysRange(date: CalendarDateInterval): [Date, Date, number] {
-    const {start, end} = date;
-    const startDate = new Date(start.year, start.month - 1, start.day);
-    const endDate = new Date(end.year, end.month - 1, end.day);
+        dateTransformer._date = this.activeDate;
+        this.activeDate = dateTransformer.getDateByMonthInDirection();
+    }
 
-    return [
-      startDate,
-      endDate,
-      (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) + 1,
-    ];
-  }
+    _handleSwitchView(e: CustomEvent) {
+        if (e.detail.view === 'day') {
+            this._expandedDate = !isEmptyObjectOrUndefined(this._expandedDate)
+                ? this._expandedDate
+                : this.activeDate;
+        }
+
+        if (e.detail.view === 'month') {
+            this.activeDate = this._expandedDate ?? this.activeDate;
+            this._expandedDate = undefined;
+        }
+    }
+
+    _handleExpand(e: CustomEvent) {
+        this._expandedDate = e.detail.date;
+    }
+
+    _getEntries() {
+        if (this.entries.length) {
+            /** If the viewportWidth is under 768px we just sum the number of entries
+             *  for a given day and add a single entry containing the sum. */
+
+            const chronologicalEntries = this.entries.sort(
+                (a, b) =>
+                    a.time.start.hours - b.time.start.hours ||
+                    a.time.start.minutes - b.time.start.minutes,
+            );
+
+            const entriesTemplateResults = chronologicalEntries.map(
+                ({ date, time, heading, color }, index) => {
+                    const [background, text] = getColorTextWithContrast(color);
+                    const [startDate, , rangeDays] = this._getDaysRange(date);
+
+                    /** Create an array of <lms-calendar-entry> elements for each day the entry spans
+                     *  and add them to the entries array. */
+                    const entries = [];
+                    for (let i = 0; i < rangeDays; i++) {
+                        const currentEntry = new EntryTransformer(
+                            { date, time, heading, color, content: '' },
+                            startDate,
+                            i,
+                        ).getEntry();
+
+                        const isContinuation = i > 0 && rangeDays > 1;
+                        const lmsCalendarEntry = html`
+                            <style>
+                                lms-calendar-entry.${`_${index}`} {
+                                    --entry-br: ${rangeDays > 1
+                                        ? 0
+                                        : `var(--border-radius-sm)`};
+                                    --entry-m: 0 ${i !== 0 ? 0 : `0.25em`} 0
+                                        ${i !== 0 ? 0 : `1.5em`};
+                                    --entry-bc: ${background};
+                                    --entry-c: ${text};
+                                }
+                            </style>
+                            <lms-calendar-entry
+                                class=${`_${index}`}
+                                slot="${currentEntry.date.start
+                                    .year}-${currentEntry.date.start
+                                    .month}-${currentEntry.date.start.day}"
+                                .time=${currentEntry.time}
+                                .heading=${isContinuation
+                                    ? ''
+                                    : currentEntry.heading}
+                                .isContinuation=${isContinuation}
+                            >
+                            </lms-calendar-entry>
+                        `;
+                        entries.push(lmsCalendarEntry);
+                    }
+
+                    return entries;
+                },
+            );
+
+            return entriesTemplateResults.flat();
+        }
+
+        return nothing;
+    }
+
+    _getEntriesByDate() {
+        if (isEmptyObjectOrUndefined(this._expandedDate)) {
+            return;
+        }
+        const entriesByDate = this.entries.filter((entry) => {
+            const start = entry.time.start;
+            const end = entry.time.end;
+            const sameDay = haveSameValues(
+                entry.date.start,
+                this._expandedDate || {},
+            );
+
+            return (
+                sameDay &&
+                (start.hours < end.hours ||
+                    (start.hours === end.hours && start.minutes < end.minutes))
+            );
+        });
+
+        const grading = getSortedGradingsByIndex(
+            !isEmptyObjectOrUndefined(entriesByDate)
+                ? getOverlappingEntitiesIndices(
+                      this._getPartitionedSlottedItems(entriesByDate),
+                  )
+                : [],
+        );
+
+        return entriesByDate.map(({ time, heading, content, color }, index) => {
+            const [background, text] = getColorTextWithContrast(color);
+            return html`
+                <style>
+                    lms-calendar-entry.${`_${index}`} {
+                        --start-slot: ${this._getGridSlotByTime(time)};
+                        --entry-w: ${this._getWidthByGroupSize({
+                            grading,
+                            index,
+                        })}%;
+                        --entry-m: 0 1.5em 0
+                            ${this._getOffsetByDepth({ grading, index })}%;
+                        --entry-bc: ${background};
+                        --entry-c: ${text};
+                    }
+                </style>
+                <lms-calendar-entry
+                    class=${`_${index}`}
+                    slot=${time.start.hours}
+                    .time=${time}
+                    .heading=${heading}
+                    .content=${content}
+                >
+                </lms-calendar-entry>
+            `;
+        });
+    }
+
+    _getEntriesSumByDay() {
+        const entriesByDay = this.entries.reduce((acc, entry) => {
+            const { day, month, year } = entry.date.start;
+            const key = `${day}-${month}-${year}`;
+            acc[key] = acc[key] ? acc[key] + 1 : 1;
+            return acc;
+        }, {} as { [key: string]: number });
+
+        return Object.keys(entriesByDay).map((key, index) => {
+            const [day, month, year] = key.split('-');
+            return html`
+                <style>
+                    lms-calendar-entry.${`_${index}`} {
+                        --entry-br: var(--border-radius-sm);
+                        --entry-m: 0 auto;
+                        --entry-bc: whitesmoke;
+                        --entry-c: black;
+                    }
+                </style>
+                <lms-calendar-entry
+                    class=${`_${index}`}
+                    slot="${+year}-${+month}-${+day}"
+                    .time=${undefined}
+                    .heading="[ ${entriesByDay[key].toString()} ]"
+                ></lms-calendar-entry>
+            `;
+        });
+    }
+
+    _getGridSlotByTime({ start, end }: CalendarTimeInterval) {
+        const startRow = start.hours * 60 + (start.minutes + 1);
+        return `${startRow}/${
+            startRow + (end.hours * 60 + end.minutes - startRow)
+        }`;
+    }
+
+    _getWidthByGroupSize({
+        grading,
+        index,
+    }: {
+        grading: Grading[];
+        index: number;
+    }) {
+        return (
+            100 /
+            grading.filter((item) => item.group === grading[index].group).length
+        );
+    }
+
+    _getOffsetByDepth({
+        grading,
+        index,
+    }: {
+        grading: Grading[];
+        index: number;
+    }) {
+        if (!grading[index]) {
+            return 0;
+        }
+
+        return grading[index].depth === 0
+            ? 0
+            : grading[index].depth *
+                  (100 /
+                      grading.filter(
+                          (item) => item.group === grading[index].group,
+                      ).length);
+    }
+
+    _getPartitionedSlottedItems(items: CalendarEntry[]) {
+        return partitionOverlappingIntervals(
+            items
+                .map((entry: CalendarEntry) =>
+                    this._getGridSlotByTime(entry.time)
+                        .replace(/[^0-9/]+/g, '')
+                        .split('/'),
+                )
+                .map(([start, end]) => [parseInt(start, 10), parseInt(end, 10)])
+                .map(([start, end]) => ({ start, end })),
+        );
+    }
+
+    _getDaysRange(date: CalendarDateInterval): [Date, Date, number] {
+        const { start, end } = date;
+        const startDate = new Date(start.year, start.month - 1, start.day);
+        const endDate = new Date(end.year, end.month - 1, end.day);
+
+        return [
+            startDate,
+            endDate,
+            (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) + 1,
+        ];
+    }
 }
 
 declare global {
-  interface HTMLElementTagNameMap {
-    'lms-calendar': LMSCalendar;
-    'lms-calendar-header': LMSCalendarHeader;
-    'lms-calendar-month': LMSCalendarMonth;
-    'lms-calendar-day': LMSCalendarDay;
-    'lms-calendar-context': LMSCalendarContext;
-    'lms-calendar-entry': LMSCalendarEntry;
-  }
+    interface HTMLElementTagNameMap {
+        'lms-calendar': LMSCalendar;
+        'lms-calendar-header': LMSCalendarHeader;
+        'lms-calendar-month': LMSCalendarMonth;
+        'lms-calendar-day': LMSCalendarDay;
+        'lms-calendar-context': LMSCalendarContext;
+        'lms-calendar-entry': LMSCalendarEntry;
+    }
 
-  interface CalendarDate {
-    day: number;
-    month: number;
-    year: number;
-  }
+    interface CalendarDate {
+        day: number;
+        month: number;
+        year: number;
+    }
 
-  interface CalendarDateInterval {
-    start: CalendarDate;
-    end: CalendarDate;
-  }
+    interface CalendarDateInterval {
+        start: CalendarDate;
+        end: CalendarDate;
+    }
 
-  interface CalendarTime {
-    hours: number;
-    minutes: number;
-  }
+    interface CalendarTime {
+        hours: number;
+        minutes: number;
+    }
 
-  interface CalendarTimeInterval {
-    start: CalendarTime;
-    end: CalendarTime;
-  }
+    interface CalendarTimeInterval {
+        start: CalendarTime;
+        end: CalendarTime;
+    }
 
-  interface CalendarEntry {
-    date: CalendarDateInterval;
-    time: CalendarTimeInterval;
-    heading: string;
-    content: string;
-    color: string;
-  }
+    interface CalendarEntry {
+        date: CalendarDateInterval;
+        time: CalendarTimeInterval;
+        heading: string;
+        content: string;
+        color: string;
+    }
 
-  interface Interval {
-    start: number;
-    end: number;
-  }
+    interface Interval {
+        start: number;
+        end: number;
+    }
 
-  interface Grading {
-    index: number;
-    depth: number;
-    group: number;
-  }
+    interface Grading {
+        index: number;
+        depth: number;
+        group: number;
+    }
 
-  interface Partition {
-    index: number | undefined;
-    depth: number | undefined;
-    group: number | undefined;
-    start: number;
-    end: number;
-  }
+    interface Partition {
+        index: number | undefined;
+        depth: number | undefined;
+        group: number | undefined;
+        start: number;
+        end: number;
+    }
 }

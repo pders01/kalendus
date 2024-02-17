@@ -1,224 +1,266 @@
 <!DOCTYPE html>
 <html lang="de">
-  <head>
-    <meta charset="utf-8" />
-    <title>&lt;lms-calendar> Demo</title>
-    <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
-    <script src="../node_modules/lit/polyfill-support.js"></script>
-    <script type="module" src="../build/lms-calendar.bundled.js"></script>
-    <style>
-      body {
-        height: calc(100vh - 16px);
-        background-color: #333;
-      }
-    </style>
-  </head>
-  <body>
-    <lms-calendar></lms-calendar>
-    <script>
-      const calendar = document.querySelector('lms-calendar');
+    <head>
+        <meta charset="utf-8" />
+        <title>&lt;lms-calendar> Demo</title>
+        <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-loader.js"></script>
+        <script src="../node_modules/lit/polyfill-support.js"></script>
+        <script type="module" src="../build/lms-calendar.bundled.js"></script>
+        <style>
+            body {
+                height: calc(100vh - 16px);
+                background-color: #333;
+            }
+        </style>
+    </head>
+    <body>
+        <lms-calendar></lms-calendar>
+        <script>
+            const calendar = document.querySelector('lms-calendar');
 
-      const currentDate = new Date();
-      const month = currentDate.getMonth() + 1;
-      const year = currentDate.getFullYear();
+            const currentDate = new Date();
+            const month = currentDate.getMonth() + 1;
+            const year = currentDate.getFullYear();
 
-      calendar.entries = [
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {start: {hours: 9, minutes: 30}, end: {hours: 10, minutes: 0}},
-          heading: 'My super important event',
-          content: 'Some super important content that stretches for a while...',
-          color: '#efefef',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {start: {hours: 10, minutes: 0}, end: {hours: 10, minutes: 30}},
-          heading:
-            'My other super important event with a slightly longer title...',
-          content: 'Some super important content that stretches for a while...',
-          color: '#bebebe',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {
-            start: {hours: 10, minutes: 30},
-            end: {hours: 11, minutes: 30},
-          },
-          heading: 'Base Case 2.1',
-          content: 'An event that lies between two full hours',
-          color: '#3c4c3c',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {start: {hours: 9, minutes: 30}, end: {hours: 11, minutes: 30}},
-          heading: 'Base Case 2.2',
-          content: 'An event that lies between two full hours',
-          color: '#5a5b4a',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {
-            start: {hours: 10, minutes: 0},
-            end: {hours: 11, minutes: 30},
-          },
-          heading: 'Base Case 2.3',
-          content: 'Another event that lies between two full hours',
-          color: '#5a5b4e',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {
-            start: {hours: 16, minutes: 0},
-            end: {hours: 17, minutes: 30},
-          },
-          heading: 'Base Case 2.4',
-          content: "An event that doesn't overlap",
-          color: '#3a3b4e',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {start: {hours: 5, minutes: 0}, end: {hours: 6, minutes: 0}},
-          heading: 'Base Case 2.5',
-          content: 'A prepended event',
-          color: '#444beb',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {start: {hours: 11, minutes: 0}, end: {hours: 13, minutes: 0}},
-          heading: 'Base Case 2.6',
-          content: 'Another test case',
-          color: '#4242eb',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {
-            start: {hours: 13, minutes: 0},
-            end: {hours: 13, minutes: 20},
-          },
-          heading: 'Base Case 2.7',
-          content: 'Another test case',
-          color: '#4242eb',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {
-            start: {hours: 13, minutes: 15},
-            end: {hours: 13, minutes: 40},
-          },
-          heading: 'Base Case 2.8',
-          content: 'Another test case',
-          color: '#4242eb',
-        },
-        {
-          date: {
-            start: {day: 4, month, year},
-            end: {day: 4, month, year},
-          },
-          time: {start: {hours: 13, minutes: 40}, end: {hours: 14, minutes: 0}},
-          heading: 'Base Case 2.9',
-          content: 'Another test case',
-          color: '#4242ef',
-        },
-        {
-          date: {
-            start: {day: 5, month, year},
-            end: {day: 5, month, year},
-          },
-          time: {start: {hours: 11, minutes: 0}, end: {hours: 13, minutes: 0}},
-          heading: 'Base Case 3.1',
-          content: 'Test case for display of multiple days',
-          color: '#4242eb',
-        },
-        {
-          date: {
-            start: {day: 5, month, year},
-            end: {day: 5, month, year},
-          },
-          time: {start: {hours: 12, minutes: 0}, end: {hours: 14, minutes: 0}},
-          heading: 'Base Case 3.2',
-          content: 'Another test case',
-          color: '#4242eb',
-        },
-        {
-          date: {
-            start: {day: 5, month, year},
-            end: {day: 5, month, year},
-          },
-          time: {start: {hours: 15, minutes: 30}, end: {hours: 16, minutes: 0}},
-          heading: 'Base Case 3.3',
-          content: 'Another test case',
-          color: '#4242ef',
-        },
-        {
-          date: {
-            start: {day: 6, month, year},
-            end: {day: 8, month, year},
-          },
-          time: {start: {hours: 0, minutes: 0}, end: {hours: 24, minutes: 0}},
-          heading: 'Base Case 4',
-          content: 'An event spanning multiple days',
-          color: '#4242ef',
-        },
-        {
-          date: {
-            start: {day: 9, month, year},
-            end: {day: 9, month, year},
-          },
-          time: {start: {hours: 13, minutes: 0}, end: {hours: 13, minutes: 1}},
-          heading: 'Base Case 5',
-          content: 'An event that only lasts a minute',
-          color: '#4242ef',
-        },
-        {
-          date: {
-            start: {day: 9, month, year},
-            end: {day: 9, month, year},
-          },
-          time: {start: {hours: 0, minutes: 0}, end: {hours: 23, minutes: 59}},
-          heading: 'Base Case 5',
-          content: 'An all day event',
-          color: '#4242ef',
-        },
-        {
-          date: {
-            start: {day: 10, month, year},
-            end: {day: 10, month, year},
-          },
-          time: {start: {hours: 0, minutes: 0}, end: {hours: 23, minutes: 59}},
-          heading: 'Base Case 5',
-          content: 'An all day event',
-          color: '#4242ef',
-        },
-      ];
-    </script>
+            calendar.entries = [
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 9, minutes: 30 },
+                        end: { hours: 10, minutes: 0 },
+                    },
+                    heading: 'My super important event',
+                    content:
+                        'Some super important content that stretches for a while...',
+                    color: '#efefef',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 10, minutes: 0 },
+                        end: { hours: 10, minutes: 30 },
+                    },
+                    heading:
+                        'My other super important event with a slightly longer title...',
+                    content:
+                        'Some super important content that stretches for a while...',
+                    color: '#bebebe',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 10, minutes: 30 },
+                        end: { hours: 11, minutes: 30 },
+                    },
+                    heading: 'Base Case 2.1',
+                    content: 'An event that lies between two full hours',
+                    color: '#3c4c3c',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 9, minutes: 30 },
+                        end: { hours: 11, minutes: 30 },
+                    },
+                    heading: 'Base Case 2.2',
+                    content: 'An event that lies between two full hours',
+                    color: '#5a5b4a',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 10, minutes: 0 },
+                        end: { hours: 11, minutes: 30 },
+                    },
+                    heading: 'Base Case 2.3',
+                    content: 'Another event that lies between two full hours',
+                    color: '#5a5b4e',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 16, minutes: 0 },
+                        end: { hours: 17, minutes: 30 },
+                    },
+                    heading: 'Base Case 2.4',
+                    content: "An event that doesn't overlap",
+                    color: '#3a3b4e',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 5, minutes: 0 },
+                        end: { hours: 6, minutes: 0 },
+                    },
+                    heading: 'Base Case 2.5',
+                    content: 'A prepended event',
+                    color: '#444beb',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 11, minutes: 0 },
+                        end: { hours: 13, minutes: 0 },
+                    },
+                    heading: 'Base Case 2.6',
+                    content: 'Another test case',
+                    color: '#4242eb',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 13, minutes: 0 },
+                        end: { hours: 13, minutes: 20 },
+                    },
+                    heading: 'Base Case 2.7',
+                    content: 'Another test case',
+                    color: '#4242eb',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 13, minutes: 15 },
+                        end: { hours: 13, minutes: 40 },
+                    },
+                    heading: 'Base Case 2.8',
+                    content: 'Another test case',
+                    color: '#4242eb',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hours: 13, minutes: 40 },
+                        end: { hours: 14, minutes: 0 },
+                    },
+                    heading: 'Base Case 2.9',
+                    content: 'Another test case',
+                    color: '#4242ef',
+                },
+                {
+                    date: {
+                        start: { day: 5, month, year },
+                        end: { day: 5, month, year },
+                    },
+                    time: {
+                        start: { hours: 11, minutes: 0 },
+                        end: { hours: 13, minutes: 0 },
+                    },
+                    heading: 'Base Case 3.1',
+                    content: 'Test case for display of multiple days',
+                    color: '#4242eb',
+                },
+                {
+                    date: {
+                        start: { day: 5, month, year },
+                        end: { day: 5, month, year },
+                    },
+                    time: {
+                        start: { hours: 12, minutes: 0 },
+                        end: { hours: 14, minutes: 0 },
+                    },
+                    heading: 'Base Case 3.2',
+                    content: 'Another test case',
+                    color: '#4242eb',
+                },
+                {
+                    date: {
+                        start: { day: 5, month, year },
+                        end: { day: 5, month, year },
+                    },
+                    time: {
+                        start: { hours: 15, minutes: 30 },
+                        end: { hours: 16, minutes: 0 },
+                    },
+                    heading: 'Base Case 3.3',
+                    content: 'Another test case',
+                    color: '#4242ef',
+                },
+                {
+                    date: {
+                        start: { day: 6, month, year },
+                        end: { day: 8, month, year },
+                    },
+                    time: {
+                        start: { hours: 0, minutes: 0 },
+                        end: { hours: 24, minutes: 0 },
+                    },
+                    heading: 'Base Case 4',
+                    content: 'An event spanning multiple days',
+                    color: '#4242ef',
+                },
+                {
+                    date: {
+                        start: { day: 9, month, year },
+                        end: { day: 9, month, year },
+                    },
+                    time: {
+                        start: { hours: 13, minutes: 0 },
+                        end: { hours: 13, minutes: 1 },
+                    },
+                    heading: 'Base Case 5',
+                    content: 'An event that only lasts a minute',
+                    color: '#4242ef',
+                },
+                {
+                    date: {
+                        start: { day: 9, month, year },
+                        end: { day: 9, month, year },
+                    },
+                    time: {
+                        start: { hours: 0, minutes: 0 },
+                        end: { hours: 23, minutes: 59 },
+                    },
+                    heading: 'Base Case 5',
+                    content: 'An all day event',
+                    color: '#4242ef',
+                },
+                {
+                    date: {
+                        start: { day: 10, month, year },
+                        end: { day: 10, month, year },
+                    },
+                    time: {
+                        start: { hours: 0, minutes: 0 },
+                        end: { hours: 23, minutes: 59 },
+                    },
+                    heading: 'Base Case 5',
+                    content: 'An all day event',
+                    color: '#4242ef',
+                },
+            ];
+        </script>
+    </body>
 </html>

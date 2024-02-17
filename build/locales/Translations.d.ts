@@ -8,6 +8,8 @@ export default class Translations {
     constructor();
     get lang(): string;
     set lang(lang: string);
-    getTranslation(key: string | number | undefined): string | number | undefined;
+    getTranslation(
+        key: string | number | undefined,
+    ): string | number | undefined;
 }
 //# sourceMappingURL=Translations.d.ts.map

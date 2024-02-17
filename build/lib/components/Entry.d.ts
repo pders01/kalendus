@@ -8,9 +8,11 @@ export default class Entry extends LitElement {
     _highlighted?: boolean;
     _extended?: boolean;
     private _sumReducer;
-    static styles: import("lit").CSSResult;
-    render(): import("lit").TemplateResult<1>;
-    _displayInterval(time?: CalendarTimeInterval): string | number | typeof nothing | undefined;
+    static styles: import('lit').CSSResult;
+    render(): import('lit').TemplateResult<1>;
+    _displayInterval(
+        time?: CalendarTimeInterval,
+    ): string | number | typeof nothing | undefined;
     _handleClick(): void;
 }
 //# sourceMappingURL=Entry.d.ts.map

@@ -18,23 +18,29 @@ export default class LMSCalendar extends LitElement {
     _expandedDate?: CalendarDate;
     _viewportWidth: number;
     resizeObserver: ResizeObserver;
-    static styles: import("lit").CSSResult;
-    render(): import("lit").TemplateResult<1>;
+    static styles: import('lit').CSSResult;
+    render(): import('lit').TemplateResult<1>;
     connectedCallback(): void;
     resizedCallback(rect: DOMRect): void;
     disconnectedCallback(): void;
     _handleSwitchDate(e: CustomEvent): void;
     _handleSwitchView(e: CustomEvent): void;
     _handleExpand(e: CustomEvent): void;
-    _getEntries(): import("lit").TemplateResult<1>[] | typeof nothing;
-    _getEntriesByDate(): import("lit").TemplateResult<1>[] | undefined;
-    _getEntriesSumByDay(): import("lit").TemplateResult<1>[];
+    _getEntries(): import('lit').TemplateResult<1>[] | typeof nothing;
+    _getEntriesByDate(): import('lit').TemplateResult<1>[] | undefined;
+    _getEntriesSumByDay(): import('lit').TemplateResult<1>[];
     _getGridSlotByTime({ start, end }: CalendarTimeInterval): string;
-    _getWidthByGroupSize({ grading, index }: {
+    _getWidthByGroupSize({
+        grading,
+        index,
+    }: {
         grading: Grading[];
         index: number;
     }): number;
-    _getOffsetByDepth({ grading, index }: {
+    _getOffsetByDepth({
+        grading,
+        index,
+    }: {
         grading: Grading[];
         index: number;
     }): number;
