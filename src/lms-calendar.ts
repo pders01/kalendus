@@ -1,26 +1,32 @@
-import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
-
-import './components/Header.js';
-import LMSCalendarHeader from './components/Header';
-import './components/Month.js';
-import LMSCalendarMonth from './components/Month';
-import './components/Day.js';
-import LMSCalendarDay from './components/Day';
-import './components/Context.js';
-import LMSCalendarContext from './components/Context';
-import './components/Entry.js';
-import LMSCalendarEntry from './components/Entry';
-import isEmptyObjectOrUndefined from './utils/isEmptyObjectOrUndefined.js';
-import getColorTextWithContrast from './utils/getColorTextWithContrast.js';
-import partitionOverlappingIntervals from './utils/partitionOverlappingIntervals.js';
-import getOverlappingEntitiesIndices from './utils/getOverlappingEntitiesIndices.js';
-import haveSameValues from './utils/haveSameValues.js';
-import getSortedGradingsByIndex from './utils/getSortedGradingsByIndex.js';
-import CalendarEntryViewAdapter from './lib/CalendarEntryViewAdapter.js';
-import DirectionalCalendarDateCalculator from './lib/DirectionalCalendarDateCalculator.js';
+import {
+    CSSResult,
+    LitElement,
+    PropertyValueMap,
+    css,
+    html,
+    nothing,
+    unsafeCSS,
+} from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+import { DateTime, Interval } from 'luxon';
+import * as R from 'remeda';
 import { match } from 'ts-pattern';
+import LMSCalendarContext from './components/Context';
+import './components/Context.js';
+import LMSCalendarDay from './components/Day';
+import './components/Day.js';
+import LMSCalendarEntry from './components/Entry';
+import './components/Entry.js';
+import LMSCalendarHeader from './components/Header';
+import './components/Header.js';
+import LMSCalendarMonth from './components/Month';
+import './components/Month.js';
+import DirectionalCalendarDateCalculator from './lib/DirectionalCalendarDateCalculator.js';
+import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
+import getOverlappingEntitiesIndices from './lib/getOverlappingEntitiesIndices.js';
+import getSortedGradingsByIndex from './lib/getSortedGradingsByIndex.js';
+import partitionOverlappingIntervals from './lib/partitionOverlappingIntervals.js';
 
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
@@ -111,6 +117,15 @@ export default class LMSCalendar extends LitElement {
         this._resizeController.observe(firstElementChild);
     }
 
+    /** We filter invalid entries in the willUpdate hook, so be prepared:
+     *  - This will not be shown
+     *   ```json
+     *   { date: ..., time: { start: { hour: 10, minute: 30 }, end: { hour: 10, minute: 00 } } }
+     *  ```
+     *  - The same goes for invalid dates meaning the end date being before the start date.
+     *
+     *  We then sort the entries inplace.
+     */
     protected override willUpdate(
         _changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
     ): void {
@@ -118,15 +133,29 @@ export default class LMSCalendar extends LitElement {
             return;
         }
 
-        this.entries.sort(
-            (a, b) =>
-                a.time.start.hours - b.time.start.hours ||
-                a.time.start.minutes - b.time.start.minutes,
+        this.entries = R.pipe(
+            this.entries,
+            R.filter(
+                (entry) =>
+                    Interval.fromDateTimes(
+                        DateTime.fromObject(
+                            R.merge(entry.date.start, entry.time.start),
+                        ),
+                        DateTime.fromObject(
+                            R.merge(entry.date.end, entry.time.end),
+                        ),
+                    ).isValid,
+            ),
+            R.sort.strict(
+                (a, b) =>
+                    a.time.start.hour - b.time.start.hour ||
+                    a.time.start.minute - b.time.start.minute,
+            ),
         );
     }
 
     override render() {
-        const hasExpandedDate = !isEmptyObjectOrUndefined(this._expandedDate);
+        const hasExpandedDate = !R.isEmpty(this._expandedDate ?? {});
         return html`
             <div>
                 <lms-calendar-header
@@ -158,7 +187,7 @@ export default class LMSCalendar extends LitElement {
         `;
     }
 
-    _handleSwitchDate(e: CustomEvent) {
+    private _handleSwitchDate(e: CustomEvent) {
         const dateCalculator = new DirectionalCalendarDateCalculator({});
         dateCalculator.direction = e.detail.direction;
 
@@ -174,12 +203,10 @@ export default class LMSCalendar extends LitElement {
         this.activeDate = dateCalculator.getDateByMonthInDirection();
     }
 
-    _handleSwitchView(e: CustomEvent) {
+    private _handleSwitchView(e: CustomEvent) {
         return match(e.detail.view)
             .with('day', () => {
-                this._expandedDate = !isEmptyObjectOrUndefined(
-                    this._expandedDate,
-                )
+                this._expandedDate = !R.isEmpty(this._expandedDate ?? {})
                     ? this._expandedDate
                     : this.activeDate;
             })
@@ -190,34 +217,34 @@ export default class LMSCalendar extends LitElement {
             .otherwise(() => {});
     }
 
-    _handleExpand(e: CustomEvent) {
+    private _handleExpand(e: CustomEvent) {
         this._expandedDate = e.detail.date;
     }
 
-    _composeEntry(
-        index: number,
-        slot: string,
-        styles: CalendarEntryStyles,
-        data: CalendarEntryData,
-    ) {
+    private _composeEntry({
+        index,
+        slot,
+        styles,
+        entry,
+        isContinuation = false,
+    }: {
+        index: number;
+        slot: string;
+        styles: CSSResult;
+        entry: Partial<CalendarEntry>;
+        isContinuation?: boolean;
+    }) {
         return html`
             <style>
-                lms-calendar-entry.${`_${index}`} {
-                    --start-slot: ${styles.startSlot};
-                    --entry-w: ${styles.w};
-                    --entry-br: ${styles.br};
-                    --entry-m: ${styles.m};
-                    --entry-bc: ${styles.bc};
-                    --entry-c: ${styles.c};
-                }
+                ${styles}
             </style>
             <lms-calendar-entry
                 class=${`_${index}`}
                 slot=${slot}
-                .time=${data.time}
-                .heading=${data.heading}
-                .content=${data.content}
-                .isContinuation=${data.isContinuation ?? false}
+                .time=${entry.time}
+                .heading=${entry.heading ?? ''}
+                .content=${entry.content}
+                .isContinuation=${isContinuation ?? false}
             >
             </lms-calendar-entry>
         `;
@@ -225,160 +252,180 @@ export default class LMSCalendar extends LitElement {
 
     /** Create an array of <lms-calendar-entry> elements for each day the entry spans
      *  and add them to the entries array. */
-    _expandEntryMaybe({
+    private _expandEntryMaybe({
         entry,
         entryIndex,
-        startDate,
-        rangeDays,
+        range,
         styles,
     }: {
-        entry: CalendarEntry;
+        entry: Partial<CalendarEntry>;
         entryIndex: number;
-        startDate: Date;
-        rangeDays: number;
-        styles: { background: string; text: string };
+        range: [Date, Date, number];
+        styles: string[];
     }) {
-        return Array.from({ length: rangeDays }, (_, index) => {
-            const currentEntry = new CalendarEntryViewAdapter(
-                entry,
-                startDate,
-                index,
-            ).getEntry();
+        return Array.from({ length: range[2] }, (_, index) => {
+            const currentStartDate = DateTime.fromJSDate(range[0]).plus({
+                days: index,
+            });
+            const currentEndDate = currentStartDate
+                .plus({ days: 1 })
+                .minus({ seconds: 1 });
+            const currentEntry = {
+                ...entry,
+                date: {
+                    start: currentStartDate.toObject(),
+                    end: currentEndDate.toObject(),
+                },
+            };
 
             const slot = `${currentEntry.date.start.year}-${currentEntry.date.start.month}-${currentEntry.date.start.day}`;
-            const isContinuation = index > 0 && rangeDays > 1;
+            const isContinuation = index > 0 && range[2] > 1;
 
-            return this._composeEntry(
-                entryIndex, // Assuming 'entryIndex' is in the outer scope
+            return this._composeEntry({
+                index: entryIndex,
                 slot,
-                {
-                    br: rangeDays > 1 ? '0' : 'var(--border-radius-sm)',
-                    m: `0 ${index !== 0 ? 0 : '0.25em'} 0 ${
-                        index !== 0 ? 0 : '1.5em'
-                    }`,
-                    bc: styles.background,
-                    c: styles.text,
-                },
-                {
+                styles: css`
+                    lms-calendar-entry._${entryIndex} {
+                        --entry-br: ${unsafeCSS(
+                            range[2] > 1 ? 0 : 'var(--border-radius-sm)',
+                        )};
+                        --entry-m: 0 ${unsafeCSS(index !== 0 ? 0 : '0.25em')} 0
+                            ${unsafeCSS(index !== 0 ? 0 : '1.5em')};
+                        --entry-bc: ${unsafeCSS(styles[0])};
+                        --entry-c: ${unsafeCSS(styles[1])};
+                    }
+                `,
+                entry: {
                     time: currentEntry.time,
                     heading: isContinuation ? '' : currentEntry.heading,
-                    isContinuation,
                 },
-            );
+                isContinuation,
+            });
         });
     }
 
-    _renderEntries() {
+    private _renderEntries() {
         if (!this.entries.length) {
             return nothing;
         }
 
-        return this.entries
-            .map((entry, index) => {
-                const [background, text] = getColorTextWithContrast(
-                    entry.color,
-                );
-                const [startDate, , rangeDays] = this._getDaysRange(entry.date);
-
-                return this._expandEntryMaybe({
+        return R.pipe(
+            this.entries,
+            R.map.indexed((entry, index) =>
+                this._expandEntryMaybe({
                     entry,
                     entryIndex: index,
-                    startDate,
-                    rangeDays,
-                    styles: { background, text },
-                });
-            })
-            .flat();
+                    range: this._getDaysRange(entry.date),
+                    styles: getColorTextWithContrast(entry.color),
+                }),
+            ),
+            R.flatten(),
+        );
     }
 
-    _renderEntriesByDate() {
-        if (isEmptyObjectOrUndefined(this._expandedDate)) {
-            return;
+    private _renderEntriesByDate() {
+        if (R.isEmpty(this._expandedDate ?? {})) {
+            return nothing;
         }
 
-        const entriesByDate = this.entries.filter((entry) => {
-            const start = entry.time.start;
-            const end = entry.time.end;
-            const sameDay = haveSameValues(
-                entry.date.start,
-                this._expandedDate ?? {},
-            );
-
-            return (
-                sameDay &&
-                (start.hours < end.hours ||
-                    (start.hours === end.hours && start.minutes < end.minutes))
-            );
-        });
-
-        const grading = getSortedGradingsByIndex(
-            !isEmptyObjectOrUndefined(entriesByDate)
-                ? getOverlappingEntitiesIndices(
-                      this._getPartitionedSlottedItems(entriesByDate),
-                  )
-                : [],
+        const entriesByDate = R.pipe(
+            this.entries,
+            R.filter((entry) =>
+                R.equals(entry.date.start, this._expandedDate ?? {}),
+            ),
         );
 
-        return entriesByDate.map(({ time, heading, content, color }, index) => {
-            const [background, text] = getColorTextWithContrast(color);
-            const slot = time.start.hours.toString();
-            return this._composeEntry(
-                index,
-                slot,
-                {
-                    startSlot: this._getGridSlotByTime(time),
-                    w: `${this._getWidthByGroupSize({ grading, index })}%`,
-                    m: `0 1.5em 0 ${this._getOffsetByDepth({
-                        grading,
-                        index,
-                    })}%`,
-                    bc: background,
-                    c: text,
-                },
-                {
-                    time,
-                    heading,
-                    content,
-                },
+        let grading: Grading[] = [];
+        if (!R.isEmpty(entriesByDate)) {
+            grading = R.pipe(
+                entriesByDate,
+                R.map(({ time }) =>
+                    this._getGridSlotByTime(time)
+                        .replace(/[^0-9/]+/g, '')
+                        .split('/'),
+                ),
+                R.map(([start, end]) => ({
+                    start: parseInt(start, 10),
+                    end: parseInt(end, 10),
+                })),
+                partitionOverlappingIntervals,
+                getOverlappingEntitiesIndices,
+                getSortedGradingsByIndex,
             );
-        });
+        }
+
+        return R.pipe(
+            entriesByDate,
+            R.map(
+                (entry) =>
+                    [entry, ...getColorTextWithContrast(entry.color ?? '')] as [
+                        CalendarEntry,
+                        string,
+                        string,
+                    ],
+            ),
+            R.map.indexed(([entry, background, text], index) =>
+                this._composeEntry({
+                    index,
+                    slot: entry.time.start.hour.toString(),
+                    styles: css`
+                        lms-calendar-entry._${index} {
+                            --start-slot: ${unsafeCSS(
+                                this._getGridSlotByTime(entry.time),
+                            )};
+                            --entry-w: ${this._getWidthByGroupSize({
+                                grading,
+                                index,
+                            })}%;
+                            --entry-m: 0 1.5em 0
+                                ${this._getOffsetByDepth({ grading, index })}%;
+                            --entry-bc: ${unsafeCSS(background)};
+                            --entry-c: ${unsafeCSS(text)};
+                        }
+                    `,
+                    entry,
+                }),
+            ),
+        );
     }
 
-    _renderEntriesSumByDay() {
-        const entriesByDay = this.entries.reduce((acc, entry) => {
-            const { day, month, year } = entry.date.start;
-            const key = `${day}-${month}-${year}`;
-            acc[key] = acc[key] ? acc[key] + 1 : 1;
-            return acc;
-        }, {} as { [key: string]: number });
-
-        return Object.keys(entriesByDay).map((key, index) => {
-            const [day, month, year] = key.split('-');
-            const slot = `${year}-${month}-${day}`;
-            return this._composeEntry(
-                index,
-                slot,
-                {
-                    br: 'var(--border-radius-sm)',
-                    m: '0 auto',
-                    bc: 'whitesmoke',
-                    c: 'black',
-                },
-                {
-                    heading: `[ ${entriesByDay[key]} ]`,
-                },
-            );
-        });
+    private _renderEntriesSumByDay() {
+        return R.pipe(
+            this.entries,
+            R.reduce((acc, entry) => {
+                const key = `${entry.date.start.day}-${entry.date.start.month}-${entry.date.start.year}`;
+                acc[key] = acc[key] ? acc[key] + 1 : 1;
+                return acc;
+            }, {} as Record<string, number>),
+            Object.entries,
+            R.map.indexed(([key, value], index) =>
+                this._composeEntry({
+                    index,
+                    slot: key.split('-').reverse().join('-'),
+                    styles: css`
+                        lms-calendar-entry._${index} {
+                            --entry-br: var(--border-radius-sm);
+                            --entry-m: 0 auto;
+                            --entry-bc: whitesmoke;
+                            --entry-c: black;
+                        }
+                    `,
+                    entry: {
+                        heading: `[ ${value} ]`,
+                    },
+                }),
+            ),
+        );
     }
 
-    _getGridSlotByTime({ start, end }: CalendarTimeInterval) {
-        const startRow = start.hours * 60 + (start.minutes + 1);
+    private _getGridSlotByTime({ start, end }: CalendarTimeInterval) {
+        const startRow = start.hour * 60 + (start.minute + 1);
         return `${startRow}/${
-            startRow + (end.hours * 60 + end.minutes - startRow)
+            startRow + (end.hour * 60 + end.minute - startRow)
         }`;
     }
 
-    _getWidthByGroupSize({
+    private _getWidthByGroupSize({
         grading,
         index,
     }: {
@@ -391,7 +438,7 @@ export default class LMSCalendar extends LitElement {
         );
     }
 
-    _getOffsetByDepth({
+    private _getOffsetByDepth({
         grading,
         index,
     }: {
@@ -411,20 +458,7 @@ export default class LMSCalendar extends LitElement {
                       ).length);
     }
 
-    _getPartitionedSlottedItems(items: CalendarEntry[]) {
-        return partitionOverlappingIntervals(
-            items
-                .map((entry: CalendarEntry) =>
-                    this._getGridSlotByTime(entry.time)
-                        .replace(/[^0-9/]+/g, '')
-                        .split('/'),
-                )
-                .map(([start, end]) => [parseInt(start, 10), parseInt(end, 10)])
-                .map(([start, end]) => ({ start, end })),
-        );
-    }
-
-    _getDaysRange(date: CalendarDateInterval): [Date, Date, number] {
+    private _getDaysRange(date: CalendarDateInterval): [Date, Date, number] {
         const { start, end } = date;
         const startDate = new Date(start.year, start.month - 1, start.day);
         const endDate = new Date(end.year, end.month - 1, end.day);
@@ -459,8 +493,8 @@ declare global {
     };
 
     type CalendarTime = {
-        hours: number;
-        minutes: number;
+        hour: number;
+        minute: number;
     };
 
     type CalendarTimeInterval = {
@@ -474,22 +508,6 @@ declare global {
         heading: string;
         content: string;
         color: string;
-    };
-
-    type CalendarEntryStyles = {
-        startSlot?: string;
-        w?: string;
-        br?: string;
-        m: string;
-        bc: string;
-        c: string;
-    };
-
-    type CalendarEntryData = {
-        time?: CalendarTimeInterval;
-        heading: string;
-        content?: string;
-        isContinuation?: boolean;
     };
 
     type Interval = {

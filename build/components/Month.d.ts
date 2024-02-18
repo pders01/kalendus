@@ -1,4 +1,5 @@
 import { LitElement } from 'lit';
+
 export default class Month extends LitElement {
     private translations;
     activeDate?: CalendarDate;

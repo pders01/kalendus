@@ -1,4 +1,4 @@
-import { LitElement, nothing } from 'lit';
+import { LitElement } from 'lit';
 export default class Entry extends LitElement {
     private translations;
     time?: CalendarTimeInterval;
@@ -10,7 +10,7 @@ export default class Entry extends LitElement {
     private _sumReducer;
     static styles: import("lit").CSSResult;
     render(): import("lit").TemplateResult<1>;
-    _displayInterval(time?: CalendarTimeInterval): string | number | typeof nothing | undefined;
-    _handleClick(): void;
+    private _displayInterval;
+    private _handleClick;
 }
 //# sourceMappingURL=Entry.d.ts.map

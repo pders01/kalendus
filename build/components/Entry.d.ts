@@ -1,4 +1,5 @@
 import { LitElement, nothing } from 'lit';
+
 export default class Entry extends LitElement {
     time?: CalendarTimeInterval;
     heading: string;

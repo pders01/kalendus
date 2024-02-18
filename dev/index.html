@@ -29,8 +29,20 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 9, minutes: 30 },
-                        end: { hours: 10, minutes: 0 },
+                        start: { hour: 10, minute: 30 },
+                        end: { hour: 10, minute: 0 },
+                    },
+                    heading: 'My invalid time',
+                    color: '#efefef',
+                },
+                {
+                    date: {
+                        start: { day: 4, month, year },
+                        end: { day: 4, month, year },
+                    },
+                    time: {
+                        start: { hour: 9, minute: 30 },
+                        end: { hour: 10, minute: 0 },
                     },
                     heading: 'My super important event',
                     content:
@@ -43,8 +55,8 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 10, minutes: 0 },
-                        end: { hours: 10, minutes: 30 },
+                        start: { hour: 10, minute: 0 },
+                        end: { hour: 10, minute: 30 },
                     },
                     heading:
                         'My other super important event with a slightly longer title...',
@@ -58,11 +70,11 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 10, minutes: 30 },
-                        end: { hours: 11, minutes: 30 },
+                        start: { hour: 10, minute: 30 },
+                        end: { hour: 11, minute: 30 },
                     },
                     heading: 'Base Case 2.1',
-                    content: 'An event that lies between two full hours',
+                    content: 'An event that lies between two full hour',
                     color: '#3c4c3c',
                 },
                 {
@@ -71,11 +83,11 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 9, minutes: 30 },
-                        end: { hours: 11, minutes: 30 },
+                        start: { hour: 9, minute: 30 },
+                        end: { hour: 11, minute: 30 },
                     },
                     heading: 'Base Case 2.2',
-                    content: 'An event that lies between two full hours',
+                    content: 'An event that lies between two full hour',
                     color: '#5a5b4a',
                 },
                 {
@@ -84,11 +96,11 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 10, minutes: 0 },
-                        end: { hours: 11, minutes: 30 },
+                        start: { hour: 10, minute: 0 },
+                        end: { hour: 11, minute: 30 },
                     },
                     heading: 'Base Case 2.3',
-                    content: 'Another event that lies between two full hours',
+                    content: 'Another event that lies between two full hour',
                     color: '#5a5b4e',
                 },
                 {
@@ -97,8 +109,8 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 16, minutes: 0 },
-                        end: { hours: 17, minutes: 30 },
+                        start: { hour: 16, minute: 0 },
+                        end: { hour: 17, minute: 30 },
                     },
                     heading: 'Base Case 2.4',
                     content: "An event that doesn't overlap",
@@ -110,8 +122,8 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 5, minutes: 0 },
-                        end: { hours: 6, minutes: 0 },
+                        start: { hour: 5, minute: 0 },
+                        end: { hour: 6, minute: 0 },
                     },
                     heading: 'Base Case 2.5',
                     content: 'A prepended event',
@@ -123,8 +135,8 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 11, minutes: 0 },
-                        end: { hours: 13, minutes: 0 },
+                        start: { hour: 11, minute: 0 },
+                        end: { hour: 13, minute: 0 },
                     },
                     heading: 'Base Case 2.6',
                     content: 'Another test case',
@@ -136,8 +148,8 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 13, minutes: 0 },
-                        end: { hours: 13, minutes: 20 },
+                        start: { hour: 13, minute: 0 },
+                        end: { hour: 13, minute: 20 },
                     },
                     heading: 'Base Case 2.7',
                     content: 'Another test case',
@@ -149,8 +161,8 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 13, minutes: 15 },
-                        end: { hours: 13, minutes: 40 },
+                        start: { hour: 13, minute: 15 },
+                        end: { hour: 13, minute: 40 },
                     },
                     heading: 'Base Case 2.8',
                     content: 'Another test case',
@@ -162,8 +174,8 @@
                         end: { day: 4, month, year },
                     },
                     time: {
-                        start: { hours: 13, minutes: 40 },
-                        end: { hours: 14, minutes: 0 },
+                        start: { hour: 13, minute: 40 },
+                        end: { hour: 14, minute: 0 },
                     },
                     heading: 'Base Case 2.9',
                     content: 'Another test case',
@@ -175,8 +187,8 @@
                         end: { day: 5, month, year },
                     },
                     time: {
-                        start: { hours: 11, minutes: 0 },
-                        end: { hours: 13, minutes: 0 },
+                        start: { hour: 11, minute: 0 },
+                        end: { hour: 13, minute: 0 },
                     },
                     heading: 'Base Case 3.1',
                     content: 'Test case for display of multiple days',
@@ -188,8 +200,8 @@
                         end: { day: 5, month, year },
                     },
                     time: {
-                        start: { hours: 12, minutes: 0 },
-                        end: { hours: 14, minutes: 0 },
+                        start: { hour: 12, minute: 0 },
+                        end: { hour: 14, minute: 0 },
                     },
                     heading: 'Base Case 3.2',
                     content: 'Another test case',
@@ -201,8 +213,8 @@
                         end: { day: 5, month, year },
                     },
                     time: {
-                        start: { hours: 15, minutes: 30 },
-                        end: { hours: 16, minutes: 0 },
+                        start: { hour: 15, minute: 30 },
+                        end: { hour: 16, minute: 0 },
                     },
                     heading: 'Base Case 3.3',
                     content: 'Another test case',
@@ -214,8 +226,8 @@
                         end: { day: 8, month, year },
                     },
                     time: {
-                        start: { hours: 0, minutes: 0 },
-                        end: { hours: 24, minutes: 0 },
+                        start: { hour: 0, minute: 0 },
+                        end: { hour: 24, minute: 0 },
                     },
                     heading: 'Base Case 4',
                     content: 'An event spanning multiple days',
@@ -227,8 +239,8 @@
                         end: { day: 9, month, year },
                     },
                     time: {
-                        start: { hours: 13, minutes: 0 },
-                        end: { hours: 13, minutes: 1 },
+                        start: { hour: 13, minute: 0 },
+                        end: { hour: 13, minute: 1 },
                     },
                     heading: 'Base Case 5',
                     content: 'An event that only lasts a minute',
@@ -240,8 +252,8 @@
                         end: { day: 9, month, year },
                     },
                     time: {
-                        start: { hours: 0, minutes: 0 },
-                        end: { hours: 23, minutes: 59 },
+                        start: { hour: 0, minute: 0 },
+                        end: { hour: 23, minute: 59 },
                     },
                     heading: 'Base Case 5',
                     content: 'An all day event',
@@ -253,8 +265,8 @@
                         end: { day: 10, month, year },
                     },
                     time: {
-                        start: { hours: 0, minutes: 0 },
-                        end: { hours: 23, minutes: 59 },
+                        start: { hour: 0, minute: 0 },
+                        end: { hour: 23, minute: 59 },
                     },
                     heading: 'Base Case 5',
                     content: 'An all day event',

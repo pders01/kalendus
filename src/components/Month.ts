@@ -1,13 +1,22 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { classMap } from 'lit/directives/class-map.js';
+import { match } from 'ts-pattern';
 import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator';
 import Translations from '../locales/Translations';
 
 @customElement('lms-calendar-month')
 export default class Month extends LitElement {
     private translations = new Translations();
+
+    private currentDate = new Date();
+
     @property({ attribute: false })
-    activeDate?: CalendarDate;
+    activeDate: CalendarDate = {
+        day: this.currentDate.getDate(),
+        month: this.currentDate.getMonth() + 1,
+        year: this.currentDate.getFullYear(),
+    };
 
     static override styles = css`
         .month {
@@ -40,6 +49,11 @@ export default class Month extends LitElement {
             gap: 1px;
         }
 
+        .indicator.current {
+            color: crimson;
+            font-weight: bold;
+        }
+
         .indicator {
             position: sticky;
             top: 0.25em;
@@ -50,41 +64,57 @@ export default class Month extends LitElement {
         }
     `;
 
-    override render() {
-        return Object.keys(this.activeDate || { day: 1, month: 1, year: 2022 })
-            .length !== 0
-            ? html`
-                  <div class="month">
-                      ${this._getCalendarArray()?.map(
-                          ({ year, month, day }) =>
-                              html`<div
-                                  class="day"
-                                  data-date="${year}-${month}-${day}"
-                                  @click=${this._handleExpand}
-                              >
-                                  <div class="indicator">
-                                      ${day === 1
-                                          ? `${day}. ${this.translations.getTranslation(
-                                                month,
-                                            )}`
-                                          : day}
-                                  </div>
-                                  <slot name="${year}-${month}-${day}"></slot>
-                              </div>`,
-                      )}
-                  </div>
-              `
-            : html``;
+    private _isCurrentDate(date: string) {
+        return (
+            new Date(date).toDateString() === this.currentDate.toDateString()
+        );
     }
 
-    _handleExpand(e: Event) {
-        if (e.target === null) {
+    private _renderIndicator({ year, month, day }: CalendarDate) {
+        const isCurrentDate = this._isCurrentDate(`${year}/${month}/${day}`);
+        return html` <div
+            class="indicator ${classMap({
+                current: isCurrentDate,
+            })}"
+        >
+            ${match(day)
+                .with(
+                    1,
+                    () => html`
+                        ${day}. ${this.translations.getTranslation(month)}
+                    `,
+                )
+                .otherwise(() => html` ${day} `)}
+        </div>`;
+    }
+
+    override render() {
+        return html`
+            <div class="month">
+                ${this._getCalendarArray()?.map(
+                    ({ year, month, day }) =>
+                        html`<div
+                            class="day"
+                            data-date="${year}-${month}-${day}"
+                            @click=${this._dispatchExpand}
+                            @keydown=${this._handleKeydown}
+                            tabindex="0"
+                        >
+                            ${this._renderIndicator({ year, month, day })}
+                            <slot name="${year}-${month}-${day}"></slot>
+                        </div>`,
+                )}
+            </div>
+        `;
+    }
+
+    private _dispatchExpand(e: Event) {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) {
             return;
         }
 
-        const target = e.target as HTMLElement;
         const { date } = target.dataset;
-
         if (!date) {
             return;
         }
@@ -100,18 +130,27 @@ export default class Month extends LitElement {
         this.dispatchEvent(event);
     }
 
-    _getDaysInMonth(date: CalendarDate) {
+    private _handleKeydown(e: KeyboardEvent) {
+        const key = e.key;
+        if (!(key === 'Space' || key === 'Enter')) {
+            return;
+        }
+
+        this._dispatchExpand(e);
+    }
+
+    private _getDaysInMonth(date: CalendarDate) {
         /** Important note: Passing 0 as the date shifts the
          *  months indices by positive 1, so 1-12 */
         return new Date(date.year, date.month, 0).getDate();
     }
 
-    _getOffsetOfFirstDayInMonth(date: CalendarDate) {
+    private _getOffsetOfFirstDayInMonth(date: CalendarDate) {
         const offset = new Date(`${date.year}/${date.month}/01`).getDay();
         return offset === 0 ? 6 : offset - 1;
     }
 
-    _getDatesInMonthAsArray(date: CalendarDate, sliceArgs: number[]) {
+    private _getDatesInMonthAsArray(date: CalendarDate, sliceArgs: number[]) {
         return [
             ...Array.from(Array(this._getDaysInMonth(date)).keys(), (_, n) => ({
                 year: date.year,
@@ -121,7 +160,7 @@ export default class Month extends LitElement {
         ];
     }
 
-    _getCalendarArray() {
+    private _getCalendarArray() {
         if (!this.activeDate) {
             return;
         }

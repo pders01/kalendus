@@ -1,14 +1,14 @@
-import { LitElement, PropertyValueMap, nothing } from 'lit';
-import './components/Header.js';
-import LMSCalendarHeader from './components/Header';
-import './components/Month.js';
-import LMSCalendarMonth from './components/Month';
-import './components/Day.js';
-import LMSCalendarDay from './components/Day';
-import './components/Context.js';
+import { CSSResult, LitElement, PropertyValueMap } from 'lit';
 import LMSCalendarContext from './components/Context';
-import './components/Entry.js';
+import './components/Context.js';
+import LMSCalendarDay from './components/Day';
+import './components/Day.js';
 import LMSCalendarEntry from './components/Entry';
+import './components/Entry.js';
+import LMSCalendarHeader from './components/Header';
+import './components/Header.js';
+import LMSCalendarMonth from './components/Month';
+import './components/Month.js';
 export default class LMSCalendar extends LitElement {
     private currentDate;
     heading?: string;
@@ -19,40 +19,33 @@ export default class LMSCalendar extends LitElement {
     _calendarWidth: number;
     private _handleResize;
     private _resizeController;
-    static styles: import("lit").CSSResult;
+    static styles: CSSResult;
     protected firstUpdated(_changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>): void;
+    /** We filter invalid entries in the willUpdate hook, so be prepared:
+     *  - This will not be shown
+     *   ```json
+     *   { date: ..., time: { start: { hour: 10, minute: 30 }, end: { hour: 10, minute: 00 } } }
+     *  ```
+     *  - The same goes for invalid dates meaning the end date being before the start date.
+     *
+     *  We then sort the entries inplace.
+     */
     protected willUpdate(_changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>): void;
     render(): import("lit").TemplateResult<1>;
-    _handleSwitchDate(e: CustomEvent): void;
-    _handleSwitchView(e: CustomEvent): void;
-    _handleExpand(e: CustomEvent): void;
-    _composeEntry(index: number, slot: string, styles: CalendarEntryStyles, data: CalendarEntryData): import("lit").TemplateResult<1>;
+    private _handleSwitchDate;
+    private _handleSwitchView;
+    private _handleExpand;
+    private _composeEntry;
     /** Create an array of <lms-calendar-entry> elements for each day the entry spans
      *  and add them to the entries array. */
-    _expandEntryMaybe({ entry, entryIndex, startDate, rangeDays, styles, }: {
-        entry: CalendarEntry;
-        entryIndex: number;
-        startDate: Date;
-        rangeDays: number;
-        styles: {
-            background: string;
-            text: string;
-        };
-    }): import("lit").TemplateResult<1>[];
-    _renderEntries(): import("lit").TemplateResult<1>[] | typeof nothing;
-    _renderEntriesByDate(): import("lit").TemplateResult<1>[] | undefined;
-    _renderEntriesSumByDay(): import("lit").TemplateResult<1>[];
-    _getGridSlotByTime({ start, end }: CalendarTimeInterval): string;
-    _getWidthByGroupSize({ grading, index, }: {
-        grading: Grading[];
-        index: number;
-    }): number;
-    _getOffsetByDepth({ grading, index, }: {
-        grading: Grading[];
-        index: number;
-    }): number;
-    _getPartitionedSlottedItems(items: CalendarEntry[]): Interval[][];
-    _getDaysRange(date: CalendarDateInterval): [Date, Date, number];
+    private _expandEntryMaybe;
+    private _renderEntries;
+    private _renderEntriesByDate;
+    private _renderEntriesSumByDay;
+    private _getGridSlotByTime;
+    private _getWidthByGroupSize;
+    private _getOffsetByDepth;
+    private _getDaysRange;
 }
 declare global {
     interface HTMLElementTagNameMap {
@@ -73,8 +66,8 @@ declare global {
         end: CalendarDate;
     };
     type CalendarTime = {
-        hours: number;
-        minutes: number;
+        hour: number;
+        minute: number;
     };
     type CalendarTimeInterval = {
         start: CalendarTime;
@@ -86,20 +79,6 @@ declare global {
         heading: string;
         content: string;
         color: string;
-    };
-    type CalendarEntryStyles = {
-        startSlot?: string;
-        w?: string;
-        br?: string;
-        m: string;
-        bc: string;
-        c: string;
-    };
-    type CalendarEntryData = {
-        time?: CalendarTimeInterval;
-        heading: string;
-        content?: string;
-        isContinuation?: boolean;
     };
     type Interval = {
         start: number;

@@ -1,15 +1,17 @@
-import { LitElement, nothing } from 'lit';
 import { ResizeObserver } from '@juggle/resize-observer';
-import './components/Header.js';
-import LMSCalendarHeader from './components/Header';
-import './components/Month.js';
-import LMSCalendarMonth from './components/Month';
-import './components/Day.js';
-import LMSCalendarDay from './components/Day';
-import './components/Context.js';
+import { LitElement, nothing } from 'lit';
+
 import LMSCalendarContext from './components/Context';
-import './components/Entry.js';
+import './components/Context.js';
+import LMSCalendarDay from './components/Day';
+import './components/Day.js';
 import LMSCalendarEntry from './components/Entry';
+import './components/Entry.js';
+import LMSCalendarHeader from './components/Header';
+import './components/Header.js';
+import LMSCalendarMonth from './components/Month';
+import './components/Month.js';
+
 export default class LMSCalendar extends LitElement {
     heading: string;
     activeDate: CalendarDate;

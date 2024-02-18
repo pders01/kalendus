@@ -1,8 +1,8 @@
 // Import rollup plugins
-import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
-import { copy } from '@web/rollup-plugin-copy';
 import terser from '@rollup/plugin-terser';
+import typescript from '@rollup/plugin-typescript';
+import { copy } from '@web/rollup-plugin-copy';
 import minifyLiterals from 'rollup-plugin-minify-html-literals-v3';
 
 export default {

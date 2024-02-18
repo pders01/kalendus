@@ -1,6 +1,6 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
+import * as R from 'remeda';
 import Translations from '../locales/Translations';
 
 @customElement('lms-calendar-header')
@@ -45,22 +45,6 @@ export default class Header extends LitElement {
         .year {
             color: rgba(0, 0, 0, 0.6);
         }
-        .context {
-            display: flex;
-        }
-        .context > * {
-            padding: 0.25em 0.5em;
-            border: 1px solid var(--separator-light);
-        }
-        .context > *:first-child {
-            border-radius: var(--border-radius-sm) 0 0 var(--border-radius-sm);
-            border-right: none;
-        }
-        .context > *:last-child {
-            border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
-            border-left: none;
-        }
-
         .buttons {
             padding-right: 1em;
         }
@@ -71,12 +55,29 @@ export default class Header extends LitElement {
             line-height: 0.5em;
             border: 1px solid transparent;
         }
-        span[data-active] {
+        .context {
+            display: flex;
+        }
+        .context > * {
+            padding: 0.75em 0.5em;
+            border: 1px solid var(--separator-light);
+            background-color: var(--background-color);
+        }
+        .context > *:first-child {
+            border-radius: var(--border-radius-sm) 0 0 var(--border-radius-sm);
+            border-right: none;
+        }
+        .context > *:last-child {
+            border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+            border-left: none;
+        }
+        button[data-active] {
             background-color: var(--separator-light);
         }
     `;
 
     override render() {
+        const hasEmptyDate = R.isEmpty(this.expandedDate ?? {});
         return html`<div class="controls">
             <div class="info">
                 <span>
@@ -87,7 +88,7 @@ export default class Header extends LitElement {
                         )}</strong
                     >
                 </span>
-                <div ?hidden=${isEmptyObjectOrUndefined(this.expandedDate)}>
+                <div ?hidden=${hasEmptyDate}>
                     <span class="day">${this.expandedDate?.day}</span>
                     <span class="month"
                         >${this.translations.getTranslation(
@@ -96,7 +97,7 @@ export default class Header extends LitElement {
                     >
                     <span class="year">${this.expandedDate?.year}</span>
                 </div>
-                <div ?hidden=${!isEmptyObjectOrUndefined(this.expandedDate)}>
+                <div ?hidden=${!hasEmptyDate}>
                     <span class="month"
                         >${this.translations.getTranslation(
                             this.activeDate?.month,
@@ -106,16 +107,20 @@ export default class Header extends LitElement {
                 </div>
             </div>
             <div class="context" @click=${this._dispatchSwitchView}>
-                <span
-                    ?data-active=${!isEmptyObjectOrUndefined(this.expandedDate)}
+                <button
+                    ?data-active=${!hasEmptyDate}
                     data-context="day"
-                    >${this.translations.getTranslation('Day')}</span
+                    class="btn-change-view"
                 >
-                <span
-                    ?data-active=${isEmptyObjectOrUndefined(this.expandedDate)}
+                    ${this.translations.getTranslation('Day')}
+                </button>
+                <button
+                    ?data-active=${hasEmptyDate}
                     data-context="month"
-                    >${this.translations.getTranslation('Month')}</span
+                    class="btn-change-view"
                 >
+                    ${this.translations.getTranslation('Month')}
+                </button>
             </div>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
                 <button name="previous">«</button>
@@ -124,8 +129,12 @@ export default class Header extends LitElement {
         </div>`;
     }
 
-    _dispatchSwitchDate(e: Event) {
-        const target = e.target as HTMLButtonElement;
+    private _dispatchSwitchDate(e: Event) {
+        const target = e.target;
+        if (!(target instanceof HTMLButtonElement)) {
+            return;
+        }
+
         const direction =
             e.target === e.currentTarget ? 'container' : target.name;
         const event = new CustomEvent('switchdate', {
@@ -136,8 +145,12 @@ export default class Header extends LitElement {
         this.dispatchEvent(event);
     }
 
-    _dispatchSwitchView(e: Event) {
-        const target = e.target as HTMLElement;
+    private _dispatchSwitchView(e: Event) {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+
         const view =
             e.target === e.currentTarget ? 'container' : target.dataset.context;
         const event = new CustomEvent('switchview', {

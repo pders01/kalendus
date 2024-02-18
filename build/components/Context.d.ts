@@ -1,4 +1,5 @@
 import { LitElement } from 'lit';
+
 export default class Context extends LitElement {
     private translations;
     static styles: import('lit').CSSResult;

@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import isEmptyObjectOrUndefined from '../utils/isEmptyObjectOrUndefined.js';
+import * as R from 'remeda';
 import Translations from '../locales/Translations.js';
 
 @customElement('lms-calendar-entry')
@@ -67,14 +67,13 @@ export default class Entry extends LitElement {
     `;
 
     override render() {
-        const contentIsEmptyOrUndefined = isEmptyObjectOrUndefined(
-            this.content,
-        );
+        const contentIsEmptyOrUndefined = R.isEmpty(this.content);
         return html`
             <div
                 class="main"
                 ?data-highlighted=${this._highlighted}
                 ?data-extended=${this._extended}
+                tabindex="1"
             >
                 <span
                     @click=${this._handleClick}
@@ -96,17 +95,17 @@ export default class Entry extends LitElement {
         `;
     }
 
-    _displayInterval(time?: CalendarTimeInterval) {
+    private _displayInterval(time?: CalendarTimeInterval) {
         if (!time) {
             return nothing;
         }
 
         const END_HOURS = 2;
         const components = [
-            time.start.hours,
-            time.start.minutes,
-            time.end.hours,
-            time.end.minutes,
+            time.start.hour,
+            time.start.minute,
+            time.end.hour,
+            time.end.minute,
         ];
 
         const lastsAllDay =
@@ -123,7 +122,7 @@ export default class Entry extends LitElement {
         return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
     }
 
-    _handleClick() {
+    private _handleClick() {
         this._highlighted = !this._highlighted;
         this._extended = !this._extended;
     }
