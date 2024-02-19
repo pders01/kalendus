@@ -50,7 +50,7 @@ export default class Month extends LitElement {
         }
 
         .indicator.current {
-            color: crimson;
+            color: var(--primary-color);
             font-weight: bold;
         }
 
