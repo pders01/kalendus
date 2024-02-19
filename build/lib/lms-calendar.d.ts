@@ -79,6 +79,12 @@ declare global {
         heading: string;
         content: string;
         color: string;
+        isContinuation: boolean;
+    };
+    type Continuation = {
+        has: boolean;
+        is: boolean;
+        index: number;
     };
     type Interval = {
         start: number;
