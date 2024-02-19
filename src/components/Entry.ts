@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import * as R from 'remeda';
+import { P, match } from 'ts-pattern';
 import Translations from '../locales/Translations.js';
 
 @customElement('lms-calendar-entry')
@@ -61,13 +61,27 @@ export default class Entry extends LitElement {
             background: var(--separator-light);
         }
 
-        .nowrap {
+        .interval {
+            font-family: monospace;
             white-space: nowrap;
         }
     `;
 
+    private _renderTitle() {
+        return match(this.content)
+            .with(P.nullish, () => this.heading)
+            .otherwise(() => `${this.heading}: ${this.content}`);
+    }
+
+    private _renderInterval() {
+        return this.isContinuation
+            ? html`<span>${this.translations.getTranslation('all day')}</span>`
+            : html`<span class="interval"
+                  >${this._displayInterval(this.time)}</span
+              >`;
+    }
+
     override render() {
-        const contentIsEmptyOrUndefined = R.isEmpty(this.content);
         return html`
             <div
                 class="main"
@@ -75,22 +89,11 @@ export default class Entry extends LitElement {
                 ?data-extended=${this._extended}
                 tabindex="1"
             >
-                <span
-                    @click=${this._handleClick}
-                    title="${this.heading}${!contentIsEmptyOrUndefined
-                        ? ` · ${this.content}`
-                        : ''}"
-                >
-                    <span> ${this.heading} </span>
-                    <span ?hidden=${contentIsEmptyOrUndefined}
-                        >&middot; ${this.content}</span
-                    >
+                <span @click=${this._handleClick} title=${this._renderTitle()}>
+                    <span>${this.heading}</span>
+                    <span ?hidden=${!this.content}>: ${this.content}</span>
                 </span>
-                ${this.isContinuation
-                    ? this.translations.getTranslation('all day')
-                    : html`<span class="nowrap"
-                          >${this._displayInterval(this.time)}</span
-                      > `}
+                ${this._renderInterval()}
             </div>
         `;
     }

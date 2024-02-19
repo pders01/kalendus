@@ -9,6 +9,8 @@ export default class Entry extends LitElement {
     _extended?: boolean;
     private _sumReducer;
     static styles: import("lit").CSSResult;
+    private _renderTitle;
+    private _renderInterval;
     render(): import("lit").TemplateResult<1>;
     private _displayInterval;
     private _handleClick;
