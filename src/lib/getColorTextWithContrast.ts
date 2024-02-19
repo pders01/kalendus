@@ -1,5 +1,5 @@
 export default function getColorTextWithContrast(
-    color: string,
+    color?: string,
 ): [string, string] {
     let red = 0;
     let green = 0;
