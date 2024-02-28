@@ -33,12 +33,12 @@ export default class Entry extends LitElement {
             font-size: small;
             grid-column: 2;
 
-            border-radius: var(--entry-br);
+            border-radius: var(--entry-border-radius);
             grid-row: var(--start-slot);
-            width: var(--entry-w);
-            margin: var(--entry-m);
-            background-color: var(--entry-bc);
-            color: var(--entry-c);
+            width: var(--entry-width);
+            margin: var(--entry-margin);
+            background-color: var(--entry-background-color);
+            color: var(--entry-color);
             /* z-index of separators in day view is 0 */
             z-index: 1;
         }

@@ -311,12 +311,12 @@ export default class LMSCalendar extends LitElement {
                     slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
                     styles: css`
                         lms-calendar-entry._${index} {
-                            --entry-br: ${unsafeCSS(
+                            --entry-border-radius: ${unsafeCSS(
                                 entry.continuation.has
                                     ? 0
                                     : 'var(--border-radius-sm)',
                             )};
-                            --entry-m: 0
+                            --entry-margin: 0
                                 ${unsafeCSS(
                                     entry.continuation.has ? 0 : '0.25em',
                                 )}
@@ -324,8 +324,8 @@ export default class LMSCalendar extends LitElement {
                                 ${unsafeCSS(
                                     entry.continuation.has ? 0 : '1.5em',
                                 )};
-                            --entry-bc: ${unsafeCSS(background)};
-                            --entry-c: ${unsafeCSS(text)};
+                            --entry-background-color: ${unsafeCSS(background)};
+                            --entry-color: ${unsafeCSS(text)};
                         }
                     `,
                     entry: {
@@ -380,17 +380,31 @@ export default class LMSCalendar extends LitElement {
 
         return R.pipe(
             entriesByDate,
+            R.map((entry) => ({
+                ...entry,
+                isAllDay:
+                    Number(entry.time?.end.hour) -
+                        Number(entry.time?.start.hour) >=
+                    23,
+            })),
             R.map(
                 (entry) =>
                     [entry, ...getColorTextWithContrast(entry.color)] as [
-                        CalendarEntry & { continuation: Continuation },
+                        CalendarEntry & {
+                            isAllDay: boolean;
+                            continuation: Continuation;
+                        },
                         string,
                         string,
                     ],
             ),
             R.map.indexed(([entry, background, text], index) =>
                 //TODO: match on shapes instead.
-                match(entry.continuation.is || entry.continuation.has)
+                match(
+                    entry.continuation.is ||
+                        entry.continuation.has ||
+                        entry.isAllDay,
+                )
                     .with(true, () =>
                         this._composeEntry({
                             index,
@@ -408,17 +422,22 @@ export default class LMSCalendar extends LitElement {
                                     --start-slot: ${unsafeCSS(
                                         this._getGridSlotByTime(entry.time),
                                     )};
-                                    --entry-w: ${this._getWidthByGroupSize({
+                                    --entry-width: ${this._getWidthByGroupSize({
                                         grading,
                                         index,
                                     })}%;
-                                    --entry-m: 0 1.5em 0
+                                    --entry-margin: 0 1.5em 0
                                         ${this._getOffsetByDepth({
                                             grading,
                                             index,
                                         })}%;
-                                    --entry-bc: ${unsafeCSS(background)};
-                                    --entry-c: ${unsafeCSS(text)};
+                                    --entry-border-radius: var(
+                                        --border-radius-sm
+                                    );
+                                    --entry-background-color: ${unsafeCSS(
+                                        background,
+                                    )};
+                                    --entry-color: ${unsafeCSS(text)};
                                 }
                             `,
                             entry,
@@ -449,10 +468,10 @@ export default class LMSCalendar extends LitElement {
                     slot: key.split('-').reverse().join('-'),
                     styles: css`
                         lms-calendar-entry._${index} {
-                            --entry-br: var(--border-radius-sm);
-                            --entry-m: 0 auto;
-                            --entry-bc: whitesmoke;
-                            --entry-c: black;
+                            --entry-border-radius: var(--border-radius-sm);
+                            --entry-margin: 0 auto;
+                            --entry-background-color: whitesmoke;
+                            --entry-color: black;
                         }
                     `,
                     entry: {
