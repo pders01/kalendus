@@ -1,4 +1,4 @@
-import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
+import { LitElement, css, html, nothing } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { map } from 'lit/directives/map.js';
@@ -89,7 +89,12 @@ export default class Day extends LitElement {
 
     override render() {
         return html` <div class="all-day">
-                <slot name="all-day" id="all-day" class="entry" @slotchange=${this._handleSlotChange}></slot>
+                <slot
+                    name="all-day"
+                    id="all-day"
+                    class="entry"
+                    @slotchange=${this._handleSlotChange}
+                ></slot>
             </div>
             <div class="container">
                 <div
@@ -127,9 +132,13 @@ export default class Day extends LitElement {
             return;
         }
 
-        const childNodes = target.assignedElements({ flatten: true}) as Array<HTMLElement>;
+        const childNodes = target.assignedElements({
+            flatten: true,
+        }) as Array<HTMLElement>;
 
-        this.container.style.height = `calc(100% - 3.5em - ${childNodes.length * 24}px)`;
+        this.container.style.height = `calc(100% - 3.5em - ${
+            childNodes.length * 24
+        }px)`;
     }
 
     private _getHourIndicator(hour: number) {
