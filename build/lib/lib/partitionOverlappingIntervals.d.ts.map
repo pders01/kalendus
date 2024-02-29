@@ -1,1 +1,1 @@
-{"version":3,"file":"partitionOverlappingIntervals.d.ts","sourceRoot":"","sources":["../../src/lib/partitionOverlappingIntervals.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,CAAC,OAAO,UAAU,6BAA6B,CAAC,SAAS,EAAE,QAAQ,EAAE,gBA6B1E"}
+{"version":3,"file":"partitionOverlappingIntervals.d.ts","sourceRoot":"","sources":["../../src/lib/partitionOverlappingIntervals.ts"],"names":[],"mappings":"AAAA;;;GAGG;AACH,MAAM,CAAC,OAAO,UAAU,6BAA6B,CACjD,SAAS,EAAE,KAAK,CAAC,QAAQ,CAAC,GAC3B,KAAK,CAAC,QAAQ,EAAE,CAAC,CA8BnB"}
