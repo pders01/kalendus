@@ -1,27 +1,46 @@
 import partitionOverlappingIntervals from './partitionOverlappingIntervals.js';
 
+/**
+ * Calculates the indices and depths of overlapping entities within a set of partitions.
+ *
+ * @param {Array<Interval[]>} partitions - An array of partitions, where each partition is an array of intervals.
+ * @returns {Array<Grading>} An array of grading objects, representing indices and depths of overlapping entities.
+ */
 export default function getOverlappingEntitiesIndices(
     partitions: Array<Interval[]>,
 ): Array<Grading> {
-    // First we determine all non-overlapping partitions and save their indices.
-    // Indices go into the index portion of the resolving objects and we add
-    // a depth of 0 to indicate, that this is a full-width element.
+    // 1. Extract non-overlapping partitions
     const accumulator = getNonOverlappingPartitions(partitions);
 
-    // Then we filter the non-overlapping partitions out
+    // 2. Isolate overlapping partitions for further processing
     const overlappingPartitions = filterOverlappingPartitions(partitions);
 
+    // 3. Recursively process overlapping partitions to determine indices and depths
     recursiveReduce(overlappingPartitions, accumulator);
 
+    // 4. Sort the final result by index
     return accumulator.sort((a, b) => a.index - b.index);
 }
 
+/**
+ * Calculates the index of an entity within the flattened partitions.
+ *
+ * @param {Array<Interval[]>} partitions - The array of partitions.
+ * @param {number} index - The index of the partition within the partitions array.
+ * @returns {number} The calculated index of the entity.
+ */
 function calculateIndex(partitions: Array<Interval[]>, index: number): number {
     return [partitions.slice(0, index)].flatMap(
         (item) => item.flat().length,
     )[0];
 }
 
+/**
+ * Extracts non-overlapping partitions and creates corresponding Grading objects.
+ *
+ * @param {Array<Interval[]>} partitions - The array of partitions.
+ * @returns {Array<Grading>}  An array of Grading objects representing non-overlapping partitions.
+ */
 function getNonOverlappingPartitions(
     partitions: Array<Interval[]>,
 ): Array<Grading> {
@@ -41,6 +60,12 @@ function getNonOverlappingPartitions(
     );
 }
 
+/**
+ * Filters out partitions containing overlapping intervals.
+ *
+ * @param {Array<Interval[]>} partitions - The array of partitions.
+ * @returns {Array<(Interval & Pick<Grading, 'index' | 'group'>)[]>} An array of partitions containing overlapping intervals (with index and group information).
+ */
 function filterOverlappingPartitions(
     partitions: Array<Interval[]>,
 ): Array<(Interval & Pick<Grading, 'index' | 'group'>)[]> {
@@ -55,6 +80,15 @@ function filterOverlappingPartitions(
         .filter((partition) => partition.length > 1);
 }
 
+/**
+ * Processes a single partition, updates the accumulator, and manages recursion for nested partitions.
+ *
+ * @param {Array<Grading>} accumulator - The accumulator to store results.
+ * @param {Array<Partition>} partition -  The partition being processed.
+ * @param {number} depth -  Current depth within the nested partitions.
+ * @param {number} [currentGroup] - The group identifier for the current partition.
+ * @returns {Array<Grading>} The updated accumulator.
+ */
 function partitionReducer(
     accumulator: Array<Grading>,
     partition: Array<Partition>,
@@ -99,6 +133,15 @@ function partitionReducer(
     );
 }
 
+/**
+ * Recursively processes partitions to calculate indices and depths of overlapping entities.
+ *
+ * @param {Array<Partition[]>} partitions - An array of partitions to process.
+ * @param {Array<Grading>} accumulator - The accumulator for storing results.
+ * @param {number} [depth=0] -  The initial depth value.
+ * @param {number} [currentGroup] -  The initial group identifier.
+ * @returns {Grading[]} The updated accumulator containing the calculated indices and depths.
+ */
 function recursiveReduce(
     partitions: Array<Partition[]>,
     accumulator: Array<Grading>,
