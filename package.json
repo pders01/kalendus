@@ -1,7 +1,7 @@
 {
-    "name": "@lms-cloud/calendar",
+    "name": "@lmscloud/lms-calendar",
     "private": true,
-    "version": "1.0.4",
+    "version": "0.3.2",
     "description": "A calendar component.",
     "main": "lms-calendar.js",
     "module": "lms-calendar.js",
