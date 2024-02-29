@@ -409,7 +409,14 @@ export default class LMSCalendar extends LitElement {
                         this._composeEntry({
                             index,
                             slot: 'all-day',
-                            styles: nothing,
+                            styles: css`
+                                lms-calendar-entry._${index} {
+                                    --entry-background-color: ${unsafeCSS(
+                                        background,
+                                    )};
+                                    --entry-color: ${unsafeCSS(text)};
+                                }
+                            `,
                             entry,
                         }),
                     )
