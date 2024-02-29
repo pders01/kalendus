@@ -16,7 +16,7 @@
         "format": "prettier \"**/*.{cjs,html,js,json,md,ts}\" --ignore-path ./.eslintignore --write",
         "analyze": "cem analyze --litelement --globs \"src/**/*.ts\"",
         "analyze:watch": "cem analyze --litelement --globs \"src/**/*.ts\" --watch",
-        "checksize": "rollup -c ; cat lms-calendar.bundled.js | gzip -9 | wc -c ; rm lms-calendar.bundled.js"
+        "checksize": "cat ./build/lms-calendar.bundled.js | gzip -9 | wc -c"
     },
     "keywords": [
         "web-components",
