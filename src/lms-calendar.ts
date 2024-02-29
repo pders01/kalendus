@@ -363,13 +363,20 @@ export default class LMSCalendar extends LitElement {
         if (!R.isEmpty(entriesByDate)) {
             grading = R.pipe(
                 entriesByDate,
-                R.filter(
-                    (entry) =>
-                        Number(entry.time?.end.hour) -
-                            Number(entry.time?.start.hour) <
-                            23 &&
-                        !entry.continuation.is &&
-                        !entry.continuation.has,
+                R.map((entry) =>
+                    Number(entry.time?.end.hour) -
+                        Number(entry.time?.start.hour) <
+                        23 &&
+                    !entry.continuation.is &&
+                    !entry.continuation.has
+                        ? entry
+                        : {
+                              ...entry,
+                              time: {
+                                  start: { hour: 0, minute: -1 },
+                                  end: { hour: 0, minute: 1 },
+                              },
+                          },
                 ),
                 R.map(({ time }) =>
                     this._getGridSlotByTime(time!)
@@ -511,10 +518,6 @@ export default class LMSCalendar extends LitElement {
         grading: Grading[];
         index: number;
     }) {
-        if (!grading[index]) {
-            return 100;
-        }
-
         return (
             100 /
             grading.filter((item) => item.group === grading[index].group).length
