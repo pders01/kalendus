@@ -2,7 +2,9 @@
  *  Ref: https://www.baeldung.com/cs/finding-all-overlapping-intervals \
  *  Example: https://stackoverflow.com/questions/30472556/how-to-find-all-overlapping-ranges-and-partition-them-into-chunks
  */
-export default function partitionOverlappingIntervals(intervals: Interval[]) {
+export default function partitionOverlappingIntervals(
+    intervals: Array<Interval>,
+): Array<Interval[]> {
     const rightEndValues = intervals.map((r) => r.end).sort((a, b) => a - b);
     intervals.sort((a, b) => a.start - b.start);
 
@@ -17,12 +19,13 @@ export default function partitionOverlappingIntervals(intervals: Interval[]) {
         if (intervals[i].start < rightEndValues[j]) {
             cur.push(intervals[i++]);
             ++active;
-        } else {
-            ++j;
-            if (--active === 0) {
-                groups.push(cur);
-                cur = [];
-            }
+            continue;
+        }
+
+        ++j;
+        if (--active === 0) {
+            groups.push(cur);
+            cur = [];
         }
     }
 
