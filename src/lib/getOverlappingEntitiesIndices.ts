@@ -6,57 +6,14 @@ export default function getOverlappingEntitiesIndices(
     // First we determine all non-overlapping partitions and save their indices.
     // Indices go into the index portion of the resolving objects and we add
     // a depth of 0 to indicate, that this is a full-width element.
-    const result = getNonOverlappingPartitions(partitions);
+    const accumulator = getNonOverlappingPartitions(partitions);
 
     // Then we filter the non-overlapping partitions out
     const overlappingPartitions = filterOverlappingPartitions(partitions);
 
-    /** For each of the remaining partitions we have to check how deeply they overlap.
-     *  TODO: Add indictor for partition group; document...
-     */
-    let depth = 0;
-    let openGroup: number | undefined = Math.min(
-        ...overlappingPartitions.map((partition) => partition[0].group),
-    );
-    function recursiveBubbleSort({
-        partitions,
-        isNested = false,
-    }: {
-        partitions: Array<Partition[]>;
-        isNested?: boolean;
-    }) {
-        depth = isNested ? (depth += 1) : 0;
-        partitions.forEach((partition: Array<Partition>) => {
-            const { group } = partition[0];
-            if (openGroup !== group) {
-                depth = 0;
-            }
-            openGroup = group;
+    recursiveReduce(overlappingPartitions, accumulator);
 
-            const delta = partition.map(
-                ({ start, end }: Partition) => end - start,
-            );
-            const maxDelta = Math.max(...delta);
-            const indexMaxDelta: number = delta.indexOf(maxDelta);
-
-            result.push({
-                index: partition[indexMaxDelta].index as number,
-                depth,
-                group: partition[indexMaxDelta].group as number,
-            });
-
-            partition.splice(delta.indexOf(maxDelta), 1);
-
-            recursiveBubbleSort({
-                partitions: partitionOverlappingIntervals(partition),
-                isNested: true,
-            });
-        });
-    }
-
-    recursiveBubbleSort({ partitions: overlappingPartitions });
-
-    return result.sort((a, b) => a.index - b.index);
+    return accumulator.sort((a, b) => a.index - b.index);
 }
 
 function calculateIndex(partitions: Array<Interval[]>, index: number): number {
@@ -96,4 +53,73 @@ function filterOverlappingPartitions(
             })),
         )
         .filter((partition) => partition.length > 1);
+}
+
+function partitionReducer(
+    accumulator: Array<Grading>,
+    partition: Array<Partition>,
+    depth: number,
+    currentGroup?: number,
+): Grading[] {
+    const { group } = partition[0];
+
+    if (currentGroup !== group) {
+        depth = 0; // Reset depth when the group changes
+        currentGroup = group;
+    }
+
+    const delta = partition.map(({ start, end }: Partition) => end - start);
+    const maxDelta = Math.max(...delta);
+    const indexMaxDelta = delta.indexOf(maxDelta);
+
+    {
+        const { index, group } = partition[indexMaxDelta];
+        if (index === undefined || group === undefined) {
+            throw Error(
+                `Error in partition reduction with args: ${JSON.stringify(
+                    partition[indexMaxDelta],
+                )}`,
+            );
+        }
+
+        accumulator.push({
+            index,
+            depth,
+            group,
+        });
+    }
+
+    partition.splice(delta.indexOf(maxDelta), 1);
+
+    return recursiveReduce(
+        partitionOverlappingIntervals(partition),
+        accumulator,
+        depth + 1,
+        currentGroup,
+    );
+}
+
+function recursiveReduce(
+    partitions: Array<Partition[]>,
+    accumulator: Array<Grading>,
+    depth = 0,
+    currentGroup?: number,
+): Grading[] {
+    if (partitions.length === 0) {
+        return accumulator;
+    }
+
+    const [currentPartition, ...remainingPartitions] = partitions;
+    const updatedAccumulator = partitionReducer(
+        accumulator,
+        currentPartition,
+        depth,
+    );
+
+    return recursiveReduce(
+        remainingPartitions,
+        updatedAccumulator,
+        depth + 1,
+        currentGroup,
+    );
 }
