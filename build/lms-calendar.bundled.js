@@ -135,7 +135,7 @@ const zi=1;class ji{constructor(t){}get _$AU(){return this._$AM._$AU}_$AT(t,e,n)
                             --entry-background-color: whitesmoke;
                             --entry-color: black;
                         }
-                    `,entry:{heading:`[ ${e} ]`}}))))}_getGridSlotByTime({start:t,end:e}){const n=60*t.hour+(t.minute+1);return`${n}/${n+(60*e.hour+e.minute-n)}`}_getWidthByGroupSize({grading:t,index:e}){return 100/t.filter((n=>n.group===t[e].group)).length}_getOffsetByDepth({grading:t,index:e}){return t[e]?0===t[e].depth?0:t[e].depth*(100/t.filter((n=>n.group===t[e].group)).length):0}_getDaysRange(t){const{start:e,end:n}=t,r=new Date(e.year,e.month-1,e.day),s=new Date(n.year,n.month-1,n.day);return[r,s,(s.getTime()-r.getTime())/864e5+1]}};Ki.styles=l`
+                    `,entry:{heading:`[ ${e} ]`}}))))}_getGridSlotByTime({start:t,end:e}){const n=60*t.hour+(t.minute+1),r=n+(60*e.hour+e.minute-n);return n===r?`${n}/${r+1}`:`${n}/${r}`}_getWidthByGroupSize({grading:t,index:e}){return 100/t.filter((n=>n.group===t[e].group)).length}_getOffsetByDepth({grading:t,index:e}){return t[e]?0===t[e].depth?0:t[e].depth*(100/t.filter((n=>n.group===t[e].group)).length):0}_getDaysRange(t){const{start:e,end:n}=t,r=new Date(e.year,e.month-1,e.day),s=new Date(n.year,n.month-1,n.day);return[r,s,(s.getTime()-r.getTime())/864e5+1]}};Ki.styles=l`
         :host {
             --shadow-sm: rgba(0, 0, 0, 0.18) 0px 2px 4px;
             --shadow-md: rgba(0, 0, 0, 0.15) 0px 3px 3px 0px;
