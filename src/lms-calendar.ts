@@ -506,9 +506,12 @@ export default class LMSCalendar extends LitElement {
 
     private _getGridSlotByTime({ start, end }: CalendarTimeInterval) {
         const startRow = start.hour * 60 + (start.minute + 1);
-        return `${startRow}/${
-            startRow + (end.hour * 60 + end.minute - startRow)
-        }`;
+        const endRow = startRow + (end.hour * 60 + end.minute - startRow);
+        if (startRow === endRow) {
+            return `${startRow}/${endRow + 1}`;
+        }
+
+        return `${startRow}/${endRow}`;
     }
 
     private _getWidthByGroupSize({
