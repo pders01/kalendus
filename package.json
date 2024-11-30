@@ -16,7 +16,9 @@
         "format": "prettier \"**/*.{cjs,html,js,json,md,ts}\" --ignore-path ./.eslintignore --write",
         "analyze": "cem analyze --litelement --globs \"src/**/*.ts\"",
         "analyze:watch": "cem analyze --litelement --globs \"src/**/*.ts\" --watch",
-        "checksize": "cat ./build/lms-calendar.bundled.js | gzip -9 | wc -c"
+        "checksize": "cat ./build/lms-calendar.bundled.js | gzip -9 | wc -c",
+        "test": "NODE_OPTIONS=--experimental-vm-modules mocha",
+        "test:watch": "NODE_OPTIONS=--experimental-vm-modules mocha --watch"
     },
     "keywords": [
         "web-components",
@@ -44,6 +46,8 @@
         "@rollup/plugin-node-resolve": "^15.2.3",
         "@rollup/plugin-terser": "^0.4.4",
         "@rollup/plugin-typescript": "^11.1.6",
+        "@types/chai": "^5.0.1",
+        "@types/mocha": "^10.0.10",
         "@typescript-eslint/eslint-plugin": "^5.62.0",
         "@typescript-eslint/parser": "^5.62.0",
         "@web/dev-server": "^0.1.38",
@@ -53,13 +57,16 @@
         "@web/test-runner": "^0.13.31",
         "@web/test-runner-playwright": "^0.8.10",
         "@webcomponents/webcomponentsjs": "^2.8.0",
+        "chai": "^5.1.2",
         "eslint": "^8.57.0",
         "lit-analyzer": "^1.2.1",
+        "mocha": "^10.8.2",
         "prettier": "^2.8.8",
         "prettier-plugin-organize-imports": "^3.2.4",
         "rimraf": "^3.0.2",
         "rollup": "^4.12.0",
         "rollup-plugin-minify-html-literals-v3": "^1.3.4",
+        "ts-node": "^10.9.2",
         "tslib": "^2.6.2",
         "typescript": "~5.3.3"
     },
