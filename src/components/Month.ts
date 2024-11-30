@@ -1,7 +1,7 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
-import { match } from 'ts-pattern';
+import { P, match } from 'ts-pattern';
 import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator';
 import Translations from '../locales/Translations';
 
@@ -142,47 +142,77 @@ export default class Month extends LitElement {
     private _getDaysInMonth(date: CalendarDate) {
         /** Important note: Passing 0 as the date shifts the
          *  months indices by positive 1, so 1-12 */
-        return new Date(date.year, date.month, 0).getDate();
+        return match(date)
+            .with(
+                { year: P.number, month: P.number, day: P.number },
+                ({ year, month }) => {
+                    const days = new Date(year, month, 0).getDate();
+                    return days > 0 ? days : 0;
+                },
+            )
+            .otherwise(() => 0);
     }
 
     private _getOffsetOfFirstDayInMonth(date: CalendarDate) {
-        const offset = new Date(`${date.year}/${date.month}/01`).getDay();
-        return offset === 0 ? 6 : offset - 1;
+        return match(date)
+            .with({ year: P.number, month: P.number }, ({ year, month }) => {
+                const offset = new Date(`${year}/${month}/01`).getDay();
+                return offset === 0 ? 6 : offset - 1;
+            })
+            .otherwise(() => 0);
     }
 
     private _getDatesInMonthAsArray(date: CalendarDate, sliceArgs: number[]) {
-        return [
-            ...Array.from(Array(this._getDaysInMonth(date)).keys(), (_, n) => ({
-                year: date.year,
-                month: date.month,
-                day: n + 1,
-            })).slice(...sliceArgs),
-        ];
+        const daysInMonth = this._getDaysInMonth(date);
+        return match(daysInMonth)
+            .with(0, () => [])
+            .otherwise((days) =>
+                Array.from(Array(days).keys(), (_, n) => ({
+                    year: date.year,
+                    month: date.month,
+                    day: n + 1,
+                })).slice(...(sliceArgs || [0])),
+            );
     }
 
     private _getCalendarArray() {
         if (!this.activeDate) {
-            return;
+            return [];
         }
 
         const dateTransformer = new DirectionalCalendarDateCalculator({
             date: this.activeDate,
         });
 
-        dateTransformer.direction = 'previous';
-        const previousMonth = this._getDatesInMonthAsArray(
-            dateTransformer.getDateByMonthInDirection(),
-            this._getOffsetOfFirstDayInMonth(this.activeDate)
-                ? [this._getOffsetOfFirstDayInMonth(this.activeDate) * -1]
-                : [-0, -0],
-        );
-        const activeMonth = this._getDatesInMonthAsArray(this.activeDate, []);
-        dateTransformer.direction = 'next';
-        const nextMonth = this._getDatesInMonthAsArray(
-            dateTransformer.getDateByMonthInDirection(),
-            [0, 42 - (previousMonth.length + activeMonth.length)],
-        );
+        try {
+            dateTransformer.direction = 'previous';
+            const previousMonth = this._getDatesInMonthAsArray(
+                dateTransformer.getDateByMonthInDirection(),
+                this._getOffsetOfFirstDayInMonth(this.activeDate)
+                    ? [this._getOffsetOfFirstDayInMonth(this.activeDate) * -1]
+                    : [0],
+            );
 
-        return previousMonth.concat(activeMonth, nextMonth);
+            const activeMonth = this._getDatesInMonthAsArray(
+                this.activeDate,
+                [],
+            );
+
+            dateTransformer.direction = 'next';
+            const remainingDays =
+                42 - (previousMonth.length + activeMonth.length);
+            const nextMonth =
+                remainingDays > 0
+                    ? this._getDatesInMonthAsArray(
+                          dateTransformer.getDateByMonthInDirection(),
+                          [0, remainingDays],
+                      )
+                    : [];
+
+            return previousMonth.concat(activeMonth, nextMonth);
+        } catch (error) {
+            console.error('Error generating calendar array:', error);
+            return [];
+        }
     }
 }
