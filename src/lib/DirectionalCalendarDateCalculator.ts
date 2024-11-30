@@ -15,7 +15,7 @@ import { DateTime } from 'luxon';
  * ```
  */
 export default class DirectionalCalendarDateCalculator {
-    private _date?: CalendarDate | DateTime;
+    private _date?: DateTime;
 
     private _direction?: string;
 
@@ -45,7 +45,7 @@ export default class DirectionalCalendarDateCalculator {
 
     public getDateByDayInDirection() {
         if (!(this._date instanceof DateTime) || !this._direction) {
-            throw new Error('date or direction not defined.');
+            throw new Error('date or direction not defined');
         }
 
         const adjustedDate = this._date.plus({
@@ -60,8 +60,12 @@ export default class DirectionalCalendarDateCalculator {
     }
 
     public getDateByMonthInDirection() {
-        if (!(this._date instanceof DateTime) || !this._direction) {
-            throw new Error('date or direction not defined.');
+        if (!this._date) {
+            throw new Error('date is not set');
+        }
+
+        if (!this._direction) {
+            throw new Error('direction is not set');
         }
 
         let newYear = this._date.year;
@@ -75,11 +79,20 @@ export default class DirectionalCalendarDateCalculator {
             newYear--;
         }
 
+        const daysInMonth = DateTime.local(newYear, newMonth).daysInMonth;
+        if (!daysInMonth) {
+            throw new Error('invalid number of days in month');
+        }
+
+        const newDay = Math.min(this._date.day, daysInMonth);
         const newDate = DateTime.fromObject({
             year: newYear,
             month: newMonth,
-            day: this._date.day, // Preserve the day
+            day: newDay,
         });
+        if (!newDate.isValid) {
+            throw new Error('generated date is invalid');
+        }
 
         return {
             day: newDate.day,
