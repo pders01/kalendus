@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { CalendarDate } from '../lms-calendar';
 
 /**
  * This class handles calculations and adjustments for CalendarDate objects based on a specified direction.
@@ -16,7 +17,6 @@ import { DateTime } from 'luxon';
  */
 export default class DirectionalCalendarDateCalculator {
     private _date?: DateTime;
-
     private _direction?: string;
 
     constructor({
@@ -26,16 +26,17 @@ export default class DirectionalCalendarDateCalculator {
         date?: CalendarDate;
         direction?: 'previous' | 'next';
     }) {
-        this._date = date ? DateTime.fromObject(date) : undefined; // Convert CalendarDate to DateTime
+        if (date) {
+            this.date = date;
+        }
         this._direction = direction;
     }
 
     set date(date: CalendarDate) {
         const newDate = DateTime.fromObject(date);
-        if (!(newDate instanceof DateTime)) {
+        if (!newDate.isValid) {
             throw new Error("date couldn't be converted to DateTime object");
         }
-
         this._date = newDate;
     }
 
@@ -43,24 +44,37 @@ export default class DirectionalCalendarDateCalculator {
         this._direction = direction;
     }
 
+    private _toCalendarDate(date: DateTime): CalendarDate {
+        return {
+            day: date.day,
+            month: date.month,
+            year: date.year,
+        };
+    }
+
     public getDateByDayInDirection() {
-        if (!(this._date instanceof DateTime) || !this._direction) {
-            throw new Error('date or direction not defined');
+        if (!this._date || !this._date.isValid) {
+            throw new Error('date is not set or invalid');
+        }
+
+        if (!this._direction) {
+            throw new Error('direction is not set');
         }
 
         const adjustedDate = this._date.plus({
             days: this._direction === 'next' ? 1 : -1,
         });
 
-        return {
-            day: adjustedDate.day,
-            month: adjustedDate.month,
-            year: adjustedDate.year,
-        };
+        if (!adjustedDate.isValid) {
+            throw new Error('generated date is invalid');
+        }
+
+        this._date = adjustedDate; // Update internal state
+        return this._toCalendarDate(adjustedDate);
     }
 
     public getDateByMonthInDirection() {
-        if (!this._date) {
+        if (!this._date || !this._date.isValid) {
             throw new Error('date is not set');
         }
 
@@ -68,36 +82,15 @@ export default class DirectionalCalendarDateCalculator {
             throw new Error('direction is not set');
         }
 
-        let newYear = this._date.year;
-        let newMonth = this._date.month + (this._direction === 'next' ? 1 : -1);
-
-        if (newMonth > 12) {
-            newMonth = 1;
-            newYear++;
-        } else if (newMonth < 1) {
-            newMonth = 12;
-            newYear--;
-        }
-
-        const daysInMonth = DateTime.local(newYear, newMonth).daysInMonth;
-        if (!daysInMonth) {
-            throw new Error('invalid number of days in month');
-        }
-
-        const newDay = Math.min(this._date.day, daysInMonth);
-        const newDate = DateTime.fromObject({
-            year: newYear,
-            month: newMonth,
-            day: newDay,
+        const adjustedDate = this._date.plus({
+            months: this._direction === 'next' ? 1 : -1,
         });
-        if (!newDate.isValid) {
+
+        if (!adjustedDate.isValid) {
             throw new Error('generated date is invalid');
         }
 
-        return {
-            day: newDate.day,
-            month: newDate.month,
-            year: newDate.year,
-        };
+        this._date = adjustedDate; // Update internal state
+        return this._toCalendarDate(adjustedDate);
     }
 }

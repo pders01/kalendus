@@ -625,3 +625,15 @@ declare global {
         end: number;
     };
 }
+
+export {
+    CalendarDate,
+    CalendarDateInterval,
+    CalendarEntry,
+    CalendarTime,
+    CalendarTimeInterval,
+    Continuation,
+    Grading,
+    Interval,
+    Partition,
+};
