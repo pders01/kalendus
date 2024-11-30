@@ -30,17 +30,17 @@ export default class Entry extends LitElement {
 
     static override styles = css`
         :host {
-            font-size: small;
+            font-size: var(--entry-font-size, small);
             grid-column: 2;
             display: block;
             cursor: pointer;
             user-select: none;
-            border-radius: var(--entry-border-radius);
+            border-radius: var(--entry-border-radius, var(--border-radius-sm));
             grid-row: var(--start-slot);
             width: var(--entry-width);
             margin: var(--entry-margin);
-            background-color: var(--entry-background-color);
-            color: var(--entry-color);
+            background-color: var(--entry-background-color, var(--background-color));
+            color: var(--entry-color, var(--primary-color));
             /* z-index of separators in day view is 0 */
             z-index: 1;
             box-sizing: border-box;
@@ -53,11 +53,11 @@ export default class Entry extends LitElement {
         }
 
         :host([data-highlighted]) {
-            background: var(--separator-light);
+            background: var(--entry-highlight-color, var(--separator-light));
         }
 
         :host(:focus-within) {
-            outline: 2px solid var(--primary-color);
+            outline: 2px solid var(--entry-focus-color, var(--primary-color));
             outline-offset: -2px;
         }
 
@@ -65,8 +65,8 @@ export default class Entry extends LitElement {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 0.25em;
-            border-radius: var(--border-radius-sm);
+            padding: var(--entry-padding, 0.25em);
+            border-radius: var(--entry-border-radius, var(--border-radius-sm));
             background-color: inherit;
             text-align: left;
             height: 100%;
@@ -82,9 +82,9 @@ export default class Entry extends LitElement {
         }
 
         .interval {
-            font-family: monospace;
+            font-family: var(--entry-font-family, monospace);
             white-space: nowrap;
-            margin-left: 0.5em;
+            margin-left: var(--entry-interval-margin, 0.5em);
             flex-shrink: 0;  /* Prevent time from being compressed */
         }
     `;

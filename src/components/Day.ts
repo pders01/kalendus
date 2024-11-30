@@ -16,8 +16,7 @@ export default class Day extends LitElement {
     static override styles = css`
         .container {
             display: flex;
-            /* Header: 3.5em */
-            height: calc(100% - 3.5em);
+            height: calc(100% - var(--day-header-height, 3.5em));
             width: 100%;
         }
 
@@ -25,26 +24,26 @@ export default class Day extends LitElement {
             display: grid;
             grid-template-columns: 4em 1fr;
             grid-template-rows: repeat(1440, 1fr);
-            height: calc(100% - 1em);
-            gap: 1px;
+            height: calc(100% - var(--day-main-offset, 1em));
+            gap: var(--day-gap, 1px);
             overflow-y: scroll;
-            text-align: center;
-            padding: 0.5em;
+            text-align: var(--day-text-align, center);
+            padding: var(--day-padding, 0.5em);
             position: relative;
         }
 
         .hour {
-            text-align: center;
+            text-align: var(--hour-text-align, center);
         }
 
         .indicator {
             position: relative;
-            top: -0.6em;
+            top: var(--indicator-top, -0.6em);
         }
 
         .separator {
             grid-column: 2 / 3;
-            border-top: 1px solid var(--separator-light);
+            border-top: var(--separator-border, 1px solid var(--separator-light));
             position: absolute;
             width: 100%;
             z-index: 0;
@@ -52,7 +51,7 @@ export default class Day extends LitElement {
 
         .sidebar {
             height: 100%;
-            border-left: 1px solid var(--separator-light);
+            border-left: var(--sidebar-border, 1px solid var(--separator-light));
         }
 
         .w-100 {

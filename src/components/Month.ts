@@ -20,8 +20,7 @@ export default class Month extends LitElement {
 
     static override styles = css`
         .month {
-            /* Header: 3.5em, Context: 2em, Border: 2px */
-            height: calc(100% - 5.5em + 2px);
+            height: calc(100% - var(--month-header-context-height, 5.5em) + 2px);
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             border-top: 1px solid var(--separator-light);
@@ -46,20 +45,20 @@ export default class Month extends LitElement {
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
-            gap: 1px;
+            gap: var(--month-day-gap, 1px);
         }
 
         .indicator.current {
-            color: var(--primary-color);
-            font-weight: bold;
+            color: var(--indicator-color, var(--primary-color));
+            font-weight: var(--indicator-font-weight, bold);
         }
 
         .indicator {
             position: sticky;
-            top: 0.25em;
+            top: var(--indicator-top, 0.25em);
             text-align: right;
-            padding: 0 0.25em;
-            margin-bottom: 0.25em;
+            padding: 0 var(--indicator-padding, 0.25em);
+            margin-bottom: var(--indicator-margin-bottom, 0.25em);
             text-align: left;
         }
     `;

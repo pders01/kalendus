@@ -94,6 +94,45 @@ export default class LMSCalendar extends LitElement {
 
             --height: 100%;
             --width: 100%;
+
+            --entry-font-size: small;
+            --entry-border-radius: var(--border-radius-sm);
+            --entry-background-color: var(--background-color);
+            --entry-color: var(--primary-color);
+            --entry-highlight-color: var(--separator-light);
+            --entry-focus-color: var(--primary-color);
+            --entry-padding: 0.25em;
+            --entry-font-family: monospace;
+            --entry-interval-margin: 0.5em;
+
+            --context-height: 1.75em;
+            --context-padding: 0.25em;
+            --context-text-align: left;
+
+            --day-header-height: 3.5em;
+            --day-main-offset: 1em;
+            --day-gap: 1px;
+            --day-text-align: center;
+            --day-padding: 0.5em;
+            --hour-text-align: center;
+            --indicator-top: -0.6em;
+            --separator-border: 1px solid var(--separator-light);
+            --sidebar-border: 1px solid var(--separator-light);
+
+            --header-height: 3.5em;
+            --header-height-mobile: 4.5em;
+            --header-info-padding-left: 1em;
+            --header-text-color: rgba(0, 0, 0, 0.6);
+            --header-buttons-padding-right: 1em;
+            --button-padding: 0.75em;
+            --button-border-radius: 50%;
+
+            --month-header-context-height: 5.5em;
+            --month-day-gap: 1px;
+            --indicator-color: var(--primary-color);
+            --indicator-font-weight: bold;
+            --indicator-padding: 0.25em;
+            --indicator-margin-bottom: 0.25em;
         }
         div {
             width: var(--width);

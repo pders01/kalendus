@@ -8,13 +8,13 @@ export default class Context extends LitElement {
 
     static override styles = css`
         div {
-            height: 1.75em;
+            height: var(--context-height, 1.75em);
             display: grid;
             grid-template-columns: repeat(7, 1fr);
         }
         span {
-            padding: 0.25em;
-            text-align: left;
+            padding: var(--context-padding, 0.25em);
+            text-align: var(--context-text-align, left);
         }
     `;
 

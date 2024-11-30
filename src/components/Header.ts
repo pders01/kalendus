@@ -18,9 +18,8 @@ export default class Header extends LitElement {
 
     static override styles = css`
         .controls {
-            height: 3.5em;
+            height: var(--header-height, 3.5em);
             width: 100%;
-            /* padding: 0.75em 0; */
             display: flex;
             flex-direction: row;
             flex-wrap: nowrap;
@@ -33,25 +32,25 @@ export default class Header extends LitElement {
         @media (max-width: 375px) {
             .controls {
                 font-size: small;
-                height: 4.5em;
+                height: var(--header-height-mobile, 4.5em);
             }
         }
         .info {
-            padding-left: 1em;
+            padding-left: var(--header-info-padding-left, 1em);
             text-align: right;
         }
         .day,
         .month,
         .year {
-            color: rgba(0, 0, 0, 0.6);
+            color: var(--header-text-color, rgba(0, 0, 0, 0.6));
         }
         .buttons {
-            padding-right: 1em;
+            padding-right: var(--header-buttons-padding-right, 1em);
         }
         button {
-            padding: 0.75em;
+            padding: var(--button-padding, 0.75em);
             margin: 0;
-            border-radius: 50%;
+            border-radius: var(--button-border-radius, 50%);
             line-height: 0.5em;
             border: 1px solid transparent;
         }
@@ -59,20 +58,7 @@ export default class Header extends LitElement {
             display: flex;
         }
         .context > * {
-            padding: 0.75em 0.5em;
-            border: 1px solid var(--separator-light);
-            background-color: var(--background-color);
-        }
-        .context > *:first-child {
-            border-radius: var(--border-radius-sm) 0 0 var(--border-radius-sm);
-            border-right: none;
-        }
-        .context > *:last-child {
-            border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
-            border-left: none;
-        }
-        button[data-active] {
-            background-color: var(--separator-light);
+            margin: 0 0.5em;
         }
     `;
 
