@@ -5,21 +5,34 @@ export default function getColorTextWithContrast(
     let green = 0;
     let blue = 0;
 
-    if (color) {
-        const matches: RegExpMatchArray | null = color
-            .replace(
-                /^#?([a-f\d])([a-f\d])([a-f\d])$/i,
-                (_m, r, g, b) => `#${r}${r}${g}${g}${b}${b}`,
-            )
-            .substring(1)
-            .match(/.{2}/g);
+    // Return default colors for undefined, empty string, or whitespace
+    if (!color || !color.trim()) {
+        return ['rgb(255,255,255)', 'rgb(0,0,0)'];
+    }
+    // Check for empty or whitespace-only string
+    // Add # if missing
+    const normalizedColor = color.startsWith('#') ? color : `#${color}`;
 
-        if (!matches) {
-            // Return default background and text colors
+    const matches: RegExpMatchArray | null = normalizedColor
+        .replace(
+            /^#?([a-f\d])([a-f\d])([a-f\d])$/i,
+            (_m, r, g, b) => `#${r}${r}${g}${g}${b}${b}`,
+        )
+        .substring(1)
+        .match(/.{2}/g);
+
+    if (!matches || matches.length !== 3) {
+        // Return default background and text colors for invalid input
+        return ['rgb(255,255,255)', 'rgb(0,0,0)'];
+    }
+
+    try {
+        [red, green, blue] = matches.map((x) => parseInt(x, 16));
+        if (isNaN(red) || isNaN(green) || isNaN(blue)) {
             return ['rgb(255,255,255)', 'rgb(0,0,0)'];
         }
-
-        [red, green, blue] = matches.map((x) => parseInt(x, 16));
+    } catch {
+        return ['rgb(255,255,255)', 'rgb(0,0,0)'];
     }
 
     // Calculate brightness of randomized colour
