@@ -100,7 +100,7 @@ export default class Month extends LitElement {
                             tabindex="0"
                         >
                             ${this._renderIndicator({ year, month, day })}
-                            <slot name="${year}-${month}-${day}"></slot>
+                            <slot name="${year}-${month}-${day}" .date=${{ year, month, day }}></slot>
                         </div>`,
                 )}
             </div>

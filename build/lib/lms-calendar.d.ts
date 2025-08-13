@@ -1,4 +1,5 @@
 import { CSSResult, LitElement, PropertyValueMap } from 'lit';
+import { Interval } from 'luxon';
 import LMSCalendarContext from './components/Context';
 import './components/Context.js';
 import LMSCalendarDay from './components/Day';
@@ -9,6 +10,8 @@ import LMSCalendarHeader from './components/Header';
 import './components/Header.js';
 import LMSCalendarMonth from './components/Month';
 import './components/Month.js';
+import LMSCalendarMenu from './components/Menu';
+import './components/Menu.js';
 export default class LMSCalendar extends LitElement {
     private currentDate;
     heading?: string;
@@ -55,6 +58,7 @@ declare global {
         'lms-calendar-day': LMSCalendarDay;
         'lms-calendar-context': LMSCalendarContext;
         'lms-calendar-entry': LMSCalendarEntry;
+        'lms-calendar-menu': LMSCalendarMenu;
     }
     type CalendarDate = {
         day: number;
@@ -103,4 +107,5 @@ declare global {
         end: number;
     };
 }
+export { CalendarDate, CalendarDateInterval, CalendarEntry, CalendarTime, CalendarTimeInterval, Continuation, Grading, Interval, Partition, };
 //# sourceMappingURL=lms-calendar.d.ts.map

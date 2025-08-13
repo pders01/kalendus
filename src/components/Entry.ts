@@ -1,7 +1,9 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { P, match } from 'ts-pattern';
+import type { CalendarDate } from '../lms-calendar';
 import Translations from '../locales/Translations.js';
+import Menu from './Menu.js';
 
 @customElement('lms-calendar-entry')
 export default class Entry extends LitElement {
@@ -18,6 +20,8 @@ export default class Entry extends LitElement {
 
     @property({ type: Boolean })
     isContinuation = false;
+
+    @property({ type: Object }) date?: CalendarDate;
 
     @state()
     _highlighted?: boolean;
@@ -39,7 +43,10 @@ export default class Entry extends LitElement {
             grid-row: var(--start-slot);
             width: var(--entry-width);
             margin: var(--entry-margin);
-            background-color: var(--entry-background-color, var(--background-color));
+            background-color: var(
+                --entry-background-color,
+                var(--background-color)
+            );
             color: var(--entry-color, var(--primary-color));
             /* z-index of separators in day view is 0 */
             z-index: 1;
@@ -54,6 +61,13 @@ export default class Entry extends LitElement {
 
         :host([data-highlighted]) {
             background: var(--entry-highlight-color, var(--separator-light));
+        }
+
+        :host([data-extended]) {
+            background: var(
+                --entry-extended-background-color,
+                var(--background-color)
+            );
         }
 
         :host(:focus-within) {
@@ -78,14 +92,30 @@ export default class Entry extends LitElement {
             overflow: hidden;
             text-overflow: ellipsis;
             flex-grow: 1;
-            min-width: 0;  /* Required for text-overflow to work in a flex container */
+            min-width: 0; /* Required for text-overflow to work in a flex container */
+            position: relative;
+        }
+
+        .main > span:first-child::after {
+            content: attr(data-full-content);
+            white-space: normal;
+            position: absolute;
+            left: 0;
+            top: 100%;
+            width: 100%;
+            background-color: inherit;
+            display: none;
+        }
+
+        :host([data-extended]) .main > span:first-child::after {
+            display: block;
         }
 
         .interval {
             font-family: var(--entry-font-family, monospace);
             white-space: nowrap;
             margin-left: var(--entry-interval-margin, 0.5em);
-            flex-shrink: 0;  /* Prevent time from being compressed */
+            flex-shrink: 0; /* Prevent time from being compressed */
         }
     `;
 
@@ -109,10 +139,11 @@ export default class Entry extends LitElement {
                 class="main"
                 tabindex="1"
                 title=${this._renderTitle()}
+                data-full-content=${this.content || ''}
+                ?data-extended=${this._extended}
             >
                 <span>
                     <span>${this.heading}</span>
-                    <span ?hidden=${!this.content}>: ${this.content}</span>
                 </span>
                 ${this._renderInterval()}
             </div>
@@ -148,39 +179,44 @@ export default class Entry extends LitElement {
 
     constructor() {
         super();
-        this.addEventListener('click', this._handleClick);
+        this.addEventListener('click', this._handleInteraction);
+        this.addEventListener('keydown', this._handleInteraction);
     }
 
-    override disconnectedCallback() {
-        super.disconnectedCallback();
-        this.removeEventListener('click', this._handleClick);
-    }
-
-    private _handleClick(e: Event) {
-        // Prevent event from bubbling up to parent elements
-        e.stopPropagation();
-        
-        this._highlighted = !this._highlighted;
-        this._extended = !this._extended;
-        
-        // Set the highlighted state on the host element
-        if (this._highlighted) {
-            this.setAttribute('data-highlighted', '');
-        } else {
-            this.removeAttribute('data-highlighted');
+    private _handleInteraction(e: Event) {
+        if (e instanceof KeyboardEvent && e.key !== 'Enter' && e.key !== ' ') {
+            return;
         }
-        
-        // Dispatch a custom event that parent elements can listen to if needed
-        this.dispatchEvent(new CustomEvent('entry-click', {
-            bubbles: true,
-            composed: true,
-            detail: {
-                highlighted: this._highlighted,
-                extended: this._extended,
-                heading: this.heading,
-                content: this.content,
-                time: this.time
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!this._highlighted) {
+            this._highlighted = true;
+
+            let oldMenu = document.querySelector('lms-menu') as Menu | null;
+            if (oldMenu) {
+                oldMenu.remove();
             }
-        }));
+            const menu = document.createElement('lms-menu') as Menu;
+            document.body.appendChild(menu);
+            menu.eventDetails = {
+                heading: this.heading || 'No Title',
+                content: this.content || 'No Content',
+                time: this.time
+                    ? `${this.time.start.hour}:${this.time.start.minute} - ${this.time.end.hour}:${this.time.end.minute}`
+                    : 'No Time',
+                date: this.date,
+            };
+            menu.open = true;
+            menu.minimized = false;
+            menu.addEventListener(
+                'menu-close',
+                () => {
+                    this._highlighted = false;
+                    menu.remove();
+                },
+                { once: true },
+            );
+        }
     }
 }

@@ -1,3 +1,4 @@
+import { CalendarDate } from '../lms-calendar';
 /**
  * This class handles calculations and adjustments for CalendarDate objects based on a specified direction.
  *
@@ -21,15 +22,8 @@ export default class DirectionalCalendarDateCalculator {
     });
     set date(date: CalendarDate);
     set direction(direction: 'previous' | 'next');
-    getDateByDayInDirection(): {
-        day: number;
-        month: number;
-        year: number;
-    };
-    getDateByMonthInDirection(): {
-        day: number;
-        month: number;
-        year: number;
-    };
+    private _toCalendarDate;
+    getDateByDayInDirection(): CalendarDate;
+    getDateByMonthInDirection(): CalendarDate;
 }
 //# sourceMappingURL=DirectionalCalendarDateCalculator.d.ts.map
