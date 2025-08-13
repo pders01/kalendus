@@ -1,10 +1,12 @@
 import { LitElement } from 'lit';
+import type { CalendarDate } from '../lms-calendar';
 export default class Entry extends LitElement {
     private translations;
     time?: CalendarTimeInterval;
     heading: string;
     content?: string;
     isContinuation: boolean;
+    date?: CalendarDate;
     _highlighted?: boolean;
     _extended?: boolean;
     private _sumReducer;
@@ -13,6 +15,7 @@ export default class Entry extends LitElement {
     private _renderInterval;
     render(): import("lit").TemplateResult<1>;
     private _displayInterval;
-    private _handleClick;
+    constructor();
+    private _handleInteraction;
 }
 //# sourceMappingURL=Entry.d.ts.map

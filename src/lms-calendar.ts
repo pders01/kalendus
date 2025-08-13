@@ -22,6 +22,8 @@ import LMSCalendarHeader from './components/Header';
 import './components/Header.js';
 import LMSCalendarMonth from './components/Month';
 import './components/Month.js';
+import LMSCalendarMenu from './components/Menu';
+import './components/Menu.js';
 import DirectionalCalendarDateCalculator from './lib/DirectionalCalendarDateCalculator.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import getOverlappingEntitiesIndices from './lib/getOverlappingEntitiesIndices.js';
@@ -133,6 +135,20 @@ export default class LMSCalendar extends LitElement {
             --indicator-font-weight: bold;
             --indicator-padding: 0.25em;
             --indicator-margin-bottom: 0.25em;
+
+            --menu-background-color: #fff;
+            --menu-border-color: #ccc;
+            --menu-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            --menu-padding: 1em;
+            --menu-border-radius: 8px;
+            --menu-item-padding: 0.75em;
+            --menu-item-border-radius: 4px;
+            --menu-item-margin: 0.5em 0;
+            --menu-item-background-color: #f9f9f9;
+            --menu-item-font-weight: bold;
+            --menu-item-color: #333;
+            --menu-item-hover-background-color: #007bff;
+            --menu-item-hover-color: #fff;
         }
         div {
             width: var(--width);
@@ -285,6 +301,7 @@ export default class LMSCalendar extends LitElement {
                 .heading=${entry.heading ?? ''}
                 .content=${entry.content}
                 .isContinuation=${isContinuation ?? false}
+                .date=${entry.date}
             >
             </lms-calendar-entry>
         `;
@@ -607,6 +624,7 @@ declare global {
         'lms-calendar-day': LMSCalendarDay;
         'lms-calendar-context': LMSCalendarContext;
         'lms-calendar-entry': LMSCalendarEntry;
+        'lms-calendar-menu': LMSCalendarMenu;
     }
 
     type CalendarDate = {
