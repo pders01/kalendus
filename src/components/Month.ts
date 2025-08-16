@@ -1,14 +1,14 @@
+import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { P, match } from 'ts-pattern';
 import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator.js';
-import Translations from '../locales/Translations.js';
+import { getLocalizedMonth } from '../lib/localization.js';
 
 @customElement('lms-calendar-month')
+@(localized() as ClassDecorator)
 export default class Month extends LitElement {
-    private translations = new Translations();
-
     private currentDate = new Date();
 
     @property({ attribute: false })
@@ -103,9 +103,7 @@ export default class Month extends LitElement {
             ${match([day, isActiveMonth])
                 .with(
                     [1, true],
-                    () => html`
-                        ${day}. ${this.translations.getTranslation(month)}
-                    `,
+                    () => html` ${day}. ${getLocalizedMonth(month)} `,
                 )
                 .otherwise(() => html` ${day} `)}
         </div>`;

@@ -40,6 +40,268 @@ let t$2 = class t {
     this.u.disconnect();
   }
 };
+/**
+ * @license
+ * Copyright 2021 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+const isStrTagged = (val) => typeof val !== "string" && "strTag" in val;
+const joinStringsAndValues = (strings, values, valueOrder) => {
+  let concat = strings[0];
+  for (let i2 = 1; i2 < strings.length; i2++) {
+    concat += values[valueOrder ? valueOrder[i2 - 1] : i2 - 1];
+    concat += strings[i2];
+  }
+  return concat;
+};
+/**
+ * @license
+ * Copyright 2021 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+const defaultMsg = (template) => isStrTagged(template) ? joinStringsAndValues(template.strings, template.values) : template;
+/**
+ * @license
+ * Copyright 2021 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+const LOCALE_STATUS_EVENT = "lit-localize-status";
+/**
+ * @license
+ * Copyright 2021 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+class LocalizeController {
+  constructor(host) {
+    this.__litLocalizeEventHandler = (event) => {
+      if (event.detail.status === "ready") {
+        this.host.requestUpdate();
+      }
+    };
+    this.host = host;
+  }
+  hostConnected() {
+    window.addEventListener(LOCALE_STATUS_EVENT, this.__litLocalizeEventHandler);
+  }
+  hostDisconnected() {
+    window.removeEventListener(LOCALE_STATUS_EVENT, this.__litLocalizeEventHandler);
+  }
+}
+const _updateWhenLocaleChanges = (host) => host.addController(new LocalizeController(host));
+const updateWhenLocaleChanges = _updateWhenLocaleChanges;
+/**
+ * @license
+ * Copyright 2021 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+const _localized = () => (classOrDescriptor) => typeof classOrDescriptor === "function" ? legacyLocalized(classOrDescriptor) : standardLocalized(classOrDescriptor);
+const localized = _localized;
+const standardLocalized = ({ kind, elements }) => {
+  return {
+    kind,
+    elements,
+    finisher(clazz) {
+      clazz.addInitializer(updateWhenLocaleChanges);
+    }
+  };
+};
+const legacyLocalized = (clazz) => {
+  clazz.addInitializer(updateWhenLocaleChanges);
+  return clazz;
+};
+/**
+ * @license
+ * Copyright 2020 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+class Deferred {
+  constructor() {
+    this.settled = false;
+    this.promise = new Promise((resolve, reject) => {
+      this._resolve = resolve;
+      this._reject = reject;
+    });
+  }
+  resolve(value) {
+    this.settled = true;
+    this._resolve(value);
+  }
+  reject(error) {
+    this.settled = true;
+    this._reject(error);
+  }
+}
+/**
+ * @license
+ * Copyright 2014 Travis Webb
+ * SPDX-License-Identifier: MIT
+ */
+const hl = [];
+for (let i2 = 0; i2 < 256; i2++) {
+  hl[i2] = (i2 >> 4 & 15).toString(16) + (i2 & 15).toString(16);
+}
+function fnv1a64(str) {
+  let t0 = 0, v0 = 8997, t1 = 0, v1 = 33826, t22 = 0, v2 = 40164, t3 = 0, v3 = 52210;
+  for (let i2 = 0; i2 < str.length; i2++) {
+    v0 ^= str.charCodeAt(i2);
+    t0 = v0 * 435;
+    t1 = v1 * 435;
+    t22 = v2 * 435;
+    t3 = v3 * 435;
+    t22 += v0 << 8;
+    t3 += v1 << 8;
+    t1 += t0 >>> 16;
+    v0 = t0 & 65535;
+    t22 += t1 >>> 16;
+    v1 = t1 & 65535;
+    v3 = t3 + (t22 >>> 16) & 65535;
+    v2 = t22 & 65535;
+  }
+  return hl[v3 >> 8] + hl[v3 & 255] + hl[v2 >> 8] + hl[v2 & 255] + hl[v1 >> 8] + hl[v1 & 255] + hl[v0 >> 8] + hl[v0 & 255];
+}
+/**
+ * @license
+ * Copyright 2020 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+const HASH_DELIMITER = "";
+const HTML_PREFIX = "h";
+const STRING_PREFIX = "s";
+function generateMsgId(strings, isHtmlTagged) {
+  return (isHtmlTagged ? HTML_PREFIX : STRING_PREFIX) + fnv1a64(typeof strings === "string" ? strings : strings.join(HASH_DELIMITER));
+}
+/**
+ * @license
+ * Copyright 2021 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+const expressionOrders = /* @__PURE__ */ new WeakMap();
+const hashCache = /* @__PURE__ */ new Map();
+function runtimeMsg(templates2, template, options) {
+  var _a;
+  if (templates2) {
+    const id = (_a = options === null || options === void 0 ? void 0 : options.id) !== null && _a !== void 0 ? _a : generateId(template);
+    const localized2 = templates2[id];
+    if (localized2) {
+      if (typeof localized2 === "string") {
+        return localized2;
+      } else if ("strTag" in localized2) {
+        return joinStringsAndValues(
+          localized2.strings,
+          // Cast `template` because its type wasn't automatically narrowed (but
+          // we know it must be the same type as `localized`).
+          template.values,
+          localized2.values
+        );
+      } else {
+        let order = expressionOrders.get(localized2);
+        if (order === void 0) {
+          order = localized2.values;
+          expressionOrders.set(localized2, order);
+        }
+        return {
+          ...localized2,
+          values: order.map((i2) => template.values[i2])
+        };
+      }
+    }
+  }
+  return defaultMsg(template);
+}
+function generateId(template) {
+  const strings = typeof template === "string" ? template : template.strings;
+  let id = hashCache.get(strings);
+  if (id === void 0) {
+    id = generateMsgId(strings, typeof template !== "string" && !("strTag" in template));
+    hashCache.set(strings, id);
+  }
+  return id;
+}
+/**
+ * @license
+ * Copyright 2021 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+function dispatchStatusEvent(detail) {
+  window.dispatchEvent(new CustomEvent(LOCALE_STATUS_EVENT, { detail }));
+}
+let activeLocale = "";
+let loadingLocale;
+let sourceLocale$1;
+let validLocales;
+let loadLocale;
+let templates;
+let loading = new Deferred();
+loading.resolve();
+let requestId = 0;
+const configureLocalization = (config) => {
+  _installMsgImplementation((template, options) => runtimeMsg(templates, template, options));
+  activeLocale = sourceLocale$1 = config.sourceLocale;
+  validLocales = new Set(config.targetLocales);
+  validLocales.add(config.sourceLocale);
+  loadLocale = config.loadLocale;
+  return { getLocale: getLocale$1, setLocale: setLocale$1 };
+};
+const getLocale$1 = () => {
+  return activeLocale;
+};
+const setLocale$1 = (newLocale) => {
+  if (newLocale === (loadingLocale !== null && loadingLocale !== void 0 ? loadingLocale : activeLocale)) {
+    return loading.promise;
+  }
+  if (!validLocales || !loadLocale) {
+    throw new Error("Internal error");
+  }
+  if (!validLocales.has(newLocale)) {
+    throw new Error("Invalid locale code");
+  }
+  requestId++;
+  const thisRequestId = requestId;
+  loadingLocale = newLocale;
+  if (loading.settled) {
+    loading = new Deferred();
+  }
+  dispatchStatusEvent({ status: "loading", loadingLocale: newLocale });
+  const localePromise = newLocale === sourceLocale$1 ? (
+    // We could switch to the source locale synchronously, but we prefer to
+    // queue it on a microtask so that switching locales is consistently
+    // asynchronous.
+    Promise.resolve({ templates: void 0 })
+  ) : loadLocale(newLocale);
+  localePromise.then((mod) => {
+    if (requestId === thisRequestId) {
+      activeLocale = newLocale;
+      loadingLocale = void 0;
+      templates = mod.templates;
+      dispatchStatusEvent({ status: "ready", readyLocale: newLocale });
+      loading.resolve();
+    }
+  }, (err) => {
+    if (requestId === thisRequestId) {
+      dispatchStatusEvent({
+        status: "error",
+        errorLocale: newLocale,
+        errorMessage: err.toString()
+      });
+      loading.reject(err);
+    }
+  });
+  return loading.promise;
+};
+/**
+ * @license
+ * Copyright 2020 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+let msg = defaultMsg;
+let installed = false;
+function _installMsgImplementation(impl) {
+  if (installed) {
+    throw new Error("lit-localize can only be configured once");
+  }
+  msg = impl;
+  installed = true;
+}
 class LuxonError extends Error {
 }
 class InvalidDateTimeError extends LuxonError {
@@ -6508,69 +6770,6 @@ function _reduceLazy(array, lazy, isIndexed) {
   }
   return out;
 }
-function equals() {
-  return purry(_equals, arguments);
-}
-function _equals(a2, b2) {
-  if (a2 === b2) {
-    return true;
-  }
-  if (typeof a2 === "number" && typeof b2 === "number") {
-    return a2 !== a2 && b2 !== b2;
-  }
-  if (typeof a2 !== "object" || typeof b2 !== "object") {
-    return false;
-  }
-  if (a2 === null || b2 === null) {
-    return false;
-  }
-  var isArrayA = Array.isArray(a2);
-  var isArrayB = Array.isArray(b2);
-  if (isArrayA && isArrayB) {
-    if (a2.length !== b2.length) {
-      return false;
-    }
-    for (var i2 = 0; i2 < a2.length; i2++) {
-      if (!_equals(a2[i2], b2[i2])) {
-        return false;
-      }
-    }
-    return true;
-  }
-  if (isArrayA !== isArrayB) {
-    return false;
-  }
-  var isDateA = a2 instanceof Date;
-  var isDateB = b2 instanceof Date;
-  if (isDateA && isDateB) {
-    return a2.getTime() === b2.getTime();
-  }
-  if (isDateA !== isDateB) {
-    return false;
-  }
-  var isRegExpA = a2 instanceof RegExp;
-  var isRegExpB = b2 instanceof RegExp;
-  if (isRegExpA && isRegExpB) {
-    return a2.toString() === b2.toString();
-  }
-  if (isRegExpA !== isRegExpB) {
-    return false;
-  }
-  var keys = Object.keys(a2);
-  if (keys.length !== Object.keys(b2).length) {
-    return false;
-  }
-  for (var _i = 0, keys_1 = keys; _i < keys_1.length; _i++) {
-    var key = keys_1[_i];
-    if (!Object.prototype.hasOwnProperty.call(b2, key)) {
-      return false;
-    }
-    if (!_equals(a2[key], b2[key])) {
-      return false;
-    }
-  }
-  return true;
-}
 var _toLazyIndexed = function(fn) {
   return Object.assign(fn, { indexed: true });
 };
@@ -6626,6 +6825,101 @@ function _flatMap(array, fn) {
     };
   };
 })(flatMap || (flatMap = {}));
+function isDeepEqual() {
+  return purry(isDeepEqualImplementation, arguments);
+}
+function isDeepEqualImplementation(data, other) {
+  if (data === other) {
+    return true;
+  }
+  if (typeof data === "number" && typeof other === "number") {
+    return data !== data && other !== other;
+  }
+  if (typeof data !== "object" || typeof other !== "object") {
+    return false;
+  }
+  if (data === null || other === null) {
+    return false;
+  }
+  if (Object.getPrototypeOf(data) !== Object.getPrototypeOf(other)) {
+    return false;
+  }
+  if (data instanceof Set) {
+    return isDeepEqualSets(data, other);
+  }
+  if (Array.isArray(data)) {
+    if (data.length !== other.length) {
+      return false;
+    }
+    for (var i2 = 0; i2 < data.length; i2++) {
+      if (!isDeepEqualImplementation(data[i2], other[i2])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (data instanceof Date) {
+    return data.getTime() === other.getTime();
+  }
+  if (data instanceof RegExp) {
+    return data.toString() === other.toString();
+  }
+  if (data instanceof Map) {
+    return isDeepEqualMaps(data, other);
+  }
+  var keys = Object.keys(data);
+  if (keys.length !== Object.keys(other).length) {
+    return false;
+  }
+  for (var _i = 0, keys_1 = keys; _i < keys_1.length; _i++) {
+    var key = keys_1[_i];
+    if (!Object.prototype.hasOwnProperty.call(other, key)) {
+      return false;
+    }
+    if (!isDeepEqualImplementation(data[key], other[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+function isDeepEqualMaps(data, other) {
+  if (data.size !== other.size) {
+    return false;
+  }
+  var keys = Array.from(data.keys());
+  for (var _i = 0, keys_2 = keys; _i < keys_2.length; _i++) {
+    var key = keys_2[_i];
+    if (!other.has(key)) {
+      return false;
+    }
+    if (!isDeepEqualImplementation(data.get(key), other.get(key))) {
+      return false;
+    }
+  }
+  return true;
+}
+function isDeepEqualSets(data, other) {
+  if (data.size !== other.size) {
+    return false;
+  }
+  var dataArr = Array.from(data.values());
+  var otherArr = Array.from(other.values());
+  for (var _i = 0, dataArr_1 = dataArr; _i < dataArr_1.length; _i++) {
+    var dataItem = dataArr_1[_i];
+    var isFound = false;
+    for (var i2 = 0; i2 < otherArr.length; i2++) {
+      if (isDeepEqualImplementation(dataItem, otherArr[i2])) {
+        isFound = true;
+        otherArr.splice(i2, 1);
+        break;
+      }
+    }
+    if (!isFound) {
+      return false;
+    }
+  }
+  return true;
+}
 function isArray(data) {
   return Array.isArray(data);
 }
@@ -6957,56 +7251,48 @@ class I {
     return this;
   }
 }
-class Translations {
-  constructor() {
-    this._lang = document.documentElement.lang.slice(0, 2);
-    this._locales = {
-      de: {
-        /** Weekdays */
-        Mon: "Mo",
-        Tues: "Di",
-        Wed: "Mi",
-        Thurs: "Do",
-        Fri: "Fr",
-        Sat: "Sa",
-        Sun: "So",
-        /** Months */
-        1: "Jan",
-        2: "Feb",
-        3: "Mär",
-        4: "Apr",
-        5: "Mai",
-        6: "Jun",
-        7: "Jul",
-        8: "Aug",
-        9: "Sep",
-        10: "Okt",
-        11: "Nov",
-        12: "Dez",
-        /** Misc */
-        Day: "Tag",
-        Month: "Monat",
-        "Current Month": "Aktueller Monat",
-        "all day": "ganztägig"
-      }
-    };
+const __variableDynamicImportRuntimeHelper = (glob, path, segs) => {
+  const v2 = glob[path];
+  if (v2) {
+    return typeof v2 === "function" ? v2() : Promise.resolve(v2);
   }
-  get lang() {
-    return this._lang;
-  }
-  set lang(lang) {
-    this._lang = lang;
-  }
-  getTranslation(key) {
-    if (!key) {
-      return key;
-    }
-    const locale = this._locales[this.lang];
-    if (locale) {
-      return locale[key] || key;
-    }
-    return key;
-  }
+  return new Promise((_2, reject) => {
+    (typeof queueMicrotask === "function" ? queueMicrotask : setTimeout)(
+      reject.bind(
+        null,
+        new Error(
+          "Unknown variable dynamic import: " + path + (path.split("/").length !== segs ? ". Note that variables only represent file names one level deep." : "")
+        )
+      )
+    );
+  });
+};
+const sourceLocale = `en`;
+const targetLocales = [`de`, `de-DE`];
+const { getLocale, setLocale } = configureLocalization({
+  sourceLocale,
+  targetLocales,
+  loadLocale: (locale) => __variableDynamicImportRuntimeHelper(/* @__PURE__ */ Object.assign({}), `../generated/locales/${locale}.js`, 4)
+});
+function getCurrentLocale() {
+  var _a;
+  return getLocale() || ((_a = document.documentElement.lang) == null ? void 0 : _a.slice(0, 2)) || "en";
+}
+async function setAppLocale(locale) {
+  await setLocale(locale);
+}
+function formatDateTime(dateTime, format) {
+  return dateTime.setLocale(getCurrentLocale()).toFormat(format);
+}
+function getLocalizedMonth(month) {
+  const date = DateTime.local().set({ month });
+  return formatDateTime(date, "MMM");
+}
+function getLocalizedWeekdayShort(weekday) {
+  const date = DateTime.local().set({
+    weekday
+  });
+  return formatDateTime(date, "cc");
 }
 var __defProp$6 = Object.defineProperty;
 var __getOwnPropDesc$6 = Object.getOwnPropertyDescriptor;
@@ -7019,19 +7305,15 @@ var __decorateClass$6 = (decorators, target, key, kind) => {
   return result;
 };
 let Context = class extends LitElement {
-  constructor() {
-    super(...arguments);
-    this.translations = new Translations();
-  }
   render() {
     return html` <div>
-            <span>${this.translations.getTranslation("Mon")}</span>
-            <span>${this.translations.getTranslation("Tues")}</span>
-            <span>${this.translations.getTranslation("Wed")}</span>
-            <span>${this.translations.getTranslation("Thurs")}</span>
-            <span>${this.translations.getTranslation("Fri")}</span>
-            <span>${this.translations.getTranslation("Sat")}</span>
-            <span>${this.translations.getTranslation("Sun")}</span>
+            <span>${getLocalizedWeekdayShort(1)}</span>
+            <span>${getLocalizedWeekdayShort(2)}</span>
+            <span>${getLocalizedWeekdayShort(3)}</span>
+            <span>${getLocalizedWeekdayShort(4)}</span>
+            <span>${getLocalizedWeekdayShort(5)}</span>
+            <span>${getLocalizedWeekdayShort(6)}</span>
+            <span>${getLocalizedWeekdayShort(7)}</span>
         </div>`;
   }
 };
@@ -7047,7 +7329,8 @@ Context.styles = css`
         }
     `;
 Context = __decorateClass$6([
-  customElement("lms-calendar-context")
+  customElement("lms-calendar-context"),
+  localized()
 ], Context);
 var __defProp$5 = Object.defineProperty;
 var __getOwnPropDesc$5 = Object.getOwnPropertyDescriptor;
@@ -7203,6 +7486,25 @@ __decorateClass$5([
 Day = __decorateClass$5([
   customElement("lms-calendar-day")
 ], Day);
+const messages = {
+  day: () => msg("Day"),
+  month: () => msg("Month"),
+  currentMonth: () => msg("Current Month"),
+  allDay: () => msg("All Day"),
+  today: () => msg("Today"),
+  noTitle: () => msg("No Title"),
+  noContent: () => msg("No Content"),
+  noTime: () => msg("No Time"),
+  eventDetails: () => msg("Event Details"),
+  exportAsICS: () => msg("Export as ICS"),
+  title: () => msg("Title"),
+  time: () => msg("Time"),
+  date: () => msg("Date"),
+  notes: () => msg("Notes"),
+  minimize: () => msg("Minimize"),
+  close: () => msg("Close"),
+  dragToMove: () => msg("Drag to move menu")
+};
 var __defProp$4 = Object.defineProperty;
 var __getOwnPropDesc$4 = Object.getOwnPropertyDescriptor;
 var __decorateClass$4 = (decorators, target, key, kind) => {
@@ -7216,7 +7518,6 @@ var __decorateClass$4 = (decorators, target, key, kind) => {
 let Entry = class extends LitElement {
   constructor() {
     super();
-    this.translations = new Translations();
     this.heading = "";
     this.isContinuation = false;
     this._sumReducer = (accumulator, currentValue) => accumulator + currentValue;
@@ -7227,7 +7528,7 @@ let Entry = class extends LitElement {
     return z$1(this.content).with(N$1.nullish, () => this.heading).otherwise(() => `${this.heading}: ${this.content}`);
   }
   _renderInterval() {
-    return this.isContinuation ? html`<span>${this.translations.getTranslation("all day")}</span>` : html`<span class="interval"
+    return this.isContinuation ? html`<span>${messages.allDay()}</span>` : html`<span class="interval"
                   >${this._displayInterval(this.time)}</span
               >`;
   }
@@ -7260,7 +7561,7 @@ let Entry = class extends LitElement {
     ];
     const lastsAllDay = components[END_HOURS] === 24 && components.reduce(this._sumReducer, 0) % 24 === 0;
     if (lastsAllDay) {
-      return this.translations.getTranslation("all day");
+      return messages.allDay();
     }
     const [startHours, startMinutes, endHours, endMinutes] = components.map(
       (component) => component < 10 ? `0${component}` : component
@@ -7279,28 +7580,32 @@ let Entry = class extends LitElement {
       if (!this.date) {
         return;
       }
-      const oldMenu = document.querySelector("lms-menu");
-      if (oldMenu) {
-        oldMenu.remove();
-      }
-      const menu = document.createElement("lms-menu");
-      document.body.appendChild(menu);
-      menu.eventDetails = {
-        heading: this.heading || "No Title",
-        content: this.content || "No Content",
-        time: this.time ? `${this.time.start.hour}:${this.time.start.minute} - ${this.time.end.hour}:${this.time.end.minute}` : "No Time",
+      const eventDetails = {
+        heading: this.heading || messages.noTitle(),
+        content: this.content || messages.noContent(),
+        time: this.time ? `${String(this.time.start.hour).padStart(
+          2,
+          "0"
+        )}:${String(this.time.start.minute).padStart(
+          2,
+          "0"
+        )} - ${String(this.time.end.hour).padStart(
+          2,
+          "0"
+        )}:${String(this.time.end.minute).padStart(2, "0")}` : messages.noTime(),
         date: (_a = this.date) == null ? void 0 : _a.start
       };
-      menu.open = true;
-      menu.minimized = false;
-      menu.addEventListener(
-        "menu-close",
-        () => {
-          this._highlighted = false;
-          menu.remove();
-        },
-        { once: true }
-      );
+      const openMenuEvent = new CustomEvent("open-menu", {
+        detail: eventDetails,
+        bubbles: true,
+        composed: true
+      });
+      this.dispatchEvent(openMenuEvent);
+      const handleMenuClose = () => {
+        this._highlighted = false;
+        this.removeEventListener("menu-close", handleMenuClose);
+      };
+      this.addEventListener("menu-close", handleMenuClose);
     }
   }
 };
@@ -7412,7 +7717,8 @@ __decorateClass$4([
   state()
 ], Entry.prototype, "_extended", 2);
 Entry = __decorateClass$4([
-  customElement("lms-calendar-entry")
+  customElement("lms-calendar-entry"),
+  localized()
 ], Entry);
 var __defProp$3 = Object.defineProperty;
 var __getOwnPropDesc$3 = Object.getOwnPropertyDescriptor;
@@ -7425,36 +7731,24 @@ var __decorateClass$3 = (decorators, target, key, kind) => {
   return result;
 };
 let Header = class extends LitElement {
-  constructor() {
-    super(...arguments);
-    this.translations = new Translations();
-  }
   render() {
     var _a, _b, _c, _d, _e;
     const hasEmptyDate = isEmpty(this.expandedDate ?? {});
     return html`<div class="controls">
             <div class="info">
                 <span>
-                    <strong
-                        >${this.heading || this.translations.getTranslation(
-      "Current Month"
-    )}</strong
-                    >
+                    <strong>${this.heading || messages.currentMonth()}</strong>
                 </span>
                 <div ?hidden=${hasEmptyDate}>
                     <span class="day">${(_a = this.expandedDate) == null ? void 0 : _a.day}</span>
                     <span class="month"
-                        >${this.translations.getTranslation(
-      (_b = this.expandedDate) == null ? void 0 : _b.month
-    )}</span
+                        >${((_b = this.expandedDate) == null ? void 0 : _b.month) ? getLocalizedMonth(this.expandedDate.month) : ""}</span
                     >
                     <span class="year">${(_c = this.expandedDate) == null ? void 0 : _c.year}</span>
                 </div>
                 <div ?hidden=${!hasEmptyDate}>
                     <span class="month"
-                        >${this.translations.getTranslation(
-      (_d = this.activeDate) == null ? void 0 : _d.month
-    )}</span
+                        >${((_d = this.activeDate) == null ? void 0 : _d.month) ? getLocalizedMonth(this.activeDate.month) : ""}</span
                     >
                     <span class="year">${(_e = this.activeDate) == null ? void 0 : _e.year}</span>
                 </div>
@@ -7465,14 +7759,14 @@ let Header = class extends LitElement {
                     data-context="day"
                     class="btn-change-view"
                 >
-                    ${this.translations.getTranslation("Day")}
+                    ${messages.day()}
                 </button>
                 <button
                     ?data-active=${hasEmptyDate}
                     data-context="month"
                     class="btn-change-view"
                 >
-                    ${this.translations.getTranslation("Month")}
+                    ${messages.month()}
                 </button>
             </div>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
@@ -7563,7 +7857,8 @@ __decorateClass$3([
   property({ type: Object })
 ], Header.prototype, "expandedDate", 2);
 Header = __decorateClass$3([
-  customElement("lms-calendar-header")
+  customElement("lms-calendar-header"),
+  localized()
 ], Header);
 var t2 = { dragStart: true }, e = { delay: 0, distance: 3 };
 function n(n2, c2 = {}) {
@@ -8313,33 +8608,46 @@ let Menu = class extends LitElement {
     }
   }
   render() {
+    this.style.display = this.open ? "" : "none";
     return html`
             <div>
-                <div class="header" title="Drag to move menu">
-                    <span class="title">Menu</span>
-                    <button @click=${this._handleMinimize} title="Minimize">
-                        ${this.minimized ? "🗖" : "🗕"}
+                <div class="header" title=${messages.dragToMove()}>
+                    <span class="title">${messages.eventDetails()}</span>
+                    <button @click=${this._handleMinimize} title=${messages.minimize()}>
+                        ${this.minimized ? "+" : "-"}
                     </button>
-                    <button @click=${this._handleClose} title="Close">✖</button>
+                    <button @click=${this._handleClose} title=${messages.close()}>×</button>
                 </div>
                 <div class="content" ?hidden=${this.minimized}>
                     <div
                         class="menu-item"
                         @click=${this._handleExport}
-                        title="Export as ICS"
+                        title=${messages.exportAsICS()}
                     >
-                        Export as ICS
+                        ${messages.exportAsICS()}
                     </div>
-                    <div>
-                        <strong>Title:</strong> ${this.eventDetails.heading}
+                    <div class="event-details">
+                        <div class="event-detail">
+                            <strong>${messages.title()}:</strong>
+                            <span
+                                >${this.eventDetails.heading || messages.noTitle()}</span
+                            >
+                        </div>
+                        <div class="event-detail">
+                            <strong>${messages.time()}:</strong>
+                            <span>${this.eventDetails.time || messages.noTime()}</span>
+                        </div>
+                        ${this.eventDetails.date ? html`<div class="event-detail">
+                                  <strong>${messages.date()}:</strong>
+                                  <span
+                                      >${this.eventDetails.date.day}/${this.eventDetails.date.month}/${this.eventDetails.date.year}</span
+                                  >
+                              </div>` : ""}
+                        ${this.eventDetails.content ? html`<div class="event-detail">
+                                  <strong>${messages.notes()}:</strong>
+                                  <span>${this.eventDetails.content}</span>
+                              </div>` : ""}
                     </div>
-                    <div>
-                        <strong>Content:</strong> ${this.eventDetails.content}
-                    </div>
-                    <div><strong>Time:</strong> ${this.eventDetails.time}</div>
-                    ${this.eventDetails.date ? html`<div>
-                              <strong>Date:</strong> ${this.eventDetails.date.day}/${this.eventDetails.date.month}/${this.eventDetails.date.year}
-                          </div>` : ""}
                 </div>
             </div>
         `;
@@ -8352,49 +8660,97 @@ Menu.styles = css`
             left: 50%;
             transform: translate(-50%, 0);
             z-index: 1000;
-            background: var(--menu-bg, #fff);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            min-width: 320px;
+            background: var(--background-color);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--separator-light);
+            border-radius: var(--border-radius-sm);
+            min-width: var(--menu-min-width);
+            max-width: var(--menu-max-width);
+            font-family: var(--system-ui);
             transition: opacity 0.2s, visibility 0.2s;
             opacity: 1;
             visibility: visible;
         }
-        :host([hidden]),
-        :host([open='false']) {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
         .header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: var(--menu-header-bg, #f0f0f0);
+            gap: var(--menu-detail-gap);
+            background: var(--background-color);
             cursor: grab;
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
-            padding: 0.5rem 1rem;
+            padding: var(--menu-header-padding);
+            border-bottom: 1px solid var(--separator-light);
+            border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
             user-select: none;
         }
         .header .title {
             flex: 1;
-            font-weight: bold;
+            font-size: var(--menu-title-font-size);
+            font-weight: var(--menu-title-font-weight);
+            color: var(--separator-dark);
         }
         .header button {
             background: none;
-            border: none;
+            border: 1px solid transparent;
+            border-radius: var(--button-border-radius);
             cursor: pointer;
-            font-size: 1.2em;
+            font-size: var(--menu-title-font-size);
             line-height: 1;
-            padding: 0 0.25em;
+            padding: var(--menu-button-padding);
+            width: var(--menu-button-size);
+            height: var(--menu-button-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--header-text-color);
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .header button:hover {
+            background-color: var(--separator-light);
+            color: var(--separator-dark);
         }
         .content {
-            padding: 1rem;
+            padding: var(--menu-content-padding);
             display: block;
+            font-size: var(--menu-content-font-size);
         }
         .content[hidden] {
             display: none;
+        }
+        .menu-item {
+            padding: var(--menu-item-padding);
+            margin-bottom: var(--menu-item-margin-bottom);
+            background: var(--separator-light);
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            font-weight: var(--menu-item-font-weight);
+            text-align: center;
+            transition: background-color 0.15s, color 0.15s;
+            border: 1px solid transparent;
+        }
+        .menu-item:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        .event-details {
+            display: flex;
+            flex-direction: column;
+            gap: var(--menu-detail-gap);
+        }
+        .event-detail {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--menu-detail-gap);
+        }
+        .event-detail strong {
+            min-width: var(--menu-detail-label-min-width);
+            font-weight: var(--menu-item-font-weight);
+            color: var(--header-text-color);
+            font-size: var(--menu-detail-label-font-size);
+        }
+        .event-detail span {
+            flex: 1;
+            color: var(--separator-dark);
+            word-break: break-word;
         }
     `;
 __decorateClass$2([
@@ -8407,7 +8763,8 @@ __decorateClass$2([
   state()
 ], Menu.prototype, "minimized", 2);
 Menu = __decorateClass$2([
-  customElement("lms-menu")
+  customElement("lms-menu"),
+  localized()
 ], Menu);
 class DirectionalCalendarDateCalculator {
   constructor({
@@ -8482,13 +8839,27 @@ var __decorateClass$1 = (decorators, target, key, kind) => {
 let Month = class extends LitElement {
   constructor() {
     super(...arguments);
-    this.translations = new Translations();
     this.currentDate = /* @__PURE__ */ new Date();
     this.activeDate = {
       day: this.currentDate.getDate(),
       month: this.currentDate.getMonth() + 1,
       year: this.currentDate.getFullYear()
     };
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener("open-menu", (e2) => {
+      const customEvent = e2;
+      if (e2.target !== this) {
+        e2.stopPropagation();
+        const forwardedEvent = new CustomEvent("open-menu", {
+          detail: customEvent.detail,
+          bubbles: true,
+          composed: true
+        });
+        this.dispatchEvent(forwardedEvent);
+      }
+    });
   }
   _isCurrentDate(date) {
     return new Date(date).toDateString() === this.currentDate.toDateString();
@@ -8504,7 +8875,7 @@ let Month = class extends LitElement {
             ${z$1([day, isActiveMonth]).with(
       [1, true],
       () => html`
-                        ${day}. ${this.translations.getTranslation(month)}
+                        ${day}. ${getLocalizedMonth(month)}
                     `
     ).otherwise(() => html` ${day} `)}
         </div>`;
@@ -8534,6 +8905,9 @@ let Month = class extends LitElement {
   _dispatchExpand(e2) {
     const target = e2.target;
     if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    if (target.closest("lms-calendar-entry")) {
       return;
     }
     const { date } = target.dataset;
@@ -8662,7 +9036,8 @@ __decorateClass$1([
   property({ attribute: false })
 ], Month.prototype, "activeDate", 2);
 Month = __decorateClass$1([
-  customElement("lms-calendar-month")
+  customElement("lms-calendar-month"),
+  localized()
 ], Month);
 function getColorTextWithContrast(color) {
   let red = 0;
@@ -8839,6 +9214,7 @@ let LMSCalendar = class extends LitElement {
     this.entries = [];
     this.color = "#000000";
     this._calendarWidth = window.innerWidth;
+    this._menuOpen = false;
     this._handleResize = (entries) => {
       const [div] = entries;
       this._calendarWidth = div.contentRect.width || this._calendarWidth;
@@ -8850,12 +9226,16 @@ let LMSCalendar = class extends LitElement {
     });
   }
   firstUpdated(_changedProperties) {
-    var _a;
+    var _a, _b;
     const firstElementChild = (_a = this.shadowRoot) == null ? void 0 : _a.firstElementChild;
     if (!firstElementChild) {
       return;
     }
     this._resizeController.observe(firstElementChild);
+    const docLang = (_b = document.documentElement.lang) == null ? void 0 : _b.slice(0, 2);
+    if (docLang && ["de", "en"].includes(docLang)) {
+      setAppLocale(docLang);
+    }
   }
   /** We filter invalid entries in the willUpdate hook, so be prepared:
    *  - This will not be shown
@@ -8905,15 +9285,29 @@ let LMSCalendar = class extends LitElement {
 
                 <lms-calendar-month
                     @expand=${this._handleExpand}
+                    @open-menu=${this._handleOpenMenu}
                     .activeDate=${this.activeDate}
                     ?hidden=${hasExpandedDate}
                 >
                     ${this._calendarWidth < 768 ? this._renderEntriesSumByDay() : this._renderEntries()}
                 </lms-calendar-month>
 
-                <lms-calendar-day ?hidden=${!hasExpandedDate}>
+                <lms-calendar-day
+                    @open-menu=${this._handleOpenMenu}
+                    ?hidden=${!hasExpandedDate}
+                >
                     ${this._renderEntriesByDate()}
                 </lms-calendar-day>
+
+                <lms-menu
+                    ?open=${this._menuOpen}
+                    .eventDetails=${this._menuEventDetails || {
+      heading: "",
+      content: "",
+      time: ""
+    }}
+                    @menu-close=${this._handleMenuClose}
+                ></lms-menu>
             </div>
         `;
   }
@@ -8923,24 +9317,50 @@ let LMSCalendar = class extends LitElement {
     if (this._expandedDate) {
       dateCalculator.date = this._expandedDate;
       const dateInDirection = dateCalculator.getDateByDayInDirection();
-      this._expandedDate = dateInDirection;
-      this.activeDate = dateInDirection;
+      if (!isDeepEqual(this._expandedDate, dateInDirection)) {
+        this._expandedDate = dateInDirection;
+      }
+      if (!isDeepEqual(this.activeDate, dateInDirection)) {
+        this.activeDate = dateInDirection;
+      }
       return;
     }
     dateCalculator.date = this.activeDate;
-    this.activeDate = dateCalculator.getDateByMonthInDirection();
+    const newDate = dateCalculator.getDateByMonthInDirection();
+    if (!isDeepEqual(this.activeDate, newDate)) {
+      this.activeDate = newDate;
+    }
   }
   _handleSwitchView(e2) {
     return z$1(e2.detail.view).with("day", () => {
-      this._expandedDate = !isEmpty(this._expandedDate ?? {}) ? this._expandedDate : this.activeDate;
+      if (isEmpty(this._expandedDate ?? {})) {
+        this._expandedDate = this.activeDate;
+      }
     }).with("month", () => {
-      this.activeDate = this._expandedDate ?? this.activeDate;
+      if (this._expandedDate) {
+        this.activeDate = this._expandedDate;
+      }
       this._expandedDate = void 0;
     }).otherwise(() => {
     });
   }
   _handleExpand(e2) {
     this._expandedDate = e2.detail.date;
+  }
+  _handleOpenMenu(e2) {
+    var _a;
+    (_a = this.shadowRoot) == null ? void 0 : _a.querySelectorAll("lms-calendar-entry").forEach((entry) => {
+      entry._highlighted = false;
+    });
+    this.openMenu(e2.detail);
+  }
+  _handleMenuClose() {
+    this._menuOpen = false;
+    this._menuEventDetails = void 0;
+  }
+  openMenu(eventDetails) {
+    this._menuEventDetails = eventDetails;
+    this._menuOpen = true;
   }
   _composeEntry({
     index,
@@ -9030,6 +9450,8 @@ let LMSCalendar = class extends LitElement {
           entry: {
             time: entry.time,
             heading: entry.heading,
+            content: entry.content,
+            date: entry.date,
             isContinuation: entry.continuation.is
           }
         })
@@ -9049,7 +9471,7 @@ let LMSCalendar = class extends LitElement {
         })
       ),
       filter(
-        (entry) => equals(
+        (entry) => isDeepEqual(
           DateTime.fromObject(entry.date.start).toISODate(),
           DateTime.fromObject(this._expandedDate ?? {}).toISODate()
         )
@@ -9278,7 +9700,7 @@ LMSCalendar.styles = css`
             --header-text-color: rgba(0, 0, 0, 0.6);
             --header-buttons-padding-right: 1em;
             --button-padding: 0.75em;
-            --button-border-radius: 50%;
+            --button-border-radius: var(--border-radius-sm);
 
             --month-header-context-height: 5.5em;
             --month-day-gap: 1px;
@@ -9287,19 +9709,21 @@ LMSCalendar.styles = css`
             --indicator-padding: 0.25em;
             --indicator-margin-bottom: 0.25em;
 
-            --menu-background-color: #fff;
-            --menu-border-color: #ccc;
-            --menu-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            --menu-padding: 1em;
-            --menu-border-radius: 8px;
+            --menu-min-width: 17.5em;
+            --menu-max-width: 20em;
+            --menu-header-padding: 0.75em 1em;
+            --menu-content-padding: 1em;
             --menu-item-padding: 0.75em;
-            --menu-item-border-radius: 4px;
-            --menu-item-margin: 0.5em 0;
-            --menu-item-background-color: #f9f9f9;
-            --menu-item-font-weight: bold;
-            --menu-item-color: #333;
-            --menu-item-hover-background-color: #007bff;
-            --menu-item-hover-color: #fff;
+            --menu-item-margin-bottom: 0.75em;
+            --menu-item-font-weight: 500;
+            --menu-button-size: 2em;
+            --menu-button-padding: 0.5em;
+            --menu-title-font-size: 0.875em;
+            --menu-title-font-weight: 500;
+            --menu-content-font-size: 0.875em;
+            --menu-detail-label-min-width: 4em;
+            --menu-detail-label-font-size: 0.8125em;
+            --menu-detail-gap: 0.5em;
         }
         div {
             width: var(--width);
@@ -9330,8 +9754,15 @@ __decorateClass([
 __decorateClass([
   state()
 ], LMSCalendar.prototype, "_calendarWidth", 2);
+__decorateClass([
+  state()
+], LMSCalendar.prototype, "_menuOpen", 2);
+__decorateClass([
+  state()
+], LMSCalendar.prototype, "_menuEventDetails", 2);
 LMSCalendar = __decorateClass([
-  customElement("lms-calendar")
+  customElement("lms-calendar"),
+  localized()
 ], LMSCalendar);
 export {
   Interval,

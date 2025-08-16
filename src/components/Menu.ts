@@ -1,7 +1,9 @@
+import { localized } from '@lit/localize';
 import { Draggable } from '@neodrag/vanilla';
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
+import { messages } from '../lib/messages.js';
 import type { CalendarDate } from '../lms-calendar';
 
 interface EventDetails {
@@ -12,6 +14,7 @@ interface EventDetails {
 }
 
 @customElement('lms-menu')
+@(localized() as ClassDecorator)
 export class Menu extends LitElement {
     @property({ type: Boolean }) open = false;
     @property({ type: Object }) eventDetails: EventDetails = {
@@ -229,36 +232,47 @@ export class Menu extends LitElement {
         this.style.display = this.open ? '' : 'none';
         return html`
             <div>
-                <div class="header" title="Drag to move menu">
-                    <span class="title">Event Details</span>
-                    <button @click=${this._handleMinimize} title="Minimize">
+                <div class="header" title=${messages.dragToMove()}>
+                    <span class="title">${messages.eventDetails()}</span>
+                    <button
+                        @click=${this._handleMinimize}
+                        title=${messages.minimize()}
+                    >
                         ${this.minimized ? '+' : '-'}
                     </button>
-                    <button @click=${this._handleClose} title="Close">×</button>
+                    <button
+                        @click=${this._handleClose}
+                        title=${messages.close()}
+                    >
+                        ×
+                    </button>
                 </div>
                 <div class="content" ?hidden=${this.minimized}>
                     <div
                         class="menu-item"
                         @click=${this._handleExport}
-                        title="Export as ICS"
+                        title=${messages.exportAsICS()}
                     >
-                        Export as ICS
+                        ${messages.exportAsICS()}
                     </div>
                     <div class="event-details">
                         <div class="event-detail">
-                            <strong>Title:</strong>
+                            <strong>${messages.title()}:</strong>
                             <span
                                 >${this.eventDetails.heading ||
-                                'No title'}</span
+                                messages.noTitle()}</span
                             >
                         </div>
                         <div class="event-detail">
-                            <strong>Time:</strong>
-                            <span>${this.eventDetails.time || 'No time'}</span>
+                            <strong>${messages.time()}:</strong>
+                            <span
+                                >${this.eventDetails.time ||
+                                messages.noTime()}</span
+                            >
                         </div>
                         ${this.eventDetails.date
                             ? html`<div class="event-detail">
-                                  <strong>Date:</strong>
+                                  <strong>${messages.date()}:</strong>
                                   <span
                                       >${this.eventDetails.date.day}/${this
                                           .eventDetails.date.month}/${this
@@ -268,7 +282,7 @@ export class Menu extends LitElement {
                             : ''}
                         ${this.eventDetails.content
                             ? html`<div class="event-detail">
-                                  <strong>Notes:</strong>
+                                  <strong>${messages.notes()}:</strong>
                                   <span>${this.eventDetails.content}</span>
                               </div>`
                             : ''}
