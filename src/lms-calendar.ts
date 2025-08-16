@@ -1,4 +1,5 @@
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
+import { localized } from '@lit/localize';
 import {
     CSSResult,
     LitElement,
@@ -28,9 +29,11 @@ import DirectionalCalendarDateCalculator from './lib/DirectionalCalendarDateCalc
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import getOverlappingEntitiesIndices from './lib/getOverlappingEntitiesIndices.js';
 import getSortedGradingsByIndex from './lib/getSortedGradingsByIndex.js';
+import { setAppLocale } from './lib/localization.js';
 import partitionOverlappingIntervals from './lib/partitionOverlappingIntervals.js';
 
 @customElement('lms-calendar')
+@(localized() as ClassDecorator)
 export default class LMSCalendar extends LitElement {
     private currentDate = new Date();
 
@@ -181,6 +184,12 @@ export default class LMSCalendar extends LitElement {
         }
 
         this._resizeController.observe(firstElementChild);
+
+        // Initialize locale from document language
+        const docLang = document.documentElement.lang?.slice(0, 2);
+        if (docLang && ['de', 'en'].includes(docLang)) {
+            setAppLocale(docLang);
+        }
     }
 
     /** We filter invalid entries in the willUpdate hook, so be prepared:

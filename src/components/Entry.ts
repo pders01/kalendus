@@ -1,13 +1,13 @@
+import { localized } from '@lit/localize';
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { P, match } from 'ts-pattern';
+import { messages } from '../lib/messages.js';
 import type { CalendarDateInterval } from '../lms-calendar';
-import Translations from '../locales/Translations.js';
 
 @customElement('lms-calendar-entry')
+@(localized() as ClassDecorator)
 export default class Entry extends LitElement {
-    private translations = new Translations();
-
     @property({ attribute: false })
     time?: CalendarTimeInterval;
 
@@ -126,7 +126,7 @@ export default class Entry extends LitElement {
 
     private _renderInterval() {
         return this.isContinuation
-            ? html`<span>${this.translations.getTranslation('all day')}</span>`
+            ? html`<span>${messages.allDay()}</span>`
             : html`<span class="interval"
                   >${this._displayInterval(this.time)}</span
               >`;
@@ -166,7 +166,7 @@ export default class Entry extends LitElement {
             components[END_HOURS] === 24 &&
             components.reduce(this._sumReducer, 0) % 24 === 0;
         if (lastsAllDay) {
-            return this.translations.getTranslation('all day');
+            return messages.allDay();
         }
 
         const [startHours, startMinutes, endHours, endMinutes] = components.map(
@@ -197,8 +197,8 @@ export default class Entry extends LitElement {
 
             // Dispatch a custom event to communicate with the calendar
             const eventDetails = {
-                heading: this.heading || 'No Title',
-                content: this.content || 'No Content',
+                heading: this.heading || messages.noTitle(),
+                content: this.content || messages.noContent(),
                 time: this.time
                     ? `${String(this.time.start.hour).padStart(
                           2,
@@ -210,7 +210,7 @@ export default class Entry extends LitElement {
                           2,
                           '0',
                       )}:${String(this.time.end.minute).padStart(2, '0')}`
-                    : 'No Time',
+                    : messages.noTime(),
                 date: this.date?.start,
             };
 

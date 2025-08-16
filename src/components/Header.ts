@@ -1,12 +1,13 @@
+import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import * as R from 'remeda';
-import Translations from '../locales/Translations';
+import { getLocalizedMonth } from '../lib/localization.js';
+import { messages } from '../lib/messages.js';
 
 @customElement('lms-calendar-header')
+@(localized() as ClassDecorator)
 export default class Header extends LitElement {
-    private translations = new Translations();
-
     @property({ type: String })
     heading?: string;
 
@@ -67,27 +68,22 @@ export default class Header extends LitElement {
         return html`<div class="controls">
             <div class="info">
                 <span>
-                    <strong
-                        >${this.heading ||
-                        this.translations.getTranslation(
-                            'Current Month',
-                        )}</strong
-                    >
+                    <strong>${this.heading || messages.currentMonth()}</strong>
                 </span>
                 <div ?hidden=${hasEmptyDate}>
                     <span class="day">${this.expandedDate?.day}</span>
                     <span class="month"
-                        >${this.translations.getTranslation(
-                            this.expandedDate?.month,
-                        )}</span
+                        >${this.expandedDate?.month
+                            ? getLocalizedMonth(this.expandedDate.month)
+                            : ''}</span
                     >
                     <span class="year">${this.expandedDate?.year}</span>
                 </div>
                 <div ?hidden=${!hasEmptyDate}>
                     <span class="month"
-                        >${this.translations.getTranslation(
-                            this.activeDate?.month,
-                        )}</span
+                        >${this.activeDate?.month
+                            ? getLocalizedMonth(this.activeDate.month)
+                            : ''}</span
                     >
                     <span class="year">${this.activeDate?.year}</span>
                 </div>
@@ -98,14 +94,14 @@ export default class Header extends LitElement {
                     data-context="day"
                     class="btn-change-view"
                 >
-                    ${this.translations.getTranslation('Day')}
+                    ${messages.day()}
                 </button>
                 <button
                     ?data-active=${hasEmptyDate}
                     data-context="month"
                     class="btn-change-view"
                 >
-                    ${this.translations.getTranslation('Month')}
+                    ${messages.month()}
                 </button>
             </div>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
