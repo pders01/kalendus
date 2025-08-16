@@ -22,6 +22,12 @@ export default class Entry extends LitElement {
 
     @property({ type: Object }) date?: CalendarDateInterval;
 
+    @property({ type: String, reflect: true, attribute: 'data-density' })
+    density: 'compact' | 'standard' | 'full' = 'standard';
+
+    @property({ type: String, reflect: true, attribute: 'data-display-mode' })
+    displayMode: 'default' | 'month-dot' = 'default';
+
     @state()
     _highlighted?: boolean;
 
@@ -33,7 +39,10 @@ export default class Entry extends LitElement {
 
     static override styles = css`
         :host {
-            font-size: var(--entry-font-size, small);
+            /* Responsive font sizing based on component scale */
+            font-size: var(--entry-font-size, 0.75rem);
+            line-height: var(--entry-line-height, 1.2);
+
             grid-column: 2;
             display: block;
             cursor: pointer;
@@ -51,7 +60,9 @@ export default class Entry extends LitElement {
             z-index: 1;
             box-sizing: border-box;
             padding-bottom: 1px;
-            min-height: 1.5em; /* Ensure minimum height for short events */
+            min-height: var(--entry-min-height, 1.2em);
+            overflow: hidden;
+            position: relative;
         }
 
         :host(:last-child) {
@@ -75,46 +86,144 @@ export default class Entry extends LitElement {
         }
 
         .main {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: var(--entry-padding, 0.25em);
+            padding: var(--entry-padding, 0.15em 0.25em);
             border-radius: var(--entry-border-radius, var(--border-radius-sm));
             background-color: inherit;
             text-align: left;
             height: 100%;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: var(--entry-layout, row);
+            align-items: var(--entry-align, flex-start);
+            gap: var(--entry-gap, 0.25em);
+            overflow: hidden;
         }
 
-        .main > span:first-child {
+        /* Compact mode: single line with title only */
+        .main.compact {
+            flex-direction: row;
+            align-items: center;
+            gap: 0;
+        }
+
+        /* Standard mode: title + time in various layouts */
+        .main.standard {
+            flex-direction: var(--entry-layout, row);
+            align-items: flex-start;
+            gap: 0.25em;
+        }
+
+        /* Full mode: multi-line with all content */
+        .main.full {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.1em;
+        }
+
+        .title {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: var(--entry-title-wrap, nowrap);
+            font-weight: var(--entry-title-weight, 500);
+        }
+
+        .time {
+            font-family: var(--entry-font-family, system-ui);
+            font-size: var(--entry-time-font-size, 0.85em);
+            opacity: var(--entry-time-opacity, 0.8);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* Month view dot indicator styles */
+        :host([data-display-mode='month-dot']) {
+            background: var(--entry-month-background, transparent);
+            padding: var(--entry-month-padding, 0.1em 0.3em 0.1em 0.5em);
+            border-radius: 0;
+            color: var(--entry-month-text-color, var(--separator-dark));
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        /* Multi-day events keep their background in month view */
+        :host([data-display-mode='month-dot'][data-is-continuation='true']),
+        :host([data-display-mode='month-dot']) .main[data-is-multi-day='true'] {
+            background: var(--entry-background-color, var(--background-color));
+            border-radius: var(--border-radius-sm);
+            color: var(--entry-color, var(--primary-color));
+        }
+
+        :host([data-display-mode='month-dot']) .main {
+            padding: 0;
+            align-items: center;
+            gap: var(--entry-dot-margin, 0.25em);
+            flex-wrap: nowrap;
+            overflow: hidden;
+            flex-direction: row !important;
+        }
+
+        :host([data-display-mode='month-dot']) .title {
+            color: inherit;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            flex-grow: 1;
-            min-width: 0; /* Required for text-overflow to work in a flex container */
-            position: relative;
+            flex: 1;
+            min-width: 0;
         }
 
-        .main > span:first-child::after {
-            content: attr(data-full-content);
-            white-space: normal;
-            position: absolute;
-            left: 0;
-            top: 100%;
-            width: 100%;
-            background-color: inherit;
-            display: none;
+        :host([data-display-mode='month-dot']) .time {
+            font-family: var(--entry-time-font, var(--monospace-ui));
+            text-align: var(--entry-time-align, right);
+            min-width: 3.5em;
+            margin-left: auto;
+            color: inherit;
+            opacity: 0.8;
         }
 
-        :host([data-extended]) .main > span:first-child::after {
-            display: block;
+        .color-dot {
+            width: var(--entry-dot-size, 0.5em);
+            height: var(--entry-dot-size, 0.5em);
+            border-radius: 50%;
+            background-color: var(--entry-color, var(--primary-color));
+            flex-shrink: 0;
         }
 
-        .interval {
-            font-family: var(--entry-font-family, monospace);
+        .content {
+            font-size: 0.9em;
+            opacity: 0.9;
+            overflow: hidden;
+            text-overflow: ellipsis;
             white-space: nowrap;
-            margin-left: var(--entry-interval-margin, 0.5em);
-            flex-shrink: 0; /* Prevent time from being compressed */
+        }
+
+        /* Responsive behavior based on available height */
+        :host([data-height='compact']) .main {
+            flex-direction: row;
+            align-items: center;
+        }
+
+        :host([data-height='compact']) .time {
+            display: var(--entry-compact-show-time, none);
+        }
+
+        :host([data-height='standard']) .main {
+            flex-direction: row;
+            align-items: flex-start;
+        }
+
+        :host([data-height='full']) .main {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        :host([data-height='full']) .title {
+            white-space: normal;
+            word-wrap: break-word;
         }
     `;
 
@@ -124,27 +233,77 @@ export default class Entry extends LitElement {
             .otherwise(() => `${this.heading}: ${this.content}`);
     }
 
-    private _renderInterval() {
-        return this.isContinuation
-            ? html`<span>${messages.allDay()}</span>`
-            : html`<span class="interval"
-                  >${this._displayInterval(this.time)}</span
-              >`;
+    private _renderTime() {
+        if (this.displayMode === 'month-dot') {
+            // In month view, always try to show time when possible
+            if (this.isContinuation) {
+                return html`<span class="time">${messages.allDay()}</span>`;
+            }
+            const timeString = this._displayInterval(this.time);
+            return timeString
+                ? html`<span class="time">${timeString}</span>`
+                : nothing;
+        }
+
+        if (this.density === 'compact') {
+            return nothing; // No time in compact mode by default
+        }
+
+        if (this.isContinuation) {
+            return html`<span class="time">${messages.allDay()}</span>`;
+        }
+
+        const timeString = this._displayInterval(this.time);
+        return timeString
+            ? html`<span class="time">${timeString}</span>`
+            : nothing;
+    }
+
+    private _renderContent() {
+        if (this.density === 'full' && this.content) {
+            return html`<span class="content">${this.content}</span>`;
+        }
+        return nothing;
+    }
+
+    private _shouldShowTime(): boolean {
+        if (this.density === 'compact') return false;
+        if (this.isContinuation) return true; // Always show "All Day"
+        return this.density === 'standard' || this.density === 'full';
     }
 
     override render() {
+        const mainClass = `main ${this.density}`;
+
+        if (this.displayMode === 'month-dot') {
+            const isMultiDay = this.isContinuation;
+            return html`
+                <div
+                    class=${mainClass}
+                    tabindex="1"
+                    title=${this._renderTitle()}
+                    data-full-content=${this.content || ''}
+                    ?data-extended=${this._extended}
+                    ?data-is-multi-day=${isMultiDay}
+                >
+                    ${!isMultiDay ? html`<span class="color-dot"></span>` : ''}
+                    <span class="title">${this.heading}</span>
+                    ${this._renderTime()}
+                </div>
+            `;
+        }
+
         return html`
             <div
-                class="main"
+                class=${mainClass}
                 tabindex="1"
                 title=${this._renderTitle()}
                 data-full-content=${this.content || ''}
                 ?data-extended=${this._extended}
             >
-                <span>
-                    <span>${this.heading}</span>
-                </span>
-                ${this._renderInterval()}
+                <span class="title">${this.heading}</span>
+                ${this._shouldShowTime() ? this._renderTime() : nothing}
+                ${this._renderContent()}
             </div>
         `;
     }

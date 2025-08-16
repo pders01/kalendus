@@ -11,12 +11,22 @@ export default class Day extends LitElement {
     @state()
     _hasActiveSidebar = false;
 
+    @state()
+    _hasAllDayEvents = false;
+
     @query('.container') container!: HTMLDivElement;
 
     static override styles = css`
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: var(--view-container-height);
+            width: 100%;
+        }
+
         .container {
             display: flex;
-            height: var(--view-container-height);
+            flex: 1;
             width: 100%;
         }
 
@@ -82,6 +92,11 @@ export default class Day extends LitElement {
             width: 0;
         }
 
+        .all-day-wrapper {
+            border-bottom: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));
+            padding: 0.5em 0 0.5em 0;
+        }
+
         .all-day {
             font-size: var(--day-all-day-font-size, 16px);
             margin: var(--day-all-day-margin, 0 1.25em 0 4.25em);
@@ -99,14 +114,30 @@ export default class Day extends LitElement {
     }
 
     override render() {
-        return html` <div class="all-day">
-                <slot
-                    name="all-day"
-                    id="all-day"
-                    class="entry"
-                    @slotchange=${this._handleSlotChange}
-                ></slot>
-            </div>
+        return html` <div class="wrapper">
+            ${this._hasAllDayEvents
+                ? html`
+                      <div class="all-day-wrapper">
+                          <div class="all-day">
+                              <slot
+                                  name="all-day"
+                                  id="all-day"
+                                  class="entry"
+                                  @slotchange=${this._handleSlotChange}
+                              ></slot>
+                          </div>
+                      </div>
+                  `
+                : html`
+                      <div style="display: none;">
+                          <slot
+                              name="all-day"
+                              id="all-day"
+                              class="entry"
+                              @slotchange=${this._handleSlotChange}
+                          ></slot>
+                      </div>
+                  `}
             <div class="container">
                 <div
                     class="main ${classMap({
@@ -134,7 +165,8 @@ export default class Day extends LitElement {
                     class="sidebar w-30"
                     ?hidden=${!this._hasActiveSidebar}
                 ></div>
-            </div>`;
+            </div>
+        </div>`;
     }
 
     private _handleSlotChange(e: Event) {
@@ -147,9 +179,16 @@ export default class Day extends LitElement {
             flatten: true,
         }) as Array<HTMLElement>;
 
-        this.container.style.height = `calc(100% - 3.5em - ${
-            childNodes.length * 24
-        }px)`;
+        // Update state to show/hide the all-day wrapper
+        this._hasAllDayEvents = childNodes.length > 0;
+
+        if (this._hasAllDayEvents) {
+            this.container.style.height = `calc(100% - 3.5em - ${
+                childNodes.length * 24
+            }px)`;
+        } else {
+            this.container.style.height = '100%';
+        }
     }
 
     private _getHourIndicator(hour: number) {

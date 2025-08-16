@@ -31,7 +31,7 @@ export class Menu extends LitElement {
             top: 20%;
             left: 50%;
             transform: translate(-50%, 0);
-            z-index: 1000;
+            z-index: 10000;
             background: var(--background-color);
             box-shadow: var(--shadow-md);
             border: 1px solid var(--separator-light);
