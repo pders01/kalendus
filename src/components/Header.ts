@@ -1,13 +1,14 @@
+import { SignalWatcher } from '@lit-labs/signals';
 import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import * as R from 'remeda';
 import { getLocalizedMonth } from '../lib/localization.js';
 import { messages } from '../lib/messages.js';
+import { activeDate, currentViewMode } from '../lib/viewState.js';
 
 @customElement('lms-calendar-header')
 @(localized() as ClassDecorator)
-export default class Header extends LitElement {
+export default class Header extends SignalWatcher(LitElement) {
     @property({ type: String })
     heading?: string;
 
@@ -64,40 +65,42 @@ export default class Header extends LitElement {
     `;
 
     override render() {
-        const hasEmptyDate = R.isEmpty(this.expandedDate ?? {});
         return html`<div class="controls">
             <div class="info">
                 <span>
                     <strong>${this.heading || messages.currentMonth()}</strong>
                 </span>
-                <div ?hidden=${hasEmptyDate}>
-                    <span class="day">${this.expandedDate?.day}</span>
+                <div ?hidden=${currentViewMode.get() !== 'day'}>
+                    <span class="day">${activeDate.get().day}</span>
                     <span class="month"
-                        >${this.expandedDate?.month
-                            ? getLocalizedMonth(this.expandedDate.month)
-                            : ''}</span
+                        >${getLocalizedMonth(activeDate.get().month)}</span
                     >
-                    <span class="year">${this.expandedDate?.year}</span>
+                    <span class="year">${activeDate.get().year}</span>
                 </div>
-                <div ?hidden=${!hasEmptyDate}>
+                <div ?hidden=${currentViewMode.get() === 'day'}>
                     <span class="month"
-                        >${this.activeDate?.month
-                            ? getLocalizedMonth(this.activeDate.month)
-                            : ''}</span
+                        >${getLocalizedMonth(activeDate.get().month)}</span
                     >
-                    <span class="year">${this.activeDate?.year}</span>
+                    <span class="year">${activeDate.get().year}</span>
                 </div>
             </div>
             <div class="context" @click=${this._dispatchSwitchView}>
                 <button
-                    ?data-active=${!hasEmptyDate}
+                    ?data-active=${currentViewMode.get() === 'day'}
                     data-context="day"
                     class="btn-change-view"
                 >
                     ${messages.day()}
                 </button>
                 <button
-                    ?data-active=${hasEmptyDate}
+                    ?data-active=${currentViewMode.get() === 'week'}
+                    data-context="week"
+                    class="btn-change-view"
+                >
+                    ${messages.week()}
+                </button>
+                <button
+                    ?data-active=${currentViewMode.get() === 'month'}
                     data-context="month"
                     class="btn-change-view"
                 >
@@ -106,9 +109,30 @@ export default class Header extends LitElement {
             </div>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
                 <button name="previous">«</button>
+                <button name="today" @click=${this._handleTodayClick}>
+                    ${messages.today()}
+                </button>
                 <button name="next">»</button>
             </div>
         </div>`;
+    }
+
+    private _handleTodayClick(e: Event) {
+        e.stopPropagation(); // Prevent triggering _dispatchSwitchDate
+
+        const today = new Date();
+        const todayDate = {
+            day: today.getDate(),
+            month: today.getMonth() + 1,
+            year: today.getFullYear(),
+        };
+
+        const event = new CustomEvent('jumptoday', {
+            detail: { date: todayDate },
+            bubbles: true,
+            composed: true,
+        });
+        this.dispatchEvent(event);
     }
 
     private _dispatchSwitchDate(e: Event) {

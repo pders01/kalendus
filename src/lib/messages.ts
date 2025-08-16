@@ -3,6 +3,7 @@ import { msg } from '@lit/localize';
 // UI strings that aren't date/time related
 export const messages = {
     day: () => msg('Day'),
+    week: () => msg('Week'),
     month: () => msg('Month'),
     currentMonth: () => msg('Current Month'),
     allDay: () => msg('All Day'),
