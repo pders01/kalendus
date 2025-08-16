@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components';
 import { html } from 'lit';
-import { userEvent, within, expect } from '@storybook/test';
+import { userEvent, expect } from '@storybook/test';
 import './lms-calendar.js';
 import type LMSCalendar from './lms-calendar.js';
 import type { CalendarEntry } from './lms-calendar.js';

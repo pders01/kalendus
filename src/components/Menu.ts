@@ -8,7 +8,7 @@ interface EventDetails {
     heading: string;
     content: string;
     time: string;
-    date: CalendarDate;
+    date?: CalendarDate;
 }
 
 @customElement('lms-menu')
@@ -18,11 +18,6 @@ export class Menu extends LitElement {
         heading: '',
         content: '',
         time: '',
-        date: {
-            day: 0,
-            month: 0,
-            year: 0,
-        },
     };
     @state() minimized = false;
     private _dragInstance?: Draggable;
@@ -182,7 +177,7 @@ export class Menu extends LitElement {
                     <div><strong>Title:</strong> ${this.eventDetails.heading}</div>
                     <div><strong>Content:</strong> ${this.eventDetails.content}</div>
                     <div><strong>Time:</strong> ${this.eventDetails.time}</div>
-                    <div><strong>Date:</strong> ${this.eventDetails.date.day}/${this.eventDetails.date.month}/${this.eventDetails.date.year}</div>
+                    ${this.eventDetails.date ? html`<div><strong>Date:</strong> ${this.eventDetails.date.day}/${this.eventDetails.date.month}/${this.eventDetails.date.year}</div>` : ''}
                 </div>
             </div>
         `;

@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { P, match } from 'ts-pattern';
-import type { CalendarDate } from '../lms-calendar';
+import type { CalendarDateInterval } from '../lms-calendar';
 import Translations from '../locales/Translations.js';
 import Menu from './Menu.js';
 
@@ -21,7 +21,7 @@ export default class Entry extends LitElement {
     @property({ type: Boolean })
     isContinuation = false;
 
-    @property({ type: Object }) date?: CalendarDate;
+    @property({ type: Object }) date?: CalendarDateInterval;
 
     @state()
     _highlighted?: boolean;
@@ -192,8 +192,11 @@ export default class Entry extends LitElement {
 
         if (!this._highlighted) {
             this._highlighted = true;
+            if (!this.date) {
+                return;
+            }
 
-            let oldMenu = document.querySelector('lms-menu') as Menu | null;
+            const oldMenu = document.querySelector('lms-menu') as Menu | null;
             if (oldMenu) {
                 oldMenu.remove();
             }
@@ -205,7 +208,7 @@ export default class Entry extends LitElement {
                 time: this.time
                     ? `${this.time.start.hour}:${this.time.start.minute} - ${this.time.end.hour}:${this.time.end.minute}`
                     : 'No Time',
-                date: this.date,
+                date: this.date?.start,
             };
             menu.open = true;
             menu.minimized = false;
