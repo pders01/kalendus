@@ -144,17 +144,8 @@ export default class Week extends LitElement {
 
     override connectedCallback() {
         super.connectedCallback();
-        // Forward open-menu events from entry components
-        this.addEventListener('open-menu', (e: Event) => {
-            const customEvent = e as CustomEvent;
-            // Re-dispatch to ensure it bubbles up to calendar
-            const forwardedEvent = new CustomEvent('open-menu', {
-                detail: customEvent.detail,
-                bubbles: true,
-                composed: true,
-            });
-            this.dispatchEvent(forwardedEvent);
-        });
+        // Note: open-menu events from entry components naturally bubble up
+        // No need to manually forward them as it causes infinite recursion
     }
 
     private _getWeekDates(): CalendarDate[] {

@@ -9955,15 +9955,6 @@ let Week = class extends LitElement {
   }
   connectedCallback() {
     super.connectedCallback();
-    this.addEventListener("open-menu", (e2) => {
-      const customEvent = e2;
-      const forwardedEvent = new CustomEvent("open-menu", {
-        detail: customEvent.detail,
-        bubbles: true,
-        composed: true
-      });
-      this.dispatchEvent(forwardedEvent);
-    });
   }
   _getWeekDates() {
     const currentDate = new Date(
@@ -10028,11 +10019,11 @@ let Week = class extends LitElement {
                     ${Array.from({ length: 25 }).map(
       (_2, hour) => html`
                             ${hour > 0 ? html`
-                                <div
-                                    class="hour-separator"
-                                    style="grid-column: 2 / -1; grid-row: ${hour * 60};"
-                                ></div>
-                            ` : ""}
+                                      <div
+                                          class="hour-separator"
+                                          style="grid-column: 2 / -1; grid-row: ${hour * 60};"
+                                      ></div>
+                                  ` : ""}
                         `
     )}
 
@@ -10127,7 +10118,7 @@ Week.styles = css`
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
-        
+
         .day-label:hover {
             background-color: var(--separator-light);
         }
