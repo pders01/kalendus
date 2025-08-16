@@ -108,7 +108,7 @@ export default class Month extends LitElement {
                 this.dispatchEvent(forwardedEvent);
             }
         });
-        
+
         // Add scroll detection for day cells
         this._setupScrollDetection();
     }
@@ -116,10 +116,10 @@ export default class Month extends LitElement {
     private _setupScrollDetection() {
         // Use requestAnimationFrame for throttling
         let rafId: number | null = null;
-        
+
         const handleScroll = (dayElement: HTMLElement) => {
             if (rafId) return;
-            
+
             rafId = requestAnimationFrame(() => {
                 if (dayElement.scrollTop > 5) {
                     dayElement.classList.add('scrolled');
@@ -135,7 +135,11 @@ export default class Month extends LitElement {
             const days = this.shadowRoot?.querySelectorAll('.day');
             days?.forEach((day) => {
                 const dayElement = day as HTMLElement;
-                dayElement.addEventListener('scroll', () => handleScroll(dayElement), { passive: true });
+                dayElement.addEventListener(
+                    'scroll',
+                    () => handleScroll(dayElement),
+                    { passive: true },
+                );
             });
         });
     }

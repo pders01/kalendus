@@ -113,6 +113,34 @@ export default class Day extends LitElement {
         return hour < 10 ? `0${hour}:00` : `${hour}:00`;
     }
 
+    override firstUpdated() {
+        // Initialize state after first render
+        this._updateAllDayState();
+    }
+
+    private _updateAllDayState() {
+        const allDaySlot = this.shadowRoot?.querySelector(
+            'slot[name="all-day"]',
+        ) as HTMLSlotElement;
+        if (allDaySlot) {
+            const childNodes = allDaySlot.assignedElements({
+                flatten: true,
+            }) as Array<HTMLElement>;
+
+            this._hasAllDayEvents = childNodes.length > 0;
+
+            if (this.container) {
+                if (this._hasAllDayEvents) {
+                    this.container.style.height = `calc(100% - 3.5em - ${
+                        childNodes.length * 24
+                    }px)`;
+                } else {
+                    this.container.style.height = '100%';
+                }
+            }
+        }
+    }
+
     override render() {
         return html` <div class="wrapper">
             ${this._hasAllDayEvents
@@ -175,19 +203,9 @@ export default class Day extends LitElement {
             return;
         }
 
-        const childNodes = target.assignedElements({
-            flatten: true,
-        }) as Array<HTMLElement>;
-
-        // Update state to show/hide the all-day wrapper
-        this._hasAllDayEvents = childNodes.length > 0;
-
-        if (this._hasAllDayEvents) {
-            this.container.style.height = `calc(100% - 3.5em - ${
-                childNodes.length * 24
-            }px)`;
-        } else {
-            this.container.style.height = '100%';
+        // Only handle all-day slot changes
+        if (target.name === 'all-day') {
+            this._updateAllDayState();
         }
     }
 

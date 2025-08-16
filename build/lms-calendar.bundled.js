@@ -8193,6 +8193,7 @@ let Day = class extends LitElement {
     super(...arguments);
     this._hours = [...Array(25).keys()];
     this._hasActiveSidebar = false;
+    this._hasAllDayEvents = false;
   }
   _renderSeparatorMaybe(index, hour) {
     return index ? html`<div class="separator" style="grid-row: ${hour * 60}"></div>` : nothing;
@@ -8200,15 +8201,51 @@ let Day = class extends LitElement {
   _renderIndicatorValue(hour) {
     return hour < 10 ? `0${hour}:00` : `${hour}:00`;
   }
+  firstUpdated() {
+    this._updateAllDayState();
+  }
+  _updateAllDayState() {
+    var _a;
+    const allDaySlot = (_a = this.shadowRoot) == null ? void 0 : _a.querySelector(
+      'slot[name="all-day"]'
+    );
+    if (allDaySlot) {
+      const childNodes = allDaySlot.assignedElements({
+        flatten: true
+      });
+      this._hasAllDayEvents = childNodes.length > 0;
+      if (this.container) {
+        if (this._hasAllDayEvents) {
+          this.container.style.height = `calc(100% - 3.5em - ${childNodes.length * 24}px)`;
+        } else {
+          this.container.style.height = "100%";
+        }
+      }
+    }
+  }
   render() {
-    return html` <div class="all-day">
-                <slot
-                    name="all-day"
-                    id="all-day"
-                    class="entry"
-                    @slotchange=${this._handleSlotChange}
-                ></slot>
-            </div>
+    return html` <div class="wrapper">
+            ${this._hasAllDayEvents ? html`
+                      <div class="all-day-wrapper">
+                          <div class="all-day">
+                              <slot
+                                  name="all-day"
+                                  id="all-day"
+                                  class="entry"
+                                  @slotchange=${this._handleSlotChange}
+                              ></slot>
+                          </div>
+                      </div>
+                  ` : html`
+                      <div style="display: none;">
+                          <slot
+                              name="all-day"
+                              id="all-day"
+                              class="entry"
+                              @slotchange=${this._handleSlotChange}
+                          ></slot>
+                      </div>
+                  `}
             <div class="container">
                 <div
                     class="main ${classMap({
@@ -8236,26 +8273,33 @@ let Day = class extends LitElement {
                     class="sidebar w-30"
                     ?hidden=${!this._hasActiveSidebar}
                 ></div>
-            </div>`;
+            </div>
+        </div>`;
   }
   _handleSlotChange(e2) {
     const target = e2.target;
     if (!(target instanceof HTMLSlotElement)) {
       return;
     }
-    const childNodes = target.assignedElements({
-      flatten: true
-    });
-    this.container.style.height = `calc(100% - 3.5em - ${childNodes.length * 24}px)`;
+    if (target.name === "all-day") {
+      this._updateAllDayState();
+    }
   }
   _getHourIndicator(hour) {
     return hour !== 24 ? `grid-row: ${(hour + 1) * 60 - 59}/${(hour + 1) * 60}` : "grid-row: 1440";
   }
 };
 Day.styles = css`
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            height: var(--view-container-height);
+            width: 100%;
+        }
+
         .container {
             display: flex;
-            height: var(--view-container-height);
+            flex: 1;
             width: 100%;
         }
 
@@ -8321,6 +8365,11 @@ Day.styles = css`
             width: 0;
         }
 
+        .all-day-wrapper {
+            border-bottom: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));
+            padding: 0.5em 0 0.5em 0;
+        }
+
         .all-day {
             font-size: var(--day-all-day-font-size, 16px);
             margin: var(--day-all-day-margin, 0 1.25em 0 4.25em);
@@ -8332,6 +8381,9 @@ __decorateClass$6([
 __decorateClass$6([
   state()
 ], Day.prototype, "_hasActiveSidebar", 2);
+__decorateClass$6([
+  state()
+], Day.prototype, "_hasAllDayEvents", 2);
 __decorateClass$6([
   query(".container")
 ], Day.prototype, "container", 2);
@@ -8375,6 +8427,7 @@ let Entry = class extends LitElement {
     this.heading = "";
     this.isContinuation = false;
     this.density = "standard";
+    this.displayMode = "default";
     this._sumReducer = (accumulator, currentValue) => accumulator + currentValue;
     this.addEventListener("click", this._handleInteraction);
     this.addEventListener("keydown", this._handleInteraction);
@@ -8383,6 +8436,13 @@ let Entry = class extends LitElement {
     return z$1(this.content).with(N$1.nullish, () => this.heading).otherwise(() => `${this.heading}: ${this.content}`);
   }
   _renderTime() {
+    if (this.displayMode === "month-dot") {
+      if (this.isContinuation) {
+        return html`<span class="time">${messages.allDay()}</span>`;
+      }
+      const timeString2 = this._displayInterval(this.time);
+      return timeString2 ? html`<span class="time">${timeString2}</span>` : nothing;
+    }
     if (this.density === "compact") {
       return nothing;
     }
@@ -8405,6 +8465,23 @@ let Entry = class extends LitElement {
   }
   render() {
     const mainClass = `main ${this.density}`;
+    if (this.displayMode === "month-dot") {
+      const isMultiDay = this.isContinuation;
+      return html`
+                <div
+                    class=${mainClass}
+                    tabindex="1"
+                    title=${this._renderTitle()}
+                    data-full-content=${this.content || ""}
+                    ?data-extended=${this._extended}
+                    ?data-is-multi-day=${isMultiDay}
+                >
+                    ${!isMultiDay ? html`<span class="color-dot"></span>` : ""}
+                    <span class="title">${this.heading}</span>
+                    ${this._renderTime()}
+                </div>
+            `;
+    }
     return html`
             <div
                 class=${mainClass}
@@ -8485,7 +8562,7 @@ Entry.styles = css`
             /* Responsive font sizing based on component scale */
             font-size: var(--entry-font-size, 0.75rem);
             line-height: var(--entry-line-height, 1.2);
-            
+
             grid-column: 2;
             display: block;
             cursor: pointer;
@@ -8500,7 +8577,8 @@ Entry.styles = css`
             );
             color: var(--entry-color, var(--primary-color));
             /* z-index of separators in day view is 0 */
-            z-index: 1;
+            z-index: var(--entry-z-index, 1);
+            opacity: var(--entry-opacity, 1);
             box-sizing: border-box;
             padding-bottom: 1px;
             min-height: var(--entry-min-height, 1.2em);
@@ -8580,6 +8658,62 @@ Entry.styles = css`
             flex-shrink: 0;
         }
 
+        /* Month view dot indicator styles */
+        :host([data-display-mode='month-dot']) {
+            background: var(--entry-month-background, transparent);
+            padding: var(--entry-month-padding, 0.1em 0.3em 0.1em 0.5em);
+            border-radius: 0;
+            color: var(--entry-month-text-color, var(--separator-dark));
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        /* Multi-day events keep their background in month view */
+        :host([data-display-mode='month-dot'][data-is-continuation='true']),
+        :host([data-display-mode='month-dot']) .main[data-is-multi-day='true'] {
+            background: var(--entry-background-color, var(--background-color));
+            border-radius: var(--border-radius-sm);
+            color: var(--entry-color, var(--primary-color));
+        }
+
+        :host([data-display-mode='month-dot']) .main {
+            padding: 0;
+            align-items: center;
+            gap: var(--entry-dot-margin, 0.25em);
+            flex-wrap: nowrap;
+            overflow: hidden;
+            flex-direction: row !important;
+        }
+
+        :host([data-display-mode='month-dot']) .title {
+            color: inherit;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+        }
+
+        :host([data-display-mode='month-dot']) .time {
+            font-family: var(--entry-time-font, var(--monospace-ui));
+            text-align: var(--entry-time-align, right);
+            min-width: 3.5em;
+            margin-left: auto;
+            color: inherit;
+            opacity: 0.8;
+        }
+
+        .color-dot {
+            width: var(--entry-dot-size, 0.5em);
+            height: var(--entry-dot-size, 0.5em);
+            border-radius: 50%;
+            background-color: var(--entry-color, var(--primary-color));
+            flex-shrink: 0;
+        }
+
         .content {
             font-size: 0.9em;
             opacity: 0.9;
@@ -8589,26 +8723,26 @@ Entry.styles = css`
         }
 
         /* Responsive behavior based on available height */
-        :host([data-height="compact"]) .main {
+        :host([data-height='compact']) .main {
             flex-direction: row;
             align-items: center;
         }
 
-        :host([data-height="compact"]) .time {
+        :host([data-height='compact']) .time {
             display: var(--entry-compact-show-time, none);
         }
 
-        :host([data-height="standard"]) .main {
+        :host([data-height='standard']) .main {
             flex-direction: row;
             align-items: flex-start;
         }
 
-        :host([data-height="full"]) .main {
+        :host([data-height='full']) .main {
             flex-direction: column;
             align-items: flex-start;
         }
 
-        :host([data-height="full"]) .title {
+        :host([data-height='full']) .title {
             white-space: normal;
             word-wrap: break-word;
         }
@@ -8631,6 +8765,9 @@ __decorateClass$5([
 __decorateClass$5([
   property({ type: String, reflect: true, attribute: "data-density" })
 ], Entry.prototype, "density", 2);
+__decorateClass$5([
+  property({ type: String, reflect: true, attribute: "data-display-mode" })
+], Entry.prototype, "displayMode", 2);
 __decorateClass$5([
   state()
 ], Entry.prototype, "_highlighted", 2);
@@ -9947,6 +10084,33 @@ let Month = class extends LitElement {
         this.dispatchEvent(forwardedEvent);
       }
     });
+    this._setupScrollDetection();
+  }
+  _setupScrollDetection() {
+    let rafId = null;
+    const handleScroll = (dayElement) => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        if (dayElement.scrollTop > 5) {
+          dayElement.classList.add("scrolled");
+        } else {
+          dayElement.classList.remove("scrolled");
+        }
+        rafId = null;
+      });
+    };
+    this.updateComplete.then(() => {
+      var _a;
+      const days = (_a = this.shadowRoot) == null ? void 0 : _a.querySelectorAll(".day");
+      days == null ? void 0 : days.forEach((day) => {
+        const dayElement = day;
+        dayElement.addEventListener(
+          "scroll",
+          () => handleScroll(dayElement),
+          { passive: true }
+        );
+      });
+    });
   }
   _isCurrentDate(date) {
     return new Date(date).toDateString() === this.currentDate.toDateString();
@@ -10105,11 +10269,14 @@ Month.styles = css`
             overflow-x: hidden;
             overflow-y: auto;
             gap: var(--month-day-gap, 1px);
+            min-width: 0;
         }
 
         /* Ensure consistent multi-day event layering */
         ::slotted(lms-calendar-entry) {
             position: relative;
+            margin-left: 1em;
+            width: calc(100% - 1em);
         }
 
         .indicator.current {
@@ -10119,15 +10286,27 @@ Month.styles = css`
 
         .indicator {
             position: sticky;
-            top: 0;
-            z-index: 200;
-            background: var(--background-color, white);
-            text-align: left;
-            padding: var(--indicator-padding, 0.25em);
-            margin-bottom: var(--indicator-margin-bottom, 0.25em);
-            border-bottom: 1px solid transparent;
-            /* Add subtle shadow to separate from entries */
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            top: 0.25em;
+            left: 0.25em;
+            z-index: 500;
+            background: transparent;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            text-align: center;
+            min-width: 2em;
+            min-height: 2em;
+            line-height: 2em;
+            margin: 0.25em;
+            border-radius: 1em;
+            align-self: flex-start;
+            transition: opacity 0.2s ease-in-out;
+            opacity: 1;
+            padding: 0 0.25em;
+            white-space: nowrap;
+        }
+
+        .day.scrolled .indicator {
+            opacity: 0;
         }
     `;
 __decorateClass$2([
@@ -10739,7 +10918,8 @@ let LMSCalendar = class extends e$2(LitElement) {
     styles,
     entry,
     isContinuation = false,
-    density
+    density,
+    displayMode = "default"
   }) {
     const determinedDensity = density || this._determineDensity(entry);
     return html`
@@ -10755,6 +10935,7 @@ let LMSCalendar = class extends e$2(LitElement) {
                 .isContinuation=${isContinuation ?? false}
                 .date=${entry.date}
                 .density=${determinedDensity}
+                .displayMode=${displayMode}
             >
             </lms-calendar-entry>
         `;
@@ -10845,7 +11026,9 @@ let LMSCalendar = class extends e$2(LitElement) {
       // Sort: multi-day events first, then by original entry order for consistency
       sortBy((entry) => {
         var _a;
-        const baseId = this._createConsistentEventId(entry);
+        const baseId = this._createConsistentEventId(
+          entry
+        );
         const originalIndex = entryIdMap.get(baseId) || 0;
         const expandedEntry = entry;
         const isMultiDay = ((_a = expandedEntry.continuation) == null ? void 0 : _a.has) || false;
@@ -10854,8 +11037,10 @@ let LMSCalendar = class extends e$2(LitElement) {
       map(
         (entry) => [entry, ...getColorTextWithContrast(entry.color)]
       ),
-      map.indexed(([entry, background, text], index) => {
-        const baseId = this._createConsistentEventId(entry);
+      map.indexed(([entry, background, _text], index) => {
+        const baseId = this._createConsistentEventId(
+          entry
+        );
         const originalIndex = entryIdMap.get(baseId) || index;
         return this._composeEntry({
           index: originalIndex,
@@ -10863,19 +11048,8 @@ let LMSCalendar = class extends e$2(LitElement) {
           slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
           styles: css`
                         lms-calendar-entry._${originalIndex} {
-                            --entry-border-radius: ${unsafeCSS(
-            entry.continuation.has ? 0 : "var(--border-radius-sm)"
-          )};
-                            --entry-margin: 0
-                                ${unsafeCSS(
-            entry.continuation.has ? 0 : "0.25em"
-          )}
-                                0
-                                ${unsafeCSS(
-            entry.continuation.has ? 0 : "1.5em"
-          )};
+                            --entry-color: ${unsafeCSS(background)};
                             --entry-background-color: ${unsafeCSS(background)};
-                            --entry-color: ${unsafeCSS(text)};
                             /* Add z-index based on original order for consistent layering */
                             z-index: ${100 + originalIndex};
                         }
@@ -10887,11 +11061,15 @@ let LMSCalendar = class extends e$2(LitElement) {
             date: entry.date,
             isContinuation: entry.continuation.is
           },
-          density: this._determineDensity({
-            time: entry.time,
-            heading: entry.heading,
-            content: entry.content
-          }, this._getEntriesCountForDay(entry.date.start))
+          density: this._determineDensity(
+            {
+              time: entry.time,
+              heading: entry.heading,
+              content: entry.content
+            },
+            this._getEntriesCountForDay(entry.date.start)
+          ),
+          displayMode: "month-dot"
         });
       })
     );
@@ -10958,10 +11136,12 @@ let LMSCalendar = class extends e$2(LitElement) {
         (entry) => [entry, ...getColorTextWithContrast(entry.color)]
       ),
       map.indexed(([entry, background, text], index) => {
-        const overlappingCount = grading.length > 0 ? grading.filter((g) => {
-          var _a;
-          return g.group === ((_a = grading[index]) == null ? void 0 : _a.group);
-        }).length : 0;
+        const overlappingCount = grading.length > 0 ? grading.filter(
+          (g) => {
+            var _a;
+            return g.group === ((_a = grading[index]) == null ? void 0 : _a.group);
+          }
+        ).length : 0;
         return z$1(
           entry.continuation.is || entry.continuation.has || entry.isAllDay
         ).with(
@@ -10978,38 +11158,52 @@ let LMSCalendar = class extends e$2(LitElement) {
                                 }
                             `,
             entry,
-            density: this._determineDensity(entry, overlappingCount)
+            density: this._determineDensity(
+              entry,
+              overlappingCount
+            )
           })
         ).otherwise(
-          () => this._composeEntry({
-            index,
-            slot: entry.time.start.hour.toString(),
-            styles: css`
+          () => {
+            var _a, _b;
+            return this._composeEntry({
+              index,
+              slot: entry.time.start.hour.toString(),
+              styles: css`
                                 lms-calendar-entry._${index} {
                                     --start-slot: ${unsafeCSS(
-              this._getGridSlotByTime(entry.time)
-            )};
+                this._getGridSlotByTime(entry.time)
+              )};
                                     --entry-width: ${this._getWidthByGroupSize({
-              grading,
-              index
-            })}%;
+                grading,
+                index
+              })}%;
                                     --entry-margin: 0 1.5em 0
                                         ${this._getOffsetByDepth({
-              grading,
-              index
-            })}%;
+                grading,
+                index
+              })}%;
                                     --entry-border-radius: var(
                                         --border-radius-sm
                                     );
                                     --entry-background-color: ${unsafeCSS(
-              background
-            )};
+                background
+              )};
                                     --entry-color: ${unsafeCSS(text)};
+                                    --entry-z-index: ${10 + (((_a = grading[index]) == null ? void 0 : _a.depth) || 0)};
+                                    --entry-opacity: ${Math.max(
+                0.7,
+                1 - (((_b = grading[index]) == null ? void 0 : _b.depth) || 0) * 0.15
+              )};
                                 }
                             `,
-            entry,
-            density: this._determineDensity(entry, overlappingCount)
-          })
+              entry,
+              density: this._determineDensity(
+                entry,
+                overlappingCount
+              )
+            });
+          }
         );
       })
     );
@@ -11035,15 +11229,14 @@ let LMSCalendar = class extends e$2(LitElement) {
           slot: key.split("-").reverse().join("-"),
           styles: css`
                         lms-calendar-entry._${index} {
-                            --entry-border-radius: var(--border-radius-sm);
-                            --entry-margin: 0 auto;
-                            --entry-background-color: whitesmoke;
-                            --entry-color: black;
+                            --entry-color: var(--separator-mid);
+                            text-align: center;
                         }
                     `,
           entry: {
-            heading: `[ ${value} ]`
-          }
+            heading: `${value} events`
+          },
+          displayMode: "month-dot"
         })
       )
     );
@@ -11079,19 +11272,37 @@ let LMSCalendar = class extends e$2(LitElement) {
         );
       })
     );
-    const entriesByDay = groupBy(entriesInWeek, (entry) => `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`);
+    const entriesByDay = groupBy(
+      entriesInWeek,
+      (entry) => `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`
+    );
+    const grading = pipe(
+      entriesInWeek,
+      map((entry) => entry.time),
+      map(
+        (time) => this._getGridSlotByTime(time).replace(/[^0-9/]+/g, "").split("/")
+      ),
+      map(([start, end]) => ({
+        start: parseInt(start, 10),
+        end: parseInt(end, 10)
+      })),
+      partitionOverlappingIntervals,
+      getOverlappingEntitiesIndices,
+      rearrangeDepths
+    );
     return pipe(
       entriesInWeek,
       map(
         (entry) => [entry, ...getColorTextWithContrast(entry.color)]
       ),
       map.indexed(([entry, background, text], index) => {
-        var _a, _b;
+        var _a, _b, _c, _d;
         const isAllDay = Number((_a = entry.time) == null ? void 0 : _a.end.hour) - Number((_b = entry.time) == null ? void 0 : _b.start.hour) >= 23 || entry.continuation.is || entry.continuation.has;
         const dayKey = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
         const dayEntries = entriesByDay[dayKey] || [];
         const overlappingCount = dayEntries.filter((otherEntry) => {
-          if (otherEntry === entry || !entry.time || !otherEntry.time) return false;
+          if (otherEntry === entry || !entry.time || !otherEntry.time)
+            return false;
           const start1 = entry.time.start.hour * 60 + entry.time.start.minute;
           const end1 = entry.time.end.hour * 60 + entry.time.end.minute;
           const start2 = otherEntry.time.start.hour * 60 + otherEntry.time.start.minute;
@@ -11111,7 +11322,10 @@ let LMSCalendar = class extends e$2(LitElement) {
                             }
                         `,
             entry,
-            density: this._determineDensity(entry, overlappingCount)
+            density: this._determineDensity(
+              entry,
+              overlappingCount
+            )
           });
         } else {
           return this._composeEntry({
@@ -11126,10 +11340,18 @@ let LMSCalendar = class extends e$2(LitElement) {
               background
             )};
                                 --entry-color: ${unsafeCSS(text)};
+                                --entry-z-index: ${10 + (((_c = grading[index]) == null ? void 0 : _c.depth) || 0)};
+                                --entry-opacity: ${Math.max(
+              0.7,
+              1 - (((_d = grading[index]) == null ? void 0 : _d.depth) || 0) * 0.15
+            )};
                             }
                         `,
             entry,
-            density: this._determineDensity(entry, overlappingCount)
+            density: this._determineDensity(
+              entry,
+              overlappingCount
+            )
           });
         }
       })
@@ -11197,6 +11419,8 @@ LMSCalendar.styles = css`
             --system-ui: system-ui, 'Segoe UI', Roboto, Helvetica, Arial,
                 sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
                 'Segoe UI Symbol';
+            --monospace-ui: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+                Consolas, 'Courier New', monospace;
 
             --border-radius-sm: 5px;
             --border-radius-md: 7px;
@@ -11220,18 +11444,27 @@ LMSCalendar.styles = css`
             --entry-padding: 0.1em 0.2em;
             --entry-font-family: system-ui;
             --entry-gap: 0.15em;
-            
+
+            /* Month view dot indicator tokens */
+            --entry-dot-size: 0.5em;
+            --entry-dot-margin: 0.25em;
+            --entry-month-background: transparent;
+            --entry-month-padding: 0.1em 0.3em 0.1em 0;
+            --entry-time-font: var(--monospace-ui);
+            --entry-time-align: right;
+            --entry-month-text-color: var(--separator-dark);
+
             /* Entry typography tokens */
             --entry-title-weight: 500;
             --entry-title-wrap: nowrap;
             --entry-time-font-size: 0.85em;
             --entry-time-opacity: 0.8;
-            
+
             /* Entry density mode tokens */
             --entry-compact-show-time: none;
             --entry-layout: row;
             --entry-align: flex-start;
-            
+
             /* Responsive scaling for different viewport sizes */
             --entry-font-size-sm: 0.65rem;
             --entry-font-size-md: 0.7rem;
@@ -11329,8 +11562,8 @@ LMSCalendar.styles = css`
                 --entry-font-size: var(--entry-font-size-sm);
                 --entry-padding: 0.05em 0.15em;
                 --entry-gap: 0.1em;
-                --entry-line-height: 1.0;
-                --entry-min-height: 1.0em;
+                --entry-line-height: 1;
+                --entry-min-height: 1em;
                 --entry-compact-show-time: none;
             }
         }

@@ -57,7 +57,8 @@ export default class Entry extends LitElement {
             );
             color: var(--entry-color, var(--primary-color));
             /* z-index of separators in day view is 0 */
-            z-index: 1;
+            z-index: var(--entry-z-index, 1);
+            opacity: var(--entry-opacity, 1);
             box-sizing: border-box;
             padding-bottom: 1px;
             min-height: var(--entry-min-height, 1.2em);
