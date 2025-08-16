@@ -20,7 +20,9 @@ export default class Month extends LitElement {
 
     static override styles = css`
         .month {
-            height: calc(100% - var(--month-header-context-height, 5.5em) + 2px);
+            height: calc(
+                100% - var(--month-header-context-height, 5.5em) + 2px
+            );
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             border-top: 1px solid var(--separator-light);
@@ -100,7 +102,10 @@ export default class Month extends LitElement {
                             tabindex="0"
                         >
                             ${this._renderIndicator({ year, month, day })}
-                            <slot name="${year}-${month}-${day}" .date=${{ year, month, day }}></slot>
+                            <slot
+                                name="${year}-${month}-${day}"
+                                .date=${{ year, month, day }}
+                            ></slot>
                         </div>`,
                 )}
             </div>

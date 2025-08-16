@@ -1,6 +1,6 @@
+import { Draggable } from '@neodrag/vanilla';
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { Draggable } from '@neodrag/vanilla';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
 import type { CalendarDate } from '../lms-calendar';
 
@@ -30,14 +30,15 @@ export class Menu extends LitElement {
             transform: translate(-50%, 0);
             z-index: 1000;
             background: var(--menu-bg, #fff);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
             border-radius: 8px;
             min-width: 320px;
             transition: opacity 0.2s, visibility 0.2s;
             opacity: 1;
             visibility: visible;
         }
-        :host([hidden]), :host([open="false"]) {
+        :host([hidden]),
+        :host([open='false']) {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -97,11 +98,18 @@ export class Menu extends LitElement {
     private _handleClose = () => {
         this.open = false;
         this.minimized = false;
-        this.dispatchEvent(new CustomEvent('menu-close', { bubbles: true, composed: true }));
+        this.dispatchEvent(
+            new CustomEvent('menu-close', { bubbles: true, composed: true }),
+        );
     };
 
     private _handleExport = () => {
-        const { heading, content, time, date } = this.eventDetails as { heading: string; content: string; time: string; date?: CalendarDate };
+        const { heading, content, time, date } = this.eventDetails as {
+            heading: string;
+            content: string;
+            time: string;
+            date?: CalendarDate;
+        };
         // Use date for ICS export
         const eventYear = date?.year ?? 2025;
         const eventMonth = (date?.month ?? 4) - 1; // JS months are 0-based
@@ -132,9 +140,15 @@ export class Menu extends LitElement {
         }
         const event: IcsEvent = {
             start: {
-                date: (start && start.date) || new Date(eventYear, eventMonth, eventDay, 12, 0),
+                date:
+                    (start && start.date) ||
+                    new Date(eventYear, eventMonth, eventDay, 12, 0),
             },
-            end: { date: (end && end.date) || new Date(eventYear, eventMonth, eventDay, 13, 0) },
+            end: {
+                date:
+                    (end && end.date) ||
+                    new Date(eventYear, eventMonth, eventDay, 13, 0),
+            },
             summary: heading,
             description: content,
             status: 'CONFIRMED',
@@ -147,7 +161,7 @@ export class Menu extends LitElement {
             'VERSION:2.0',
             'PRODID:-//LMS Calendar//EN',
             vevent.trim(),
-            'END:VCALENDAR'
+            'END:VCALENDAR',
         ].join('\r\n');
         const blob = new Blob([icsString], { type: 'text/calendar' });
         const url = URL.createObjectURL(blob);
@@ -167,17 +181,33 @@ export class Menu extends LitElement {
             <div>
                 <div class="header" title="Drag to move menu">
                     <span class="title">Menu</span>
-                    <button @click=${this._handleMinimize} title="Minimize">${this.minimized ? '🗖' : '🗕'}</button>
+                    <button @click=${this._handleMinimize} title="Minimize">
+                        ${this.minimized ? '🗖' : '🗕'}
+                    </button>
                     <button @click=${this._handleClose} title="Close">✖</button>
                 </div>
                 <div class="content" ?hidden=${this.minimized}>
-                    <div class="menu-item" @click=${this._handleExport} title="Export as ICS">
+                    <div
+                        class="menu-item"
+                        @click=${this._handleExport}
+                        title="Export as ICS"
+                    >
                         Export as ICS
                     </div>
-                    <div><strong>Title:</strong> ${this.eventDetails.heading}</div>
-                    <div><strong>Content:</strong> ${this.eventDetails.content}</div>
+                    <div>
+                        <strong>Title:</strong> ${this.eventDetails.heading}
+                    </div>
+                    <div>
+                        <strong>Content:</strong> ${this.eventDetails.content}
+                    </div>
                     <div><strong>Time:</strong> ${this.eventDetails.time}</div>
-                    ${this.eventDetails.date ? html`<div><strong>Date:</strong> ${this.eventDetails.date.day}/${this.eventDetails.date.month}/${this.eventDetails.date.year}</div>` : ''}
+                    ${this.eventDetails.date
+                        ? html`<div>
+                              <strong>Date:</strong> ${this.eventDetails.date
+                                  .day}/${this.eventDetails.date.month}/${this
+                                  .eventDetails.date.year}
+                          </div>`
+                        : ''}
                 </div>
             </div>
         `;

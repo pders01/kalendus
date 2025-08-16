@@ -25,17 +25,23 @@ describe('getColorTextWithContrast', () => {
     describe('brightness calculations', () => {
         it('should return white text for dark backgrounds', () => {
             const darkColors = ['#000000', '#001234', '#220022', '#123456'];
-            darkColors.forEach(color => {
+            darkColors.forEach((color) => {
                 const [, textColor] = getColorTextWithContrast(color);
-                expect(textColor).to.equal('rgb(255, 255, 255)', `Failed for color ${color}`);
+                expect(textColor).to.equal(
+                    'rgb(255, 255, 255)',
+                    `Failed for color ${color}`,
+                );
             });
         });
 
         it('should return black text for light backgrounds', () => {
             const lightColors = ['#FFFFFF', '#FFFFCC', '#CCCCCC', '#DEDEDE'];
-            lightColors.forEach(color => {
+            lightColors.forEach((color) => {
                 const [, textColor] = getColorTextWithContrast(color);
-                expect(textColor).to.equal('rgb(0, 0, 0)', `Failed for color ${color}`);
+                expect(textColor).to.equal(
+                    'rgb(0, 0, 0)',
+                    `Failed for color ${color}`,
+                );
             });
         });
 
@@ -58,7 +64,8 @@ describe('getColorTextWithContrast', () => {
         });
 
         it('should handle invalid color format', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('not-a-color');
+            const [bgColor, textColor] =
+                getColorTextWithContrast('not-a-color');
             expect(bgColor).to.equal('rgb(255,255,255)');
             expect(textColor).to.equal('rgb(0,0,0)');
         });
