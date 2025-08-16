@@ -1,4 +1,6 @@
 node_modules/*
+build/*
+dist/*
 docs/*
 docs-src/*
 rollup-config.js
