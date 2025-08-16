@@ -73,12 +73,20 @@ export default class Month extends LitElement {
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             text-align: center;
-            width: 2em;
-            height: 2em;
+            min-width: 2em;
+            min-height: 2em;
             line-height: 2em;
             margin: 0.25em;
-            border-radius: 50%;
+            border-radius: 1em;
             align-self: flex-start;
+            transition: opacity 0.2s ease-in-out;
+            opacity: 1;
+            padding: 0 0.25em;
+            white-space: nowrap;
+        }
+
+        .day.scrolled .indicator {
+            opacity: 0;
         }
     `;
 
@@ -99,6 +107,36 @@ export default class Month extends LitElement {
                 });
                 this.dispatchEvent(forwardedEvent);
             }
+        });
+        
+        // Add scroll detection for day cells
+        this._setupScrollDetection();
+    }
+
+    private _setupScrollDetection() {
+        // Use requestAnimationFrame for throttling
+        let rafId: number | null = null;
+        
+        const handleScroll = (dayElement: HTMLElement) => {
+            if (rafId) return;
+            
+            rafId = requestAnimationFrame(() => {
+                if (dayElement.scrollTop > 5) {
+                    dayElement.classList.add('scrolled');
+                } else {
+                    dayElement.classList.remove('scrolled');
+                }
+                rafId = null;
+            });
+        };
+
+        // Add listeners after render
+        this.updateComplete.then(() => {
+            const days = this.shadowRoot?.querySelectorAll('.day');
+            days?.forEach((day) => {
+                const dayElement = day as HTMLElement;
+                dayElement.addEventListener('scroll', () => handleScroll(dayElement), { passive: true });
+            });
         });
     }
 
