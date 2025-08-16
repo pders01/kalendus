@@ -37,8 +37,7 @@ export class Menu extends LitElement {
             opacity: 1;
             visibility: visible;
         }
-        :host([hidden]),
-        :host([open='false']) {
+        :host([hidden]) {
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -178,7 +177,7 @@ export class Menu extends LitElement {
 
     override render() {
         return html`
-            <div>
+            <div ?hidden=${!this.open}>
                 <div class="header" title="Drag to move menu">
                     <span class="title">Menu</span>
                     <button @click=${this._handleMinimize} title="Minimize">
