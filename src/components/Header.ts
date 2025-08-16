@@ -2,6 +2,7 @@ import { SignalWatcher } from '@lit-labs/signals';
 import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { DateTime } from 'luxon';
 import { getLocalizedMonth } from '../lib/localization.js';
 import { messages } from '../lib/messages.js';
 import { activeDate, currentViewMode } from '../lib/viewState.js';
@@ -42,6 +43,7 @@ export default class Header extends SignalWatcher(LitElement) {
             text-align: right;
         }
         .day,
+        .week,
         .month,
         .year {
             color: var(--header-text-color, rgba(0, 0, 0, 0.6));
@@ -64,6 +66,19 @@ export default class Header extends SignalWatcher(LitElement) {
         }
     `;
 
+    private _getWeekInfo(date: CalendarDate) {
+        const dt = DateTime.fromObject({
+            year: date.year,
+            month: date.month,
+            day: date.day,
+        });
+
+        return {
+            weekNumber: dt.weekNumber,
+            weekYear: dt.weekYear,
+        };
+    }
+
     override render() {
         return html`<div class="controls">
             <div class="info">
@@ -77,7 +92,19 @@ export default class Header extends SignalWatcher(LitElement) {
                     >
                     <span class="year">${activeDate.get().year}</span>
                 </div>
-                <div ?hidden=${currentViewMode.get() === 'day'}>
+                <div ?hidden=${currentViewMode.get() !== 'week'}>
+                    <span class="week"
+                        >${messages.calendarWeek()}
+                        ${this._getWeekInfo(activeDate.get()).weekNumber}</span
+                    >
+                    <span class="month"
+                        >${getLocalizedMonth(activeDate.get().month)}</span
+                    >
+                    <span class="year"
+                        >${this._getWeekInfo(activeDate.get()).weekYear}</span
+                    >
+                </div>
+                <div ?hidden=${currentViewMode.get() !== 'month'}>
                     <span class="month"
                         >${getLocalizedMonth(activeDate.get().month)}</span
                     >

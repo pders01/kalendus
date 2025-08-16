@@ -8015,7 +8015,10 @@ const __variableDynamicImportRuntimeHelper = (glob, path, segs) => {
   });
 };
 const sourceLocale = `en`;
-const targetLocales = [`de`, `de-DE`];
+const targetLocales = [
+  `de`,
+  `de-DE`
+];
 const { getLocale, setLocale } = configureLocalization({
   sourceLocale,
   targetLocales,
@@ -8255,7 +8258,8 @@ const messages = {
   notes: () => msg("Notes"),
   minimize: () => msg("Minimize"),
   close: () => msg("Close"),
-  dragToMove: () => msg("Drag to move menu")
+  dragToMove: () => msg("Drag to move menu"),
+  calendarWeek: () => msg("CW")
 };
 var __defProp$5 = Object.defineProperty;
 var __getOwnPropDesc$5 = Object.getOwnPropertyDescriptor;
@@ -8579,6 +8583,17 @@ var __decorateClass$4 = (decorators, target, key, kind) => {
   return result;
 };
 let Header = class extends e$2(LitElement) {
+  _getWeekInfo(date) {
+    const dt = DateTime.fromObject({
+      year: date.year,
+      month: date.month,
+      day: date.day
+    });
+    return {
+      weekNumber: dt.weekNumber,
+      weekYear: dt.weekYear
+    };
+  }
   render() {
     return html`<div class="controls">
             <div class="info">
@@ -8592,7 +8607,14 @@ let Header = class extends e$2(LitElement) {
                     >
                     <span class="year">${activeDate.get().year}</span>
                 </div>
-                <div ?hidden=${currentViewMode.get() === "day"}>
+                <div ?hidden=${currentViewMode.get() !== "week"}>
+                    <span class="week">${messages.calendarWeek()} ${this._getWeekInfo(activeDate.get()).weekNumber}</span>
+                    <span class="month"
+                        >${getLocalizedMonth(activeDate.get().month)}</span
+                    >
+                    <span class="year">${this._getWeekInfo(activeDate.get()).weekYear}</span>
+                </div>
+                <div ?hidden=${currentViewMode.get() !== "month"}>
                     <span class="month"
                         >${getLocalizedMonth(activeDate.get().month)}</span
                     >
@@ -8697,6 +8719,7 @@ Header.styles = css`
             text-align: right;
         }
         .day,
+        .week,
         .month,
         .year {
             color: var(--header-text-color, rgba(0, 0, 0, 0.6));

@@ -20,4 +20,5 @@ export const messages = {
     minimize: () => msg('Minimize'),
     close: () => msg('Close'),
     dragToMove: () => msg('Drag to move menu'),
+    calendarWeek: () => msg('CW'),
 } as const;
