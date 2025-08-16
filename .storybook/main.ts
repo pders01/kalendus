@@ -1,4 +1,5 @@
 import type { StorybookConfig } from '@storybook/web-components-vite';
+import { mergeConfig } from 'vite';
 
 const config: StorybookConfig = {
     stories: ['../src/**/*.stories.@(js|ts)'],
@@ -9,6 +10,16 @@ const config: StorybookConfig = {
     },
     docs: {
         autodocs: 'tag',
+    },
+    async viteFinal(config) {
+        return mergeConfig(config, {
+            build: {
+                sourcemap: true,
+            },
+            server: {
+                sourcemap: true,
+            },
+        });
     },
 };
 
