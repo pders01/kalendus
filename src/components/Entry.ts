@@ -3,7 +3,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { P, match } from 'ts-pattern';
 import type { CalendarDateInterval } from '../lms-calendar';
 import Translations from '../locales/Translations.js';
-import Menu from './Menu.js';
 
 @customElement('lms-calendar-entry')
 export default class Entry extends LitElement {
@@ -196,30 +195,39 @@ export default class Entry extends LitElement {
                 return;
             }
 
-            const oldMenu = document.querySelector('lms-menu') as Menu | null;
-            if (oldMenu) {
-                oldMenu.remove();
-            }
-            const menu = document.createElement('lms-menu') as Menu;
-            document.body.appendChild(menu);
-            menu.eventDetails = {
+            // Dispatch a custom event to communicate with the calendar
+            const eventDetails = {
                 heading: this.heading || 'No Title',
                 content: this.content || 'No Content',
                 time: this.time
-                    ? `${this.time.start.hour}:${this.time.start.minute} - ${this.time.end.hour}:${this.time.end.minute}`
+                    ? `${String(this.time.start.hour).padStart(
+                          2,
+                          '0',
+                      )}:${String(this.time.start.minute).padStart(
+                          2,
+                          '0',
+                      )} - ${String(this.time.end.hour).padStart(
+                          2,
+                          '0',
+                      )}:${String(this.time.end.minute).padStart(2, '0')}`
                     : 'No Time',
                 date: this.date?.start,
             };
-            menu.open = true;
-            menu.minimized = false;
-            menu.addEventListener(
-                'menu-close',
-                () => {
-                    this._highlighted = false;
-                    menu.remove();
-                },
-                { once: true },
-            );
+
+            const openMenuEvent = new CustomEvent('open-menu', {
+                detail: eventDetails,
+                bubbles: true,
+                composed: true,
+            });
+
+            this.dispatchEvent(openMenuEvent);
+
+            // Listen for menu close to remove highlight
+            const handleMenuClose = () => {
+                this._highlighted = false;
+                this.removeEventListener('menu-close', handleMenuClose);
+            };
+            this.addEventListener('menu-close', handleMenuClose);
         }
     }
 }

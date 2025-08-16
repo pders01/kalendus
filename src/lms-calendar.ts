@@ -55,6 +55,14 @@ export default class LMSCalendar extends LitElement {
 
     @state() _calendarWidth: number = window.innerWidth;
 
+    @state() _menuOpen = false;
+    @state() _menuEventDetails?: {
+        heading: string;
+        content: string;
+        time: string;
+        date?: CalendarDate;
+    };
+
     private _handleResize = (entries: ResizeObserverEntry[]): void => {
         const [div] = entries;
 
@@ -127,7 +135,7 @@ export default class LMSCalendar extends LitElement {
             --header-text-color: rgba(0, 0, 0, 0.6);
             --header-buttons-padding-right: 1em;
             --button-padding: 0.75em;
-            --button-border-radius: 50%;
+            --button-border-radius: var(--border-radius-sm);
 
             --month-header-context-height: 5.5em;
             --month-day-gap: 1px;
@@ -136,19 +144,21 @@ export default class LMSCalendar extends LitElement {
             --indicator-padding: 0.25em;
             --indicator-margin-bottom: 0.25em;
 
-            --menu-background-color: #fff;
-            --menu-border-color: #ccc;
-            --menu-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            --menu-padding: 1em;
-            --menu-border-radius: 8px;
+            --menu-min-width: 17.5em;
+            --menu-max-width: 20em;
+            --menu-header-padding: 0.75em 1em;
+            --menu-content-padding: 1em;
             --menu-item-padding: 0.75em;
-            --menu-item-border-radius: 4px;
-            --menu-item-margin: 0.5em 0;
-            --menu-item-background-color: #f9f9f9;
-            --menu-item-font-weight: bold;
-            --menu-item-color: #333;
-            --menu-item-hover-background-color: #007bff;
-            --menu-item-hover-color: #fff;
+            --menu-item-margin-bottom: 0.75em;
+            --menu-item-font-weight: 500;
+            --menu-button-size: 2em;
+            --menu-button-padding: 0.5em;
+            --menu-title-font-size: 0.875em;
+            --menu-title-font-weight: 500;
+            --menu-content-font-size: 0.875em;
+            --menu-detail-label-min-width: 4em;
+            --menu-detail-label-font-size: 0.8125em;
+            --menu-detail-gap: 0.5em;
         }
         div {
             width: var(--width);
@@ -228,6 +238,7 @@ export default class LMSCalendar extends LitElement {
 
                 <lms-calendar-month
                     @expand=${this._handleExpand}
+                    @open-menu=${this._handleOpenMenu}
                     .activeDate=${this.activeDate}
                     ?hidden=${hasExpandedDate}
                 >
@@ -236,9 +247,22 @@ export default class LMSCalendar extends LitElement {
                         : this._renderEntries()}
                 </lms-calendar-month>
 
-                <lms-calendar-day ?hidden=${!hasExpandedDate}>
+                <lms-calendar-day
+                    @open-menu=${this._handleOpenMenu}
+                    ?hidden=${!hasExpandedDate}
+                >
                     ${this._renderEntriesByDate()}
                 </lms-calendar-day>
+
+                <lms-menu
+                    ?open=${this._menuOpen}
+                    .eventDetails=${this._menuEventDetails || {
+                        heading: '',
+                        content: '',
+                        time: '',
+                    }}
+                    @menu-close=${this._handleMenuClose}
+                ></lms-menu>
             </div>
         `;
     }
@@ -275,6 +299,31 @@ export default class LMSCalendar extends LitElement {
 
     private _handleExpand(e: CustomEvent) {
         this._expandedDate = e.detail.date;
+    }
+
+    private _handleOpenMenu(e: CustomEvent) {
+        // Reset any previously highlighted entries before opening new menu
+        this.shadowRoot
+            ?.querySelectorAll('lms-calendar-entry')
+            .forEach((entry) => {
+                (entry as any)._highlighted = false;
+            });
+        this.openMenu(e.detail);
+    }
+
+    private _handleMenuClose() {
+        this._menuOpen = false;
+        this._menuEventDetails = undefined;
+    }
+
+    public openMenu(eventDetails: {
+        heading: string;
+        content: string;
+        time: string;
+        date?: CalendarDate;
+    }) {
+        this._menuEventDetails = eventDetails;
+        this._menuOpen = true;
     }
 
     private _composeEntry({
@@ -387,6 +436,8 @@ export default class LMSCalendar extends LitElement {
                     entry: {
                         time: entry.time,
                         heading: entry.heading,
+                        content: entry.content,
+                        date: entry.date,
                         isContinuation: entry.continuation.is,
                     },
                 }),

@@ -65,6 +65,26 @@ export default class Month extends LitElement {
         }
     `;
 
+    override connectedCallback() {
+        super.connectedCallback();
+        // Forward open-menu events from entry components
+        this.addEventListener('open-menu', (e: Event) => {
+            const customEvent = e as CustomEvent;
+
+            // Only forward if the event came from an entry component, not from our own re-dispatch
+            if (e.target !== this) {
+                e.stopPropagation(); // Stop the original event
+                // Re-dispatch to ensure it bubbles up to calendar
+                const forwardedEvent = new CustomEvent('open-menu', {
+                    detail: customEvent.detail,
+                    bubbles: true,
+                    composed: true,
+                });
+                this.dispatchEvent(forwardedEvent);
+            }
+        });
+    }
+
     private _isCurrentDate(date: string) {
         return (
             new Date(date).toDateString() === this.currentDate.toDateString()
@@ -117,6 +137,11 @@ export default class Month extends LitElement {
     private _dispatchExpand(e: Event) {
         const target = e.target;
         if (!(target instanceof HTMLElement)) {
+            return;
+        }
+
+        // Don't expand if the click is on an entry component or inside one
+        if (target.closest('lms-calendar-entry')) {
             return;
         }
 
