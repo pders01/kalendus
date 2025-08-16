@@ -43,7 +43,10 @@ export default class Day extends LitElement {
 
         .separator {
             grid-column: 2 / 3;
-            border-top: var(--separator-border, 1px solid var(--separator-light));
+            border-top: var(
+                --separator-border,
+                1px solid var(--separator-light)
+            );
             position: absolute;
             width: 100%;
             z-index: 0;
@@ -51,7 +54,10 @@ export default class Day extends LitElement {
 
         .sidebar {
             height: 100%;
-            border-left: var(--sidebar-border, 1px solid var(--separator-light));
+            border-left: var(
+                --sidebar-border,
+                1px solid var(--separator-light)
+            );
         }
 
         .w-100 {

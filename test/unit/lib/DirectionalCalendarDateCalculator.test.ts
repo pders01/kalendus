@@ -7,14 +7,16 @@ describe('DirectionalCalendarDateCalculator', () => {
     beforeEach(() => {
         calculator = new DirectionalCalendarDateCalculator({
             date: { year: 2023, month: 8, day: 15 },
-            direction: 'next'
+            direction: 'next',
         });
     });
 
     describe('constructor and setters', () => {
         it('should initialize with empty constructor', () => {
             const calc = new DirectionalCalendarDateCalculator({});
-            expect(() => calc.getDateByMonthInDirection()).to.throw('date is not set');
+            expect(() => calc.getDateByMonthInDirection()).to.throw(
+                'date is not set',
+            );
         });
 
         it('should allow setting date after construction', () => {
@@ -25,7 +27,7 @@ describe('DirectionalCalendarDateCalculator', () => {
             expect(result).to.deep.equal({
                 year: 2023,
                 month: 9,
-                day: 15
+                day: 15,
             });
         });
 
@@ -43,7 +45,7 @@ describe('DirectionalCalendarDateCalculator', () => {
             expect(result).to.deep.equal({
                 year: 2023,
                 month: 9,
-                day: 15
+                day: 15,
             });
         });
 
@@ -53,7 +55,7 @@ describe('DirectionalCalendarDateCalculator', () => {
             expect(result).to.deep.equal({
                 year: 2023,
                 month: 7,
-                day: 15
+                day: 15,
             });
         });
 
@@ -61,56 +63,56 @@ describe('DirectionalCalendarDateCalculator', () => {
             it('should handle year transition when going forward from December', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2023, month: 12, day: 15 },
-                    direction: 'next'
+                    direction: 'next',
                 });
                 const result = calculator.getDateByMonthInDirection();
                 expect(result).to.deep.equal({
                     year: 2024,
                     month: 1,
-                    day: 15
+                    day: 15,
                 });
             });
 
             it('should handle year transition when going back from January', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2023, month: 1, day: 15 },
-                    direction: 'previous'
+                    direction: 'previous',
                 });
                 const result = calculator.getDateByMonthInDirection();
                 expect(result).to.deep.equal({
                     year: 2022,
                     month: 12,
-                    day: 15
+                    day: 15,
                 });
             });
 
             it('should handle multiple month transitions forward', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2023, month: 1, day: 15 },
-                    direction: 'next'
+                    direction: 'next',
                 });
                 let result = calculator.getDateByMonthInDirection(); // Feb
-                result = calculator.getDateByMonthInDirection();     // Mar
-                result = calculator.getDateByMonthInDirection();     // Apr
+                result = calculator.getDateByMonthInDirection(); // Mar
+                result = calculator.getDateByMonthInDirection(); // Apr
                 expect(result).to.deep.equal({
                     year: 2023,
                     month: 4,
-                    day: 15
+                    day: 15,
                 });
             });
 
             it('should handle multiple month transitions backward', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2023, month: 12, day: 15 },
-                    direction: 'previous'
+                    direction: 'previous',
                 });
                 let result = calculator.getDateByMonthInDirection(); // Nov
-                result = calculator.getDateByMonthInDirection();     // Oct
-                result = calculator.getDateByMonthInDirection();     // Sep
+                result = calculator.getDateByMonthInDirection(); // Oct
+                result = calculator.getDateByMonthInDirection(); // Sep
                 expect(result).to.deep.equal({
                     year: 2023,
                     month: 9,
-                    day: 15
+                    day: 15,
                 });
             });
         });
@@ -119,7 +121,7 @@ describe('DirectionalCalendarDateCalculator', () => {
             it('should adjust day when moving from 31 to 30 day month', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2023, month: 7, day: 31 }, // July (31 days)
-                    direction: 'next'
+                    direction: 'next',
                 });
                 const result = calculator.getDateByMonthInDirection(); // August (31 days)
                 expect(result.day).to.equal(31);
@@ -128,7 +130,7 @@ describe('DirectionalCalendarDateCalculator', () => {
             it('should adjust day when moving from 31 to 30 day month', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2023, month: 8, day: 31 }, // August (31 days)
-                    direction: 'next'
+                    direction: 'next',
                 });
                 const result = calculator.getDateByMonthInDirection(); // September (30 days)
                 expect(result.day).to.equal(30);
@@ -137,7 +139,7 @@ describe('DirectionalCalendarDateCalculator', () => {
             it('should handle leap year February forward', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2024, month: 1, day: 31 }, // January
-                    direction: 'next'
+                    direction: 'next',
                 });
                 const result = calculator.getDateByMonthInDirection(); // February 2024 (leap year)
                 expect(result.day).to.equal(29);
@@ -146,7 +148,7 @@ describe('DirectionalCalendarDateCalculator', () => {
             it('should handle non-leap year February forward', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2023, month: 1, day: 31 }, // January
-                    direction: 'next'
+                    direction: 'next',
                 });
                 const result = calculator.getDateByMonthInDirection(); // February 2023 (non-leap year)
                 expect(result.day).to.equal(28);
@@ -155,7 +157,7 @@ describe('DirectionalCalendarDateCalculator', () => {
             it('should handle moving from February to March in leap year', () => {
                 calculator = new DirectionalCalendarDateCalculator({
                     date: { year: 2024, month: 2, day: 29 }, // February
-                    direction: 'next'
+                    direction: 'next',
                 });
                 const result = calculator.getDateByMonthInDirection(); // March
                 expect(result.day).to.equal(29);
@@ -165,21 +167,28 @@ describe('DirectionalCalendarDateCalculator', () => {
         describe('error handling', () => {
             it('should throw error when date is not set', () => {
                 calculator = new DirectionalCalendarDateCalculator({});
-                expect(() => calculator.getDateByMonthInDirection()).to.throw('date is not set');
+                expect(() => calculator.getDateByMonthInDirection()).to.throw(
+                    'date is not set',
+                );
             });
 
             it('should throw error when direction is not set', () => {
                 calculator = new DirectionalCalendarDateCalculator({
-                    date: { year: 2023, month: 8, day: 15 }
+                    date: { year: 2023, month: 8, day: 15 },
                 });
-                expect(() => calculator.getDateByMonthInDirection()).to.throw('direction is not set');
+                expect(() => calculator.getDateByMonthInDirection()).to.throw(
+                    'direction is not set',
+                );
             });
 
             it('should handle invalid dates gracefully', () => {
-                expect(() => new DirectionalCalendarDateCalculator({
-                    date: { year: 2023, month: 13, day: 32 },
-                    direction: 'next'
-                })).to.throw("date couldn't be converted to DateTime object");
+                expect(
+                    () =>
+                        new DirectionalCalendarDateCalculator({
+                            date: { year: 2023, month: 13, day: 32 },
+                            direction: 'next',
+                        }),
+                ).to.throw("date couldn't be converted to DateTime object");
             });
         });
     });
