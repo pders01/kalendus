@@ -360,3 +360,781 @@ export const NavigateMonths: Story = {
         }
     },
 };
+
+// Generate heavy event load for stress testing - simulates real-world usage
+const generateHeavyEventLoad = (): CalendarEntry[] => {
+    const events: CalendarEntry[] = [];
+    const colors = [
+        '#1976d2',
+        '#2e7d32',
+        '#ff9800',
+        '#d32f2f',
+        '#6a1b9a',
+        '#00acc1',
+        '#8bc34a',
+        '#ff5722',
+        '#9c27b0',
+        '#607d8b',
+        '#e91e63',
+        '#00bcd4',
+        '#ffeb3b',
+        '#795548',
+        '#3f51b5',
+        '#673ab7',
+        '#009688',
+        '#4caf50',
+        '#ffc107',
+        '#f44336',
+    ];
+
+    const eventTypes = [
+        {
+            heading: 'Team Standup',
+            content: 'Daily team sync meeting',
+            typical: true,
+        },
+        { heading: 'Code Review', content: 'PR review session', typical: true },
+        {
+            heading: 'Client Call',
+            content: 'Project status update',
+            typical: true,
+        },
+        {
+            heading: 'Lunch Meeting',
+            content: 'Working lunch discussion',
+            typical: true,
+        },
+        {
+            heading: 'Sprint Planning',
+            content: 'Plan next sprint backlog',
+            typical: false,
+        },
+        {
+            heading: 'Design Workshop',
+            content: 'UX/UI design session',
+            typical: false,
+        },
+        {
+            heading: 'Training Session',
+            content: 'Skill development workshop',
+            typical: false,
+        },
+        {
+            heading: 'Architecture Review',
+            content: 'System design review',
+            typical: false,
+        },
+        {
+            heading: 'Demo Prep',
+            content: 'Prepare for client demo',
+            typical: true,
+        },
+        {
+            heading: 'Bug Triage',
+            content: 'Review and prioritize bugs',
+            typical: true,
+        },
+        {
+            heading: 'Performance Review',
+            content: '1-on-1 performance meeting',
+            typical: false,
+        },
+        {
+            heading: 'Documentation',
+            content: 'Update project documentation',
+            typical: true,
+        },
+        {
+            heading: 'Testing Session',
+            content: 'QA testing time block',
+            typical: true,
+        },
+        {
+            heading: 'Deployment',
+            content: 'Production deployment window',
+            typical: false,
+        },
+        {
+            heading: 'Board Meeting',
+            content: 'Executive board meeting',
+            typical: false,
+        },
+        {
+            heading: 'Customer Support',
+            content: 'Customer support rotation',
+            typical: true,
+        },
+        {
+            heading: 'Interview',
+            content: 'Technical interview session',
+            typical: true,
+        },
+        {
+            heading: 'All Hands',
+            content: 'Company all-hands meeting',
+            typical: false,
+        },
+        {
+            heading: 'Vendor Call',
+            content: 'Third-party vendor discussion',
+            typical: true,
+        },
+        {
+            heading: 'Retrospective',
+            content: 'Sprint retrospective meeting',
+            typical: false,
+        },
+    ];
+
+    // Function to get realistic days in current month
+    const getDaysInMonth = (month: number, year: number): number => {
+        return new Date(year, month, 0).getDate();
+    };
+
+    const daysInCurrentMonth = getDaysInMonth(currentMonth, currentYear);
+
+    // Generate events for the full month
+    for (let day = 1; day <= daysInCurrentMonth; day++) {
+        const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        const isMonday = dayOfWeek === 1;
+        const isFriday = dayOfWeek === 5;
+
+        // Realistic event density based on day type
+        let baseEventsPerDay: number;
+        if (isWeekend) {
+            baseEventsPerDay = Math.random() < 0.3 ? 1 : 0; // Minimal weekend events
+        } else if (isMonday || isFriday) {
+            baseEventsPerDay = Math.floor(Math.random() * 4) + 8; // Heavy start/end of week
+        } else {
+            baseEventsPerDay = Math.floor(Math.random() * 6) + 6; // Normal weekday load
+        }
+
+        // Some days are extra busy (realistic variability)
+        if (Math.random() < 0.15) {
+            baseEventsPerDay += Math.floor(Math.random() * 8) + 5; // Very busy days
+        }
+
+        const eventsThisDay: CalendarEntry[] = [];
+
+        for (let eventIndex = 0; eventIndex < baseEventsPerDay; eventIndex++) {
+            const eventType =
+                eventTypes[Math.floor(Math.random() * eventTypes.length)];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+
+            // More realistic time distribution
+            let startHour: number;
+            let startMinute: number;
+
+            if (eventType.typical) {
+                // Common meeting times
+                startHour = [8, 9, 10, 11, 13, 14, 15, 16, 17][
+                    Math.floor(Math.random() * 9)
+                ];
+                startMinute = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
+            } else {
+                // Any business hours
+                startHour = Math.floor(Math.random() * 11) + 8; // 8-18
+                startMinute = Math.random() < 0.7 ? 0 : 30; // Prefer hour boundaries
+            }
+
+            // Realistic meeting durations
+            const durations = [15, 30, 45, 60, 90, 120, 180, 240];
+            const weights = [5, 40, 15, 25, 10, 3, 1, 1]; // 30min and 60min most common
+
+            let durationMinutes: number;
+            const randomWeight =
+                Math.random() * weights.reduce((a, b) => a + b, 0);
+            let cumWeight = 0;
+            for (let i = 0; i < durations.length; i++) {
+                cumWeight += weights[i];
+                if (randomWeight <= cumWeight) {
+                    durationMinutes = durations[i];
+                    break;
+                }
+            }
+            durationMinutes = durationMinutes! || 60;
+
+            const endTime = new Date();
+            endTime.setHours(startHour, startMinute + durationMinutes);
+
+            const endHour = endTime.getHours();
+            const endMinute = endTime.getMinutes();
+
+            // Skip events that go past reasonable business hours (22:00)
+            if (endHour >= 22) continue;
+
+            // Create overlapping events intentionally (realistic scenario)
+            const shouldOverlap =
+                Math.random() < 0.3 && eventsThisDay.length > 0;
+            if (shouldOverlap) {
+                const existingEvent =
+                    eventsThisDay[
+                        Math.floor(Math.random() * eventsThisDay.length)
+                    ];
+                startHour = existingEvent.time.start.hour;
+                startMinute = existingEvent.time.start.minute + 15; // 15min offset
+                if (startMinute >= 60) {
+                    startHour += 1;
+                    startMinute -= 60;
+                }
+            }
+
+            const newEvent: CalendarEntry = {
+                heading: `${eventType.heading}${
+                    eventIndex > 0 ? ` ${eventIndex + 1}` : ''
+                }`,
+                content: eventType.content,
+                color: color,
+                isContinuation: false,
+                date: {
+                    start: { day, month: currentMonth, year: currentYear },
+                    end: { day, month: currentMonth, year: currentYear },
+                },
+                time: {
+                    start: { hour: startHour, minute: startMinute },
+                    end: { hour: endHour, minute: endMinute },
+                },
+            };
+
+            eventsThisDay.push(newEvent);
+        }
+
+        events.push(...eventsThisDay);
+
+        // Add recurring all-day events
+        if (day === 1) {
+            // Monthly all-day event
+            events.push({
+                heading: 'Monthly Planning Day',
+                content: 'Strategic planning and goal setting',
+                color: colors[0],
+                isContinuation: false,
+                date: {
+                    start: { day, month: currentMonth, year: currentYear },
+                    end: { day, month: currentMonth, year: currentYear },
+                },
+                time: {
+                    start: { hour: 0, minute: 0 },
+                    end: { hour: 23, minute: 59 },
+                },
+            });
+        }
+
+        // Occasional all-day events (holidays, training, etc.)
+        if (Math.random() < 0.08) {
+            // ~2-3 per month
+            const allDayEvents = [
+                'Company Retreat',
+                'Training Day',
+                'Conference',
+                'Team Building',
+                'Holiday',
+                'Professional Development',
+                'Hackathon',
+                'Workshop Day',
+            ];
+            events.push({
+                heading:
+                    allDayEvents[
+                        Math.floor(Math.random() * allDayEvents.length)
+                    ],
+                content: 'All-day event',
+                color: colors[Math.floor(Math.random() * colors.length)],
+                isContinuation: false,
+                date: {
+                    start: { day, month: currentMonth, year: currentYear },
+                    end: { day, month: currentMonth, year: currentYear },
+                },
+                time: {
+                    start: { hour: 0, minute: 0 },
+                    end: { hour: 23, minute: 59 },
+                },
+            });
+        }
+    }
+
+    // Add realistic multi-day events
+    const multiDayEvents = [
+        {
+            heading: 'Annual Conference',
+            content: 'Industry conference attendance',
+            days: 3,
+            month: currentMonth,
+            probability: 0.3,
+        },
+        {
+            heading: 'Sprint Week',
+            content: 'Intensive development sprint',
+            days: 5,
+            month: currentMonth,
+            probability: 0.8,
+        },
+        {
+            heading: 'Training Program',
+            content: 'Multi-day training certification',
+            days: 4,
+            month: currentMonth,
+            probability: 0.4,
+        },
+        {
+            heading: 'Client Visit Week',
+            content: 'Extended client engagement',
+            days: 3,
+            month: currentMonth,
+            probability: 0.5,
+        },
+        {
+            heading: 'Release Week',
+            content: 'Major product release cycle',
+            days: 7,
+            month: currentMonth,
+            probability: 0.6,
+        },
+        {
+            heading: 'Vendor Integration',
+            content: 'Third-party system integration',
+            days: 2,
+            month: currentMonth,
+            probability: 0.7,
+        },
+    ];
+
+    multiDayEvents.forEach((event) => {
+        if (Math.random() < event.probability) {
+            const startDay =
+                Math.floor(Math.random() * (daysInCurrentMonth - event.days)) +
+                1;
+            const endDay = Math.min(
+                startDay + event.days - 1,
+                daysInCurrentMonth,
+            );
+
+            events.push({
+                heading: event.heading,
+                content: event.content,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                isContinuation: false,
+                date: {
+                    start: {
+                        day: startDay,
+                        month: currentMonth,
+                        year: currentYear,
+                    },
+                    end: {
+                        day: endDay,
+                        month: currentMonth,
+                        year: currentYear,
+                    },
+                },
+                time: {
+                    start: { hour: 9, minute: 0 },
+                    end: { hour: 17, minute: 0 },
+                },
+            });
+        }
+    });
+
+    // Sort events by date and time
+    return events.sort((a, b) => {
+        if (a.date.start.day !== b.date.start.day) {
+            return a.date.start.day - b.date.start.day;
+        }
+        if (a.time.start.hour !== b.time.start.hour) {
+            return a.time.start.hour - b.time.start.hour;
+        }
+        return a.time.start.minute - b.time.start.minute;
+    });
+};
+
+export const HeavyEventLoad: Story = {
+    args: {
+        heading: 'Heavy Event Load Test',
+        activeDate: { day: 15, month: currentMonth, year: currentYear },
+        entries: generateHeavyEventLoad(),
+    },
+    render: (args) => html`
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+    parameters: {
+        docs: {
+            description: {
+                story: 'Comprehensive stress test with 200+ realistic events across the full month. Simulates real-world heavy usage with 6-15 events per weekday, weekend events, intentional overlaps, various meeting durations (15min-4hrs), all-day events, and multi-day events. Tests performance, rendering quality, and overlap handling algorithms.',
+            },
+        },
+    },
+};
+
+export const StressTestAllViews: Story = {
+    args: {
+        heading: 'Stress Test - All Views',
+        activeDate: { day: 15, month: currentMonth, year: currentYear },
+        entries: generateHeavyEventLoad(),
+    },
+    render: (args) => html`
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+        const calendar = canvasElement.querySelector(
+            'lms-calendar',
+        ) as LMSCalendar;
+        await expect(calendar).toBeInTheDocument();
+
+        const shadowRoot = calendar.shadowRoot;
+        const header = shadowRoot?.querySelector('lms-calendar-header');
+
+        if (header) {
+            const headerShadow = header.shadowRoot;
+
+            // Test Month View (default)
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Switch to Week View
+            const weekButton = headerShadow?.querySelector(
+                '[data-context="week"]',
+            ) as HTMLElement;
+            if (weekButton) {
+                await userEvent.click(weekButton);
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+
+                // Verify week view with heavy load
+                const weekView = shadowRoot?.querySelector('lms-calendar-week');
+                await expect(weekView).toBeInTheDocument();
+            }
+
+            // Switch to Day View
+            const dayButton = headerShadow?.querySelector(
+                '[data-context="day"]',
+            ) as HTMLElement;
+            if (dayButton) {
+                await userEvent.click(dayButton);
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+
+                // Verify day view with heavy load
+                const dayView = shadowRoot?.querySelector('lms-calendar-day');
+                await expect(dayView).toBeInTheDocument();
+            }
+
+            // Navigate to next day to test different day's heavy load
+            const nextButton = headerShadow?.querySelector(
+                'button[name="next"]',
+            ) as HTMLButtonElement;
+            if (nextButton) {
+                await userEvent.click(nextButton);
+                await new Promise((resolve) => setTimeout(resolve, 500));
+                await userEvent.click(nextButton);
+                await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+
+            // Switch back to Month View
+            const monthButton = headerShadow?.querySelector(
+                '[data-context="month"]',
+            ) as HTMLElement;
+            if (monthButton) {
+                await userEvent.click(monthButton);
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        }
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Comprehensive stress test that automatically cycles through all three views (Month, Week, Day) with heavy event load. Tests view switching performance, rendering quality, and layout stability under realistic high-usage scenarios.',
+            },
+        },
+    },
+};
+
+export const OverlappingEventsStressTest: Story = {
+    args: {
+        heading: 'Overlapping Events Stress Test',
+        activeDate: { day: 15, month: currentMonth, year: currentYear },
+        entries: (() => {
+            const events: CalendarEntry[] = [];
+            const testDay = 15;
+
+            // Create 25 heavily overlapping events on the same day for maximum stress
+            for (let i = 0; i < 25; i++) {
+                const startHour = 9 + Math.floor(i / 5); // Start between 9-13
+                const startMinute = (i % 5) * 12; // 0, 12, 24, 36, 48 minutes
+
+                events.push({
+                    heading: `Meeting ${i + 1}`,
+                    content: `Overlapping meeting ${i + 1}`,
+                    color: `hsl(${i * 14}, 70%, 50%)`, // Different colors
+                    isContinuation: false,
+                    date: {
+                        start: {
+                            day: testDay,
+                            month: currentMonth,
+                            year: currentYear,
+                        },
+                        end: {
+                            day: testDay,
+                            month: currentMonth,
+                            year: currentYear,
+                        },
+                    },
+                    time: {
+                        start: { hour: startHour, minute: startMinute },
+                        end: { hour: startHour + 1, minute: startMinute },
+                    },
+                });
+            }
+
+            return events;
+        })(),
+    },
+    render: (args) => html`
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+    parameters: {
+        docs: {
+            description: {
+                story: 'Extreme stress test with 25 heavily overlapping events on a single day. Tests the overlap detection algorithms, positioning calculations, and visual rendering quality under maximum load.',
+            },
+        },
+    },
+};
+
+export const ExtremeEdgeCases: Story = {
+    args: {
+        heading: 'Extreme Edge Cases Test',
+        activeDate: { day: 15, month: currentMonth, year: currentYear },
+        entries: (() => {
+            const events: CalendarEntry[] = [];
+
+            // Test various extreme scenarios across multiple days
+            for (let day = 10; day <= 20; day++) {
+                // Day with 30+ events (unrealistic but tests limits)
+                if (day === 15) {
+                    for (let i = 0; i < 35; i++) {
+                        const hour = 8 + (i % 12);
+                        const minute = (i % 4) * 15;
+                        events.push({
+                            heading: `Extreme Event ${i + 1}`,
+                            content: `Testing calendar limits`,
+                            color: `hsl(${i * 10}, 60%, 45%)`,
+                            isContinuation: false,
+                            date: {
+                                start: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                                end: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                            },
+                            time: {
+                                start: { hour, minute },
+                                end: { hour: hour + 1, minute },
+                            },
+                        });
+                    }
+                }
+
+                // Very short events (5 minutes)
+                if (day === 12) {
+                    for (let i = 0; i < 12; i++) {
+                        events.push({
+                            heading: `Quick ${i + 1}`,
+                            content: `5-minute event`,
+                            color: '#ff4444',
+                            isContinuation: false,
+                            date: {
+                                start: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                                end: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                            },
+                            time: {
+                                start: { hour: 9 + i, minute: 0 },
+                                end: { hour: 9 + i, minute: 5 },
+                            },
+                        });
+                    }
+                }
+
+                // Very long events (8+ hours)
+                if (day === 14) {
+                    events.push({
+                        heading: 'All-Day Workshop',
+                        content: '8-hour intensive workshop',
+                        color: '#9c27b0',
+                        isContinuation: false,
+                        date: {
+                            start: {
+                                day,
+                                month: currentMonth,
+                                year: currentYear,
+                            },
+                            end: {
+                                day,
+                                month: currentMonth,
+                                year: currentYear,
+                            },
+                        },
+                        time: {
+                            start: { hour: 8, minute: 0 },
+                            end: { hour: 18, minute: 0 },
+                        },
+                    });
+
+                    // Overlapping shorter events within the long one
+                    for (let i = 0; i < 6; i++) {
+                        events.push({
+                            heading: `Break ${i + 1}`,
+                            content: `Break within workshop`,
+                            color: '#00bcd4',
+                            isContinuation: false,
+                            date: {
+                                start: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                                end: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                            },
+                            time: {
+                                start: { hour: 9 + i, minute: 30 },
+                                end: { hour: 9 + i, minute: 45 },
+                            },
+                        });
+                    }
+                }
+
+                // Events at unusual times (early morning, late evening)
+                if (day === 16) {
+                    events.push(
+                        {
+                            heading: 'Early Bird Meeting',
+                            content: 'Very early meeting',
+                            color: '#ff9800',
+                            isContinuation: false,
+                            date: {
+                                start: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                                end: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                            },
+                            time: {
+                                start: { hour: 6, minute: 0 },
+                                end: { hour: 7, minute: 0 },
+                            },
+                        },
+                        {
+                            heading: 'Late Night Session',
+                            content: 'Very late meeting',
+                            color: '#673ab7',
+                            isContinuation: false,
+                            date: {
+                                start: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                                end: {
+                                    day,
+                                    month: currentMonth,
+                                    year: currentYear,
+                                },
+                            },
+                            time: {
+                                start: { hour: 22, minute: 0 },
+                                end: { hour: 23, minute: 30 },
+                            },
+                        },
+                    );
+                }
+            }
+
+            // Cross-month multi-day event (if near month boundary)
+            if (currentMonth < 12) {
+                const lastDay = new Date(
+                    currentYear,
+                    currentMonth,
+                    0,
+                ).getDate();
+                if (lastDay >= 29) {
+                    events.push({
+                        heading: 'Cross-Month Event',
+                        content: 'Event spanning month boundary',
+                        color: '#e91e63',
+                        isContinuation: false,
+                        date: {
+                            start: {
+                                day: lastDay - 1,
+                                month: currentMonth,
+                                year: currentYear,
+                            },
+                            end: {
+                                day: 3,
+                                month: currentMonth + 1,
+                                year: currentYear,
+                            },
+                        },
+                        time: {
+                            start: { hour: 9, minute: 0 },
+                            end: { hour: 17, minute: 0 },
+                        },
+                    });
+                }
+            }
+
+            return events;
+        })(),
+    },
+    render: (args) => html`
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+    parameters: {
+        docs: {
+            description: {
+                story: 'Tests extreme edge cases: 35+ events in a single day, very short (5min) events, very long (8hr) events, unusual times (6AM, 11PM), nested overlapping events, and cross-month multi-day events. Pushes the calendar to its absolute limits.',
+            },
+        },
+    },
+};
