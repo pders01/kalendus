@@ -8957,6 +8957,9 @@ let Month = class extends LitElement {
             ${z$1([day, isActiveMonth]).with(
       [1, true],
       () => html` ${day}. ${getLocalizedMonth(month)} `
+    ).with(
+      [1, false],
+      () => html` ${day}. ${getLocalizedMonth(month)} `
     ).otherwise(() => html` ${day} `)}
         </div>`;
   }

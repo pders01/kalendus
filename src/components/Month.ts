@@ -105,6 +105,10 @@ export default class Month extends LitElement {
                     [1, true],
                     () => html` ${day}. ${getLocalizedMonth(month)} `,
                 )
+                .with(
+                    [1, false],
+                    () => html` ${day}. ${getLocalizedMonth(month)} `,
+                )
                 .otherwise(() => html` ${day} `)}
         </div>`;
     }
