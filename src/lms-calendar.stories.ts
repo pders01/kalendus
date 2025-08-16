@@ -282,6 +282,38 @@ export const WithInteractions: Story = {
     },
 };
 
+export const SeptemberView: Story = {
+    args: {
+        heading: 'September Calendar',
+        activeDate: { day: 1, month: 9, year: 2024 },
+        entries: [
+            {
+                heading: 'Test Event',
+                content: 'September test event',
+                color: '#1976d2',
+                isContinuation: false,
+                date: {
+                    start: { day: 15, month: 9, year: 2024 },
+                    end: { day: 15, month: 9, year: 2024 },
+                },
+                time: {
+                    start: { hour: 9, minute: 0 },
+                    end: { hour: 10, minute: 0 },
+                },
+            },
+        ],
+    },
+    render: (args) => html`
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+};
+
 export const NavigateMonths: Story = {
     args: {
         activeDate: { day: 1, month: currentMonth, year: currentYear },

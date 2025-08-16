@@ -2,8 +2,8 @@ import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { P, match } from 'ts-pattern';
-import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator';
-import Translations from '../locales/Translations';
+import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator.js';
+import Translations from '../locales/Translations.js';
 
 @customElement('lms-calendar-month')
 export default class Month extends LitElement {
@@ -73,14 +73,16 @@ export default class Month extends LitElement {
 
     private _renderIndicator({ year, month, day }: CalendarDate) {
         const isCurrentDate = this._isCurrentDate(`${year}/${month}/${day}`);
+        const isActiveMonth =
+            month === this.activeDate.month && year === this.activeDate.year;
         return html` <div
             class="indicator ${classMap({
                 current: isCurrentDate,
             })}"
         >
-            ${match(day)
+            ${match([day, isActiveMonth])
                 .with(
-                    1,
+                    [1, true],
                     () => html`
                         ${day}. ${this.translations.getTranslation(month)}
                     `,
@@ -190,18 +192,22 @@ export default class Month extends LitElement {
 
         try {
             dateTransformer.direction = 'previous';
-            const previousMonth = this._getDatesInMonthAsArray(
-                dateTransformer.getDateByMonthInDirection(),
-                this._getOffsetOfFirstDayInMonth(this.activeDate)
-                    ? [this._getOffsetOfFirstDayInMonth(this.activeDate) * -1]
-                    : [0],
-            );
+            const offset = this._getOffsetOfFirstDayInMonth(this.activeDate);
+            const previousMonth =
+                offset > 0
+                    ? this._getDatesInMonthAsArray(
+                          dateTransformer.getDateByMonthInDirection(),
+                          [-offset],
+                      )
+                    : [];
 
             const activeMonth = this._getDatesInMonthAsArray(
                 this.activeDate,
                 [],
             );
 
+            // Reset the date transformer to the active date before getting next month
+            dateTransformer.date = this.activeDate;
             dateTransformer.direction = 'next';
             const remainingDays =
                 42 - (previousMonth.length + activeMonth.length);
