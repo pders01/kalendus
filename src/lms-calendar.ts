@@ -112,6 +112,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             --system-ui: system-ui, 'Segoe UI', Roboto, Helvetica, Arial,
                 sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
                 'Segoe UI Symbol';
+            --monospace-ui: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
+                Consolas, 'Courier New', monospace;
 
             --border-radius-sm: 5px;
             --border-radius-md: 7px;
@@ -123,15 +125,43 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             --height: 100%;
             --width: 100%;
 
-            --entry-font-size: small;
+            /* Entry design tokens - responsive and density-aware */
+            --entry-font-size: 0.7rem;
+            --entry-line-height: 1.1;
+            --entry-min-height: 1.1em;
             --entry-border-radius: var(--border-radius-sm);
             --entry-background-color: var(--background-color);
             --entry-color: var(--primary-color);
             --entry-highlight-color: var(--separator-light);
             --entry-focus-color: var(--primary-color);
-            --entry-padding: 0.25em;
-            --entry-font-family: monospace;
-            --entry-interval-margin: 0.5em;
+            --entry-padding: 0.1em 0.2em;
+            --entry-font-family: system-ui;
+            --entry-gap: 0.15em;
+
+            /* Month view dot indicator tokens */
+            --entry-dot-size: 0.5em;
+            --entry-dot-margin: 0.25em;
+            --entry-month-background: transparent;
+            --entry-month-padding: 0.1em 0.3em 0.1em 0;
+            --entry-time-font: var(--monospace-ui);
+            --entry-time-align: right;
+            --entry-month-text-color: var(--separator-dark);
+
+            /* Entry typography tokens */
+            --entry-title-weight: 500;
+            --entry-title-wrap: nowrap;
+            --entry-time-font-size: 0.85em;
+            --entry-time-opacity: 0.8;
+
+            /* Entry density mode tokens */
+            --entry-compact-show-time: none;
+            --entry-layout: row;
+            --entry-align: flex-start;
+
+            /* Responsive scaling for different viewport sizes */
+            --entry-font-size-sm: 0.65rem;
+            --entry-font-size-md: 0.7rem;
+            --entry-font-size-lg: 0.75rem;
 
             --context-height: 1.75em;
             --context-padding: 0.25em;
@@ -217,6 +247,35 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             font-family: var(--system-ui);
             color: var(--separator-dark);
             box-shadow: var(--shadow-md);
+        }
+
+        /* Responsive entry scaling based on viewport width */
+        @media (max-width: 480px) {
+            :host {
+                --entry-font-size: var(--entry-font-size-sm);
+                --entry-padding: 0.05em 0.15em;
+                --entry-gap: 0.1em;
+                --entry-line-height: 1;
+                --entry-min-height: 1em;
+                --entry-compact-show-time: none;
+            }
+        }
+
+        @media (min-width: 481px) and (max-width: 768px) {
+            :host {
+                --entry-font-size: var(--entry-font-size-md);
+                --entry-padding: 0.08em 0.18em;
+                --entry-gap: 0.12em;
+                --entry-line-height: 1.05;
+                --entry-compact-show-time: none;
+            }
+        }
+
+        @media (min-width: 769px) {
+            :host {
+                --entry-font-size: var(--entry-font-size-lg);
+                --entry-compact-show-time: inline;
+            }
         }
     `;
 
@@ -395,13 +454,20 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         styles,
         entry,
         isContinuation = false,
+        density,
+        displayMode = 'default',
     }: {
         index: number;
         slot: string;
         styles: CSSResult | typeof nothing;
         entry: Partial<CalendarEntry>;
         isContinuation?: boolean;
+        density?: 'compact' | 'standard' | 'full';
+        displayMode?: 'default' | 'month-dot';
     }) {
+        // Determine density based on event duration and context if not explicitly set
+        const determinedDensity = density || this._determineDensity(entry);
+
         return html`
             <style>
                 ${styles}
@@ -414,9 +480,66 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 .content=${entry.content}
                 .isContinuation=${isContinuation ?? false}
                 .date=${entry.date}
+                .density=${determinedDensity}
+                .displayMode=${displayMode}
             >
             </lms-calendar-entry>
         `;
+    }
+
+    private _getEntriesCountForDay(date: CalendarDate): number {
+        return this.entries.filter((entry) => {
+            // Check if entry overlaps with the given day
+            const entryStart = DateTime.fromObject(entry.date.start);
+            const entryEnd = DateTime.fromObject(entry.date.end);
+            const targetDay = DateTime.fromObject(date);
+
+            return targetDay >= entryStart && targetDay <= entryEnd;
+        }).length;
+    }
+
+    private _determineDensity(
+        entry: Partial<CalendarEntry>,
+        overlappingCount?: number,
+    ): 'compact' | 'standard' | 'full' {
+        if (!entry.time) return 'compact'; // Default to compact for month view
+
+        const durationMinutes =
+            (entry.time.end.hour - entry.time.start.hour) * 60 +
+            (entry.time.end.minute - entry.time.start.minute);
+
+        // Check viewport size for additional density considerations
+        const isSmallViewport = this._calendarWidth < 768;
+
+        // High-density scenario: many overlapping events -> force compact mode
+        if (overlappingCount && overlappingCount > 6) {
+            return 'compact';
+        }
+
+        // Medium-density scenario: some overlapping events -> prefer compact for short events
+        if (overlappingCount && overlappingCount > 3) {
+            return durationMinutes < 60 ? 'compact' : 'standard';
+        }
+
+        // Small viewport: prefer compact mode for better space utilization
+        if (isSmallViewport) {
+            return durationMinutes < 60 ? 'compact' : 'standard';
+        }
+
+        // Low-density scenario: consider event duration and content
+        if (durationMinutes < 30) {
+            return 'compact';
+        }
+
+        if (
+            durationMinutes > 120 &&
+            entry.content &&
+            (!overlappingCount || overlappingCount <= 2)
+        ) {
+            return 'full';
+        }
+
+        return 'standard';
     }
 
     /** Create an array of <lms-calendar-entry> elements for each day the entry spans
@@ -446,16 +569,51 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     is: index > 1,
                     index,
                 },
+                // Preserve original start date for consistent sorting
+                originalStartDate: entry.date?.start,
             };
 
             return currentEntry;
         });
     }
 
+    private _createConsistentEventId(
+        entry:
+            | CalendarEntry
+            | (Partial<CalendarEntry> & {
+                  continuation?: Continuation;
+                  originalStartDate?: CalendarDate;
+              }),
+    ): string {
+        // For expanded entries, try to find the original start date
+        const expandedEntry = entry as Partial<CalendarEntry> & {
+            continuation?: Continuation;
+            originalStartDate?: CalendarDate;
+        };
+        const baseDate = expandedEntry.originalStartDate || entry.date?.start;
+
+        if (!baseDate) {
+            return `${entry.heading || 'unknown'}-fallback`;
+        }
+
+        // Create a deterministic ID based on entry content and original start date
+        return `${entry.heading || 'unknown'}-${baseDate.year}-${
+            baseDate.month
+        }-${baseDate.day}-${entry.time?.start.hour || 0}-${
+            entry.time?.start.minute || 0
+        }`;
+    }
+
     private _renderEntries() {
         if (!this.entries.length) {
             return nothing;
         }
+
+        // First, create a mapping of original entries to their IDs for consistent sorting
+        const entryIdMap = new Map<string, number>();
+        this.entries.forEach((entry, index) => {
+            entryIdMap.set(this._createConsistentEventId(entry), index);
+        });
 
         return R.pipe(
             this.entries,
@@ -465,6 +623,20 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     range: this._getDaysRange(entry.date),
                 }),
             ),
+            // Sort: multi-day events first, then by original entry order for consistency
+            R.sortBy((entry) => {
+                const baseId = this._createConsistentEventId(
+                    entry as CalendarEntry,
+                );
+                const originalIndex = entryIdMap.get(baseId) || 0;
+                const expandedEntry = entry as CalendarEntry & {
+                    continuation?: Continuation;
+                };
+                const isMultiDay = expandedEntry.continuation?.has || false;
+
+                // Multi-day events get priority (lower sort value), then original order
+                return isMultiDay ? originalIndex - 1000 : originalIndex;
+            }),
             R.map(
                 (entry) =>
                     [entry, ...getColorTextWithContrast(entry.color)] as [
@@ -473,27 +645,21 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         string,
                     ],
             ),
-            R.map.indexed(([entry, background, text], index) =>
-                this._composeEntry({
-                    index,
+            R.map.indexed(([entry, background, _text], index) => {
+                const baseId = this._createConsistentEventId(
+                    entry as CalendarEntry,
+                );
+                const originalIndex = entryIdMap.get(baseId) || index;
+
+                return this._composeEntry({
+                    index: originalIndex, // Use original index for consistent CSS classes
                     slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
                     styles: css`
-                        lms-calendar-entry._${index} {
-                            --entry-border-radius: ${unsafeCSS(
-                                entry.continuation.has
-                                    ? 0
-                                    : 'var(--border-radius-sm)',
-                            )};
-                            --entry-margin: 0
-                                ${unsafeCSS(
-                                    entry.continuation.has ? 0 : '0.25em',
-                                )}
-                                0
-                                ${unsafeCSS(
-                                    entry.continuation.has ? 0 : '1.5em',
-                                )};
+                        lms-calendar-entry._${originalIndex} {
+                            --entry-color: ${unsafeCSS(background)};
                             --entry-background-color: ${unsafeCSS(background)};
-                            --entry-color: ${unsafeCSS(text)};
+                            /* Add z-index based on original order for consistent layering */
+                            z-index: ${100 + originalIndex};
                         }
                     `,
                     entry: {
@@ -503,8 +669,17 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         date: entry.date,
                         isContinuation: entry.continuation.is,
                     },
-                }),
-            ),
+                    density: this._determineDensity(
+                        {
+                            time: entry.time,
+                            heading: entry.heading,
+                            content: entry.content,
+                        },
+                        this._getEntriesCountForDay(entry.date.start),
+                    ),
+                    displayMode: 'month-dot',
+                });
+            }),
         );
     }
 
@@ -586,9 +761,16 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         string,
                     ],
             ),
-            R.map.indexed(([entry, background, text], index) =>
-                //TODO: match on shapes instead.
-                match(
+            R.map.indexed(([entry, background, text], index) => {
+                // Calculate overlapping count for this entry
+                const overlappingCount =
+                    grading.length > 0
+                        ? grading.filter(
+                              (g) => g.group === grading[index]?.group,
+                          ).length
+                        : 0;
+
+                return match(
                     entry.continuation.is ||
                         entry.continuation.has ||
                         entry.isAllDay,
@@ -606,6 +788,10 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                 }
                             `,
                             entry,
+                            density: this._determineDensity(
+                                entry,
+                                overlappingCount,
+                            ),
                         }),
                     )
                     .otherwise(() =>
@@ -636,9 +822,13 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                 }
                             `,
                             entry,
+                            density: this._determineDensity(
+                                entry,
+                                overlappingCount,
+                            ),
                         }),
-                    ),
-            ),
+                    );
+            }),
         );
     }
 
@@ -663,15 +853,14 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     slot: key.split('-').reverse().join('-'),
                     styles: css`
                         lms-calendar-entry._${index} {
-                            --entry-border-radius: var(--border-radius-sm);
-                            --entry-margin: 0 auto;
-                            --entry-background-color: whitesmoke;
-                            --entry-color: black;
+                            --entry-color: var(--separator-mid);
+                            text-align: center;
                         }
                     `,
                     entry: {
-                        heading: `[ ${value} ]`,
+                        heading: `${value} events`,
                     },
+                    displayMode: 'month-dot',
                 }),
             ),
         );
@@ -696,7 +885,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             };
         });
 
-        return R.pipe(
+        const entriesInWeek = R.pipe(
             this.entries,
             R.flatMap((entry) =>
                 this._expandEntryMaybe({
@@ -712,6 +901,17 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         entryDateStr,
                 );
             }),
+        );
+
+        // Group entries by day for overlap calculation
+        const entriesByDay = R.groupBy(
+            entriesInWeek,
+            (entry) =>
+                `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
+        );
+
+        return R.pipe(
+            entriesInWeek,
             R.map(
                 (entry) =>
                     [entry, ...getColorTextWithContrast(entry.color)] as [
@@ -728,6 +928,25 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     entry.continuation.is ||
                     entry.continuation.has;
 
+                // Calculate overlapping count for this day
+                const dayKey = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
+                const dayEntries = entriesByDay[dayKey] || [];
+                const overlappingCount = dayEntries.filter((otherEntry) => {
+                    if (otherEntry === entry || !entry.time || !otherEntry.time)
+                        return false;
+                    const start1 =
+                        entry.time.start.hour * 60 + entry.time.start.minute;
+                    const end1 =
+                        entry.time.end.hour * 60 + entry.time.end.minute;
+                    const start2 =
+                        otherEntry.time.start.hour * 60 +
+                        otherEntry.time.start.minute;
+                    const end2 =
+                        otherEntry.time.end.hour * 60 +
+                        otherEntry.time.end.minute;
+                    return start1 < end2 && start2 < end1;
+                }).length;
+
                 if (isAllDay) {
                     return this._composeEntry({
                         index,
@@ -741,6 +960,10 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                             }
                         `,
                         entry,
+                        density: this._determineDensity(
+                            entry,
+                            overlappingCount,
+                        ),
                     });
                 } else {
                     return this._composeEntry({
@@ -758,6 +981,10 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                             }
                         `,
                         entry,
+                        density: this._determineDensity(
+                            entry,
+                            overlappingCount,
+                        ),
                     });
                 }
             }),

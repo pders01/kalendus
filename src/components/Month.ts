@@ -47,7 +47,16 @@ export default class Month extends LitElement {
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
+            overflow-y: auto;
             gap: var(--month-day-gap, 1px);
+            min-width: 0;
+        }
+
+        /* Ensure consistent multi-day event layering */
+        ::slotted(lms-calendar-entry) {
+            position: relative;
+            margin-left: 1em;
+            width: calc(100% - 1em);
         }
 
         .indicator.current {
@@ -57,11 +66,19 @@ export default class Month extends LitElement {
 
         .indicator {
             position: sticky;
-            top: var(--indicator-top, 0.25em);
-            text-align: right;
-            padding: 0 var(--indicator-padding, 0.25em);
-            margin-bottom: var(--indicator-margin-bottom, 0.25em);
-            text-align: left;
+            top: 0.25em;
+            left: 0.25em;
+            z-index: 500;
+            background: transparent;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            text-align: center;
+            width: 2em;
+            height: 2em;
+            line-height: 2em;
+            margin: 0.25em;
+            border-radius: 50%;
+            align-self: flex-start;
         }
     `;
 

@@ -7436,7 +7436,7 @@ function friendlyDateTime(dateTimeish) {
     );
   }
 }
-var __spreadArray = function(to, from, pack) {
+var __spreadArray$1 = function(to, from, pack) {
   if (pack || arguments.length === 2) for (var i2 = 0, l2 = from.length, ar; i2 < l2; i2++) {
     if (ar || !(i2 in from)) {
       if (!ar) ar = Array.prototype.slice.call(from, 0, i2);
@@ -7447,7 +7447,7 @@ var __spreadArray = function(to, from, pack) {
 };
 function lazyDataLastImpl(fn, args, lazyFactory) {
   var ret = function(data) {
-    return fn.apply(void 0, __spreadArray([data], Array.from(args), false));
+    return fn.apply(void 0, __spreadArray$1([data], Array.from(args), false));
   };
   var lazy = lazyFactory !== null && lazyFactory !== void 0 ? lazyFactory : fn.lazy;
   return lazy === void 0 ? ret : Object.assign(ret, { lazy, lazyArgs: args });
@@ -7585,6 +7585,69 @@ function _reduceLazy(array, lazy, isIndexed) {
   }
   return out;
 }
+var __spreadArray = function(to, from, pack) {
+  if (pack || arguments.length === 2) for (var i2 = 0, l2 = from.length, ar; i2 < l2; i2++) {
+    if (ar || !(i2 in from)) {
+      if (!ar) ar = Array.prototype.slice.call(from, 0, i2);
+      ar[i2] = from[i2];
+    }
+  }
+  return to.concat(ar || Array.prototype.slice.call(from));
+};
+var COMPARATORS = {
+  asc: function(x2, y2) {
+    return x2 > y2;
+  },
+  desc: function(x2, y2) {
+    return x2 < y2;
+  }
+};
+function purryOrderRules(func, inputArgs) {
+  var _a = Array.isArray(inputArgs) ? inputArgs : Array.from(inputArgs), dataOrRule = _a[0], rules = _a.slice(1);
+  if (!isOrderRule(dataOrRule)) {
+    var compareFn_1 = orderRuleComparer.apply(void 0, rules);
+    return func(dataOrRule, compareFn_1);
+  }
+  var compareFn = orderRuleComparer.apply(void 0, __spreadArray([dataOrRule], rules, false));
+  return function(data) {
+    return func(data, compareFn);
+  };
+}
+function orderRuleComparer(primaryRule, secondaryRule) {
+  var otherRules = [];
+  for (var _i = 2; _i < arguments.length; _i++) {
+    otherRules[_i - 2] = arguments[_i];
+  }
+  var projector = typeof primaryRule === "function" ? primaryRule : primaryRule[0];
+  var direction = typeof primaryRule === "function" ? "asc" : primaryRule[1];
+  var _a = COMPARATORS, _b = direction, comparator = _a[_b];
+  var nextComparer = secondaryRule === void 0 ? void 0 : orderRuleComparer.apply(void 0, __spreadArray([secondaryRule], otherRules, false));
+  return function(a2, b2) {
+    var _a2;
+    var projectedA = projector(a2);
+    var projectedB = projector(b2);
+    if (comparator(projectedA, projectedB)) {
+      return 1;
+    }
+    if (comparator(projectedB, projectedA)) {
+      return -1;
+    }
+    return (_a2 = nextComparer === null || nextComparer === void 0 ? void 0 : nextComparer(a2, b2)) !== null && _a2 !== void 0 ? _a2 : 0;
+  };
+}
+function isOrderRule(x2) {
+  if (isProjection(x2)) {
+    return true;
+  }
+  if (typeof x2 !== "object" || !Array.isArray(x2)) {
+    return false;
+  }
+  var _a = x2, maybeProjection = _a[0], maybeDirection = _a[1], rest = _a.slice(2);
+  return isProjection(maybeProjection) && typeof maybeDirection === "string" && maybeDirection in COMPARATORS && rest.length === 0;
+}
+var isProjection = function(x2) {
+  return typeof x2 === "function" && x2.length === 1;
+};
 var _toLazyIndexed = function(fn) {
   return Object.assign(fn, { indexed: true });
 };
@@ -7640,6 +7703,35 @@ function _flatMap(array, fn) {
     };
   };
 })(flatMap || (flatMap = {}));
+function groupBy() {
+  return purry(_groupBy(false), arguments);
+}
+var _groupBy = function(indexed) {
+  return function(array, fn) {
+    var ret = {};
+    for (var index = 0; index < array.length; index++) {
+      var item = array[index];
+      var key = indexed ? fn(item, index, array) : fn(item);
+      if (key !== void 0) {
+        var actualKey = String(key);
+        var items = ret[actualKey];
+        if (items === void 0) {
+          items = [];
+          ret[actualKey] = items;
+        }
+        items.push(item);
+      }
+    }
+    return ret;
+  };
+};
+(function(groupBy2) {
+  function indexed() {
+    return purry(_groupBy(true), arguments);
+  }
+  groupBy2.indexed = indexed;
+  groupBy2.strict = groupBy2;
+})(groupBy || (groupBy = {}));
 function isDeepEqual() {
   return purry(isDeepEqualImplementation, arguments);
 }
@@ -7828,6 +7920,15 @@ function _sort(items, cmp) {
 (function(sort2) {
   sort2.strict = sort2;
 })(sort || (sort = {}));
+function sortBy() {
+  return purryOrderRules(_sortBy, arguments);
+}
+var _sortBy = function(data, compareFn) {
+  return data.slice().sort(compareFn);
+};
+(function(sortBy2) {
+  sortBy2.strict = sortBy2;
+})(sortBy || (sortBy = {}));
 const t$1 = Symbol.for("@ts-pattern/matcher"), e$1 = Symbol.for("@ts-pattern/isVariadic"), n$1 = "@ts-pattern/anonymous-select-key", r$1 = (t3) => Boolean(t3 && "object" == typeof t3), i$1 = (e2) => e2 && !!e2[t$1], o$1 = (n2, s2, c2) => {
   if (i$1(n2)) {
     const e2 = n2[t$1](), { matched: r2, selections: i2 } = e2.match(s2);
@@ -8015,10 +8116,7 @@ const __variableDynamicImportRuntimeHelper = (glob, path, segs) => {
   });
 };
 const sourceLocale = `en`;
-const targetLocales = [
-  `de`,
-  `de-DE`
-];
+const targetLocales = [`de`, `de-DE`];
 const { getLocale, setLocale } = configureLocalization({
   sourceLocale,
   targetLocales,
@@ -8276,6 +8374,7 @@ let Entry = class extends LitElement {
     super();
     this.heading = "";
     this.isContinuation = false;
+    this.density = "standard";
     this._sumReducer = (accumulator, currentValue) => accumulator + currentValue;
     this.addEventListener("click", this._handleInteraction);
     this.addEventListener("keydown", this._handleInteraction);
@@ -8283,24 +8382,40 @@ let Entry = class extends LitElement {
   _renderTitle() {
     return z$1(this.content).with(N$1.nullish, () => this.heading).otherwise(() => `${this.heading}: ${this.content}`);
   }
-  _renderInterval() {
-    return this.isContinuation ? html`<span>${messages.allDay()}</span>` : html`<span class="interval"
-                  >${this._displayInterval(this.time)}</span
-              >`;
+  _renderTime() {
+    if (this.density === "compact") {
+      return nothing;
+    }
+    if (this.isContinuation) {
+      return html`<span class="time">${messages.allDay()}</span>`;
+    }
+    const timeString = this._displayInterval(this.time);
+    return timeString ? html`<span class="time">${timeString}</span>` : nothing;
+  }
+  _renderContent() {
+    if (this.density === "full" && this.content) {
+      return html`<span class="content">${this.content}</span>`;
+    }
+    return nothing;
+  }
+  _shouldShowTime() {
+    if (this.density === "compact") return false;
+    if (this.isContinuation) return true;
+    return this.density === "standard" || this.density === "full";
   }
   render() {
+    const mainClass = `main ${this.density}`;
     return html`
             <div
-                class="main"
+                class=${mainClass}
                 tabindex="1"
                 title=${this._renderTitle()}
                 data-full-content=${this.content || ""}
                 ?data-extended=${this._extended}
             >
-                <span>
-                    <span>${this.heading}</span>
-                </span>
-                ${this._renderInterval()}
+                <span class="title">${this.heading}</span>
+                ${this._shouldShowTime() ? this._renderTime() : nothing}
+                ${this._renderContent()}
             </div>
         `;
   }
@@ -8367,7 +8482,10 @@ let Entry = class extends LitElement {
 };
 Entry.styles = css`
         :host {
-            font-size: var(--entry-font-size, small);
+            /* Responsive font sizing based on component scale */
+            font-size: var(--entry-font-size, 0.75rem);
+            line-height: var(--entry-line-height, 1.2);
+            
             grid-column: 2;
             display: block;
             cursor: pointer;
@@ -8385,7 +8503,9 @@ Entry.styles = css`
             z-index: 1;
             box-sizing: border-box;
             padding-bottom: 1px;
-            min-height: 1.5em; /* Ensure minimum height for short events */
+            min-height: var(--entry-min-height, 1.2em);
+            overflow: hidden;
+            position: relative;
         }
 
         :host(:last-child) {
@@ -8409,46 +8529,88 @@ Entry.styles = css`
         }
 
         .main {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: var(--entry-padding, 0.25em);
+            padding: var(--entry-padding, 0.15em 0.25em);
             border-radius: var(--entry-border-radius, var(--border-radius-sm));
             background-color: inherit;
             text-align: left;
             height: 100%;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: var(--entry-layout, row);
+            align-items: var(--entry-align, flex-start);
+            gap: var(--entry-gap, 0.25em);
+            overflow: hidden;
         }
 
-        .main > span:first-child {
-            white-space: nowrap;
+        /* Compact mode: single line with title only */
+        .main.compact {
+            flex-direction: row;
+            align-items: center;
+            gap: 0;
+        }
+
+        /* Standard mode: title + time in various layouts */
+        .main.standard {
+            flex-direction: var(--entry-layout, row);
+            align-items: flex-start;
+            gap: 0.25em;
+        }
+
+        /* Full mode: multi-line with all content */
+        .main.full {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.1em;
+        }
+
+        .title {
+            flex: 1;
+            min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
-            flex-grow: 1;
-            min-width: 0; /* Required for text-overflow to work in a flex container */
-            position: relative;
+            white-space: var(--entry-title-wrap, nowrap);
+            font-weight: var(--entry-title-weight, 500);
         }
 
-        .main > span:first-child::after {
-            content: attr(data-full-content);
-            white-space: normal;
-            position: absolute;
-            left: 0;
-            top: 100%;
-            width: 100%;
-            background-color: inherit;
-            display: none;
-        }
-
-        :host([data-extended]) .main > span:first-child::after {
-            display: block;
-        }
-
-        .interval {
-            font-family: var(--entry-font-family, monospace);
+        .time {
+            font-family: var(--entry-font-family, system-ui);
+            font-size: var(--entry-time-font-size, 0.85em);
+            opacity: var(--entry-time-opacity, 0.8);
             white-space: nowrap;
-            margin-left: var(--entry-interval-margin, 0.5em);
-            flex-shrink: 0; /* Prevent time from being compressed */
+            flex-shrink: 0;
+        }
+
+        .content {
+            font-size: 0.9em;
+            opacity: 0.9;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Responsive behavior based on available height */
+        :host([data-height="compact"]) .main {
+            flex-direction: row;
+            align-items: center;
+        }
+
+        :host([data-height="compact"]) .time {
+            display: var(--entry-compact-show-time, none);
+        }
+
+        :host([data-height="standard"]) .main {
+            flex-direction: row;
+            align-items: flex-start;
+        }
+
+        :host([data-height="full"]) .main {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        :host([data-height="full"]) .title {
+            white-space: normal;
+            word-wrap: break-word;
         }
     `;
 __decorateClass$5([
@@ -8466,6 +8628,9 @@ __decorateClass$5([
 __decorateClass$5([
   property({ type: Object })
 ], Entry.prototype, "date", 2);
+__decorateClass$5([
+  property({ type: String, reflect: true, attribute: "data-density" })
+], Entry.prototype, "density", 2);
 __decorateClass$5([
   state()
 ], Entry.prototype, "_highlighted", 2);
@@ -8608,11 +8773,16 @@ let Header = class extends e$2(LitElement) {
                     <span class="year">${activeDate.get().year}</span>
                 </div>
                 <div ?hidden=${currentViewMode.get() !== "week"}>
-                    <span class="week">${messages.calendarWeek()} ${this._getWeekInfo(activeDate.get()).weekNumber}</span>
+                    <span class="week"
+                        >${messages.calendarWeek()}
+                        ${this._getWeekInfo(activeDate.get()).weekNumber}</span
+                    >
                     <span class="month"
                         >${getLocalizedMonth(activeDate.get().month)}</span
                     >
-                    <span class="year">${this._getWeekInfo(activeDate.get()).weekYear}</span>
+                    <span class="year"
+                        >${this._getWeekInfo(activeDate.get()).weekYear}</span
+                    >
                 </div>
                 <div ?hidden=${currentViewMode.get() !== "month"}>
                     <span class="month"
@@ -9576,7 +9746,7 @@ Menu.styles = css`
             top: 20%;
             left: 50%;
             transform: translate(-50%, 0);
-            z-index: 1000;
+            z-index: 10000;
             background: var(--background-color);
             box-shadow: var(--shadow-md);
             border: 1px solid var(--separator-light);
@@ -9933,7 +10103,13 @@ Month.styles = css`
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
+            overflow-y: auto;
             gap: var(--month-day-gap, 1px);
+        }
+
+        /* Ensure consistent multi-day event layering */
+        ::slotted(lms-calendar-entry) {
+            position: relative;
         }
 
         .indicator.current {
@@ -9943,11 +10119,15 @@ Month.styles = css`
 
         .indicator {
             position: sticky;
-            top: var(--indicator-top, 0.25em);
-            text-align: right;
-            padding: 0 var(--indicator-padding, 0.25em);
-            margin-bottom: var(--indicator-margin-bottom, 0.25em);
+            top: 0;
+            z-index: 200;
+            background: var(--background-color, white);
             text-align: left;
+            padding: var(--indicator-padding, 0.25em);
+            margin-bottom: var(--indicator-margin-bottom, 0.25em);
+            border-bottom: 1px solid transparent;
+            /* Add subtle shadow to separate from entries */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
     `;
 __decorateClass$2([
@@ -10558,8 +10738,10 @@ let LMSCalendar = class extends e$2(LitElement) {
     slot,
     styles,
     entry,
-    isContinuation = false
+    isContinuation = false,
+    density
   }) {
+    const determinedDensity = density || this._determineDensity(entry);
     return html`
             <style>
                 ${styles}
@@ -10572,9 +10754,39 @@ let LMSCalendar = class extends e$2(LitElement) {
                 .content=${entry.content}
                 .isContinuation=${isContinuation ?? false}
                 .date=${entry.date}
+                .density=${determinedDensity}
             >
             </lms-calendar-entry>
         `;
+  }
+  _getEntriesCountForDay(date) {
+    return this.entries.filter((entry) => {
+      const entryStart = DateTime.fromObject(entry.date.start);
+      const entryEnd = DateTime.fromObject(entry.date.end);
+      const targetDay = DateTime.fromObject(date);
+      return targetDay >= entryStart && targetDay <= entryEnd;
+    }).length;
+  }
+  _determineDensity(entry, overlappingCount) {
+    if (!entry.time) return "compact";
+    const durationMinutes = (entry.time.end.hour - entry.time.start.hour) * 60 + (entry.time.end.minute - entry.time.start.minute);
+    const isSmallViewport = this._calendarWidth < 768;
+    if (overlappingCount && overlappingCount > 6) {
+      return "compact";
+    }
+    if (overlappingCount && overlappingCount > 3) {
+      return durationMinutes < 60 ? "compact" : "standard";
+    }
+    if (isSmallViewport) {
+      return durationMinutes < 60 ? "compact" : "standard";
+    }
+    if (durationMinutes < 30) {
+      return "compact";
+    }
+    if (durationMinutes > 120 && entry.content && (!overlappingCount || overlappingCount <= 2)) {
+      return "full";
+    }
+    return "standard";
   }
   /** Create an array of <lms-calendar-entry> elements for each day the entry spans
    *  and add them to the entries array. */
@@ -10583,6 +10795,7 @@ let LMSCalendar = class extends e$2(LitElement) {
     range
   }) {
     return Array.from({ length: range[2] }, (_2, index) => {
+      var _a;
       const currentStartDate = DateTime.fromJSDate(range[0]).plus({
         days: index
       });
@@ -10597,15 +10810,30 @@ let LMSCalendar = class extends e$2(LitElement) {
           has: range[2] > 1,
           is: index > 1,
           index
-        }
+        },
+        // Preserve original start date for consistent sorting
+        originalStartDate: (_a = entry.date) == null ? void 0 : _a.start
       };
       return currentEntry;
     });
+  }
+  _createConsistentEventId(entry) {
+    var _a, _b, _c;
+    const expandedEntry = entry;
+    const baseDate = expandedEntry.originalStartDate || ((_a = entry.date) == null ? void 0 : _a.start);
+    if (!baseDate) {
+      return `${entry.heading || "unknown"}-fallback`;
+    }
+    return `${entry.heading || "unknown"}-${baseDate.year}-${baseDate.month}-${baseDate.day}-${((_b = entry.time) == null ? void 0 : _b.start.hour) || 0}-${((_c = entry.time) == null ? void 0 : _c.start.minute) || 0}`;
   }
   _renderEntries() {
     if (!this.entries.length) {
       return nothing;
     }
+    const entryIdMap = /* @__PURE__ */ new Map();
+    this.entries.forEach((entry, index) => {
+      entryIdMap.set(this._createConsistentEventId(entry), index);
+    });
     return pipe(
       this.entries,
       flatMap(
@@ -10614,15 +10842,27 @@ let LMSCalendar = class extends e$2(LitElement) {
           range: this._getDaysRange(entry.date)
         })
       ),
+      // Sort: multi-day events first, then by original entry order for consistency
+      sortBy((entry) => {
+        var _a;
+        const baseId = this._createConsistentEventId(entry);
+        const originalIndex = entryIdMap.get(baseId) || 0;
+        const expandedEntry = entry;
+        const isMultiDay = ((_a = expandedEntry.continuation) == null ? void 0 : _a.has) || false;
+        return isMultiDay ? originalIndex - 1e3 : originalIndex;
+      }),
       map(
         (entry) => [entry, ...getColorTextWithContrast(entry.color)]
       ),
-      map.indexed(
-        ([entry, background, text], index) => this._composeEntry({
-          index,
+      map.indexed(([entry, background, text], index) => {
+        const baseId = this._createConsistentEventId(entry);
+        const originalIndex = entryIdMap.get(baseId) || index;
+        return this._composeEntry({
+          index: originalIndex,
+          // Use original index for consistent CSS classes
           slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
           styles: css`
-                        lms-calendar-entry._${index} {
+                        lms-calendar-entry._${originalIndex} {
                             --entry-border-radius: ${unsafeCSS(
             entry.continuation.has ? 0 : "var(--border-radius-sm)"
           )};
@@ -10636,6 +10876,8 @@ let LMSCalendar = class extends e$2(LitElement) {
           )};
                             --entry-background-color: ${unsafeCSS(background)};
                             --entry-color: ${unsafeCSS(text)};
+                            /* Add z-index based on original order for consistent layering */
+                            z-index: ${100 + originalIndex};
                         }
                     `,
           entry: {
@@ -10644,9 +10886,14 @@ let LMSCalendar = class extends e$2(LitElement) {
             content: entry.content,
             date: entry.date,
             isContinuation: entry.continuation.is
-          }
-        })
-      )
+          },
+          density: this._determineDensity({
+            time: entry.time,
+            heading: entry.heading,
+            content: entry.content
+          }, this._getEntriesCountForDay(entry.date.start))
+        });
+      })
     );
   }
   _renderEntriesByDate() {
@@ -10710,58 +10957,61 @@ let LMSCalendar = class extends e$2(LitElement) {
       map(
         (entry) => [entry, ...getColorTextWithContrast(entry.color)]
       ),
-      map.indexed(
-        ([entry, background, text], index) => (
-          //TODO: match on shapes instead.
-          z$1(
-            entry.continuation.is || entry.continuation.has || entry.isAllDay
-          ).with(
-            true,
-            () => this._composeEntry({
-              index,
-              slot: "all-day",
-              styles: css`
+      map.indexed(([entry, background, text], index) => {
+        const overlappingCount = grading.length > 0 ? grading.filter((g) => {
+          var _a;
+          return g.group === ((_a = grading[index]) == null ? void 0 : _a.group);
+        }).length : 0;
+        return z$1(
+          entry.continuation.is || entry.continuation.has || entry.isAllDay
+        ).with(
+          true,
+          () => this._composeEntry({
+            index,
+            slot: "all-day",
+            styles: css`
                                 lms-calendar-entry._${index} {
                                     --entry-background-color: ${unsafeCSS(
-                background
-              )};
+              background
+            )};
                                     --entry-color: ${unsafeCSS(text)};
                                 }
                             `,
-              entry
-            })
-          ).otherwise(
-            () => this._composeEntry({
-              index,
-              slot: entry.time.start.hour.toString(),
-              styles: css`
+            entry,
+            density: this._determineDensity(entry, overlappingCount)
+          })
+        ).otherwise(
+          () => this._composeEntry({
+            index,
+            slot: entry.time.start.hour.toString(),
+            styles: css`
                                 lms-calendar-entry._${index} {
                                     --start-slot: ${unsafeCSS(
-                this._getGridSlotByTime(entry.time)
-              )};
+              this._getGridSlotByTime(entry.time)
+            )};
                                     --entry-width: ${this._getWidthByGroupSize({
-                grading,
-                index
-              })}%;
+              grading,
+              index
+            })}%;
                                     --entry-margin: 0 1.5em 0
                                         ${this._getOffsetByDepth({
-                grading,
-                index
-              })}%;
+              grading,
+              index
+            })}%;
                                     --entry-border-radius: var(
                                         --border-radius-sm
                                     );
                                     --entry-background-color: ${unsafeCSS(
-                background
-              )};
+              background
+            )};
                                     --entry-color: ${unsafeCSS(text)};
                                 }
                             `,
-              entry
-            })
-          )
-        )
-      )
+            entry,
+            density: this._determineDensity(entry, overlappingCount)
+          })
+        );
+      })
     );
   }
   _renderEntriesSumByDay() {
@@ -10814,7 +11064,7 @@ let LMSCalendar = class extends e$2(LitElement) {
         year: date.getFullYear()
       };
     });
-    return pipe(
+    const entriesInWeek = pipe(
       this.entries,
       flatMap(
         (entry) => this._expandEntryMaybe({
@@ -10827,13 +11077,27 @@ let LMSCalendar = class extends e$2(LitElement) {
         return weekDates.some(
           (date) => `${date.year}-${date.month}-${date.day}` === entryDateStr
         );
-      }),
+      })
+    );
+    const entriesByDay = groupBy(entriesInWeek, (entry) => `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`);
+    return pipe(
+      entriesInWeek,
       map(
         (entry) => [entry, ...getColorTextWithContrast(entry.color)]
       ),
       map.indexed(([entry, background, text], index) => {
         var _a, _b;
         const isAllDay = Number((_a = entry.time) == null ? void 0 : _a.end.hour) - Number((_b = entry.time) == null ? void 0 : _b.start.hour) >= 23 || entry.continuation.is || entry.continuation.has;
+        const dayKey = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
+        const dayEntries = entriesByDay[dayKey] || [];
+        const overlappingCount = dayEntries.filter((otherEntry) => {
+          if (otherEntry === entry || !entry.time || !otherEntry.time) return false;
+          const start1 = entry.time.start.hour * 60 + entry.time.start.minute;
+          const end1 = entry.time.end.hour * 60 + entry.time.end.minute;
+          const start2 = otherEntry.time.start.hour * 60 + otherEntry.time.start.minute;
+          const end2 = otherEntry.time.end.hour * 60 + otherEntry.time.end.minute;
+          return start1 < end2 && start2 < end1;
+        }).length;
         if (isAllDay) {
           return this._composeEntry({
             index,
@@ -10846,7 +11110,8 @@ let LMSCalendar = class extends e$2(LitElement) {
                                 --entry-color: ${unsafeCSS(text)};
                             }
                         `,
-            entry
+            entry,
+            density: this._determineDensity(entry, overlappingCount)
           });
         } else {
           return this._composeEntry({
@@ -10863,7 +11128,8 @@ let LMSCalendar = class extends e$2(LitElement) {
                                 --entry-color: ${unsafeCSS(text)};
                             }
                         `,
-            entry
+            entry,
+            density: this._determineDensity(entry, overlappingCount)
           });
         }
       })
@@ -10942,15 +11208,34 @@ LMSCalendar.styles = css`
             --height: 100%;
             --width: 100%;
 
-            --entry-font-size: small;
+            /* Entry design tokens - responsive and density-aware */
+            --entry-font-size: 0.7rem;
+            --entry-line-height: 1.1;
+            --entry-min-height: 1.1em;
             --entry-border-radius: var(--border-radius-sm);
             --entry-background-color: var(--background-color);
             --entry-color: var(--primary-color);
             --entry-highlight-color: var(--separator-light);
             --entry-focus-color: var(--primary-color);
-            --entry-padding: 0.25em;
-            --entry-font-family: monospace;
-            --entry-interval-margin: 0.5em;
+            --entry-padding: 0.1em 0.2em;
+            --entry-font-family: system-ui;
+            --entry-gap: 0.15em;
+            
+            /* Entry typography tokens */
+            --entry-title-weight: 500;
+            --entry-title-wrap: nowrap;
+            --entry-time-font-size: 0.85em;
+            --entry-time-opacity: 0.8;
+            
+            /* Entry density mode tokens */
+            --entry-compact-show-time: none;
+            --entry-layout: row;
+            --entry-align: flex-start;
+            
+            /* Responsive scaling for different viewport sizes */
+            --entry-font-size-sm: 0.65rem;
+            --entry-font-size-md: 0.7rem;
+            --entry-font-size-lg: 0.75rem;
 
             --context-height: 1.75em;
             --context-padding: 0.25em;
@@ -11036,6 +11321,35 @@ LMSCalendar.styles = css`
             font-family: var(--system-ui);
             color: var(--separator-dark);
             box-shadow: var(--shadow-md);
+        }
+
+        /* Responsive entry scaling based on viewport width */
+        @media (max-width: 480px) {
+            :host {
+                --entry-font-size: var(--entry-font-size-sm);
+                --entry-padding: 0.05em 0.15em;
+                --entry-gap: 0.1em;
+                --entry-line-height: 1.0;
+                --entry-min-height: 1.0em;
+                --entry-compact-show-time: none;
+            }
+        }
+
+        @media (min-width: 481px) and (max-width: 768px) {
+            :host {
+                --entry-font-size: var(--entry-font-size-md);
+                --entry-padding: 0.08em 0.18em;
+                --entry-gap: 0.12em;
+                --entry-line-height: 1.05;
+                --entry-compact-show-time: none;
+            }
+        }
+
+        @media (min-width: 769px) {
+            :host {
+                --entry-font-size: var(--entry-font-size-lg);
+                --entry-compact-show-time: inline;
+            }
         }
     `;
 __decorateClass([
