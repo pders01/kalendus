@@ -229,7 +229,7 @@ describe('Menu Component', () => {
 
         const title = header?.querySelector('.title');
         expect(title).to.exist;
-        expect(title?.textContent?.trim()).to.equal('Menu');
+        expect(title?.textContent?.trim()).to.equal('Event Details');
 
         // Check buttons
         const buttons = header?.querySelectorAll('button');
@@ -279,7 +279,8 @@ describe('Menu Component', () => {
 
         // Should still render the structure even with empty details
         expect(content?.textContent).to.include('Title:');
-        expect(content?.textContent).to.include('Content:');
         expect(content?.textContent).to.include('Time:');
+        // Content/Notes should not appear when empty
+        expect(content?.textContent).to.not.include('Notes:');
     });
 });

@@ -1,5 +1,5 @@
 import { Draggable } from '@neodrag/vanilla';
-import { css, html, LitElement } from 'lit';
+import { css, html, LitElement, PropertyValueMap } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
 import type { CalendarDate } from '../lms-calendar';
@@ -29,48 +29,100 @@ export class Menu extends LitElement {
             left: 50%;
             transform: translate(-50%, 0);
             z-index: 1000;
-            background: var(--menu-bg, #fff);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            min-width: 320px;
+            background: var(--background-color);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--separator-light);
+            border-radius: var(--border-radius-sm);
+            min-width: var(--menu-min-width);
+            max-width: var(--menu-max-width);
+            font-family: var(--system-ui);
             transition: opacity 0.2s, visibility 0.2s;
             opacity: 1;
             visibility: visible;
         }
         :host([hidden]) {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
+            display: none !important;
         }
         .header {
             display: flex;
             align-items: center;
-            gap: 8px;
-            background: var(--menu-header-bg, #f0f0f0);
+            gap: var(--menu-detail-gap);
+            background: var(--background-color);
             cursor: grab;
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
-            padding: 0.5rem 1rem;
+            padding: var(--menu-header-padding);
+            border-bottom: 1px solid var(--separator-light);
+            border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
             user-select: none;
         }
         .header .title {
             flex: 1;
-            font-weight: bold;
+            font-size: var(--menu-title-font-size);
+            font-weight: var(--menu-title-font-weight);
+            color: var(--separator-dark);
         }
         .header button {
             background: none;
-            border: none;
+            border: 1px solid transparent;
+            border-radius: var(--button-border-radius);
             cursor: pointer;
-            font-size: 1.2em;
+            font-size: var(--menu-title-font-size);
             line-height: 1;
-            padding: 0 0.25em;
+            padding: var(--menu-button-padding);
+            width: var(--menu-button-size);
+            height: var(--menu-button-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--header-text-color);
+            transition: background-color 0.15s, color 0.15s;
+        }
+        .header button:hover {
+            background-color: var(--separator-light);
+            color: var(--separator-dark);
         }
         .content {
-            padding: 1rem;
+            padding: var(--menu-content-padding);
             display: block;
+            font-size: var(--menu-content-font-size);
         }
         .content[hidden] {
             display: none;
+        }
+        .menu-item {
+            padding: var(--menu-item-padding);
+            margin-bottom: var(--menu-item-margin-bottom);
+            background: var(--separator-light);
+            border-radius: var(--border-radius-sm);
+            cursor: pointer;
+            font-weight: var(--menu-item-font-weight);
+            text-align: center;
+            transition: background-color 0.15s, color 0.15s;
+            border: 1px solid transparent;
+        }
+        .menu-item:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+        .event-details {
+            display: flex;
+            flex-direction: column;
+            gap: var(--menu-detail-gap);
+        }
+        .event-detail {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--menu-detail-gap);
+        }
+        .event-detail strong {
+            min-width: var(--menu-detail-label-min-width);
+            font-weight: var(--menu-item-font-weight);
+            color: var(--header-text-color);
+            font-size: var(--menu-detail-label-font-size);
+        }
+        .event-detail span {
+            flex: 1;
+            color: var(--separator-dark);
+            word-break: break-word;
         }
     `;
 
@@ -175,15 +227,22 @@ export class Menu extends LitElement {
         }, 0);
     };
 
+    override willUpdate(changedProperties: PropertyValueMap<this>) {
+        super.willUpdate(changedProperties);
+        if (changedProperties.has('open')) {
+            this.hidden = !this.open;
+        }
+    }
+
     override render() {
         return html`
-            <div ?hidden=${!this.open}>
+            <div>
                 <div class="header" title="Drag to move menu">
-                    <span class="title">Menu</span>
+                    <span class="title">Event Details</span>
                     <button @click=${this._handleMinimize} title="Minimize">
-                        ${this.minimized ? '🗖' : '🗕'}
+                        ${this.minimized ? '+' : '-'}
                     </button>
-                    <button @click=${this._handleClose} title="Close">✖</button>
+                    <button @click=${this._handleClose} title="Close">×</button>
                 </div>
                 <div class="content" ?hidden=${this.minimized}>
                     <div
@@ -193,20 +252,35 @@ export class Menu extends LitElement {
                     >
                         Export as ICS
                     </div>
-                    <div>
-                        <strong>Title:</strong> ${this.eventDetails.heading}
+                    <div class="event-details">
+                        <div class="event-detail">
+                            <strong>Title:</strong>
+                            <span
+                                >${this.eventDetails.heading ||
+                                'No title'}</span
+                            >
+                        </div>
+                        <div class="event-detail">
+                            <strong>Time:</strong>
+                            <span>${this.eventDetails.time || 'No time'}</span>
+                        </div>
+                        ${this.eventDetails.date
+                            ? html`<div class="event-detail">
+                                  <strong>Date:</strong>
+                                  <span
+                                      >${this.eventDetails.date.day}/${this
+                                          .eventDetails.date.month}/${this
+                                          .eventDetails.date.year}</span
+                                  >
+                              </div>`
+                            : ''}
+                        ${this.eventDetails.content
+                            ? html`<div class="event-detail">
+                                  <strong>Notes:</strong>
+                                  <span>${this.eventDetails.content}</span>
+                              </div>`
+                            : ''}
                     </div>
-                    <div>
-                        <strong>Content:</strong> ${this.eventDetails.content}
-                    </div>
-                    <div><strong>Time:</strong> ${this.eventDetails.time}</div>
-                    ${this.eventDetails.date
-                        ? html`<div>
-                              <strong>Date:</strong> ${this.eventDetails.date
-                                  .day}/${this.eventDetails.date.month}/${this
-                                  .eventDetails.date.year}
-                          </div>`
-                        : ''}
                 </div>
             </div>
         `;
