@@ -5,9 +5,6 @@
 <trans-unit id="se0955919920ee87d">
   <source>Day</source>
 </trans-unit>
-<trans-unit id="s5e8250fb85d64c24">
-  <source>Week</source>
-</trans-unit>
 <trans-unit id="sb47daaf9e1c4a905">
   <source>Month</source>
 </trans-unit>
@@ -55,6 +52,13 @@
 </trans-unit>
 <trans-unit id="s7264933e3c515250">
   <source>Drag to move menu</source>
+</trans-unit>
+<trans-unit id="s680f01021b5e339d">
+  <source>Week</source>
+</trans-unit>
+<trans-unit id="s090f2107b5a69a7f">
+  <source>CW</source>
+  <target>KW</target>
 </trans-unit>
 </body>
 </file>

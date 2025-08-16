@@ -5,7 +5,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export const templates = {
+    s090f2107b5a69a7f: `KW`,
     se0955919920ee87d: `Day`,
+    s680f01021b5e339d: `Week`,
     sb47daaf9e1c4a905: `Month`,
     s15ba5784a11e0b88: `Current Month`,
     s58ab939b42a026a6: `All Day`,

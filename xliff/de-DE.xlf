@@ -53,6 +53,13 @@
 <trans-unit id="s7264933e3c515250">
   <source>Drag to move menu</source>
 </trans-unit>
+<trans-unit id="s680f01021b5e339d">
+  <source>Week</source>
+</trans-unit>
+<trans-unit id="s090f2107b5a69a7f">
+  <source>CW</source>
+  <target>KW</target>
+</trans-unit>
 </body>
 </file>
 </xliff>
