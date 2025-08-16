@@ -819,6 +819,13 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                         background,
                                     )};
                                     --entry-color: ${unsafeCSS(text)};
+                                    --entry-z-index: ${10 +
+                                    (grading[index]?.depth || 0)};
+                                    --entry-opacity: ${Math.max(
+                                        0.7,
+                                        1.0 -
+                                            (grading[index]?.depth || 0) * 0.15,
+                                    )};
                                 }
                             `,
                             entry,
@@ -910,6 +917,24 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
         );
 
+        // Calculate grading for overlapping entries (day view)
+        const grading = R.pipe(
+            entriesInWeek,
+            R.map((entry) => entry.time!),
+            R.map((time) =>
+                this._getGridSlotByTime(time!)
+                    .replace(/[^0-9/]+/g, '')
+                    .split('/'),
+            ),
+            R.map(([start, end]) => ({
+                start: parseInt(start, 10),
+                end: parseInt(end, 10),
+            })),
+            partitionOverlappingIntervals,
+            getOverlappingEntitiesIndices,
+            getSortedGradingsByIndex,
+        );
+
         return R.pipe(
             entriesInWeek,
             R.map(
@@ -978,6 +1003,12 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                     background,
                                 )};
                                 --entry-color: ${unsafeCSS(text)};
+                                --entry-z-index: ${10 +
+                                (grading[index]?.depth || 0)};
+                                --entry-opacity: ${Math.max(
+                                    0.7,
+                                    1.0 - (grading[index]?.depth || 0) * 0.15,
+                                )};
                             }
                         `,
                         entry,
