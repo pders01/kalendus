@@ -2,6 +2,9 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { isServer } from "lit-html/is-server.js";
+import { directive } from "lit/directive.js";
+import { AsyncDirective } from "lit/async-directive.js";
+import "lit/html.js";
 import { css, LitElement, html, nothing, unsafeCSS } from "lit";
 import { customElement, state, query, property } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
@@ -12,8 +15,8 @@ import { map as map$1 } from "lit/directives/map.js";
  * SPDX-License-Identifier: BSD-3-Clause
  */
 let t$2 = class t {
-  constructor(t3, { target: i2, config: h2, callback: e2, skipInitial: o2 }) {
-    this.t = /* @__PURE__ */ new Set(), this.o = false, this.i = false, this.h = t3, null !== i2 && this.t.add(i2 ?? t3), this.l = h2, this.o = o2 ?? this.o, this.callback = e2, isServer || (window.ResizeObserver ? (this.u = new ResizeObserver((s2) => {
+  constructor(t3, { target: i2, config: h3, callback: e2, skipInitial: o2 }) {
+    this.t = /* @__PURE__ */ new Set(), this.o = false, this.i = false, this.h = t3, null !== i2 && this.t.add(i2 ?? t3), this.l = h3, this.o = o2 ?? this.o, this.callback = e2, isServer || (window.ResizeObserver ? (this.u = new ResizeObserver((s2) => {
       this.handleChanges(s2), this.h.requestUpdate();
     }), t3.addController(this)) : console.warn("ResizeController error: browser does not support ResizeObserver."));
   }
@@ -40,6 +43,689 @@ let t$2 = class t {
     this.u.disconnect();
   }
 };
+var __defProp$7 = Object.defineProperty;
+var __defNormalProp2 = (obj, key, value) => key in obj ? __defProp$7(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField2 = (obj, key, value) => {
+  __defNormalProp2(obj, typeof key !== "symbol" ? key + "" : key, value);
+  return value;
+};
+var __accessCheck = (obj, member, msg2) => {
+  if (!member.has(obj))
+    throw TypeError("Cannot " + msg2);
+};
+var __privateIn = (member, obj) => {
+  if (Object(obj) !== obj)
+    throw TypeError('Cannot use the "in" operator on this value');
+  return member.has(obj);
+};
+var __privateAdd = (obj, member, value) => {
+  if (member.has(obj))
+    throw TypeError("Cannot add the same private member more than once");
+  member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+};
+var __privateMethod = (obj, member, method) => {
+  __accessCheck(obj, member, "access private method");
+  return method;
+};
+/**
+ * @license
+ * Copyright Google LLC All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+function defaultEquals(a2, b2) {
+  return Object.is(a2, b2);
+}
+/**
+ * @license
+ * Copyright Google LLC All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+let activeConsumer = null;
+let inNotificationPhase = false;
+let epoch = 1;
+const SIGNAL = /* @__PURE__ */ Symbol("SIGNAL");
+function setActiveConsumer(consumer) {
+  const prev = activeConsumer;
+  activeConsumer = consumer;
+  return prev;
+}
+function getActiveConsumer() {
+  return activeConsumer;
+}
+function isInNotificationPhase() {
+  return inNotificationPhase;
+}
+const REACTIVE_NODE = {
+  version: 0,
+  lastCleanEpoch: 0,
+  dirty: false,
+  producerNode: void 0,
+  producerLastReadVersion: void 0,
+  producerIndexOfThis: void 0,
+  nextProducerIndex: 0,
+  liveConsumerNode: void 0,
+  liveConsumerIndexOfThis: void 0,
+  consumerAllowSignalWrites: false,
+  consumerIsAlwaysLive: false,
+  producerMustRecompute: () => false,
+  producerRecomputeValue: () => {
+  },
+  consumerMarkedDirty: () => {
+  },
+  consumerOnSignalRead: () => {
+  }
+};
+function producerAccessed(node) {
+  if (inNotificationPhase) {
+    throw new Error(
+      typeof ngDevMode !== "undefined" && ngDevMode ? `Assertion error: signal read during notification phase` : ""
+    );
+  }
+  if (activeConsumer === null) {
+    return;
+  }
+  activeConsumer.consumerOnSignalRead(node);
+  const idx = activeConsumer.nextProducerIndex++;
+  assertConsumerNode(activeConsumer);
+  if (idx < activeConsumer.producerNode.length && activeConsumer.producerNode[idx] !== node) {
+    if (consumerIsLive(activeConsumer)) {
+      const staleProducer = activeConsumer.producerNode[idx];
+      producerRemoveLiveConsumerAtIndex(staleProducer, activeConsumer.producerIndexOfThis[idx]);
+    }
+  }
+  if (activeConsumer.producerNode[idx] !== node) {
+    activeConsumer.producerNode[idx] = node;
+    activeConsumer.producerIndexOfThis[idx] = consumerIsLive(activeConsumer) ? producerAddLiveConsumer(node, activeConsumer, idx) : 0;
+  }
+  activeConsumer.producerLastReadVersion[idx] = node.version;
+}
+function producerIncrementEpoch() {
+  epoch++;
+}
+function producerUpdateValueVersion(node) {
+  if (!node.dirty && node.lastCleanEpoch === epoch) {
+    return;
+  }
+  if (!node.producerMustRecompute(node) && !consumerPollProducersForChange(node)) {
+    node.dirty = false;
+    node.lastCleanEpoch = epoch;
+    return;
+  }
+  node.producerRecomputeValue(node);
+  node.dirty = false;
+  node.lastCleanEpoch = epoch;
+}
+function producerNotifyConsumers(node) {
+  if (node.liveConsumerNode === void 0) {
+    return;
+  }
+  const prev = inNotificationPhase;
+  inNotificationPhase = true;
+  try {
+    for (const consumer of node.liveConsumerNode) {
+      if (!consumer.dirty) {
+        consumerMarkDirty(consumer);
+      }
+    }
+  } finally {
+    inNotificationPhase = prev;
+  }
+}
+function producerUpdatesAllowed() {
+  return (activeConsumer == null ? void 0 : activeConsumer.consumerAllowSignalWrites) !== false;
+}
+function consumerMarkDirty(node) {
+  var _a;
+  node.dirty = true;
+  producerNotifyConsumers(node);
+  (_a = node.consumerMarkedDirty) == null ? void 0 : _a.call(node.wrapper ?? node);
+}
+function consumerBeforeComputation(node) {
+  node && (node.nextProducerIndex = 0);
+  return setActiveConsumer(node);
+}
+function consumerAfterComputation(node, prevConsumer) {
+  setActiveConsumer(prevConsumer);
+  if (!node || node.producerNode === void 0 || node.producerIndexOfThis === void 0 || node.producerLastReadVersion === void 0) {
+    return;
+  }
+  if (consumerIsLive(node)) {
+    for (let i2 = node.nextProducerIndex; i2 < node.producerNode.length; i2++) {
+      producerRemoveLiveConsumerAtIndex(node.producerNode[i2], node.producerIndexOfThis[i2]);
+    }
+  }
+  while (node.producerNode.length > node.nextProducerIndex) {
+    node.producerNode.pop();
+    node.producerLastReadVersion.pop();
+    node.producerIndexOfThis.pop();
+  }
+}
+function consumerPollProducersForChange(node) {
+  assertConsumerNode(node);
+  for (let i2 = 0; i2 < node.producerNode.length; i2++) {
+    const producer = node.producerNode[i2];
+    const seenVersion = node.producerLastReadVersion[i2];
+    if (seenVersion !== producer.version) {
+      return true;
+    }
+    producerUpdateValueVersion(producer);
+    if (seenVersion !== producer.version) {
+      return true;
+    }
+  }
+  return false;
+}
+function producerAddLiveConsumer(node, consumer, indexOfThis) {
+  var _a;
+  assertProducerNode(node);
+  assertConsumerNode(node);
+  if (node.liveConsumerNode.length === 0) {
+    (_a = node.watched) == null ? void 0 : _a.call(node.wrapper);
+    for (let i2 = 0; i2 < node.producerNode.length; i2++) {
+      node.producerIndexOfThis[i2] = producerAddLiveConsumer(node.producerNode[i2], node, i2);
+    }
+  }
+  node.liveConsumerIndexOfThis.push(indexOfThis);
+  return node.liveConsumerNode.push(consumer) - 1;
+}
+function producerRemoveLiveConsumerAtIndex(node, idx) {
+  var _a;
+  assertProducerNode(node);
+  assertConsumerNode(node);
+  if (typeof ngDevMode !== "undefined" && ngDevMode && idx >= node.liveConsumerNode.length) {
+    throw new Error(
+      `Assertion error: active consumer index ${idx} is out of bounds of ${node.liveConsumerNode.length} consumers)`
+    );
+  }
+  if (node.liveConsumerNode.length === 1) {
+    (_a = node.unwatched) == null ? void 0 : _a.call(node.wrapper);
+    for (let i2 = 0; i2 < node.producerNode.length; i2++) {
+      producerRemoveLiveConsumerAtIndex(node.producerNode[i2], node.producerIndexOfThis[i2]);
+    }
+  }
+  const lastIdx = node.liveConsumerNode.length - 1;
+  node.liveConsumerNode[idx] = node.liveConsumerNode[lastIdx];
+  node.liveConsumerIndexOfThis[idx] = node.liveConsumerIndexOfThis[lastIdx];
+  node.liveConsumerNode.length--;
+  node.liveConsumerIndexOfThis.length--;
+  if (idx < node.liveConsumerNode.length) {
+    const idxProducer = node.liveConsumerIndexOfThis[idx];
+    const consumer = node.liveConsumerNode[idx];
+    assertConsumerNode(consumer);
+    consumer.producerIndexOfThis[idxProducer] = idx;
+  }
+}
+function consumerIsLive(node) {
+  var _a;
+  return node.consumerIsAlwaysLive || (((_a = node == null ? void 0 : node.liveConsumerNode) == null ? void 0 : _a.length) ?? 0) > 0;
+}
+function assertConsumerNode(node) {
+  node.producerNode ?? (node.producerNode = []);
+  node.producerIndexOfThis ?? (node.producerIndexOfThis = []);
+  node.producerLastReadVersion ?? (node.producerLastReadVersion = []);
+}
+function assertProducerNode(node) {
+  node.liveConsumerNode ?? (node.liveConsumerNode = []);
+  node.liveConsumerIndexOfThis ?? (node.liveConsumerIndexOfThis = []);
+}
+/**
+ * @license
+ * Copyright Google LLC All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+function computedGet(node) {
+  producerUpdateValueVersion(node);
+  producerAccessed(node);
+  if (node.value === ERRORED) {
+    throw node.error;
+  }
+  return node.value;
+}
+function createComputed(computation) {
+  const node = Object.create(COMPUTED_NODE);
+  node.computation = computation;
+  const computed = () => computedGet(node);
+  computed[SIGNAL] = node;
+  return computed;
+}
+const UNSET = /* @__PURE__ */ Symbol("UNSET");
+const COMPUTING = /* @__PURE__ */ Symbol("COMPUTING");
+const ERRORED = /* @__PURE__ */ Symbol("ERRORED");
+const COMPUTED_NODE = /* @__PURE__ */ (() => {
+  return {
+    ...REACTIVE_NODE,
+    value: UNSET,
+    dirty: true,
+    error: null,
+    equal: defaultEquals,
+    producerMustRecompute(node) {
+      return node.value === UNSET || node.value === COMPUTING;
+    },
+    producerRecomputeValue(node) {
+      if (node.value === COMPUTING) {
+        throw new Error("Detected cycle in computations.");
+      }
+      const oldValue = node.value;
+      node.value = COMPUTING;
+      const prevConsumer = consumerBeforeComputation(node);
+      let newValue;
+      let wasEqual = false;
+      try {
+        newValue = node.computation.call(node.wrapper);
+        const oldOk = oldValue !== UNSET && oldValue !== ERRORED;
+        wasEqual = oldOk && node.equal.call(node.wrapper, oldValue, newValue);
+      } catch (err) {
+        newValue = ERRORED;
+        node.error = err;
+      } finally {
+        consumerAfterComputation(node, prevConsumer);
+      }
+      if (wasEqual) {
+        node.value = oldValue;
+        return;
+      }
+      node.value = newValue;
+      node.version++;
+    }
+  };
+})();
+/**
+ * @license
+ * Copyright Google LLC All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+function defaultThrowError() {
+  throw new Error();
+}
+let throwInvalidWriteToSignalErrorFn = defaultThrowError;
+function throwInvalidWriteToSignalError() {
+  throwInvalidWriteToSignalErrorFn();
+}
+/**
+ * @license
+ * Copyright Google LLC All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+function createSignal(initialValue) {
+  const node = Object.create(SIGNAL_NODE);
+  node.value = initialValue;
+  const getter = () => {
+    producerAccessed(node);
+    return node.value;
+  };
+  getter[SIGNAL] = node;
+  return getter;
+}
+function signalGetFn() {
+  producerAccessed(this);
+  return this.value;
+}
+function signalSetFn(node, newValue) {
+  if (!producerUpdatesAllowed()) {
+    throwInvalidWriteToSignalError();
+  }
+  if (!node.equal.call(node.wrapper, node.value, newValue)) {
+    node.value = newValue;
+    signalValueChanged(node);
+  }
+}
+const SIGNAL_NODE = /* @__PURE__ */ (() => {
+  return {
+    ...REACTIVE_NODE,
+    equal: defaultEquals,
+    value: void 0
+  };
+})();
+function signalValueChanged(node) {
+  node.version++;
+  producerIncrementEpoch();
+  producerNotifyConsumers(node);
+}
+/**
+ * @license
+ * Copyright 2024 Bloomberg Finance L.P.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+const NODE = Symbol("node");
+var Signal;
+((Signal2) => {
+  var _a, _brand, _b, _brand2;
+  class State {
+    constructor(initialValue, options = {}) {
+      __privateAdd(this, _brand);
+      __publicField2(this, _a);
+      const ref = createSignal(initialValue);
+      const node = ref[SIGNAL];
+      this[NODE] = node;
+      node.wrapper = this;
+      if (options) {
+        const equals = options.equals;
+        if (equals) {
+          node.equal = equals;
+        }
+        node.watched = options[Signal2.subtle.watched];
+        node.unwatched = options[Signal2.subtle.unwatched];
+      }
+    }
+    get() {
+      if (!(0, Signal2.isState)(this))
+        throw new TypeError("Wrong receiver type for Signal.State.prototype.get");
+      return signalGetFn.call(this[NODE]);
+    }
+    set(newValue) {
+      if (!(0, Signal2.isState)(this))
+        throw new TypeError("Wrong receiver type for Signal.State.prototype.set");
+      if (isInNotificationPhase()) {
+        throw new Error("Writes to signals not permitted during Watcher callback");
+      }
+      const ref = this[NODE];
+      signalSetFn(ref, newValue);
+    }
+  }
+  _a = NODE;
+  _brand = /* @__PURE__ */ new WeakSet();
+  Signal2.isState = (s2) => typeof s2 === "object" && __privateIn(_brand, s2);
+  Signal2.State = State;
+  class Computed {
+    // Create a Signal which evaluates to the value returned by the callback.
+    // Callback is called with this signal as the parameter.
+    constructor(computation, options) {
+      __privateAdd(this, _brand2);
+      __publicField2(this, _b);
+      const ref = createComputed(computation);
+      const node = ref[SIGNAL];
+      node.consumerAllowSignalWrites = true;
+      this[NODE] = node;
+      node.wrapper = this;
+      if (options) {
+        const equals = options.equals;
+        if (equals) {
+          node.equal = equals;
+        }
+        node.watched = options[Signal2.subtle.watched];
+        node.unwatched = options[Signal2.subtle.unwatched];
+      }
+    }
+    get() {
+      if (!(0, Signal2.isComputed)(this))
+        throw new TypeError("Wrong receiver type for Signal.Computed.prototype.get");
+      return computedGet(this[NODE]);
+    }
+  }
+  _b = NODE;
+  _brand2 = /* @__PURE__ */ new WeakSet();
+  Signal2.isComputed = (c2) => typeof c2 === "object" && __privateIn(_brand2, c2);
+  Signal2.Computed = Computed;
+  ((subtle2) => {
+    var _a2, _brand3, _assertSignals, assertSignals_fn;
+    function untrack(cb) {
+      let output;
+      let prevActiveConsumer = null;
+      try {
+        prevActiveConsumer = setActiveConsumer(null);
+        output = cb();
+      } finally {
+        setActiveConsumer(prevActiveConsumer);
+      }
+      return output;
+    }
+    subtle2.untrack = untrack;
+    function introspectSources(sink) {
+      var _a3;
+      if (!(0, Signal2.isComputed)(sink) && !(0, Signal2.isWatcher)(sink)) {
+        throw new TypeError("Called introspectSources without a Computed or Watcher argument");
+      }
+      return ((_a3 = sink[NODE].producerNode) == null ? void 0 : _a3.map((n2) => n2.wrapper)) ?? [];
+    }
+    subtle2.introspectSources = introspectSources;
+    function introspectSinks(signal) {
+      var _a3;
+      if (!(0, Signal2.isComputed)(signal) && !(0, Signal2.isState)(signal)) {
+        throw new TypeError("Called introspectSinks without a Signal argument");
+      }
+      return ((_a3 = signal[NODE].liveConsumerNode) == null ? void 0 : _a3.map((n2) => n2.wrapper)) ?? [];
+    }
+    subtle2.introspectSinks = introspectSinks;
+    function hasSinks(signal) {
+      if (!(0, Signal2.isComputed)(signal) && !(0, Signal2.isState)(signal)) {
+        throw new TypeError("Called hasSinks without a Signal argument");
+      }
+      const liveConsumerNode = signal[NODE].liveConsumerNode;
+      if (!liveConsumerNode)
+        return false;
+      return liveConsumerNode.length > 0;
+    }
+    subtle2.hasSinks = hasSinks;
+    function hasSources(signal) {
+      if (!(0, Signal2.isComputed)(signal) && !(0, Signal2.isWatcher)(signal)) {
+        throw new TypeError("Called hasSources without a Computed or Watcher argument");
+      }
+      const producerNode = signal[NODE].producerNode;
+      if (!producerNode)
+        return false;
+      return producerNode.length > 0;
+    }
+    subtle2.hasSources = hasSources;
+    class Watcher {
+      // When a (recursive) source of Watcher is written to, call this callback,
+      // if it hasn't already been called since the last `watch` call.
+      // No signals may be read or written during the notify.
+      constructor(notify) {
+        __privateAdd(this, _brand3);
+        __privateAdd(this, _assertSignals);
+        __publicField2(this, _a2);
+        let node = Object.create(REACTIVE_NODE);
+        node.wrapper = this;
+        node.consumerMarkedDirty = notify;
+        node.consumerIsAlwaysLive = true;
+        node.consumerAllowSignalWrites = false;
+        node.producerNode = [];
+        this[NODE] = node;
+      }
+      // Add these signals to the Watcher's set, and set the watcher to run its
+      // notify callback next time any signal in the set (or one of its dependencies) changes.
+      // Can be called with no arguments just to reset the "notified" state, so that
+      // the notify callback will be invoked again.
+      watch(...signals) {
+        if (!(0, Signal2.isWatcher)(this)) {
+          throw new TypeError("Called unwatch without Watcher receiver");
+        }
+        __privateMethod(this, _assertSignals, assertSignals_fn).call(this, signals);
+        const node = this[NODE];
+        node.dirty = false;
+        const prev = setActiveConsumer(node);
+        for (const signal of signals) {
+          producerAccessed(signal[NODE]);
+        }
+        setActiveConsumer(prev);
+      }
+      // Remove these signals from the watched set (e.g., for an effect which is disposed)
+      unwatch(...signals) {
+        if (!(0, Signal2.isWatcher)(this)) {
+          throw new TypeError("Called unwatch without Watcher receiver");
+        }
+        __privateMethod(this, _assertSignals, assertSignals_fn).call(this, signals);
+        const node = this[NODE];
+        assertConsumerNode(node);
+        for (let i2 = node.producerNode.length - 1; i2 >= 0; i2--) {
+          if (signals.includes(node.producerNode[i2].wrapper)) {
+            producerRemoveLiveConsumerAtIndex(node.producerNode[i2], node.producerIndexOfThis[i2]);
+            const lastIdx = node.producerNode.length - 1;
+            node.producerNode[i2] = node.producerNode[lastIdx];
+            node.producerIndexOfThis[i2] = node.producerIndexOfThis[lastIdx];
+            node.producerNode.length--;
+            node.producerIndexOfThis.length--;
+            node.nextProducerIndex--;
+            if (i2 < node.producerNode.length) {
+              const idxConsumer = node.producerIndexOfThis[i2];
+              const producer = node.producerNode[i2];
+              assertProducerNode(producer);
+              producer.liveConsumerIndexOfThis[idxConsumer] = i2;
+            }
+          }
+        }
+      }
+      // Returns the set of computeds in the Watcher's set which are still yet
+      // to be re-evaluated
+      getPending() {
+        if (!(0, Signal2.isWatcher)(this)) {
+          throw new TypeError("Called getPending without Watcher receiver");
+        }
+        const node = this[NODE];
+        return node.producerNode.filter((n2) => n2.dirty).map((n2) => n2.wrapper);
+      }
+    }
+    _a2 = NODE;
+    _brand3 = /* @__PURE__ */ new WeakSet();
+    _assertSignals = /* @__PURE__ */ new WeakSet();
+    assertSignals_fn = function(signals) {
+      for (const signal of signals) {
+        if (!(0, Signal2.isComputed)(signal) && !(0, Signal2.isState)(signal)) {
+          throw new TypeError("Called watch/unwatch without a Computed or State argument");
+        }
+      }
+    };
+    Signal2.isWatcher = (w2) => __privateIn(_brand3, w2);
+    subtle2.Watcher = Watcher;
+    function currentComputed() {
+      var _a3;
+      return (_a3 = getActiveConsumer()) == null ? void 0 : _a3.wrapper;
+    }
+    subtle2.currentComputed = currentComputed;
+    subtle2.watched = Symbol("watched");
+    subtle2.unwatched = Symbol("unwatched");
+  })(Signal2.subtle || (Signal2.subtle = {}));
+})(Signal || (Signal = {}));
+/**
+ * @license
+ * Copyright 2023 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+const i$2 = Symbol("SignalWatcherBrand"), s$3 = new FinalizationRegistry(({ watcher: t3, signal: i2 }) => {
+  t3.unwatch(i2);
+}), h$2 = /* @__PURE__ */ new WeakMap();
+function e$2(e2) {
+  return true === e2[i$2] ? (console.warn("SignalWatcher should not be applied to the same class more than once."), e2) : class extends e2 {
+    constructor() {
+      super(...arguments), this._$St = new Signal.State(0), this._$Si = false, this._$So = true, this._$Sh = /* @__PURE__ */ new Set();
+    }
+    _$Sl() {
+      if (void 0 !== this._$Su) return;
+      this._$Sv = new Signal.Computed(() => {
+        this._$St.get(), super.performUpdate();
+      });
+      const i2 = this._$Su = new Signal.subtle.Watcher(function() {
+        const t3 = h$2.get(this);
+        void 0 !== t3 && (false === t3._$Si && t3.requestUpdate(), this.watch());
+      });
+      h$2.set(i2, this), s$3.register(this, { watcher: i2, signal: this._$Sv }), i2.watch(this._$Sv);
+    }
+    _$Sp() {
+      void 0 !== this._$Su && (this._$Su.unwatch(this._$Sv), this._$Sv = void 0, this._$Su = void 0);
+    }
+    performUpdate() {
+      this.isUpdatePending && (this._$Sl(), this._$Si = true, this._$St.set(this._$St.get() + 1), this._$Si = false, this._$Sv.get());
+    }
+    update(t3) {
+      try {
+        this._$So ? (this._$So = false, super.update(t3)) : this._$Sh.forEach((t4) => t4.commit());
+      } finally {
+        this.isUpdatePending = false, this._$Sh.clear();
+      }
+    }
+    requestUpdate(t3, i2, s2) {
+      this._$So = true, super.requestUpdate(t3, i2, s2);
+    }
+    connectedCallback() {
+      super.connectedCallback(), this.requestUpdate();
+    }
+    disconnectedCallback() {
+      super.disconnectedCallback(), queueMicrotask(() => {
+        false === this.isConnected && this._$Sp();
+      });
+    }
+    _(t3) {
+      this._$Sh.add(t3);
+      const i2 = this._$So;
+      this.requestUpdate(), this._$So = i2;
+    }
+    m(t3) {
+      this._$Sh.delete(t3);
+    }
+  };
+}
+/**
+ * @license
+ * Copyright 2023 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+let h$1 = class h extends AsyncDirective {
+  _$Sl() {
+    if (void 0 !== this._$Su) return;
+    this._$SW = new Signal.Computed(() => {
+      var i3;
+      return null === (i3 = this._$Sj) || void 0 === i3 ? void 0 : i3.get();
+    });
+    const i2 = this._$Su = new Signal.subtle.Watcher(() => {
+      var t3;
+      null === (t3 = this._$SO) || void 0 === t3 || t3._(this), i2.watch();
+    });
+    i2.watch(this._$SW);
+  }
+  _$Sp() {
+    var i2;
+    void 0 !== this._$Su && (this._$Su.unwatch(this._$SW), this._$SW = void 0, this._$Su = void 0, null === (i2 = this._$SO) || void 0 === i2 || i2.m(this));
+  }
+  commit() {
+    this.setValue(Signal.subtle.untrack(() => {
+      var i2;
+      return null === (i2 = this._$SW) || void 0 === i2 ? void 0 : i2.get();
+    }));
+  }
+  render(i2) {
+    return Signal.subtle.untrack(() => i2.get());
+  }
+  update(i2, [t3]) {
+    var h3, o2;
+    return null !== (h3 = this._$SO) && void 0 !== h3 || (this._$SO = null === (o2 = i2.options) || void 0 === o2 ? void 0 : o2.host), t3 !== this._$Sj && void 0 !== this._$Sj && this._$Sp(), this._$Sj = t3, this._$Sl(), Signal.subtle.untrack(() => this._$SW.get());
+  }
+  disconnected() {
+    this._$Sp();
+  }
+  reconnected() {
+    this._$Sl();
+  }
+};
+directive(h$1);
+/**
+ * @license
+ * Copyright 2023 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+Signal.State;
+Signal.Computed;
+const r$2 = (l2, o2) => new Signal.State(l2, o2);
 /**
  * @license
  * Copyright 2021 Google LLC
@@ -4302,7 +4988,7 @@ function oneOf(strings, startIndex) {
   }
 }
 function offset(regex, groups) {
-  return { regex, deser: ([, h2, m2]) => signedOffset(h2, m2), groups };
+  return { regex, deser: ([, h3, m2]) => signedOffset(h3, m2), groups };
 }
 function simple(regex) {
   return { regex, deser: ([s2]) => s2 };
@@ -4513,9 +5199,9 @@ function match(input, regex, handlers) {
     let matchIndex = 1;
     for (const i2 in handlers) {
       if (hasOwnProperty(handlers, i2)) {
-        const h2 = handlers[i2], groups = h2.groups ? h2.groups + 1 : 1;
-        if (!h2.literal && h2.token) {
-          all[h2.token.val[0]] = h2.deser(matches.slice(matchIndex, matchIndex + groups));
+        const h3 = handlers[i2], groups = h3.groups ? h3.groups + 1 : 1;
+        if (!h3.literal && h3.token) {
+          all[h3.token.val[0]] = h3.deser(matches.slice(matchIndex, matchIndex + groups));
         }
         matchIndex += groups;
       }
@@ -7355,9 +8041,9 @@ function getLocalizedWeekdayShort(weekday) {
   });
   return formatDateTime(date, "ccc");
 }
-var __getOwnPropDesc$6 = Object.getOwnPropertyDescriptor;
-var __decorateClass$6 = (decorators, target, key, kind) => {
-  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$6(target, key) : target;
+var __getOwnPropDesc$7 = Object.getOwnPropertyDescriptor;
+var __decorateClass$7 = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$7(target, key) : target;
   for (var i2 = decorators.length - 1, decorator; i2 >= 0; i2--)
     if (decorator = decorators[i2])
       result = decorator(result) || result;
@@ -7387,18 +8073,18 @@ Context.styles = css`
             text-align: var(--context-text-align, left);
         }
     `;
-Context = __decorateClass$6([
+Context = __decorateClass$7([
   customElement("lms-calendar-context"),
   localized()
 ], Context);
-var __defProp$5 = Object.defineProperty;
-var __getOwnPropDesc$5 = Object.getOwnPropertyDescriptor;
-var __decorateClass$5 = (decorators, target, key, kind) => {
-  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$5(target, key) : target;
+var __defProp$6 = Object.defineProperty;
+var __getOwnPropDesc$6 = Object.getOwnPropertyDescriptor;
+var __decorateClass$6 = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$6(target, key) : target;
   for (var i2 = decorators.length - 1, decorator; i2 >= 0; i2--)
     if (decorator = decorators[i2])
       result = (kind ? decorator(target, key, result) : decorator(result)) || result;
-  if (kind && result) __defProp$5(target, key, result);
+  if (kind && result) __defProp$6(target, key, result);
   return result;
 };
 let Day = class extends LitElement {
@@ -7468,15 +8154,18 @@ let Day = class extends LitElement {
 Day.styles = css`
         .container {
             display: flex;
-            height: calc(100% - var(--day-header-height, 3.5em));
+            height: var(--view-container-height);
             width: 100%;
         }
 
         .main {
             display: grid;
-            grid-template-columns: 4em 1fr;
-            grid-template-rows: repeat(1440, 1fr);
-            height: calc(100% - var(--day-main-offset, 1em));
+            grid-template-columns: var(
+                --day-grid-columns,
+                var(--calendar-grid-columns-day)
+            );
+            grid-template-rows: var(--calendar-grid-rows-time);
+            height: var(--main-content-height);
             gap: var(--day-gap, 1px);
             overflow-y: scroll;
             text-align: var(--day-text-align, center);
@@ -7485,7 +8174,10 @@ Day.styles = css`
         }
 
         .hour {
+            display: var(--day-show-time-column, block);
             text-align: var(--hour-text-align, center);
+            font-size: var(--hour-indicator-font-size);
+            color: var(--hour-indicator-color);
         }
 
         .indicator {
@@ -7529,24 +8221,25 @@ Day.styles = css`
         }
 
         .all-day {
-            font-size: 16px;
-            margin: 0 1.25em 0 4.25em;
+            font-size: var(--day-all-day-font-size, 16px);
+            margin: var(--day-all-day-margin, 0 1.25em 0 4.25em);
         }
     `;
-__decorateClass$5([
+__decorateClass$6([
   state()
 ], Day.prototype, "_hours", 2);
-__decorateClass$5([
+__decorateClass$6([
   state()
 ], Day.prototype, "_hasActiveSidebar", 2);
-__decorateClass$5([
+__decorateClass$6([
   query(".container")
 ], Day.prototype, "container", 2);
-Day = __decorateClass$5([
+Day = __decorateClass$6([
   customElement("lms-calendar-day")
 ], Day);
 const messages = {
   day: () => msg("Day"),
+  week: () => msg("Week"),
   month: () => msg("Month"),
   currentMonth: () => msg("Current Month"),
   allDay: () => msg("All Day"),
@@ -7564,14 +8257,14 @@ const messages = {
   close: () => msg("Close"),
   dragToMove: () => msg("Drag to move menu")
 };
-var __defProp$4 = Object.defineProperty;
-var __getOwnPropDesc$4 = Object.getOwnPropertyDescriptor;
-var __decorateClass$4 = (decorators, target, key, kind) => {
-  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$4(target, key) : target;
+var __defProp$5 = Object.defineProperty;
+var __getOwnPropDesc$5 = Object.getOwnPropertyDescriptor;
+var __decorateClass$5 = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$5(target, key) : target;
   for (var i2 = decorators.length - 1, decorator; i2 >= 0; i2--)
     if (decorator = decorators[i2])
       result = (kind ? decorator(target, key, result) : decorator(result)) || result;
-  if (kind && result) __defProp$4(target, key, result);
+  if (kind && result) __defProp$5(target, key, result);
   return result;
 };
 let Entry = class extends LitElement {
@@ -7754,74 +8447,175 @@ Entry.styles = css`
             flex-shrink: 0; /* Prevent time from being compressed */
         }
     `;
-__decorateClass$4([
+__decorateClass$5([
   property({ attribute: false })
 ], Entry.prototype, "time", 2);
-__decorateClass$4([
+__decorateClass$5([
   property()
 ], Entry.prototype, "heading", 2);
-__decorateClass$4([
+__decorateClass$5([
   property()
 ], Entry.prototype, "content", 2);
-__decorateClass$4([
+__decorateClass$5([
   property({ type: Boolean })
 ], Entry.prototype, "isContinuation", 2);
-__decorateClass$4([
+__decorateClass$5([
   property({ type: Object })
 ], Entry.prototype, "date", 2);
-__decorateClass$4([
+__decorateClass$5([
   state()
 ], Entry.prototype, "_highlighted", 2);
-__decorateClass$4([
+__decorateClass$5([
   state()
 ], Entry.prototype, "_extended", 2);
-Entry = __decorateClass$4([
+Entry = __decorateClass$5([
   customElement("lms-calendar-entry"),
   localized()
 ], Entry);
-var __defProp$3 = Object.defineProperty;
-var __getOwnPropDesc$3 = Object.getOwnPropertyDescriptor;
-var __decorateClass$3 = (decorators, target, key, kind) => {
-  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$3(target, key) : target;
+const currentViewMode = r$2("month");
+const activeDate = r$2({
+  day: (/* @__PURE__ */ new Date()).getDate(),
+  month: (/* @__PURE__ */ new Date()).getMonth() + 1,
+  year: (/* @__PURE__ */ new Date()).getFullYear()
+});
+function switchToMonthView() {
+  currentViewMode.set("month");
+}
+function switchToWeekView() {
+  currentViewMode.set("week");
+}
+function switchToDayView() {
+  currentViewMode.set("day");
+}
+function jumpToToday() {
+  const today = /* @__PURE__ */ new Date();
+  activeDate.set({
+    day: today.getDate(),
+    month: today.getMonth() + 1,
+    year: today.getFullYear()
+  });
+}
+function setActiveDate(date) {
+  activeDate.set(date);
+}
+function navigateNext() {
+  const current = activeDate.get();
+  const viewMode = currentViewMode.get();
+  if (viewMode === "month") {
+    const nextMonth = new Date(current.year, current.month, 1);
+    setActiveDate({
+      day: 1,
+      month: nextMonth.getMonth() + 1,
+      year: nextMonth.getFullYear()
+    });
+  } else if (viewMode === "week") {
+    const currentDateObj = new Date(
+      current.year,
+      current.month - 1,
+      current.day
+    );
+    currentDateObj.setDate(currentDateObj.getDate() + 7);
+    setActiveDate({
+      day: currentDateObj.getDate(),
+      month: currentDateObj.getMonth() + 1,
+      year: currentDateObj.getFullYear()
+    });
+  } else if (viewMode === "day") {
+    const nextDay = new Date(
+      current.year,
+      current.month - 1,
+      current.day + 1
+    );
+    setActiveDate({
+      day: nextDay.getDate(),
+      month: nextDay.getMonth() + 1,
+      year: nextDay.getFullYear()
+    });
+  }
+}
+function navigatePrevious() {
+  const current = activeDate.get();
+  const viewMode = currentViewMode.get();
+  if (viewMode === "month") {
+    const prevMonth = new Date(current.year, current.month - 2, 1);
+    setActiveDate({
+      day: 1,
+      month: prevMonth.getMonth() + 1,
+      year: prevMonth.getFullYear()
+    });
+  } else if (viewMode === "week") {
+    const currentDateObj = new Date(
+      current.year,
+      current.month - 1,
+      current.day
+    );
+    currentDateObj.setDate(currentDateObj.getDate() - 7);
+    setActiveDate({
+      day: currentDateObj.getDate(),
+      month: currentDateObj.getMonth() + 1,
+      year: currentDateObj.getFullYear()
+    });
+  } else if (viewMode === "day") {
+    const prevDay = new Date(
+      current.year,
+      current.month - 1,
+      current.day - 1
+    );
+    setActiveDate({
+      day: prevDay.getDate(),
+      month: prevDay.getMonth() + 1,
+      year: prevDay.getFullYear()
+    });
+  }
+}
+var __defProp$4 = Object.defineProperty;
+var __getOwnPropDesc$4 = Object.getOwnPropertyDescriptor;
+var __decorateClass$4 = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$4(target, key) : target;
   for (var i2 = decorators.length - 1, decorator; i2 >= 0; i2--)
     if (decorator = decorators[i2])
       result = (kind ? decorator(target, key, result) : decorator(result)) || result;
-  if (kind && result) __defProp$3(target, key, result);
+  if (kind && result) __defProp$4(target, key, result);
   return result;
 };
-let Header = class extends LitElement {
+let Header = class extends e$2(LitElement) {
   render() {
-    var _a, _b, _c, _d, _e;
-    const hasEmptyDate = isEmpty(this.expandedDate ?? {});
     return html`<div class="controls">
             <div class="info">
                 <span>
                     <strong>${this.heading || messages.currentMonth()}</strong>
                 </span>
-                <div ?hidden=${hasEmptyDate}>
-                    <span class="day">${(_a = this.expandedDate) == null ? void 0 : _a.day}</span>
+                <div ?hidden=${currentViewMode.get() !== "day"}>
+                    <span class="day">${activeDate.get().day}</span>
                     <span class="month"
-                        >${((_b = this.expandedDate) == null ? void 0 : _b.month) ? getLocalizedMonth(this.expandedDate.month) : ""}</span
+                        >${getLocalizedMonth(activeDate.get().month)}</span
                     >
-                    <span class="year">${(_c = this.expandedDate) == null ? void 0 : _c.year}</span>
+                    <span class="year">${activeDate.get().year}</span>
                 </div>
-                <div ?hidden=${!hasEmptyDate}>
+                <div ?hidden=${currentViewMode.get() === "day"}>
                     <span class="month"
-                        >${((_d = this.activeDate) == null ? void 0 : _d.month) ? getLocalizedMonth(this.activeDate.month) : ""}</span
+                        >${getLocalizedMonth(activeDate.get().month)}</span
                     >
-                    <span class="year">${(_e = this.activeDate) == null ? void 0 : _e.year}</span>
+                    <span class="year">${activeDate.get().year}</span>
                 </div>
             </div>
             <div class="context" @click=${this._dispatchSwitchView}>
                 <button
-                    ?data-active=${!hasEmptyDate}
+                    ?data-active=${currentViewMode.get() === "day"}
                     data-context="day"
                     class="btn-change-view"
                 >
                     ${messages.day()}
                 </button>
                 <button
-                    ?data-active=${hasEmptyDate}
+                    ?data-active=${currentViewMode.get() === "week"}
+                    data-context="week"
+                    class="btn-change-view"
+                >
+                    ${messages.week()}
+                </button>
+                <button
+                    ?data-active=${currentViewMode.get() === "month"}
                     data-context="month"
                     class="btn-change-view"
                 >
@@ -7830,9 +8624,27 @@ let Header = class extends LitElement {
             </div>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
                 <button name="previous">«</button>
+                <button name="today" @click=${this._handleTodayClick}>
+                    ${messages.today()}
+                </button>
                 <button name="next">»</button>
             </div>
         </div>`;
+  }
+  _handleTodayClick(e2) {
+    e2.stopPropagation();
+    const today = /* @__PURE__ */ new Date();
+    const todayDate = {
+      day: today.getDate(),
+      month: today.getMonth() + 1,
+      year: today.getFullYear()
+    };
+    const event = new CustomEvent("jumptoday", {
+      detail: { date: todayDate },
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(event);
   }
   _dispatchSwitchDate(e2) {
     const target = e2.target;
@@ -7906,22 +8718,22 @@ Header.styles = css`
             margin: 0 0.5em;
         }
     `;
-__decorateClass$3([
+__decorateClass$4([
   property({ type: String })
 ], Header.prototype, "heading", 2);
-__decorateClass$3([
+__decorateClass$4([
   property({ type: Object })
 ], Header.prototype, "activeDate", 2);
-__decorateClass$3([
+__decorateClass$4([
   property({ type: Object })
 ], Header.prototype, "expandedDate", 2);
-Header = __decorateClass$3([
+Header = __decorateClass$4([
   customElement("lms-calendar-header"),
   localized()
 ], Header);
 var t2 = { dragStart: true }, e = { delay: 0, distance: 3 };
 function n(n2, c2 = {}) {
-  let u2, f, { bounds: g, axis: h2 = "both", gpuAcceleration: p2 = true, legacyTranslate: m2 = false, transform: y2, applyUserSelectHack: w2 = true, disabled: b2 = false, ignoreMultitouch: v2 = false, recomputeBounds: x2 = t2, grid: _2, threshold: E2 = e, position: S, cancel: A2, handle: C, defaultClass: D2 = "neodrag", defaultClassDragging: N2 = "neodrag-dragging", defaultClassDragged: M = "neodrag-dragged", defaultPosition: B2 = { x: 0, y: 0 }, onDragStart: R, onDrag: $2, onDragEnd: X2 } = c2, Y2 = false, q2 = false, H2 = 0, P = false, T = false, k2 = 0, L2 = 0, j2 = 0, z2 = 0, I2 = 0, O2 = 0, { x: U, y: W2 } = S ? { x: (S == null ? void 0 : S.x) ?? 0, y: (S == null ? void 0 : S.y) ?? 0 } : B2;
+  let u2, f, { bounds: g, axis: h3 = "both", gpuAcceleration: p2 = true, legacyTranslate: m2 = false, transform: y2, applyUserSelectHack: w2 = true, disabled: b2 = false, ignoreMultitouch: v2 = false, recomputeBounds: x2 = t2, grid: _2, threshold: E2 = e, position: S, cancel: A2, handle: C, defaultClass: D2 = "neodrag", defaultClassDragging: N2 = "neodrag-dragging", defaultClassDragged: M = "neodrag-dragged", defaultPosition: B2 = { x: 0, y: 0 }, onDragStart: R, onDrag: $2, onDragEnd: X2 } = c2, Y2 = false, q2 = false, H2 = 0, P = false, T = false, k2 = 0, L2 = 0, j2 = 0, z2 = 0, I2 = 0, O2 = 0, { x: U, y: W2 } = S ? { x: (S == null ? void 0 : S.x) ?? 0, y: (S == null ? void 0 : S.y) ?? 0 } : B2;
   ot(U, W2);
   let F, G2, J2, K, Q2, V = "", Z2 = !!S;
   x2 = { ...t2, ...x2 }, E2 = { ...e, ...E2 ?? {} };
@@ -7973,7 +8785,7 @@ function n(n2, c2 = {}) {
       const n3 = e3.querySelectorAll(t4);
       if (null === n3) throw new Error("Selector passed for `cancel` option should be child of the element on which the action is applied");
       return Array.from(n3.values());
-    }(A2, n2), u2 = /(both|x)/.test(h2), f = /(both|y)/.test(h2), a(K, J2)) throw new Error("Element being dragged can't be a child of the element on which `cancel` is applied");
+    }(A2, n2), u2 = /(both|x)/.test(h3), f = /(both|y)/.test(h3), a(K, J2)) throw new Error("Element being dragged can't be a child of the element on which `cancel` is applied");
     const e2 = t3.composedPath()[0];
     if (!J2.some((t4) => {
       var _a;
@@ -8013,7 +8825,7 @@ function n(n2, c2 = {}) {
     (tt2.delete(t3.pointerId), Y2) && (q2 && (at("click", (t4) => t4.stopPropagation(), { once: true, signal: st.signal, capture: true }), x2.dragEnd && (F = s(g, n2)), rt2.remove(N2), rt2.add(M), w2 && (nt.userSelect = V), it("neodrag:end", X2, t3), u2 && (j2 = k2), f && (z2 = L2)), Y2 = false, q2 = false, P = false, T = false);
   }, dt), { destroy: () => st.abort(), update: (n3) => {
     var _a, _b;
-    h2 = n3.axis || "both", b2 = n3.disabled ?? false, v2 = n3.ignoreMultitouch ?? false, C = n3.handle, g = n3.bounds, x2 = n3.recomputeBounds ?? t2, A2 = n3.cancel, w2 = n3.applyUserSelectHack ?? true, _2 = n3.grid, p2 = n3.gpuAcceleration ?? true, m2 = n3.legacyTranslate ?? false, y2 = n3.transform, E2 = { ...e, ...n3.threshold ?? {} };
+    h3 = n3.axis || "both", b2 = n3.disabled ?? false, v2 = n3.ignoreMultitouch ?? false, C = n3.handle, g = n3.bounds, x2 = n3.recomputeBounds ?? t2, A2 = n3.cancel, w2 = n3.applyUserSelectHack ?? true, _2 = n3.grid, p2 = n3.gpuAcceleration ?? true, m2 = n3.legacyTranslate ?? false, y2 = n3.transform, E2 = { ...e, ...n3.threshold ?? {} };
     const r2 = rt2.contains(M);
     rt2.remove(D2, M), D2 = n3.defaultClass ?? "neodrag", N2 = n3.defaultClassDragging ?? "neodrag-dragging", M = n3.defaultClassDragged ?? "neodrag-dragged", rt2.add(D2), r2 && rt2.add(M), Z2 && (U = k2 = ((_a = n3.position) == null ? void 0 : _a.x) ?? k2, W2 = L2 = ((_b = n3.position) == null ? void 0 : _b.y) ?? L2, ot());
   } };
@@ -8405,13 +9217,13 @@ var Qe = (e2) => {
   if (!Je(e2)) throw Error(`Incorrect date object: ${e2}`);
   let t3 = e2.toISOString(), n2 = t3.slice(0, 4), r2 = t3.slice(5, 7), o2 = t3.slice(8, 10);
   return `${n2}${r2}${o2}`;
-}, h = (e2) => {
+}, h2 = (e2) => {
   if (!Je(e2)) throw Error(`Incorrect date object: ${e2}`);
   return qr(e2);
 }, Hr = (e2, t3, n2) => {
   let r2 = t3.date;
   if (!Je(r2)) throw Error(`Incorrect date object: ${r2}`);
-  return Xe(r2, t3.timezone, n2) ? qr(r2, true) : h(e2);
+  return Xe(r2, t3.timezone, n2) ? qr(r2, true) : h2(e2);
 }, qr = (e2, t3) => {
   let n2 = e2.toISOString(), r2 = n2.slice(0, 4), o2 = n2.slice(5, 7), a2 = n2.slice(8, 10), s2 = n2.slice(11, 13), c2 = n2.slice(14, 16), i2 = n2.slice(17, 19);
   return `${r2}${o2}${a2}T${s2}${c2}${i2}${t3 ? "" : "Z"}`;
@@ -8419,7 +9231,7 @@ var Qe = (e2) => {
 var $r = (e2) => {
   var n2, r2;
   let t3 = E([((n2 = e2.options) == null ? void 0 : n2.related) && { key: "RELATED", value: e2.options.related }].filter((o2) => !!o2));
-  if (e2.type === "absolute") return y("TRIGGER", h((r2 = e2.value) == null ? void 0 : r2.date));
+  if (e2.type === "absolute") return y("TRIGGER", h2((r2 = e2.value) == null ? void 0 : r2.date));
   if (e2.type === "relative") return y("TRIGGER", B(e2.value), t3);
 };
 var b = (e2) => Object.keys(e2);
@@ -8470,7 +9282,7 @@ var Zr = (e2, t3) => {
   }), r2 += N("VALARM"), r2;
 };
 var L = (e2, t3, n2 = [], r2) => {
-  let o2 = E([t3.type && { key: "VALUE", value: t3.type }, t3.local && !(r2 != null && r2.forceUtc) && { key: "TZID", value: t3.local.timezone }, ...n2].filter((s2) => !!s2)), a2 = t3.type === "DATE" ? Qe(t3.date) : t3.local && !(r2 != null && r2.forceUtc) ? Hr(t3.date, t3.local, r2 == null ? void 0 : r2.timezones) : h(t3.date);
+  let o2 = E([t3.type && { key: "VALUE", value: t3.type }, t3.local && !(r2 != null && r2.forceUtc) && { key: "TZID", value: t3.local.timezone }, ...n2].filter((s2) => !!s2)), a2 = t3.type === "DATE" ? Qe(t3.date) : t3.local && !(r2 != null && r2.forceUtc) ? Hr(t3.date, t3.local, r2 == null ? void 0 : r2.timezones) : h2(t3.date);
   return y(e2, a2, o2);
 };
 var de = (e2, t3, n2) => L(t3, e2, void 0, n2);
@@ -8481,7 +9293,7 @@ var X = (e2) => {
 var Xr = (e2) => e2.occurence ? `${e2.occurence}${e2.day}` : e2.day;
 var Q = (e2) => {
   var r2;
-  let t3 = "", n2 = E([e2.byDay && { key: "BYDAY", value: e2.byDay.map((o2) => Xr(o2)).join(",") }, e2.byHour && { key: "BYHOUR", value: e2.byHour.join(",") }, e2.byMinute && { key: "BYMINUTE", value: e2.byMinute.join(",") }, e2.byMonth && { key: "BYMONTH", value: e2.byMonth.map((o2) => o2 + 1).join(",") }, e2.byMonthday && { key: "BYMONTHDAY", value: e2.byMonthday.join(",") }, e2.bySecond && { key: "BYSECOND", value: e2.bySecond.join(",") }, e2.bySetPos && { key: "BYSETPOS", value: e2.bySetPos.join(",") }, e2.byWeekNo && { key: "BYWEEKNO", value: e2.byWeekNo.join(",") }, e2.byYearday && { key: "BYYEARDAY", value: e2.byYearday.join(",") }, e2.count && { key: "COUNT", value: e2.count.toString() }, e2.frequency && { key: "FREQ", value: e2.frequency }, e2.interval && { key: "INTERVAL", value: e2.interval.toString() }, e2.until && { key: "UNTIL", value: e2.until.type === "DATE" ? Qe(e2.until.date) : h(((r2 = e2.until.local) == null ? void 0 : r2.date) || e2.until.date) }, e2.workweekStart && { key: "WKST", value: e2.workweekStart }].filter((o2) => !!o2));
+  let t3 = "", n2 = E([e2.byDay && { key: "BYDAY", value: e2.byDay.map((o2) => Xr(o2)).join(",") }, e2.byHour && { key: "BYHOUR", value: e2.byHour.join(",") }, e2.byMinute && { key: "BYMINUTE", value: e2.byMinute.join(",") }, e2.byMonth && { key: "BYMONTH", value: e2.byMonth.map((o2) => o2 + 1).join(",") }, e2.byMonthday && { key: "BYMONTHDAY", value: e2.byMonthday.join(",") }, e2.bySecond && { key: "BYSECOND", value: e2.bySecond.join(",") }, e2.bySetPos && { key: "BYSETPOS", value: e2.bySetPos.join(",") }, e2.byWeekNo && { key: "BYWEEKNO", value: e2.byWeekNo.join(",") }, e2.byYearday && { key: "BYYEARDAY", value: e2.byYearday.join(",") }, e2.count && { key: "COUNT", value: e2.count.toString() }, e2.frequency && { key: "FREQ", value: e2.frequency }, e2.interval && { key: "INTERVAL", value: e2.interval.toString() }, e2.until && { key: "UNTIL", value: e2.until.type === "DATE" ? Qe(e2.until.date) : h2(((r2 = e2.until.local) == null ? void 0 : r2.date) || e2.until.date) }, e2.workweekStart && { key: "WKST", value: e2.workweekStart }].filter((o2) => !!o2));
   return t3 += y("RRULE", n2), t3;
 };
 var hn = (e2) => {
@@ -8572,14 +9384,14 @@ var Qr = (e2, t3) => {
     r2 += de(o2, "EXDATE", { timezones: void 0 });
   }), r2 += N("VEVENT"), Y(r2);
 };
-var __defProp$2 = Object.defineProperty;
-var __getOwnPropDesc$2 = Object.getOwnPropertyDescriptor;
-var __decorateClass$2 = (decorators, target, key, kind) => {
-  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$2(target, key) : target;
+var __defProp$3 = Object.defineProperty;
+var __getOwnPropDesc$3 = Object.getOwnPropertyDescriptor;
+var __decorateClass$3 = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$3(target, key) : target;
   for (var i2 = decorators.length - 1, decorator; i2 >= 0; i2--)
     if (decorator = decorators[i2])
       result = (kind ? decorator(target, key, result) : decorator(result)) || result;
-  if (kind && result) __defProp$2(target, key, result);
+  if (kind && result) __defProp$3(target, key, result);
   return result;
 };
 let Menu = class extends LitElement {
@@ -8835,16 +9647,16 @@ Menu.styles = css`
             word-break: break-word;
         }
     `;
-__decorateClass$2([
+__decorateClass$3([
   property({ type: Boolean })
 ], Menu.prototype, "open", 2);
-__decorateClass$2([
+__decorateClass$3([
   property({ type: Object })
 ], Menu.prototype, "eventDetails", 2);
-__decorateClass$2([
+__decorateClass$3([
   state()
 ], Menu.prototype, "minimized", 2);
-Menu = __decorateClass$2([
+Menu = __decorateClass$3([
   customElement("lms-menu"),
   localized()
 ], Menu);
@@ -8908,14 +9720,14 @@ class DirectionalCalendarDateCalculator {
     return this._toCalendarDate(adjustedDate);
   }
 }
-var __defProp$1 = Object.defineProperty;
-var __getOwnPropDesc$1 = Object.getOwnPropertyDescriptor;
-var __decorateClass$1 = (decorators, target, key, kind) => {
-  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$1(target, key) : target;
+var __defProp$2 = Object.defineProperty;
+var __getOwnPropDesc$2 = Object.getOwnPropertyDescriptor;
+var __decorateClass$2 = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$2(target, key) : target;
   for (var i2 = decorators.length - 1, decorator; i2 >= 0; i2--)
     if (decorator = decorators[i2])
       result = (kind ? decorator(target, key, result) : decorator(result)) || result;
-  if (kind && result) __defProp$1(target, key, result);
+  if (kind && result) __defProp$2(target, key, result);
   return result;
 };
 let Month = class extends LitElement {
@@ -9115,13 +9927,299 @@ Month.styles = css`
             text-align: left;
         }
     `;
-__decorateClass$1([
+__decorateClass$2([
   property({ attribute: false })
 ], Month.prototype, "activeDate", 2);
-Month = __decorateClass$1([
+Month = __decorateClass$2([
   customElement("lms-calendar-month"),
   localized()
 ], Month);
+var __defProp$1 = Object.defineProperty;
+var __getOwnPropDesc$1 = Object.getOwnPropertyDescriptor;
+var __decorateClass$1 = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc$1(target, key) : target;
+  for (var i2 = decorators.length - 1, decorator; i2 >= 0; i2--)
+    if (decorator = decorators[i2])
+      result = (kind ? decorator(target, key, result) : decorator(result)) || result;
+  if (kind && result) __defProp$1(target, key, result);
+  return result;
+};
+let Week = class extends LitElement {
+  constructor() {
+    super(...arguments);
+    this.activeDate = {
+      day: (/* @__PURE__ */ new Date()).getDate(),
+      month: (/* @__PURE__ */ new Date()).getMonth() + 1,
+      year: (/* @__PURE__ */ new Date()).getFullYear()
+    };
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener("open-menu", (e2) => {
+      const customEvent = e2;
+      const forwardedEvent = new CustomEvent("open-menu", {
+        detail: customEvent.detail,
+        bubbles: true,
+        composed: true
+      });
+      this.dispatchEvent(forwardedEvent);
+    });
+  }
+  _getWeekDates() {
+    const currentDate = new Date(
+      this.activeDate.year,
+      this.activeDate.month - 1,
+      this.activeDate.day
+    );
+    const dayOfWeek2 = currentDate.getDay();
+    const mondayOffset = dayOfWeek2 === 0 ? -6 : 1 - dayOfWeek2;
+    const weekStart = new Date(currentDate);
+    weekStart.setDate(currentDate.getDate() + mondayOffset);
+    return Array.from({ length: 7 }, (_2, i2) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i2);
+      return {
+        day: date.getDate(),
+        month: date.getMonth() + 1,
+        year: date.getFullYear()
+      };
+    });
+  }
+  _isCurrentDate(date) {
+    const today = /* @__PURE__ */ new Date();
+    return date.day === today.getDate() && date.month === today.getMonth() + 1 && date.year === today.getFullYear();
+  }
+  render() {
+    const weekDates = this._getWeekDates();
+    return html`
+            <div class="week-container">
+                <div class="week-header">
+                    <div class="time-header"></div>
+                    ${weekDates.map(
+      (date, index) => html`
+                            <div
+                                class="day-label ${classMap({
+        current: this._isCurrentDate(date)
+      })}"
+                                @click=${() => this._handleDayLabelClick(date)}
+                            >
+                                <div>
+                                    ${getLocalizedWeekdayShort(index + 1)}
+                                </div>
+                                <div>${date.day}</div>
+                            </div>
+                        `
+    )}
+                </div>
+                <div class="week-content">
+                    <!-- Hour indicators -->
+                    ${Array.from({ length: 25 }).map(
+      (_2, hour) => html`
+                            <div
+                                class="hour-indicator"
+                                style="grid-column: 1; grid-row: ${hour * 60 + 1};"
+                            >
+                                ${this._renderIndicatorValue(hour)}
+                            </div>
+                        `
+    )}
+
+                    <!-- Hour separators -->
+                    ${Array.from({ length: 25 }).map(
+      (_2, hour) => html`
+                            ${hour > 0 ? html`
+                                <div
+                                    class="hour-separator"
+                                    style="grid-column: 2 / -1; grid-row: ${hour * 60};"
+                                ></div>
+                            ` : ""}
+                        `
+    )}
+
+                    <!-- All-day area for each day -->
+                    ${weekDates.map(
+      (date, dayIndex) => html`
+                            <div
+                                class="all-day-area"
+                                style="grid-column: ${dayIndex + 2}; grid-row: 1 / 60;"
+                            >
+                                <slot
+                                    name="all-day-${date.year}-${date.month}-${date.day}"
+                                ></slot>
+                            </div>
+                        `
+    )}
+
+                    <!-- Hour slots for each day -->
+                    ${weekDates.map(
+      (date, dayIndex) => html`
+                            ${Array.from({ length: 25 }).map(
+        (_2, hour) => html`
+                                    <div
+                                        class="hour-slot-container"
+                                        style="grid-column: ${dayIndex + 2}; grid-row: ${hour * 60 + 1} / ${(hour + 1) * 60 + 1}; position: relative;"
+                                    >
+                                        <slot
+                                            name="${date.year}-${date.month}-${date.day}-${hour}"
+                                            data-debug="Day ${dayIndex + 1} (${date.month}/${date.day}) Hour ${hour}"
+                                        ></slot>
+                                    </div>
+                                `
+      )}
+                        `
+    )}
+                </div>
+            </div>
+        `;
+  }
+  _renderIndicatorValue(hour) {
+    return hour < 10 ? `0${hour}:00` : `${hour}:00`;
+  }
+  _handleDayLabelClick(date) {
+    const event = new CustomEvent("expand", {
+      detail: { date },
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(event);
+  }
+  _handleDayColumnClick(e2, _date) {
+    e2.stopPropagation();
+  }
+};
+Week.styles = css`
+        :host {
+            display: block;
+            height: 100%;
+            width: 100%;
+        }
+
+        .week-container {
+            display: flex;
+            flex-direction: column;
+            height: var(--view-container-height);
+            overflow: hidden;
+        }
+
+        .week-header {
+            display: grid;
+            grid-template-columns: var(--calendar-grid-columns-week);
+            height: var(--day-header-height, 3.5em);
+            flex-shrink: 0;
+            border-bottom: var(--separator-border);
+            gap: var(--day-gap, 1px);
+            padding: var(--day-padding, 0.5em);
+        }
+
+        .time-header {
+            border-right: 1px solid var(--separator-light);
+        }
+
+        .day-label {
+            text-align: center;
+            padding: var(--day-padding, 0.5em);
+            font-weight: var(--day-label-font-weight);
+            border-right: var(--separator-border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .day-label:hover {
+            background-color: var(--separator-light);
+        }
+
+        .day-label:last-child {
+            border-right: none;
+        }
+
+        .day-label.current {
+            color: var(--indicator-color, var(--primary-color));
+            font-weight: var(--indicator-font-weight, bold);
+        }
+
+        .week-content {
+            flex: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: var(--calendar-grid-columns-week);
+            grid-template-rows: var(--calendar-grid-rows-time);
+            height: var(--main-content-height);
+            gap: var(--day-gap, 1px);
+            padding: var(--day-padding, 0.5em);
+            min-height: 0;
+            position: relative;
+        }
+
+        .time-slots {
+            grid-column: 1;
+            border-right: var(
+                --sidebar-border,
+                1px solid var(--separator-light)
+            );
+            background: var(--background-color, white);
+        }
+
+        .hour-indicator {
+            position: relative;
+            top: var(--indicator-top, -0.6em);
+            text-align: var(--hour-text-align, center);
+            font-size: var(--hour-indicator-font-size);
+            color: var(--hour-indicator-color);
+        }
+
+        .week-days {
+            display: contents;
+        }
+
+        .day-column {
+            border-right: var(
+                --sidebar-border,
+                1px solid var(--separator-light)
+            );
+            position: relative;
+        }
+
+        .day-column:last-child {
+            border-right: none;
+        }
+
+        .hour-separator {
+            grid-column: 2 / 3;
+            border-top: var(
+                --separator-border,
+                1px solid var(--separator-light)
+            );
+            position: absolute;
+            width: 100%;
+            z-index: 0;
+        }
+
+        .all-day-area {
+            font-size: var(--day-all-day-font-size, 16px);
+            margin: 0;
+            padding: 0.25em;
+            z-index: 1;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .hour-slot-container {
+            overflow: hidden;
+        }
+    `;
+__decorateClass$1([
+  property({ attribute: false })
+], Week.prototype, "activeDate", 2);
+Week = __decorateClass$1([
+  customElement("lms-calendar-week"),
+  localized()
+], Week);
 function getColorTextWithContrast(color) {
   let red = 0;
   let green = 0;
@@ -9285,15 +10383,9 @@ var __decorateClass = (decorators, target, key, kind) => {
   if (kind && result) __defProp2(target, key, result);
   return result;
 };
-let LMSCalendar = class extends LitElement {
+let LMSCalendar = class extends e$2(LitElement) {
   constructor() {
     super(...arguments);
-    this.currentDate = /* @__PURE__ */ new Date();
-    this.activeDate = {
-      day: this.currentDate.getDate(),
-      month: this.currentDate.getMonth() + 1,
-      year: this.currentDate.getFullYear()
-    };
     this.entries = [];
     this.color = "#000000";
     this._calendarWidth = window.innerWidth;
@@ -9307,6 +10399,17 @@ let LMSCalendar = class extends LitElement {
       callback: this._handleResize,
       skipInitial: true
     });
+  }
+  // activeDate is now managed by signals - this property is kept for backward compatibility
+  get activeDate() {
+    return activeDate.get();
+  }
+  set activeDate(value) {
+    setActiveDate(value);
+  }
+  // _expandedDate is now managed through view mode signals
+  get _expandedDate() {
+    return currentViewMode.get() === "day" ? activeDate.get() : void 0;
   }
   firstUpdated(_changedProperties) {
     var _a, _b;
@@ -9351,36 +10454,45 @@ let LMSCalendar = class extends LitElement {
     );
   }
   render() {
-    const hasExpandedDate = !isEmpty(this._expandedDate ?? {});
+    const viewMode = currentViewMode.get();
+    const currentActiveDate = activeDate.get();
     return html`
             <div>
                 <lms-calendar-header
                     @switchdate=${this._handleSwitchDate}
                     @switchview=${this._handleSwitchView}
+                    @jumptoday=${this._handleJumpToday}
                     .heading=${this.heading}
-                    .activeDate=${this.activeDate}
-                    .expandedDate=${this._expandedDate}
+                    .activeDate=${currentActiveDate}
+                    .expandedDate=${viewMode === "day" ? currentActiveDate : void 0}
                 >
                 </lms-calendar-header>
 
-                <lms-calendar-context ?hidden=${hasExpandedDate}>
-                </lms-calendar-context>
+                ${viewMode === "month" ? html`
+                          <lms-calendar-context> </lms-calendar-context>
 
-                <lms-calendar-month
-                    @expand=${this._handleExpand}
-                    @open-menu=${this._handleOpenMenu}
-                    .activeDate=${this.activeDate}
-                    ?hidden=${hasExpandedDate}
-                >
-                    ${this._calendarWidth < 768 ? this._renderEntriesSumByDay() : this._renderEntries()}
-                </lms-calendar-month>
-
-                <lms-calendar-day
-                    @open-menu=${this._handleOpenMenu}
-                    ?hidden=${!hasExpandedDate}
-                >
-                    ${this._renderEntriesByDate()}
-                </lms-calendar-day>
+                          <lms-calendar-month
+                              @expand=${this._handleExpand}
+                              @open-menu=${this._handleOpenMenu}
+                              .activeDate=${currentActiveDate}
+                          >
+                              ${this._calendarWidth < 768 ? this._renderEntriesSumByDay() : this._renderEntries()}
+                          </lms-calendar-month>
+                      ` : nothing}
+                ${viewMode === "week" ? html`
+                          <lms-calendar-week
+                              @expand=${this._handleExpand}
+                              @open-menu=${this._handleOpenMenu}
+                              .activeDate=${currentActiveDate}
+                          >
+                              ${this._renderEntriesForWeek()}
+                          </lms-calendar-week>
+                      ` : nothing}
+                ${viewMode === "day" ? html`
+                          <lms-calendar-day @open-menu=${this._handleOpenMenu}>
+                              ${this._renderEntriesByDate()}
+                          </lms-calendar-day>
+                      ` : nothing}
 
                 <lms-menu
                     ?open=${this._menuOpen}
@@ -9395,40 +10507,22 @@ let LMSCalendar = class extends LitElement {
         `;
   }
   _handleSwitchDate(e2) {
-    const dateCalculator = new DirectionalCalendarDateCalculator({});
-    dateCalculator.direction = e2.detail.direction;
-    if (this._expandedDate) {
-      dateCalculator.date = this._expandedDate;
-      const dateInDirection = dateCalculator.getDateByDayInDirection();
-      if (!isDeepEqual(this._expandedDate, dateInDirection)) {
-        this._expandedDate = dateInDirection;
-      }
-      if (!isDeepEqual(this.activeDate, dateInDirection)) {
-        this.activeDate = dateInDirection;
-      }
-      return;
-    }
-    dateCalculator.date = this.activeDate;
-    const newDate = dateCalculator.getDateByMonthInDirection();
-    if (!isDeepEqual(this.activeDate, newDate)) {
-      this.activeDate = newDate;
+    if (e2.detail.direction === "next") {
+      navigateNext();
+    } else if (e2.detail.direction === "previous") {
+      navigatePrevious();
     }
   }
   _handleSwitchView(e2) {
-    return z$1(e2.detail.view).with("day", () => {
-      if (isEmpty(this._expandedDate ?? {})) {
-        this._expandedDate = this.activeDate;
-      }
-    }).with("month", () => {
-      if (this._expandedDate) {
-        this.activeDate = this._expandedDate;
-      }
-      this._expandedDate = void 0;
-    }).otherwise(() => {
+    return z$1(e2.detail.view).with("day", () => switchToDayView()).with("week", () => switchToWeekView()).with("month", () => switchToMonthView()).otherwise(() => {
     });
   }
+  _handleJumpToday(_e) {
+    jumpToToday();
+  }
   _handleExpand(e2) {
-    this._expandedDate = e2.detail.date;
+    setActiveDate(e2.detail.date);
+    switchToDayView();
   }
   _handleOpenMenu(e2) {
     var _a;
@@ -9542,7 +10636,9 @@ let LMSCalendar = class extends LitElement {
     );
   }
   _renderEntriesByDate() {
-    if (isEmpty(this._expandedDate ?? {})) {
+    const currentActiveDate = activeDate.get();
+    const viewMode = currentViewMode.get();
+    if (viewMode !== "day") {
       return nothing;
     }
     const entriesByDate = pipe(
@@ -9556,7 +10652,7 @@ let LMSCalendar = class extends LitElement {
       filter(
         (entry) => isDeepEqual(
           DateTime.fromObject(entry.date.start).toISODate(),
-          DateTime.fromObject(this._expandedDate ?? {}).toISODate()
+          DateTime.fromObject(currentActiveDate).toISODate()
         )
       )
     );
@@ -9688,6 +10784,85 @@ let LMSCalendar = class extends LitElement {
       )
     );
   }
+  _renderEntriesForWeek() {
+    const currentActiveDate = activeDate.get();
+    const viewMode = currentViewMode.get();
+    if (!this.entries.length || viewMode !== "week") {
+      return nothing;
+    }
+    const weekStartDate = this._getWeekStartDate(currentActiveDate);
+    const weekDates = Array.from({ length: 7 }, (_2, i2) => {
+      const date = new Date(weekStartDate);
+      date.setDate(weekStartDate.getDate() + i2);
+      return {
+        day: date.getDate(),
+        month: date.getMonth() + 1,
+        year: date.getFullYear()
+      };
+    });
+    return pipe(
+      this.entries,
+      flatMap(
+        (entry) => this._expandEntryMaybe({
+          entry,
+          range: this._getDaysRange(entry.date)
+        })
+      ),
+      filter((entry) => {
+        const entryDateStr = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
+        return weekDates.some(
+          (date) => `${date.year}-${date.month}-${date.day}` === entryDateStr
+        );
+      }),
+      map(
+        (entry) => [entry, ...getColorTextWithContrast(entry.color)]
+      ),
+      map.indexed(([entry, background, text], index) => {
+        var _a, _b;
+        const isAllDay = Number((_a = entry.time) == null ? void 0 : _a.end.hour) - Number((_b = entry.time) == null ? void 0 : _b.start.hour) >= 23 || entry.continuation.is || entry.continuation.has;
+        if (isAllDay) {
+          return this._composeEntry({
+            index,
+            slot: `all-day-${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
+            styles: css`
+                            lms-calendar-entry._${index} {
+                                --entry-background-color: ${unsafeCSS(
+              background
+            )};
+                                --entry-color: ${unsafeCSS(text)};
+                            }
+                        `,
+            entry
+          });
+        } else {
+          return this._composeEntry({
+            index,
+            slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}-${entry.time.start.hour}`,
+            styles: css`
+                            lms-calendar-entry._${index} {
+                                --start-slot: ${unsafeCSS(
+              this._getGridSlotByTime(entry.time)
+            )};
+                                --entry-background-color: ${unsafeCSS(
+              background
+            )};
+                                --entry-color: ${unsafeCSS(text)};
+                            }
+                        `,
+            entry
+          });
+        }
+      })
+    );
+  }
+  _getWeekStartDate(date) {
+    const currentDate = new Date(date.year, date.month - 1, date.day);
+    const dayOfWeek2 = currentDate.getDay();
+    const mondayOffset = dayOfWeek2 === 0 ? -6 : 1 - dayOfWeek2;
+    const weekStart = new Date(currentDate);
+    weekStart.setDate(currentDate.getDate() + mondayOffset);
+    return weekStart;
+  }
   _getGridSlotByTime({ start, end }) {
     const startRow = start.hour * 60 + (start.minute + 1);
     const endRow = startRow + (end.hour * 60 + end.minute - startRow);
@@ -9767,8 +10942,30 @@ LMSCalendar.styles = css`
             --context-padding: 0.25em;
             --context-text-align: left;
 
+            /* Core layout tokens */
+            --time-column-width: 4em;
+            --grid-rows-per-day: 1440;
+            --view-container-height-offset: var(--day-header-height, 3.5em);
+            --main-content-height-offset: 1em;
+
+            /* Grid template tokens */
+            --calendar-grid-columns-day: var(--time-column-width) 1fr;
+            --calendar-grid-columns-week: var(--time-column-width)
+                repeat(7, 1fr);
+            --calendar-grid-columns-month: repeat(7, 1fr);
+            --calendar-grid-rows-time: repeat(var(--grid-rows-per-day), 1fr);
+
+            /* Calculated heights */
+            --view-container-height: calc(
+                100% - var(--view-container-height-offset)
+            );
+            --main-content-height: calc(
+                100% - var(--main-content-height-offset)
+            );
+
+            /* Legacy tokens (for backward compatibility) */
             --day-header-height: 3.5em;
-            --day-main-offset: 1em;
+            --day-main-offset: var(--main-content-height-offset);
             --day-gap: 1px;
             --day-text-align: center;
             --day-padding: 0.5em;
@@ -9776,6 +10973,14 @@ LMSCalendar.styles = css`
             --indicator-top: -0.6em;
             --separator-border: 1px solid var(--separator-light);
             --sidebar-border: 1px solid var(--separator-light);
+
+            /* Typography tokens */
+            --hour-indicator-font-size: 0.75em;
+            --hour-indicator-color: var(
+                --header-text-color,
+                rgba(0, 0, 0, 0.6)
+            );
+            --day-label-font-weight: 500;
 
             --header-height: 3.5em;
             --header-height-mobile: 4.5em;
@@ -9823,17 +11028,11 @@ __decorateClass([
   property({ type: String })
 ], LMSCalendar.prototype, "heading", 2);
 __decorateClass([
-  property({ type: Object })
-], LMSCalendar.prototype, "activeDate", 2);
-__decorateClass([
   property({ type: Array })
 ], LMSCalendar.prototype, "entries", 2);
 __decorateClass([
   property({ type: String })
 ], LMSCalendar.prototype, "color", 2);
-__decorateClass([
-  state()
-], LMSCalendar.prototype, "_expandedDate", 2);
 __decorateClass([
   state()
 ], LMSCalendar.prototype, "_calendarWidth", 2);

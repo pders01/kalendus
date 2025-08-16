@@ -16,15 +16,18 @@ export default class Day extends LitElement {
     static override styles = css`
         .container {
             display: flex;
-            height: calc(100% - var(--day-header-height, 3.5em));
+            height: var(--view-container-height);
             width: 100%;
         }
 
         .main {
             display: grid;
-            grid-template-columns: 4em 1fr;
-            grid-template-rows: repeat(1440, 1fr);
-            height: calc(100% - var(--day-main-offset, 1em));
+            grid-template-columns: var(
+                --day-grid-columns,
+                var(--calendar-grid-columns-day)
+            );
+            grid-template-rows: var(--calendar-grid-rows-time);
+            height: var(--main-content-height);
             gap: var(--day-gap, 1px);
             overflow-y: scroll;
             text-align: var(--day-text-align, center);
@@ -33,7 +36,10 @@ export default class Day extends LitElement {
         }
 
         .hour {
+            display: var(--day-show-time-column, block);
             text-align: var(--hour-text-align, center);
+            font-size: var(--hour-indicator-font-size);
+            color: var(--hour-indicator-color);
         }
 
         .indicator {
@@ -77,8 +83,8 @@ export default class Day extends LitElement {
         }
 
         .all-day {
-            font-size: 16px;
-            margin: 0 1.25em 0 4.25em;
+            font-size: var(--day-all-day-font-size, 16px);
+            margin: var(--day-all-day-margin, 0 1.25em 0 4.25em);
         }
     `;
 

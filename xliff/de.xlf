@@ -5,6 +5,9 @@
 <trans-unit id="se0955919920ee87d">
   <source>Day</source>
 </trans-unit>
+<trans-unit id="s5e8250fb85d64c24">
+  <source>Week</source>
+</trans-unit>
 <trans-unit id="sb47daaf9e1c4a905">
   <source>Month</source>
 </trans-unit>

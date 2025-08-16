@@ -1,4 +1,5 @@
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
+import { SignalWatcher } from '@lit-labs/signals';
 import { localized } from '@lit/localize';
 import {
     CSSResult,
@@ -25,27 +26,39 @@ import LMSCalendarMenu from './components/Menu';
 import './components/Menu.js';
 import LMSCalendarMonth from './components/Month';
 import './components/Month.js';
-import DirectionalCalendarDateCalculator from './lib/DirectionalCalendarDateCalculator.js';
+import LMSCalendarWeek from './components/Week';
+import './components/Week.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import getOverlappingEntitiesIndices from './lib/getOverlappingEntitiesIndices.js';
 import getSortedGradingsByIndex from './lib/getSortedGradingsByIndex.js';
 import { setAppLocale } from './lib/localization.js';
 import partitionOverlappingIntervals from './lib/partitionOverlappingIntervals.js';
+import {
+    activeDate as activeSignal,
+    currentViewMode,
+    jumpToToday,
+    navigateNext,
+    navigatePrevious,
+    setActiveDate,
+    switchToDayView,
+    switchToMonthView,
+    switchToWeekView,
+} from './lib/viewState.js';
 
 @customElement('lms-calendar')
 @(localized() as ClassDecorator)
-export default class LMSCalendar extends LitElement {
-    private currentDate = new Date();
-
+export default class LMSCalendar extends SignalWatcher(LitElement) {
     @property({ type: String })
     heading?: string;
 
-    @property({ type: Object })
-    activeDate: CalendarDate = {
-        day: this.currentDate.getDate(),
-        month: this.currentDate.getMonth() + 1,
-        year: this.currentDate.getFullYear(),
-    };
+    // activeDate is now managed by signals - this property is kept for backward compatibility
+    get activeDate(): CalendarDate {
+        return activeSignal.get();
+    }
+
+    set activeDate(value: CalendarDate) {
+        setActiveDate(value);
+    }
 
     @property({ type: Array })
     entries: CalendarEntry[] = [];
@@ -53,8 +66,10 @@ export default class LMSCalendar extends LitElement {
     @property({ type: String })
     color = '#000000';
 
-    @state()
-    _expandedDate?: CalendarDate;
+    // _expandedDate is now managed through view mode signals
+    get _expandedDate(): CalendarDate | undefined {
+        return currentViewMode.get() === 'day' ? activeSignal.get() : undefined;
+    }
 
     @state() _calendarWidth: number = window.innerWidth;
 
@@ -122,8 +137,30 @@ export default class LMSCalendar extends LitElement {
             --context-padding: 0.25em;
             --context-text-align: left;
 
+            /* Core layout tokens */
+            --time-column-width: 4em;
+            --grid-rows-per-day: 1440;
+            --view-container-height-offset: var(--day-header-height, 3.5em);
+            --main-content-height-offset: 1em;
+
+            /* Grid template tokens */
+            --calendar-grid-columns-day: var(--time-column-width) 1fr;
+            --calendar-grid-columns-week: var(--time-column-width)
+                repeat(7, 1fr);
+            --calendar-grid-columns-month: repeat(7, 1fr);
+            --calendar-grid-rows-time: repeat(var(--grid-rows-per-day), 1fr);
+
+            /* Calculated heights */
+            --view-container-height: calc(
+                100% - var(--view-container-height-offset)
+            );
+            --main-content-height: calc(
+                100% - var(--main-content-height-offset)
+            );
+
+            /* Legacy tokens (for backward compatibility) */
             --day-header-height: 3.5em;
-            --day-main-offset: 1em;
+            --day-main-offset: var(--main-content-height-offset);
             --day-gap: 1px;
             --day-text-align: center;
             --day-padding: 0.5em;
@@ -131,6 +168,14 @@ export default class LMSCalendar extends LitElement {
             --indicator-top: -0.6em;
             --separator-border: 1px solid var(--separator-light);
             --sidebar-border: 1px solid var(--separator-light);
+
+            /* Typography tokens */
+            --hour-indicator-font-size: 0.75em;
+            --hour-indicator-color: var(
+                --header-text-color,
+                rgba(0, 0, 0, 0.6)
+            );
+            --day-label-font-weight: 500;
 
             --header-height: 3.5em;
             --header-height-mobile: 4.5em;
@@ -230,38 +275,56 @@ export default class LMSCalendar extends LitElement {
     }
 
     override render() {
-        const hasExpandedDate = !R.isEmpty(this._expandedDate ?? {});
+        const viewMode = currentViewMode.get();
+        const currentActiveDate = activeSignal.get();
+
         return html`
             <div>
                 <lms-calendar-header
                     @switchdate=${this._handleSwitchDate}
                     @switchview=${this._handleSwitchView}
+                    @jumptoday=${this._handleJumpToday}
                     .heading=${this.heading}
-                    .activeDate=${this.activeDate}
-                    .expandedDate=${this._expandedDate}
+                    .activeDate=${currentActiveDate}
+                    .expandedDate=${viewMode === 'day'
+                        ? currentActiveDate
+                        : undefined}
                 >
                 </lms-calendar-header>
 
-                <lms-calendar-context ?hidden=${hasExpandedDate}>
-                </lms-calendar-context>
+                ${viewMode === 'month'
+                    ? html`
+                          <lms-calendar-context> </lms-calendar-context>
 
-                <lms-calendar-month
-                    @expand=${this._handleExpand}
-                    @open-menu=${this._handleOpenMenu}
-                    .activeDate=${this.activeDate}
-                    ?hidden=${hasExpandedDate}
-                >
-                    ${this._calendarWidth < 768
-                        ? this._renderEntriesSumByDay()
-                        : this._renderEntries()}
-                </lms-calendar-month>
-
-                <lms-calendar-day
-                    @open-menu=${this._handleOpenMenu}
-                    ?hidden=${!hasExpandedDate}
-                >
-                    ${this._renderEntriesByDate()}
-                </lms-calendar-day>
+                          <lms-calendar-month
+                              @expand=${this._handleExpand}
+                              @open-menu=${this._handleOpenMenu}
+                              .activeDate=${currentActiveDate}
+                          >
+                              ${this._calendarWidth < 768
+                                  ? this._renderEntriesSumByDay()
+                                  : this._renderEntries()}
+                          </lms-calendar-month>
+                      `
+                    : nothing}
+                ${viewMode === 'week'
+                    ? html`
+                          <lms-calendar-week
+                              @expand=${this._handleExpand}
+                              @open-menu=${this._handleOpenMenu}
+                              .activeDate=${currentActiveDate}
+                          >
+                              ${this._renderEntriesForWeek()}
+                          </lms-calendar-week>
+                      `
+                    : nothing}
+                ${viewMode === 'day'
+                    ? html`
+                          <lms-calendar-day @open-menu=${this._handleOpenMenu}>
+                              ${this._renderEntriesByDate()}
+                          </lms-calendar-day>
+                      `
+                    : nothing}
 
                 <lms-menu
                     ?open=${this._menuOpen}
@@ -277,50 +340,28 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _handleSwitchDate(e: CustomEvent) {
-        const dateCalculator = new DirectionalCalendarDateCalculator({});
-        dateCalculator.direction = e.detail.direction;
-
-        if (this._expandedDate) {
-            dateCalculator.date = this._expandedDate;
-            const dateInDirection = dateCalculator.getDateByDayInDirection();
-            // Update both properties only if they're different
-            if (!R.isDeepEqual(this._expandedDate, dateInDirection)) {
-                this._expandedDate = dateInDirection;
-            }
-            if (!R.isDeepEqual(this.activeDate, dateInDirection)) {
-                this.activeDate = dateInDirection;
-            }
-            return;
-        }
-
-        dateCalculator.date = this.activeDate;
-        const newDate = dateCalculator.getDateByMonthInDirection();
-        // Only update if the date actually changed
-        if (!R.isDeepEqual(this.activeDate, newDate)) {
-            this.activeDate = newDate;
+        if (e.detail.direction === 'next') {
+            navigateNext();
+        } else if (e.detail.direction === 'previous') {
+            navigatePrevious();
         }
     }
 
     private _handleSwitchView(e: CustomEvent) {
         return match(e.detail.view)
-            .with('day', () => {
-                // Only set _expandedDate if it's not already set
-                if (R.isEmpty(this._expandedDate ?? {})) {
-                    this._expandedDate = this.activeDate;
-                }
-            })
-            .with('month', () => {
-                // Only update activeDate if _expandedDate exists
-                if (this._expandedDate) {
-                    this.activeDate = this._expandedDate;
-                }
-                this._expandedDate = undefined;
-            })
+            .with('day', () => switchToDayView())
+            .with('week', () => switchToWeekView())
+            .with('month', () => switchToMonthView())
             .otherwise(() => {});
     }
 
+    private _handleJumpToday(_e: CustomEvent) {
+        jumpToToday();
+    }
+
     private _handleExpand(e: CustomEvent) {
-        this._expandedDate = e.detail.date;
+        setActiveDate(e.detail.date);
+        switchToDayView();
     }
 
     private _handleOpenMenu(e: CustomEvent) {
@@ -468,7 +509,10 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _renderEntriesByDate() {
-        if (R.isEmpty(this._expandedDate ?? {})) {
+        const currentActiveDate = activeSignal.get();
+        const viewMode = currentViewMode.get();
+
+        if (viewMode !== 'day') {
             return nothing;
         }
 
@@ -483,7 +527,7 @@ export default class LMSCalendar extends LitElement {
             R.filter((entry) =>
                 R.isDeepEqual(
                     DateTime.fromObject(entry.date.start).toISODate(),
-                    DateTime.fromObject(this._expandedDate ?? {}).toISODate(),
+                    DateTime.fromObject(currentActiveDate).toISODate(),
                 ),
             ),
         );
@@ -633,6 +677,102 @@ export default class LMSCalendar extends LitElement {
         );
     }
 
+    private _renderEntriesForWeek() {
+        const currentActiveDate = activeSignal.get();
+        const viewMode = currentViewMode.get();
+
+        if (!this.entries.length || viewMode !== 'week') {
+            return nothing;
+        }
+
+        const weekStartDate = this._getWeekStartDate(currentActiveDate);
+        const weekDates = Array.from({ length: 7 }, (_, i) => {
+            const date = new Date(weekStartDate);
+            date.setDate(weekStartDate.getDate() + i);
+            return {
+                day: date.getDate(),
+                month: date.getMonth() + 1,
+                year: date.getFullYear(),
+            };
+        });
+
+        return R.pipe(
+            this.entries,
+            R.flatMap((entry) =>
+                this._expandEntryMaybe({
+                    entry,
+                    range: this._getDaysRange(entry.date),
+                }),
+            ),
+            R.filter((entry) => {
+                const entryDateStr = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
+                return weekDates.some(
+                    (date) =>
+                        `${date.year}-${date.month}-${date.day}` ===
+                        entryDateStr,
+                );
+            }),
+            R.map(
+                (entry) =>
+                    [entry, ...getColorTextWithContrast(entry.color)] as [
+                        CalendarEntry & { continuation: Continuation },
+                        string,
+                        string,
+                    ],
+            ),
+            R.map.indexed(([entry, background, text], index) => {
+                const isAllDay =
+                    Number(entry.time?.end.hour) -
+                        Number(entry.time?.start.hour) >=
+                        23 ||
+                    entry.continuation.is ||
+                    entry.continuation.has;
+
+                if (isAllDay) {
+                    return this._composeEntry({
+                        index,
+                        slot: `all-day-${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
+                        styles: css`
+                            lms-calendar-entry._${index} {
+                                --entry-background-color: ${unsafeCSS(
+                                    background,
+                                )};
+                                --entry-color: ${unsafeCSS(text)};
+                            }
+                        `,
+                        entry,
+                    });
+                } else {
+                    return this._composeEntry({
+                        index,
+                        slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}-${entry.time.start.hour}`,
+                        styles: css`
+                            lms-calendar-entry._${index} {
+                                --start-slot: ${unsafeCSS(
+                                    this._getGridSlotByTime(entry.time),
+                                )};
+                                --entry-background-color: ${unsafeCSS(
+                                    background,
+                                )};
+                                --entry-color: ${unsafeCSS(text)};
+                            }
+                        `,
+                        entry,
+                    });
+                }
+            }),
+        );
+    }
+
+    private _getWeekStartDate(date: CalendarDate): Date {
+        const currentDate = new Date(date.year, date.month - 1, date.day);
+        const dayOfWeek = currentDate.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const weekStart = new Date(currentDate);
+        weekStart.setDate(currentDate.getDate() + mondayOffset);
+        return weekStart;
+    }
+
     private _getGridSlotByTime({ start, end }: CalendarTimeInterval) {
         const startRow = start.hour * 60 + (start.minute + 1);
         const endRow = startRow + (end.hour * 60 + end.minute - startRow);
@@ -694,6 +834,7 @@ declare global {
         'lms-calendar': LMSCalendar;
         'lms-calendar-header': LMSCalendarHeader;
         'lms-calendar-month': LMSCalendarMonth;
+        'lms-calendar-week': LMSCalendarWeek;
         'lms-calendar-day': LMSCalendarDay;
         'lms-calendar-context': LMSCalendarContext;
         'lms-calendar-entry': LMSCalendarEntry;
