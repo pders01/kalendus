@@ -274,24 +274,37 @@ export default class LMSCalendar extends LitElement {
         if (this._expandedDate) {
             dateCalculator.date = this._expandedDate;
             const dateInDirection = dateCalculator.getDateByDayInDirection();
-            this._expandedDate = dateInDirection;
-            this.activeDate = dateInDirection;
+            // Update both properties only if they're different
+            if (!R.isDeepEqual(this._expandedDate, dateInDirection)) {
+                this._expandedDate = dateInDirection;
+            }
+            if (!R.isDeepEqual(this.activeDate, dateInDirection)) {
+                this.activeDate = dateInDirection;
+            }
             return;
         }
 
         dateCalculator.date = this.activeDate;
-        this.activeDate = dateCalculator.getDateByMonthInDirection();
+        const newDate = dateCalculator.getDateByMonthInDirection();
+        // Only update if the date actually changed
+        if (!R.isDeepEqual(this.activeDate, newDate)) {
+            this.activeDate = newDate;
+        }
     }
 
     private _handleSwitchView(e: CustomEvent) {
         return match(e.detail.view)
             .with('day', () => {
-                this._expandedDate = !R.isEmpty(this._expandedDate ?? {})
-                    ? this._expandedDate
-                    : this.activeDate;
+                // Only set _expandedDate if it's not already set
+                if (R.isEmpty(this._expandedDate ?? {})) {
+                    this._expandedDate = this.activeDate;
+                }
             })
             .with('month', () => {
-                this.activeDate = this._expandedDate ?? this.activeDate;
+                // Only update activeDate if _expandedDate exists
+                if (this._expandedDate) {
+                    this.activeDate = this._expandedDate;
+                }
                 this._expandedDate = undefined;
             })
             .otherwise(() => {});
@@ -306,7 +319,7 @@ export default class LMSCalendar extends LitElement {
         this.shadowRoot
             ?.querySelectorAll('lms-calendar-entry')
             .forEach((entry) => {
-                (entry as any)._highlighted = false;
+                (entry as LMSCalendarEntry)._highlighted = false;
             });
         this.openMenu(e.detail);
     }
@@ -459,7 +472,7 @@ export default class LMSCalendar extends LitElement {
                 }),
             ),
             R.filter((entry) =>
-                R.equals(
+                R.isDeepEqual(
                     DateTime.fromObject(entry.date.start).toISODate(),
                     DateTime.fromObject(this._expandedDate ?? {}).toISODate(),
                 ),

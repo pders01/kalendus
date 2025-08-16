@@ -1,5 +1,5 @@
 import { Draggable } from '@neodrag/vanilla';
-import { css, html, LitElement, PropertyValueMap } from 'lit';
+import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
 import type { CalendarDate } from '../lms-calendar';
@@ -39,9 +39,6 @@ export class Menu extends LitElement {
             transition: opacity 0.2s, visibility 0.2s;
             opacity: 1;
             visibility: visible;
-        }
-        :host([hidden]) {
-            display: none !important;
         }
         .header {
             display: flex;
@@ -227,14 +224,9 @@ export class Menu extends LitElement {
         }, 0);
     };
 
-    override willUpdate(changedProperties: PropertyValueMap<this>) {
-        super.willUpdate(changedProperties);
-        if (changedProperties.has('open')) {
-            this.hidden = !this.open;
-        }
-    }
-
     override render() {
+        // Use display style instead of hidden attribute to avoid update cycles
+        this.style.display = this.open ? '' : 'none';
         return html`
             <div>
                 <div class="header" title="Drag to move menu">
