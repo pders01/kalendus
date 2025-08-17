@@ -450,6 +450,26 @@ export default class Entry extends LitElement {
         super();
         this.addEventListener('click', this._handleInteraction);
         this.addEventListener('keydown', this._handleInteraction);
+        this.addEventListener('focus', this._handleFocus);
+    }
+
+    /**
+     * Public method to clear the selection state
+     */
+    public clearSelection() {
+        this._highlighted = false;
+        this.setAttribute('aria-selected', 'false');
+    }
+
+    private _handleFocus(_e: FocusEvent) {
+        // When an entry receives focus via keyboard navigation,
+        // clear any previously selected entries (but don't open menu)
+        const clearSelectionEvent = new CustomEvent('clear-other-selections', {
+            detail: { exceptEntry: this },
+            bubbles: true,
+            composed: true,
+        });
+        this.dispatchEvent(clearSelectionEvent);
     }
 
     private _handleInteraction(e: Event) {
