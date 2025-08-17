@@ -2087,7 +2087,7 @@ function normalizeZone(input, defaultZone2) {
     return defaultZone2;
   } else if (input instanceof Zone) {
     return input;
-  } else if (isString$1(input)) {
+  } else if (isString(input)) {
     const lowered = input.toLowerCase();
     if (lowered === "default") return defaultZone2;
     else if (lowered === "local" || lowered === "system") return SystemZone.instance;
@@ -2483,7 +2483,7 @@ function isNumber(o2) {
 function isInteger(o2) {
   return typeof o2 === "number" && o2 % 1 === 0;
 }
-function isString$1(o2) {
+function isString(o2) {
   return typeof o2 === "string";
 }
 function isDate(o2) {
@@ -7827,27 +7827,6 @@ function isDeepEqualSets(data, other) {
   }
   return true;
 }
-function isArray(data) {
-  return Array.isArray(data);
-}
-function isObject(data) {
-  return Boolean(data) && !Array.isArray(data) && typeof data === "object";
-}
-function isString(data) {
-  return typeof data === "string";
-}
-function isEmpty(data) {
-  if (data === void 0) {
-    return true;
-  }
-  if (isArray(data) || isString(data)) {
-    return data.length === 0;
-  }
-  if (isObject(data)) {
-    return Object.keys(data).length === 0;
-  }
-  return false;
-}
 function map() {
   return purry(_map(false), arguments, map.lazy);
 }
@@ -8428,9 +8407,11 @@ let Entry = class extends LitElement {
     this.isContinuation = false;
     this.density = "standard";
     this.displayMode = "default";
+    this.floatText = false;
     this._sumReducer = (accumulator, currentValue) => accumulator + currentValue;
     this.addEventListener("click", this._handleInteraction);
     this.addEventListener("keydown", this._handleInteraction);
+    this.addEventListener("focus", this._handleFocus);
   }
   _renderTitle() {
     return z$1(this.content).with(N$1.nullish, () => this.heading).otherwise(() => `${this.heading}: ${this.content}`);
@@ -8463,14 +8444,28 @@ let Entry = class extends LitElement {
     if (this.isContinuation) return true;
     return this.density === "standard" || this.density === "full";
   }
+  _getAriaLabel() {
+    const timeInfo = this.time ? `${String(this.time.start.hour).padStart(2, "0")}:${String(
+      this.time.start.minute
+    ).padStart(2, "0")} to ${String(this.time.end.hour).padStart(
+      2,
+      "0"
+    )}:${String(this.time.end.minute).padStart(2, "0")}` : "All day";
+    const contentInfo = this.content ? `, ${this.content}` : "";
+    return `Calendar event: ${this.heading}${contentInfo}, ${timeInfo}. Press Enter or Space to open details.`;
+  }
   render() {
+    var _a, _b, _c, _d;
     const mainClass = `main ${this.density}`;
     if (this.displayMode === "month-dot") {
       const isMultiDay = this.isContinuation;
       return html`
                 <div
                     class=${mainClass}
-                    tabindex="1"
+                    tabindex=${((_a = this.accessibility) == null ? void 0 : _a.tabIndex) ?? 0}
+                    role="button"
+                    aria-label="${((_b = this.accessibility) == null ? void 0 : _b.ariaLabel) ?? this._getAriaLabel()}"
+                    aria-selected=${this._highlighted ? "true" : "false"}
                     title=${this._renderTitle()}
                     data-full-content=${this.content || ""}
                     ?data-extended=${this._extended}
@@ -8482,10 +8477,26 @@ let Entry = class extends LitElement {
                 </div>
             `;
     }
+    if (this.floatText) {
+      return html`
+                <div
+                    class=${mainClass}
+                    style="background-color: var(--entry-background-color); height: 100%; position: relative; overflow: visible;"
+                >
+                    <div class="text-content">
+                        <span style="font-weight: 500;">${this.heading}</span>
+                        ${this._renderTime()}
+                    </div>
+                </div>
+            `;
+    }
     return html`
             <div
                 class=${mainClass}
-                tabindex="1"
+                tabindex=${((_c = this.accessibility) == null ? void 0 : _c.tabIndex) ?? 0}
+                role="button"
+                aria-label="${((_d = this.accessibility) == null ? void 0 : _d.ariaLabel) ?? this._getAriaLabel()}"
+                aria-selected=${this._highlighted ? "true" : "false"}
                 title=${this._renderTitle()}
                 data-full-content=${this.content || ""}
                 ?data-extended=${this._extended}
@@ -8516,6 +8527,21 @@ let Entry = class extends LitElement {
     );
     return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
   }
+  /**
+   * Public method to clear the selection state
+   */
+  clearSelection() {
+    this._highlighted = false;
+    this.setAttribute("aria-selected", "false");
+  }
+  _handleFocus(_e) {
+    const clearSelectionEvent = new CustomEvent("clear-other-selections", {
+      detail: { exceptEntry: this },
+      bubbles: true,
+      composed: true
+    });
+    this.dispatchEvent(clearSelectionEvent);
+  }
   _handleInteraction(e2) {
     var _a;
     if (e2 instanceof KeyboardEvent && e2.key !== "Enter" && e2.key !== " ") {
@@ -8525,6 +8551,7 @@ let Entry = class extends LitElement {
     e2.stopPropagation();
     if (!this._highlighted) {
       this._highlighted = true;
+      this.setAttribute("aria-selected", "true");
       if (!this.date) {
         return;
       }
@@ -8551,6 +8578,7 @@ let Entry = class extends LitElement {
       this.dispatchEvent(openMenuEvent);
       const handleMenuClose = () => {
         this._highlighted = false;
+        this.setAttribute("aria-selected", "false");
         this.removeEventListener("menu-close", handleMenuClose);
       };
       this.addEventListener("menu-close", handleMenuClose);
@@ -8559,31 +8587,44 @@ let Entry = class extends LitElement {
 };
 Entry.styles = css`
         :host {
-            /* Responsive font sizing based on component scale */
-            font-size: var(--entry-font-size, 0.75rem);
-            line-height: var(--entry-line-height, 1.2);
+            /* Use shared design tokens from root component */
+            font-size: var(--entry-font-size);
+            line-height: var(--entry-line-height);
+            font-family: var(--system-ui);
 
             grid-column: 2;
             display: block;
             cursor: pointer;
             user-select: none;
-            border-radius: var(--entry-border-radius, var(--border-radius-sm));
+            border-radius: var(--entry-border-radius);
             grid-row: var(--start-slot);
-            width: var(--entry-width);
-            margin: var(--entry-margin);
-            background-color: var(
-                --entry-background-color,
-                var(--background-color)
-            );
-            color: var(--entry-color, var(--primary-color));
+            width: var(--entry-width, 100%);
+            margin-left: var(--entry-margin-left, 0);
+            background-color: var(--entry-background-color);
+            color: var(--entry-color);
+            border: var(--entry-border, none);
             /* z-index of separators in day view is 0 */
             z-index: var(--entry-z-index, 1);
             opacity: var(--entry-opacity, 1);
             box-sizing: border-box;
             padding-bottom: 1px;
-            min-height: var(--entry-min-height, 1.2em);
+            min-height: var(--entry-min-height);
             overflow: hidden;
             position: relative;
+        }
+
+        /* Color handle indicator on the left - only for day/week views */
+        :host::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--entry-handle-width, 0px);
+            background-color: var(--entry-handle-color, transparent);
+            border-radius: var(--entry-border-radius) 0
+                0 var(--entry-border-radius);
+            display: var(--entry-handle-display, none);
         }
 
         :host(:last-child) {
@@ -8591,39 +8632,85 @@ Entry.styles = css`
         }
 
         :host([data-highlighted]) {
-            background: var(--entry-highlight-color, var(--separator-light));
+            background: var(--entry-highlight-color);
+        }
+
+        /* ARIA-compliant highlighted border for active menu entries */
+        :host([aria-selected='true']) {
+            outline: 3px solid var(--entry-focus-color);
+            outline-offset: 2px;
+            position: relative;
+            z-index: 999 !important; /* Ensure highlighted entry appears above others */
+        }
+
+        /* Enhance focus styles for better accessibility */
+        :host(:focus) {
+            outline: 2px solid var(--entry-focus-color);
+            outline-offset: 2px;
+            position: relative;
+            z-index: 999 !important; /* Ensure focused entry appears above others */
         }
 
         :host([data-extended]) {
-            background: var(
-                --entry-extended-background-color,
-                var(--background-color)
-            );
+            background: var(--entry-extended-background-color, var(--background-color));
         }
 
         :host(:focus-within) {
-            outline: 2px solid var(--entry-focus-color, var(--primary-color));
+            outline: 2px solid var(--entry-focus-color);
             outline-offset: -2px;
+            position: relative;
+            z-index: 999 !important; /* Ensure entry with focused child appears above others */
         }
 
         .main {
-            padding: var(--entry-padding, 0.15em 0.25em);
-            border-radius: var(--entry-border-radius, var(--border-radius-sm));
+            padding: var(--entry-padding);
+            padding-top: calc(var(--entry-padding-top, 0) + 0.15em);
+            border-radius: var(--entry-border-radius);
             background-color: inherit;
             text-align: left;
             height: 100%;
             box-sizing: border-box;
             display: flex;
-            flex-direction: var(--entry-layout, row);
-            align-items: var(--entry-align, flex-start);
-            gap: var(--entry-gap, 0.25em);
-            overflow: hidden;
+            flex-direction: var(--entry-layout);
+            align-items: var(--entry-align); /* Use shared design token */
+            justify-content: flex-start; /* Always align content to left */
+            gap: var(--entry-gap);
+            overflow: visible;
+            position: relative;
+        }
+
+        /* Compact grouped content - don't stretch to fill height */
+        .main.compact,
+        .main.standard {
+            align-self: flex-start; /* Don't stretch vertically */
+            height: auto; /* Use natural content height instead of 100% */
+            min-height: var(--entry-min-height, 1.2em);
+        }
+
+        /* When handle design is used, adjust padding for the colored handle */
+        .main {
+            padding-left: var(--entry-padding-left, 0.25em);
+        }
+
+        .text-content {
+            position: absolute;
+            top: var(--entry-text-top, -20px);
+            left: var(--entry-text-left, 0);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2px 6px;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            font-size: 0.7rem;
+            z-index: 1000;
+            white-space: nowrap;
+            pointer-events: auto;
+            line-height: 1.2;
         }
 
         /* Compact mode: single line with title only */
         .main.compact {
             flex-direction: row;
-            align-items: center;
+            align-items: flex-start; /* Top-left alignment for better overlapping visibility */
             gap: 0;
         }
 
@@ -8646,24 +8733,70 @@ Entry.styles = css`
             min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: var(--entry-title-wrap, nowrap);
-            font-weight: var(--entry-title-weight, 500);
+            white-space: var(--entry-title-wrap);
+            font-weight: var(--entry-title-weight);
         }
 
         .time {
-            font-family: var(--entry-font-family, system-ui);
-            font-size: var(--entry-time-font-size, 0.85em);
-            opacity: var(--entry-time-opacity, 0.8);
+            font-family: var(--entry-font-family, var(--system-ui));
+            font-size: var(--entry-time-font-size);
+            opacity: var(--entry-time-opacity);
             white-space: nowrap;
             flex-shrink: 0;
+            margin-left: 0; /* Ensure time stays on the left, don't auto-align to right */
+        }
+
+        /* Row layout: optimized for side-by-side content */
+        .main[style*='--entry-layout: row'] {
+            align-items: center; /* Center align for single-line layout */
+            gap: 0.5em; /* Gap between title and time */
+            flex-wrap: nowrap; /* Prevent wrapping */
+            min-height: 1.4em; /* Ensure consistent height */
+        }
+
+        .main[style*='--entry-layout: row'] .title {
+            flex: 1 1 auto; /* Allow title to grow but not beyond container */
+            min-width: 0; /* Allow title to shrink below content size */
+            max-width: 65%; /* Reserve space for time, but allow more for title */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .main[style*='--entry-layout: row'] .time {
+            flex: 0 0 auto; /* Fixed size, don't grow or shrink */
+            min-width: fit-content; /* Ensure time always fits */
+            font-size: 0.8em; /* Slightly smaller in row layout */
+            opacity: 0.9;
+        }
+
+        /* Column layout: optimized for stacked content */
+        .main[style*='--entry-layout: column'] {
+            align-items: flex-start;
+            gap: 0.15em; /* Tighter spacing for stacked layout */
+            padding-top: 0.2em; /* Slight top padding for better visual balance */
+        }
+
+        .main[style*='--entry-layout: column'] .title {
+            width: 100%;
+            font-weight: 500; /* Slightly bolder in column layout */
+            line-height: 1.2;
+            margin-bottom: 0.1em;
+        }
+
+        .main[style*='--entry-layout: column'] .time {
+            width: 100%;
+            font-size: 0.85em;
+            opacity: 0.8;
+            line-height: 1.1;
         }
 
         /* Month view dot indicator styles */
         :host([data-display-mode='month-dot']) {
-            background: var(--entry-month-background, transparent);
-            padding: var(--entry-month-padding, 0.1em 0.3em 0.1em 0.5em);
+            background: var(--entry-month-background);
+            padding: var(--entry-month-padding);
             border-radius: 0;
-            color: var(--entry-month-text-color, var(--separator-dark));
+            color: var(--entry-month-text-color);
             position: relative;
             z-index: 1;
             width: 100%;
@@ -8674,15 +8807,15 @@ Entry.styles = css`
         /* Multi-day events keep their background in month view */
         :host([data-display-mode='month-dot'][data-is-continuation='true']),
         :host([data-display-mode='month-dot']) .main[data-is-multi-day='true'] {
-            background: var(--entry-background-color, var(--background-color));
+            background: var(--entry-background-color);
             border-radius: var(--border-radius-sm);
-            color: var(--entry-color, var(--primary-color));
+            color: var(--entry-color);
         }
 
         :host([data-display-mode='month-dot']) .main {
             padding: 0;
             align-items: center;
-            gap: var(--entry-dot-margin, 0.25em);
+            gap: var(--entry-dot-margin);
             flex-wrap: nowrap;
             overflow: hidden;
             flex-direction: row !important;
@@ -8698,8 +8831,8 @@ Entry.styles = css`
         }
 
         :host([data-display-mode='month-dot']) .time {
-            font-family: var(--entry-time-font, var(--monospace-ui));
-            text-align: var(--entry-time-align, right);
+            font-family: var(--entry-time-font);
+            text-align: var(--entry-time-align);
             min-width: 3.5em;
             margin-left: auto;
             color: inherit;
@@ -8707,10 +8840,10 @@ Entry.styles = css`
         }
 
         .color-dot {
-            width: var(--entry-dot-size, 0.5em);
-            height: var(--entry-dot-size, 0.5em);
+            width: var(--entry-dot-size);
+            height: var(--entry-dot-size);
             border-radius: 50%;
-            background-color: var(--entry-color, var(--primary-color));
+            background-color: var(--entry-color);
             flex-shrink: 0;
         }
 
@@ -8768,6 +8901,12 @@ __decorateClass$5([
 __decorateClass$5([
   property({ type: String, reflect: true, attribute: "data-display-mode" })
 ], Entry.prototype, "displayMode", 2);
+__decorateClass$5([
+  property({ type: Boolean, reflect: true, attribute: "data-float-text" })
+], Entry.prototype, "floatText", 2);
+__decorateClass$5([
+  property({ type: Object, attribute: false })
+], Entry.prototype, "accessibility", 2);
 __decorateClass$5([
   state()
 ], Entry.prototype, "_highlighted", 2);
@@ -10145,10 +10284,7 @@ let Month = class extends LitElement {
                             tabindex="0"
                         >
                             ${this._renderIndicator({ year, month, day })}
-                            <slot
-                                name="${year}-${month}-${day}"
-                                .date=${{ year, month, day }}
-                            ></slot>
+                            <slot name="${year}-${month}-${day}"></slot>
                         </div>`
     )}
             </div>
@@ -10374,7 +10510,13 @@ let Week = class extends LitElement {
                                 class="day-label ${classMap({
         current: this._isCurrentDate(date)
       })}"
+                                tabindex="0"
+                                role="button"
+                                aria-label="Switch to day view for ${getLocalizedWeekdayShort(
+        index + 1
+      )}, ${date.day}"
                                 @click=${() => this._handleDayLabelClick(date)}
+                                @keydown=${(e2) => this._handleDayLabelKeydown(e2, date)}
                             >
                                 <div>
                                     ${getLocalizedWeekdayShort(index + 1)}
@@ -10441,6 +10583,12 @@ let Week = class extends LitElement {
       )}
                         `
     )}
+
+                    <!-- Fallback slot for direct grid positioned entries -->
+                    <slot
+                        name="week-direct-grid"
+                        style="display: contents;"
+                    ></slot>
                 </div>
             </div>
         `;
@@ -10456,8 +10604,11 @@ let Week = class extends LitElement {
     });
     this.dispatchEvent(event);
   }
-  _handleDayColumnClick(e2, _date) {
-    e2.stopPropagation();
+  _handleDayLabelKeydown(e2, date) {
+    if (e2.key === "Enter" || e2.key === " ") {
+      e2.preventDefault();
+      this._handleDayLabelClick(date);
+    }
   }
 };
 Week.styles = css`
@@ -10502,6 +10653,12 @@ Week.styles = css`
         }
 
         .day-label:hover {
+            background-color: var(--separator-light);
+        }
+
+        .day-label:focus {
+            outline: 2px solid var(--entry-focus-color, var(--primary-color));
+            outline-offset: 2px;
             background-color: var(--separator-light);
         }
 
@@ -10573,8 +10730,8 @@ Week.styles = css`
 
         .all-day-area {
             font-size: var(--day-all-day-font-size, 16px);
-            margin: 0;
-            padding: 0.25em;
+            margin: var(--day-all-day-margin, 0);
+            padding: var(--day-padding, 0.5em);
             z-index: 1;
             position: relative;
             overflow: hidden;
@@ -10623,129 +10780,405 @@ function getColorTextWithContrast(color) {
   const textColor = Math.abs(brightness - lightText) > Math.abs(brightness - darkText) ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
   return [backgroundColor, textColor];
 }
-function partitionOverlappingIntervals(intervals) {
-  const rightEndValues = intervals.map((r2) => r2.end).sort((a2, b2) => a2 - b2);
-  intervals.sort((a2, b2) => a2.start - b2.start);
-  let i2 = 0;
-  let j2 = 0;
-  let active = 0;
-  const groups = [];
-  let cur = [];
-  while (i2 < intervals.length && j2 < rightEndValues.length) {
-    if (intervals[i2].start < rightEndValues[j2]) {
-      cur.push(intervals[i2++]);
-      ++active;
-      continue;
-    }
-    ++j2;
-    if (--active === 0) {
-      groups.push(cur);
-      cur = [];
-    }
+class LayoutCalculator {
+  constructor(config = {}) {
+    this.config = {
+      timeColumnWidth: 80,
+      minuteHeight: 1,
+      eventMinHeight: 20,
+      cascadeOffset: 15,
+      paddingLeft: 10,
+      ...config
+    };
   }
-  if (cur.length > 0) {
-    groups.push(cur);
+  /**
+   * Calculate complete layout for a set of events
+   */
+  calculateLayout(events) {
+    const intervals = this.eventsToIntervals(events);
+    const grading = this.calculateGrading(intervals);
+    const boxes = this.calculateBoxes(events, grading);
+    const labels = this.calculateLabels(events, boxes);
+    return {
+      boxes,
+      labels,
+      gridConfig: this.config
+    };
   }
-  return groups;
-}
-function getOverlappingEntitiesIndices(partitions) {
-  const accumulator = getNonOverlappingPartitions(partitions);
-  const overlappingPartitions = filterOverlappingPartitions(partitions);
-  recursiveReduce(overlappingPartitions, accumulator);
-  return accumulator.sort((a2, b2) => a2.index - b2.index);
-}
-function calculateIndex(partitions, index) {
-  return [partitions.slice(0, index)].flatMap(
-    (item) => item.flat().length
-  )[0];
-}
-function getNonOverlappingPartitions(partitions) {
-  return partitions.reduce(
-    (accumulator, partition, index) => partition.length === 1 ? [
-      ...accumulator,
-      {
-        index: calculateIndex(partitions, index),
-        depth: 0,
-        group: index
+  eventsToIntervals(events) {
+    return events.map((event) => ({
+      start: event.startTime.hour * 60 + event.startTime.minute,
+      end: event.endTime.hour * 60 + event.endTime.minute
+    }));
+  }
+  calculateGrading(intervals) {
+    const grading = [];
+    const groups = this.findOverlapGroups(intervals);
+    groups.forEach((groupIndices, groupId) => {
+      if (groupIndices.length === 1) {
+        grading.push({
+          index: groupIndices[0],
+          depth: 0,
+          group: groupId
+        });
+      } else {
+        const groupIntervals = groupIndices.map((i2) => ({
+          ...intervals[i2],
+          originalIndex: i2
+        }));
+        const longestEvent = groupIntervals.reduce(
+          (longest, current) => {
+            const currentDuration = current.end - current.start;
+            const longestDuration = longest.end - longest.start;
+            return currentDuration > longestDuration ? current : longest;
+          }
+        );
+        let nextDepth = 1;
+        groupIntervals.forEach((interval) => {
+          const isLongestEvent = interval.originalIndex === longestEvent.originalIndex;
+          const depth = isLongestEvent ? 0 : nextDepth++;
+          grading.push({
+            index: interval.originalIndex,
+            depth,
+            group: groupId
+          });
+        });
       }
-    ] : [...accumulator],
-    []
-  );
-}
-function filterOverlappingPartitions(partitions) {
-  return partitions.map(
-    (partition, index) => partition.map((item, _index) => ({
-      ...item,
-      index: calculateIndex(partitions, index) + _index,
-      group: index
-    }))
-  ).filter((partition) => partition.length > 1);
-}
-function partitionReducer(accumulator, partition, depth, currentGroup) {
-  const { group } = partition[0];
-  if (currentGroup !== group) {
-    depth = 0;
-    currentGroup = group;
+    });
+    grading.sort((a2, b2) => a2.index - b2.index);
+    return grading;
   }
-  const delta = partition.map(({ start, end }) => end - start);
-  const maxDelta = Math.max(...delta);
-  const indexMaxDelta = delta.indexOf(maxDelta);
-  {
-    const { index, group: group2 } = partition[indexMaxDelta];
-    if (index === void 0 || group2 === void 0) {
-      throw Error(
-        `Error in partition reduction with args: ${JSON.stringify(
-          partition[indexMaxDelta]
-        )}`
+  findOverlapGroups(intervals) {
+    const groups = [];
+    const assigned = /* @__PURE__ */ new Set();
+    intervals.forEach((_interval, index) => {
+      if (assigned.has(index)) return;
+      const group = [index];
+      assigned.add(index);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        intervals.forEach((otherInterval, otherIndex) => {
+          if (assigned.has(otherIndex)) return;
+          const overlapsWithGroup = group.some(
+            (groupIndex) => this.intervalsOverlap(
+              intervals[groupIndex],
+              otherInterval
+            )
+          );
+          if (overlapsWithGroup) {
+            group.push(otherIndex);
+            assigned.add(otherIndex);
+            changed = true;
+          }
+        });
+      }
+      groups.push(group);
+    });
+    return groups;
+  }
+  intervalsOverlap(a2, b2) {
+    return a2.start < b2.end && b2.start < a2.end;
+  }
+  calculateBoxes(events, grading) {
+    const eventsByGroup = /* @__PURE__ */ new Map();
+    events.forEach((event, index) => {
+      const grade = grading[index] || { depth: 0, group: index };
+      if (!eventsByGroup.has(grade.group)) {
+        eventsByGroup.set(grade.group, []);
+      }
+      eventsByGroup.get(grade.group).push({ event, index, grade });
+    });
+    return events.map((event, index) => {
+      const grade = grading[index] || { depth: 0, group: index };
+      const startMinute = event.startTime.hour * 60 + event.startTime.minute;
+      const endMinute = event.endTime.hour * 60 + event.endTime.minute;
+      const duration = endMinute - startMinute;
+      const groupEvents = eventsByGroup.get(grade.group) || [];
+      const maxDepthInGroup = Math.max(
+        ...groupEvents.map((g) => g.grade.depth)
+      );
+      let width;
+      let x2;
+      if (groupEvents.length === 1) {
+        width = 100;
+        x2 = 0;
+      } else {
+        const totalEvents = maxDepthInGroup + 1;
+        const baseOffset = Math.min(12, Math.floor(60 / totalEvents));
+        const offsetX = grade.depth * baseOffset;
+        const minReadableWidth = 65;
+        const maxOffset = Math.min(offsetX, 100 - minReadableWidth);
+        x2 = maxOffset;
+        width = 100 - maxOffset;
+        if (grade.depth === 0) {
+          width = 100;
+          x2 = 0;
+        }
+      }
+      const baseZIndex = 100;
+      const zIndex = baseZIndex + grade.depth;
+      return {
+        id: event.id,
+        x: x2,
+        // Store as percentage
+        y: startMinute * this.config.minuteHeight,
+        width,
+        // Store as percentage
+        height: Math.max(
+          duration * this.config.minuteHeight,
+          this.config.eventMinHeight
+        ),
+        depth: grade.depth,
+        group: grade.group,
+        opacity: grade.depth === 0 ? 0.95 : Math.max(0.85, 0.95 - grade.depth * 0.05),
+        zIndex
+      };
+    });
+  }
+  calculateLabels(events, boxes) {
+    return events.map((event, index) => {
+      const box = boxes[index];
+      const timeStr = `${String(event.startTime.hour).padStart(
+        2,
+        "0"
+      )}:${String(event.startTime.minute).padStart(2, "0")}`;
+      const textX = box.x + 2;
+      const textY = box.y + 5;
+      return {
+        id: event.id,
+        content: event.heading,
+        timeStr,
+        x: textX,
+        y: textY,
+        color: event.color,
+        visible: true
+      };
+    });
+  }
+}
+class SlotManager {
+  /**
+   * Calculate the slot name and positioning for an entry
+   */
+  calculatePosition(config) {
+    const { viewMode, date, time, isAllDay } = config;
+    switch (viewMode) {
+      case "day":
+        return this._calculateDayPosition(date, time, isAllDay);
+      case "week":
+        return this._calculateWeekPosition(
+          date,
+          config.activeDate,
+          time,
+          isAllDay
+        );
+      case "month":
+        return this._calculateMonthPosition(date);
+      default:
+        throw new Error(`Unsupported view mode: ${viewMode}`);
+    }
+  }
+  /**
+   * Generate CSS styles for positioning an entry based on layout dimensions
+   */
+  generatePositionCSS(position, layout, time) {
+    if (position.useDirectGrid) {
+      const gridColumn = String(position.gridColumn || 2);
+      const gridRow = position.gridRow || "1";
+      const width = String(layout.width);
+      const marginLeft = String(layout.x);
+      const zIndex = String(layout.zIndex);
+      const opacity = String(layout.opacity);
+      const cssString = `
+                grid-column: ${gridColumn};
+                grid-row: ${gridRow};
+                --entry-width: ${width}%;
+                --entry-margin-left: ${marginLeft}%;
+                --entry-z-index: ${zIndex};
+                --entry-opacity: ${opacity};
+            `;
+      return unsafeCSS(cssString);
+    } else {
+      const startSlot = time ? this._getGridSlotByTime(time) : "1";
+      const width = String(layout.width);
+      const marginLeft = String(layout.x);
+      const zIndex = String(layout.zIndex);
+      const opacity = String(layout.opacity);
+      const cssString = `
+                --start-slot: ${startSlot};
+                --entry-width: ${width}%;
+                --entry-margin-left: ${marginLeft}%;
+                --entry-z-index: ${zIndex};
+                --entry-opacity: ${opacity};
+            `;
+      return unsafeCSS(cssString);
+    }
+  }
+  /**
+   * Day view positioning: uses time-based slots
+   */
+  _calculateDayPosition(_date, time, isAllDay) {
+    if (isAllDay) {
+      return {
+        slotName: "all-day",
+        useDirectGrid: false
+      };
+    }
+    if (!time) {
+      throw new Error("Day view entries must have time information");
+    }
+    return {
+      slotName: time.start.hour.toString(),
+      useDirectGrid: false
+    };
+  }
+  /**
+   * Week view positioning: calculates day column and uses direct grid positioning
+   * This bypasses the Week component's slot system to achieve identical rendering to day view
+   */
+  _calculateWeekPosition(date, activeDate2, time, isAllDay) {
+    const dayColumnIndex = this.getWeekDayIndex(date, activeDate2);
+    const gridColumn = dayColumnIndex + 2;
+    if (isAllDay) {
+      return {
+        slotName: "",
+        // No slot - direct grid positioning
+        gridColumn,
+        gridRow: "1 / 60",
+        // All-day area spans first hour
+        useDirectGrid: true
+      };
+    }
+    if (!time) {
+      throw new Error(
+        "Week view timed entries must have time information"
       );
     }
-    accumulator.push({
-      index,
-      depth,
-      group: group2
+    return {
+      slotName: "",
+      // No slot - direct grid positioning
+      gridColumn,
+      gridRow: this._getGridSlotByTime(time),
+      useDirectGrid: true
+    };
+  }
+  /**
+   * Month view positioning: uses date-based slots
+   */
+  _calculateMonthPosition(date) {
+    return {
+      slotName: `${date.year}-${date.month}-${date.day}`,
+      useDirectGrid: false
+    };
+  }
+  /**
+   * Calculate which day of the week an entry belongs to (0-6, where 0 is Monday)
+   */
+  getWeekDayIndex(entryDate, activeDate2) {
+    const currentDate = new Date(
+      activeDate2.year,
+      activeDate2.month - 1,
+      activeDate2.day
+    );
+    const dayOfWeek2 = currentDate.getDay();
+    const mondayOffset = dayOfWeek2 === 0 ? -6 : 1 - dayOfWeek2;
+    const weekStart = new Date(currentDate);
+    weekStart.setDate(currentDate.getDate() + mondayOffset);
+    const weekDates = Array.from({ length: 7 }, (_2, i2) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i2);
+      return {
+        day: date.getDate(),
+        month: date.getMonth() + 1,
+        year: date.getFullYear()
+      };
     });
+    const dayIndex = weekDates.findIndex(
+      (date) => date.day === entryDate.day && date.month === entryDate.month && date.year === entryDate.year
+    );
+    return dayIndex >= 0 ? dayIndex : 0;
   }
-  partition.splice(delta.indexOf(maxDelta), 1);
-  return recursiveReduce(
-    partitionOverlappingIntervals(partition),
-    accumulator,
-    depth + 1
-  );
-}
-function recursiveReduce(partitions, accumulator, depth = 0, currentGroup) {
-  if (partitions.length === 0) {
-    return accumulator;
-  }
-  const [currentPartition, ...remainingPartitions] = partitions;
-  const updatedAccumulator = partitionReducer(
-    accumulator,
-    currentPartition,
-    depth
-  );
-  return recursiveReduce(
-    remainingPartitions,
-    updatedAccumulator,
-    depth + 1
-  );
-}
-function rearrangeDepths(gradings) {
-  const groups = /* @__PURE__ */ new Map();
-  gradings.forEach((item) => {
-    if (!groups.has(item.group)) {
-      groups.set(item.group, []);
+  /**
+   * Convert time interval to CSS grid row specification
+   */
+  _getGridSlotByTime({ start, end }) {
+    const startRow = start.hour * 60 + (start.minute + 1);
+    const endRow = startRow + (end.hour * 60 + end.minute - startRow);
+    if (startRow === endRow) {
+      return `${startRow}/${endRow + 1}`;
     }
-    groups.get(item.group).push({ index: item.index, depth: item.depth, group: item.group });
-  });
-  const result = [];
-  groups.forEach((groupGradings) => {
-    groupGradings.sort((a2, b2) => a2.index - b2.index);
-    groupGradings.forEach((item, i2) => {
-      result.push({ index: item.index, depth: i2, group: item.group });
-    });
-  });
-  result.sort((a2, b2) => a2.index - b2.index);
-  return result;
+    return `${startRow}/${endRow}`;
+  }
+  /**
+   * Calculate accessibility information including logical tab order
+   */
+  calculateAccessibility(config) {
+    const { viewMode, date, time, isAllDay } = config;
+    let tabIndex = 0;
+    if (viewMode === "week" && time && !isAllDay) {
+      const dayOfWeek2 = this.getWeekDayIndex(date, config.activeDate);
+      tabIndex = 1e4 + dayOfWeek2 * 1e4 + time.start.hour * 100 + time.start.minute;
+    } else if (viewMode === "day" && time && !isAllDay) {
+      tabIndex = time.start.hour * 60 + time.start.minute;
+    } else if (isAllDay) {
+      if (viewMode === "week") {
+        const dayOfWeek2 = this.getWeekDayIndex(
+          date,
+          config.activeDate
+        );
+        tabIndex = 1e3 + dayOfWeek2;
+      } else {
+        tabIndex = 0;
+      }
+    }
+    return {
+      tabIndex,
+      role: "button",
+      ariaLabel: this._generateAriaLabel(config)
+    };
+  }
+  /**
+   * Generate comprehensive ARIA label for screen readers
+   */
+  _generateAriaLabel(config) {
+    const { date, time, isAllDay } = config;
+    const dateStr = `${date.month}/${date.day}/${date.year}`;
+    const timeStr = isAllDay || !time ? "All day" : `${String(time.start.hour).padStart(2, "0")}:${String(
+      time.start.minute
+    ).padStart(2, "0")} to ${String(time.end.hour).padStart(
+      2,
+      "0"
+    )}:${String(time.end.minute).padStart(2, "0")}`;
+    return `Calendar event on ${dateStr}, ${timeStr}. Press Enter or Space to open details.`;
+  }
+  /**
+   * Get human-readable description of position (for debugging)
+   */
+  getPositionDescription(config) {
+    const position = this.calculatePosition(config);
+    if (position.useDirectGrid) {
+      return `Direct grid: column ${position.gridColumn}, row ${position.gridRow}`;
+    } else {
+      return `Slot: "${position.slotName}"`;
+    }
+  }
+  /**
+   * Validate that a position configuration is valid
+   */
+  validatePosition(config) {
+    try {
+      this.calculatePosition(config);
+      return { valid: true };
+    } catch (error) {
+      return {
+        valid: false,
+        error: error instanceof Error ? error.message : "Unknown validation error"
+      };
+    }
+  }
 }
+const slotManager = new SlotManager();
 var __defProp2 = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __decorateClass = (decorators, target, key, kind) => {
@@ -10763,6 +11196,13 @@ let LMSCalendar = class extends e$2(LitElement) {
     this.color = "#000000";
     this._calendarWidth = window.innerWidth;
     this._menuOpen = false;
+    this._layoutCalculator = new LayoutCalculator({
+      timeColumnWidth: 80,
+      minuteHeight: 1,
+      eventMinHeight: 20,
+      cascadeOffset: 15,
+      paddingLeft: 10
+    });
     this._handleResize = (entries) => {
       const [div] = entries;
       this._calendarWidth = div.contentRect.width || this._calendarWidth;
@@ -10847,6 +11287,7 @@ let LMSCalendar = class extends e$2(LitElement) {
                           <lms-calendar-month
                               @expand=${this._handleExpand}
                               @open-menu=${this._handleOpenMenu}
+                              @clear-other-selections=${this._handleClearOtherSelections}
                               .activeDate=${currentActiveDate}
                           >
                               ${this._calendarWidth < 768 ? this._renderEntriesSumByDay() : this._renderEntries()}
@@ -10856,13 +11297,17 @@ let LMSCalendar = class extends e$2(LitElement) {
                           <lms-calendar-week
                               @expand=${this._handleExpand}
                               @open-menu=${this._handleOpenMenu}
+                              @clear-other-selections=${this._handleClearOtherSelections}
                               .activeDate=${currentActiveDate}
                           >
-                              ${this._renderEntriesForWeek()}
+                              ${this._renderEntriesByDate()}
                           </lms-calendar-week>
                       ` : nothing}
                 ${viewMode === "day" ? html`
-                          <lms-calendar-day @open-menu=${this._handleOpenMenu}>
+                          <lms-calendar-day
+                              @open-menu=${this._handleOpenMenu}
+                              @clear-other-selections=${this._handleClearOtherSelections}
+                          >
                               ${this._renderEntriesByDate()}
                           </lms-calendar-day>
                       ` : nothing}
@@ -10899,10 +11344,22 @@ let LMSCalendar = class extends e$2(LitElement) {
   }
   _handleOpenMenu(e2) {
     var _a;
+    const clickedEntry = e2.target;
     (_a = this.shadowRoot) == null ? void 0 : _a.querySelectorAll("lms-calendar-entry").forEach((entry) => {
-      entry._highlighted = false;
+      if (entry !== clickedEntry) {
+        entry.clearSelection();
+      }
     });
     this.openMenu(e2.detail);
+  }
+  _handleClearOtherSelections(e2) {
+    var _a;
+    const focusedEntry = e2.detail.exceptEntry;
+    (_a = this.shadowRoot) == null ? void 0 : _a.querySelectorAll("lms-calendar-entry").forEach((entry) => {
+      if (entry !== focusedEntry) {
+        entry.clearSelection();
+      }
+    });
   }
   _handleMenuClose() {
     this._menuOpen = false;
@@ -10919,9 +11376,10 @@ let LMSCalendar = class extends e$2(LitElement) {
     entry,
     isContinuation = false,
     density,
-    displayMode = "default"
+    displayMode = "default",
+    floatText = false
   }) {
-    const determinedDensity = density || this._determineDensity(entry);
+    const determinedDensity = density || this._determineDensity(entry, void 0, void 0, void 0);
     return html`
             <style>
                 ${styles}
@@ -10936,6 +11394,8 @@ let LMSCalendar = class extends e$2(LitElement) {
                 .date=${entry.date}
                 .density=${determinedDensity}
                 .displayMode=${displayMode}
+                .floatText=${floatText}
+                .accessibility=${entry.accessibility}
             >
             </lms-calendar-entry>
         `;
@@ -10948,23 +11408,16 @@ let LMSCalendar = class extends e$2(LitElement) {
       return targetDay >= entryStart && targetDay <= entryEnd;
     }).length;
   }
-  _determineDensity(entry, overlappingCount) {
+  _determineDensity(entry, _overlappingCount, grading, index) {
     if (!entry.time) return "compact";
+    if (grading && index !== void 0 && grading[index]) {
+      return "standard";
+    }
     const durationMinutes = (entry.time.end.hour - entry.time.start.hour) * 60 + (entry.time.end.minute - entry.time.start.minute);
-    const isSmallViewport = this._calendarWidth < 768;
-    if (overlappingCount && overlappingCount > 6) {
-      return "compact";
-    }
-    if (overlappingCount && overlappingCount > 3) {
-      return durationMinutes < 60 ? "compact" : "standard";
-    }
-    if (isSmallViewport) {
-      return durationMinutes < 60 ? "compact" : "standard";
-    }
     if (durationMinutes < 30) {
       return "compact";
     }
-    if (durationMinutes > 120 && entry.content && (!overlappingCount || overlappingCount <= 2)) {
+    if (durationMinutes > 120 && entry.content) {
       return "full";
     }
     return "standard";
@@ -11067,7 +11520,9 @@ let LMSCalendar = class extends e$2(LitElement) {
               heading: entry.heading,
               content: entry.content
             },
-            this._getEntriesCountForDay(entry.date.start)
+            this._getEntriesCountForDay(entry.date.start),
+            void 0,
+            void 0
           ),
           displayMode: "month-dot"
         });
@@ -11077,10 +11532,10 @@ let LMSCalendar = class extends e$2(LitElement) {
   _renderEntriesByDate() {
     const currentActiveDate = activeDate.get();
     const viewMode = currentViewMode.get();
-    if (viewMode !== "day") {
+    if (viewMode !== "day" && viewMode !== "week") {
       return nothing;
     }
-    const entriesByDate = pipe(
+    const allEntriesForDate = pipe(
       this.entries,
       flatMap(
         (entry) => this._expandEntryMaybe({
@@ -11088,125 +11543,210 @@ let LMSCalendar = class extends e$2(LitElement) {
           range: this._getDaysRange(entry.date)
         })
       ),
-      filter(
-        (entry) => isDeepEqual(
-          DateTime.fromObject(entry.date.start).toISODate(),
-          DateTime.fromObject(currentActiveDate).toISODate()
-        )
-      )
-    );
-    let grading = [];
-    if (!isEmpty(entriesByDate)) {
-      grading = pipe(
-        entriesByDate,
-        map(
-          (entry) => {
-            var _a, _b;
-            return Number((_a = entry.time) == null ? void 0 : _a.end.hour) - Number((_b = entry.time) == null ? void 0 : _b.start.hour) < 23 && !entry.continuation.is && !entry.continuation.has ? entry : {
-              ...entry,
-              time: {
-                start: { hour: 0, minute: -1 },
-                end: { hour: 0, minute: 1 }
-              }
-            };
-          }
-        ),
-        map(
-          ({ time }) => this._getGridSlotByTime(time).replace(/[^0-9/]+/g, "").split("/")
-        ),
-        map(([start, end]) => ({
-          start: parseInt(start, 10),
-          end: parseInt(end, 10)
-        })),
-        partitionOverlappingIntervals,
-        getOverlappingEntitiesIndices,
-        rearrangeDepths
-      );
-    }
-    return pipe(
-      entriesByDate,
-      map((entry) => {
-        var _a, _b;
-        return {
-          ...entry,
-          isAllDay: Number((_a = entry.time) == null ? void 0 : _a.end.hour) - Number((_b = entry.time) == null ? void 0 : _b.start.hour) >= 23
-        };
-      }),
-      map(
-        (entry) => [entry, ...getColorTextWithContrast(entry.color)]
-      ),
-      map.indexed(([entry, background, text], index) => {
-        const overlappingCount = grading.length > 0 ? grading.filter(
-          (g) => {
-            var _a;
-            return g.group === ((_a = grading[index]) == null ? void 0 : _a.group);
-          }
-        ).length : 0;
-        return z$1(
-          entry.continuation.is || entry.continuation.has || entry.isAllDay
-        ).with(
-          true,
-          () => this._composeEntry({
-            index,
-            slot: "all-day",
-            styles: css`
-                                lms-calendar-entry._${index} {
-                                    --entry-background-color: ${unsafeCSS(
-              background
-            )};
-                                    --entry-color: ${unsafeCSS(text)};
-                                }
-                            `,
-            entry,
-            density: this._determineDensity(
-              entry,
-              overlappingCount
-            )
-          })
-        ).otherwise(
-          () => {
-            var _a, _b;
-            return this._composeEntry({
-              index,
-              slot: entry.time.start.hour.toString(),
-              styles: css`
-                                lms-calendar-entry._${index} {
-                                    --start-slot: ${unsafeCSS(
-                this._getGridSlotByTime(entry.time)
-              )};
-                                    --entry-width: ${this._getWidthByGroupSize({
-                grading,
-                index
-              })}%;
-                                    --entry-margin: 0 1.5em 0
-                                        ${this._getOffsetByDepth({
-                grading,
-                index
-              })}%;
-                                    --entry-border-radius: var(
-                                        --border-radius-sm
-                                    );
-                                    --entry-background-color: ${unsafeCSS(
-                background
-              )};
-                                    --entry-color: ${unsafeCSS(text)};
-                                    --entry-z-index: ${10 + (((_a = grading[index]) == null ? void 0 : _a.depth) || 0)};
-                                    --entry-opacity: ${Math.max(
-                0.7,
-                1 - (((_b = grading[index]) == null ? void 0 : _b.depth) || 0) * 0.15
-              )};
-                                }
-                            `,
-              entry,
-              density: this._determineDensity(
-                entry,
-                overlappingCount
-              )
-            });
-          }
-        );
+      filter((entry) => {
+        if (viewMode === "day") {
+          return isDeepEqual(
+            DateTime.fromObject(entry.date.start).toISODate(),
+            DateTime.fromObject(currentActiveDate).toISODate()
+          );
+        } else {
+          const weekStartDate = this._getWeekStartDate(currentActiveDate);
+          const weekDates = Array.from({ length: 7 }, (_2, i2) => {
+            const date = new Date(weekStartDate);
+            date.setDate(weekStartDate.getDate() + i2);
+            return DateTime.fromJSDate(date).toISODate();
+          });
+          const entryDateStr = DateTime.fromObject(
+            entry.date.start
+          ).toISODate();
+          return weekDates.includes(entryDateStr);
+        }
       })
     );
+    const allDayEntries = allEntriesForDate.filter(
+      (entry) => {
+        var _a, _b;
+        return !entry.time || entry.time && Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23 || ((_a = entry.continuation) == null ? void 0 : _a.is) || ((_b = entry.continuation) == null ? void 0 : _b.has);
+      }
+    );
+    const entriesByDate = allEntriesForDate.filter(
+      (entry) => {
+        var _a, _b;
+        return !!entry.time && !(Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) && !((_a = entry.continuation) == null ? void 0 : _a.is) && !((_b = entry.continuation) == null ? void 0 : _b.has);
+      }
+    );
+    if (!entriesByDate.length && !allDayEntries.length) {
+      return nothing;
+    }
+    return this._renderEntriesWithSlotManager(
+      viewMode,
+      currentActiveDate,
+      allDayEntries,
+      entriesByDate
+    );
+  }
+  _renderEntriesWithSlotManager(viewMode, currentActiveDate, allDayEntries, entriesByDate) {
+    const allElements = [];
+    if (entriesByDate.length > 0) {
+      if (viewMode === "week") {
+        const entriesByDay = groupBy(
+          entriesByDate,
+          (entry) => `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`
+        );
+        const sortedDayEntries = Object.entries(entriesByDay).map(([dayKey, dayEntries]) => ({ dayKey, dayEntries })).filter(
+          ({ dayEntries }) => dayEntries && dayEntries.length > 0
+        ).sort((a2, b2) => {
+          const dayA = a2.dayEntries[0];
+          const dayB = b2.dayEntries[0];
+          if (!dayA || !dayB || !dayA.date || !dayB.date)
+            return 0;
+          const dayIndexA = slotManager.getWeekDayIndex(
+            dayA.date.start,
+            currentActiveDate
+          );
+          const dayIndexB = slotManager.getWeekDayIndex(
+            dayB.date.start,
+            currentActiveDate
+          );
+          return dayIndexA - dayIndexB;
+        });
+        sortedDayEntries.forEach(({ dayEntries }) => {
+          const dayElements = this._renderDayEntriesWithSlotManager(
+            dayEntries,
+            viewMode,
+            currentActiveDate,
+            entriesByDate
+          );
+          allElements.push(...dayElements);
+        });
+      } else {
+        const dayElements = this._renderDayEntriesWithSlotManager(
+          entriesByDate,
+          viewMode,
+          currentActiveDate,
+          entriesByDate
+        );
+        allElements.push(...dayElements);
+      }
+    }
+    const allDayElements = allDayEntries.map((entry, index) => {
+      const [background, text] = getColorTextWithContrast(entry.color);
+      const positionConfig = {
+        viewMode,
+        date: entry.date.start,
+        isAllDay: true,
+        activeDate: currentActiveDate
+      };
+      const position = slotManager.calculatePosition(positionConfig);
+      const accessibility = slotManager.calculateAccessibility(positionConfig);
+      const layoutDimensions = {
+        width: 100,
+        x: 0,
+        zIndex: 100,
+        opacity: 1
+      };
+      const positionCSS = slotManager.generatePositionCSS(
+        position,
+        layoutDimensions
+      );
+      return this._composeEntry({
+        index: index + entriesByDate.length,
+        slot: position.slotName || "week-direct-grid",
+        // Use fallback slot for direct grid positioning
+        styles: css`
+                    lms-calendar-entry._${index + entriesByDate.length} {
+                        --entry-background-color: ${unsafeCSS(background)};
+                        --entry-color: ${unsafeCSS(text)};
+                        ${positionCSS};
+                    }
+                `,
+        entry: {
+          ...entry,
+          // Add accessibility data to entry
+          accessibility
+        },
+        density: "standard",
+        floatText: false
+      });
+    });
+    return [...allDayElements, ...allElements];
+  }
+  _renderDayEntriesWithSlotManager(dayEntries, viewMode, currentActiveDate, allEntriesByDate) {
+    const layoutEvents = dayEntries.map((entry, index) => ({
+      id: String(index),
+      heading: entry.heading || "",
+      startTime: {
+        hour: entry.time.start.hour,
+        minute: entry.time.start.minute
+      },
+      endTime: {
+        hour: entry.time.end.hour,
+        minute: entry.time.end.minute
+      },
+      color: entry.color || "#1976d2"
+    }));
+    const layout = this._layoutCalculator.calculateLayout(layoutEvents);
+    return dayEntries.map((entry, index) => {
+      const layoutBox = layout.boxes[index];
+      const globalIndex = allEntriesByDate.indexOf(entry);
+      const positionConfig = {
+        viewMode,
+        date: entry.date.start,
+        time: entry.time,
+        activeDate: currentActiveDate
+      };
+      const position = slotManager.calculatePosition(positionConfig);
+      const accessibility = slotManager.calculateAccessibility(positionConfig);
+      const layoutDimensions = {
+        width: layoutBox.width,
+        x: layoutBox.x,
+        zIndex: layoutBox.zIndex,
+        opacity: layoutBox.opacity,
+        height: layoutBox.height
+      };
+      const positionCSS = slotManager.generatePositionCSS(
+        position,
+        layoutDimensions,
+        entry.time
+      );
+      return this._composeEntry({
+        index: globalIndex,
+        slot: position.slotName || "week-direct-grid",
+        // Use fallback slot for direct grid positioning
+        styles: css`
+                    lms-calendar-entry._${globalIndex} {
+                        --entry-background-color: rgba(250, 250, 250, 0.8);
+                        --entry-color: #333;
+                        --entry-border: 1px solid rgba(0, 0, 0, 0.15);
+                        --entry-handle-color: ${unsafeCSS(
+          entry.color || "#1976d2"
+        )};
+                        --entry-handle-width: 4px;
+                        --entry-handle-display: block;
+                        --entry-padding-left: calc(4px + 0.35em);
+                        --entry-layout: ${unsafeCSS(
+          this._getSmartLayout(
+            entry,
+            layoutBox.height,
+            layoutBox.width,
+            {
+              depth: layoutBox.depth,
+              opacity: layoutBox.opacity
+            }
+          )
+        )};
+                        ${positionCSS};
+                    }
+                `,
+        entry: {
+          ...entry,
+          // Add accessibility data to entry
+          accessibility
+        },
+        density: "standard",
+        floatText: false
+      });
+    });
   }
   _renderEntriesSumByDay() {
     return pipe(
@@ -11241,122 +11781,6 @@ let LMSCalendar = class extends e$2(LitElement) {
       )
     );
   }
-  _renderEntriesForWeek() {
-    const currentActiveDate = activeDate.get();
-    const viewMode = currentViewMode.get();
-    if (!this.entries.length || viewMode !== "week") {
-      return nothing;
-    }
-    const weekStartDate = this._getWeekStartDate(currentActiveDate);
-    const weekDates = Array.from({ length: 7 }, (_2, i2) => {
-      const date = new Date(weekStartDate);
-      date.setDate(weekStartDate.getDate() + i2);
-      return {
-        day: date.getDate(),
-        month: date.getMonth() + 1,
-        year: date.getFullYear()
-      };
-    });
-    const entriesInWeek = pipe(
-      this.entries,
-      flatMap(
-        (entry) => this._expandEntryMaybe({
-          entry,
-          range: this._getDaysRange(entry.date)
-        })
-      ),
-      filter((entry) => {
-        const entryDateStr = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
-        return weekDates.some(
-          (date) => `${date.year}-${date.month}-${date.day}` === entryDateStr
-        );
-      })
-    );
-    const entriesByDay = groupBy(
-      entriesInWeek,
-      (entry) => `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`
-    );
-    const grading = pipe(
-      entriesInWeek,
-      map((entry) => entry.time),
-      map(
-        (time) => this._getGridSlotByTime(time).replace(/[^0-9/]+/g, "").split("/")
-      ),
-      map(([start, end]) => ({
-        start: parseInt(start, 10),
-        end: parseInt(end, 10)
-      })),
-      partitionOverlappingIntervals,
-      getOverlappingEntitiesIndices,
-      rearrangeDepths
-    );
-    return pipe(
-      entriesInWeek,
-      map(
-        (entry) => [entry, ...getColorTextWithContrast(entry.color)]
-      ),
-      map.indexed(([entry, background, text], index) => {
-        var _a, _b, _c, _d;
-        const isAllDay = Number((_a = entry.time) == null ? void 0 : _a.end.hour) - Number((_b = entry.time) == null ? void 0 : _b.start.hour) >= 23 || entry.continuation.is || entry.continuation.has;
-        const dayKey = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
-        const dayEntries = entriesByDay[dayKey] || [];
-        const overlappingCount = dayEntries.filter((otherEntry) => {
-          if (otherEntry === entry || !entry.time || !otherEntry.time)
-            return false;
-          const start1 = entry.time.start.hour * 60 + entry.time.start.minute;
-          const end1 = entry.time.end.hour * 60 + entry.time.end.minute;
-          const start2 = otherEntry.time.start.hour * 60 + otherEntry.time.start.minute;
-          const end2 = otherEntry.time.end.hour * 60 + otherEntry.time.end.minute;
-          return start1 < end2 && start2 < end1;
-        }).length;
-        if (isAllDay) {
-          return this._composeEntry({
-            index,
-            slot: `all-day-${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-            styles: css`
-                            lms-calendar-entry._${index} {
-                                --entry-background-color: ${unsafeCSS(
-              background
-            )};
-                                --entry-color: ${unsafeCSS(text)};
-                            }
-                        `,
-            entry,
-            density: this._determineDensity(
-              entry,
-              overlappingCount
-            )
-          });
-        } else {
-          return this._composeEntry({
-            index,
-            slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}-${entry.time.start.hour}`,
-            styles: css`
-                            lms-calendar-entry._${index} {
-                                --start-slot: ${unsafeCSS(
-              this._getGridSlotByTime(entry.time)
-            )};
-                                --entry-background-color: ${unsafeCSS(
-              background
-            )};
-                                --entry-color: ${unsafeCSS(text)};
-                                --entry-z-index: ${10 + (((_c = grading[index]) == null ? void 0 : _c.depth) || 0)};
-                                --entry-opacity: ${Math.max(
-              0.7,
-              1 - (((_d = grading[index]) == null ? void 0 : _d.depth) || 0) * 0.15
-            )};
-                            }
-                        `,
-            entry,
-            density: this._determineDensity(
-              entry,
-              overlappingCount
-            )
-          });
-        }
-      })
-    );
-  }
   _getWeekStartDate(date) {
     const currentDate = new Date(date.year, date.month - 1, date.day);
     const dayOfWeek2 = currentDate.getDay();
@@ -11365,30 +11789,72 @@ let LMSCalendar = class extends e$2(LitElement) {
     weekStart.setDate(currentDate.getDate() + mondayOffset);
     return weekStart;
   }
-  _getGridSlotByTime({ start, end }) {
-    const startRow = start.hour * 60 + (start.minute + 1);
-    const endRow = startRow + (end.hour * 60 + end.minute - startRow);
-    if (startRow === endRow) {
-      return `${startRow}/${endRow + 1}`;
+  _getSmartLayout(entry, height, width, layoutBox) {
+    var _a;
+    if (!entry.time) return "row";
+    const durationMinutes = entry.time ? entry.time.end.hour * 60 + entry.time.end.minute - (entry.time.start.hour * 60 + entry.time.start.minute) : 0;
+    const titleLength = ((_a = entry.heading) == null ? void 0 : _a.length) || 0;
+    const hasContent = Boolean(entry.content);
+    const isOverlapping = layoutBox && layoutBox.depth > 0;
+    const isBackgroundEvent = layoutBox && layoutBox.depth > 0;
+    layoutBox && layoutBox.opacity < 0.8;
+    const hasSignificantOverlap = layoutBox && (layoutBox.depth > 1 || layoutBox.opacity < 0.6);
+    const minTwoLineHeight = hasContent ? 50 : 40;
+    const comfortableRowWidth = Math.max(120, this._calendarWidth * 0.15);
+    const longTitleThreshold = Math.max(
+      15,
+      Math.min(25, this._calendarWidth / 50)
+    );
+    const factors = {
+      // Height factors
+      hasEnoughHeight: height >= minTwoLineHeight,
+      hasComfortableHeight: height >= minTwoLineHeight + 20,
+      // Width factors
+      hasEnoughWidth: !width || width >= comfortableRowWidth,
+      hasComfortableWidth: !width || width >= comfortableRowWidth + 40,
+      // Content factors
+      hasLongTitle: titleLength > longTitleThreshold,
+      hasAdditionalContent: hasContent,
+      // Duration factors
+      isVeryShort: durationMinutes <= 15,
+      // 30 minutes or less
+      isMedium: durationMinutes <= 60,
+      // More than 1 hour
+      // Overlap factors - KEY FOR VISIBILITY
+      isOverlapping: Boolean(isOverlapping),
+      isBackgroundEvent: Boolean(isBackgroundEvent),
+      hasSignificantOverlap: Boolean(hasSignificantOverlap)
+    };
+    if (factors.isBackgroundEvent && factors.hasEnoughHeight) {
+      return "column";
     }
-    return `${startRow}/${endRow}`;
-  }
-  _getWidthByGroupSize({
-    grading,
-    index
-  }) {
-    return 100 / grading.filter((item) => item.group === grading[index].group).length;
-  }
-  _getOffsetByDepth({
-    grading,
-    index
-  }) {
-    if (!grading[index]) {
-      return 0;
+    if (factors.hasSignificantOverlap && factors.hasEnoughHeight) {
+      return "column";
     }
-    return grading[index].depth === 0 ? 0 : grading[index].depth * (100 / grading.filter(
-      (item) => item.group === grading[index].group
-    ).length);
+    if (factors.isOverlapping && factors.hasComfortableHeight) {
+      return "column";
+    }
+    if (factors.isVeryShort && !factors.isOverlapping) {
+      return "row";
+    }
+    if (factors.hasLongTitle && factors.hasEnoughHeight) {
+      return "column";
+    }
+    if (factors.hasAdditionalContent && factors.hasEnoughHeight && factors.hasEnoughWidth) {
+      return "column";
+    }
+    if (factors.isMedium) {
+      if (factors.hasEnoughHeight && !factors.hasComfortableWidth) {
+        return "column";
+      }
+      if (factors.hasComfortableWidth && !factors.hasEnoughHeight) {
+        return "row";
+      }
+    }
+    if (factors.hasEnoughHeight && factors.hasEnoughWidth) {
+      return "column";
+    }
+    return "row";
   }
   _getDaysRange(date) {
     const { start, end } = date;
@@ -11501,6 +11967,8 @@ LMSCalendar.styles = css`
             --day-gap: 1px;
             --day-text-align: center;
             --day-padding: 0.5em;
+            --day-all-day-font-size: 16px;
+            --day-all-day-margin: 0 1.25em 0 4.25em;
             --hour-text-align: center;
             --indicator-top: -0.6em;
             --separator-border: 1px solid var(--separator-light);

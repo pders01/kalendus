@@ -134,8 +134,8 @@ export default class Week extends LitElement {
 
         .all-day-area {
             font-size: var(--day-all-day-font-size, 16px);
-            margin: 0;
-            padding: 0.25em;
+            margin: var(--day-all-day-margin, 0);
+            padding: var(--day-padding, 0.5em);
             z-index: 1;
             position: relative;
             overflow: hidden;

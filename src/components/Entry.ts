@@ -50,30 +50,28 @@ export default class Entry extends LitElement {
 
     static override styles = css`
         :host {
-            /* Responsive font sizing based on component scale */
-            font-size: var(--entry-font-size, 0.75rem);
-            line-height: var(--entry-line-height, 1.2);
+            /* Use shared design tokens from root component */
+            font-size: var(--entry-font-size);
+            line-height: var(--entry-line-height);
+            font-family: var(--system-ui);
 
             grid-column: 2;
             display: block;
             cursor: pointer;
             user-select: none;
-            border-radius: var(--entry-border-radius, var(--border-radius-sm));
+            border-radius: var(--entry-border-radius);
             grid-row: var(--start-slot);
             width: var(--entry-width, 100%);
             margin-left: var(--entry-margin-left, 0);
-            background-color: var(
-                --entry-background-color,
-                var(--background-color)
-            );
-            color: var(--entry-color, var(--primary-color));
+            background-color: var(--entry-background-color);
+            color: var(--entry-color);
             border: var(--entry-border, none);
             /* z-index of separators in day view is 0 */
             z-index: var(--entry-z-index, 1);
             opacity: var(--entry-opacity, 1);
             box-sizing: border-box;
             padding-bottom: 1px;
-            min-height: var(--entry-min-height, 1.2em);
+            min-height: var(--entry-min-height);
             overflow: hidden;
             position: relative;
         }
@@ -87,8 +85,8 @@ export default class Entry extends LitElement {
             bottom: 0;
             width: var(--entry-handle-width, 0px);
             background-color: var(--entry-handle-color, transparent);
-            border-radius: var(--entry-border-radius, var(--border-radius-sm)) 0
-                0 var(--entry-border-radius, var(--border-radius-sm));
+            border-radius: var(--entry-border-radius) 0 0
+                var(--entry-border-radius);
             display: var(--entry-handle-display, none);
         }
 
@@ -97,12 +95,12 @@ export default class Entry extends LitElement {
         }
 
         :host([data-highlighted]) {
-            background: var(--entry-highlight-color, var(--separator-light));
+            background: var(--entry-highlight-color);
         }
 
         /* ARIA-compliant highlighted border for active menu entries */
         :host([aria-selected='true']) {
-            outline: 3px solid var(--entry-focus-color, var(--primary-color));
+            outline: 3px solid var(--entry-focus-color);
             outline-offset: 2px;
             position: relative;
             z-index: 999 !important; /* Ensure highlighted entry appears above others */
@@ -110,7 +108,7 @@ export default class Entry extends LitElement {
 
         /* Enhance focus styles for better accessibility */
         :host(:focus) {
-            outline: 2px solid var(--entry-focus-color, var(--primary-color));
+            outline: 2px solid var(--entry-focus-color);
             outline-offset: 2px;
             position: relative;
             z-index: 999 !important; /* Ensure focused entry appears above others */
@@ -124,25 +122,25 @@ export default class Entry extends LitElement {
         }
 
         :host(:focus-within) {
-            outline: 2px solid var(--entry-focus-color, var(--primary-color));
+            outline: 2px solid var(--entry-focus-color);
             outline-offset: -2px;
             position: relative;
             z-index: 999 !important; /* Ensure entry with focused child appears above others */
         }
 
         .main {
-            padding: var(--entry-padding, 0.15em 0.25em);
+            padding: var(--entry-padding);
             padding-top: calc(var(--entry-padding-top, 0) + 0.15em);
-            border-radius: var(--entry-border-radius, var(--border-radius-sm));
+            border-radius: var(--entry-border-radius);
             background-color: inherit;
             text-align: left;
             height: 100%;
             box-sizing: border-box;
             display: flex;
-            flex-direction: var(--entry-layout, row);
-            align-items: flex-start; /* Always align content to top */
+            flex-direction: var(--entry-layout);
+            align-items: var(--entry-align); /* Use shared design token */
             justify-content: flex-start; /* Always align content to left */
-            gap: var(--entry-gap, 0.25em);
+            gap: var(--entry-gap);
             overflow: visible;
             position: relative;
         }
@@ -201,14 +199,14 @@ export default class Entry extends LitElement {
             min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: var(--entry-title-wrap, nowrap);
-            font-weight: var(--entry-title-weight, 500);
+            white-space: var(--entry-title-wrap);
+            font-weight: var(--entry-title-weight);
         }
 
         .time {
-            font-family: var(--entry-font-family, system-ui);
-            font-size: var(--entry-time-font-size, 0.85em);
-            opacity: var(--entry-time-opacity, 0.8);
+            font-family: var(--entry-font-family, var(--system-ui));
+            font-size: var(--entry-time-font-size);
+            opacity: var(--entry-time-opacity);
             white-space: nowrap;
             flex-shrink: 0;
             margin-left: 0; /* Ensure time stays on the left, don't auto-align to right */
@@ -261,10 +259,10 @@ export default class Entry extends LitElement {
 
         /* Month view dot indicator styles */
         :host([data-display-mode='month-dot']) {
-            background: var(--entry-month-background, transparent);
-            padding: var(--entry-month-padding, 0.1em 0.3em 0.1em 0.5em);
+            background: var(--entry-month-background);
+            padding: var(--entry-month-padding);
             border-radius: 0;
-            color: var(--entry-month-text-color, var(--separator-dark));
+            color: var(--entry-month-text-color);
             position: relative;
             z-index: 1;
             width: 100%;
@@ -275,15 +273,15 @@ export default class Entry extends LitElement {
         /* Multi-day events keep their background in month view */
         :host([data-display-mode='month-dot'][data-is-continuation='true']),
         :host([data-display-mode='month-dot']) .main[data-is-multi-day='true'] {
-            background: var(--entry-background-color, var(--background-color));
+            background: var(--entry-background-color);
             border-radius: var(--border-radius-sm);
-            color: var(--entry-color, var(--primary-color));
+            color: var(--entry-color);
         }
 
         :host([data-display-mode='month-dot']) .main {
             padding: 0;
             align-items: center;
-            gap: var(--entry-dot-margin, 0.25em);
+            gap: var(--entry-dot-margin);
             flex-wrap: nowrap;
             overflow: hidden;
             flex-direction: row !important;
@@ -299,8 +297,8 @@ export default class Entry extends LitElement {
         }
 
         :host([data-display-mode='month-dot']) .time {
-            font-family: var(--entry-time-font, var(--monospace-ui));
-            text-align: var(--entry-time-align, right);
+            font-family: var(--entry-time-font);
+            text-align: var(--entry-time-align);
             min-width: 3.5em;
             margin-left: auto;
             color: inherit;
@@ -308,10 +306,10 @@ export default class Entry extends LitElement {
         }
 
         .color-dot {
-            width: var(--entry-dot-size, 0.5em);
-            height: var(--entry-dot-size, 0.5em);
+            width: var(--entry-dot-size);
+            height: var(--entry-dot-size);
             border-radius: 50%;
-            background-color: var(--entry-color, var(--primary-color));
+            background-color: var(--entry-color);
             flex-shrink: 0;
         }
 
