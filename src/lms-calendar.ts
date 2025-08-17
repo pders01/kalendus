@@ -29,12 +29,13 @@ import './components/Month.js';
 import LMSCalendarWeek from './components/Week';
 import './components/Week.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
-import getOverlappingEntitiesIndices from './lib/getOverlappingEntitiesIndices.js';
-import getSortedGradingsByIndex from './lib/getSortedGradingsByIndex.js';
 import { LayoutCalculator } from './lib/LayoutCalculator.js';
-import { slotManager, type PositionConfig, type LayoutDimensions, type AccessibilityInfo } from './lib/SlotManager.js';
 import { setAppLocale } from './lib/localization.js';
-import partitionOverlappingIntervals from './lib/partitionOverlappingIntervals.js';
+import {
+    slotManager,
+    type LayoutDimensions,
+    type PositionConfig,
+} from './lib/SlotManager.js';
 import {
     activeDate as activeSignal,
     currentViewMode,
@@ -88,7 +89,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         minuteHeight: 1,
         eventMinHeight: 20,
         cascadeOffset: 15,
-        paddingLeft: 10
+        paddingLeft: 10,
     });
 
     private _handleResize = (entries: ResizeObserverEntry[]): void => {
@@ -368,7 +369,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                           <lms-calendar-month
                               @expand=${this._handleExpand}
                               @open-menu=${this._handleOpenMenu}
-                              @clear-other-selections=${this._handleClearOtherSelections}
+                              @clear-other-selections=${this
+                                  ._handleClearOtherSelections}
                               .activeDate=${currentActiveDate}
                           >
                               ${this._calendarWidth < 768
@@ -382,7 +384,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                           <lms-calendar-week
                               @expand=${this._handleExpand}
                               @open-menu=${this._handleOpenMenu}
-                              @clear-other-selections=${this._handleClearOtherSelections}
+                              @clear-other-selections=${this
+                                  ._handleClearOtherSelections}
                               .activeDate=${currentActiveDate}
                           >
                               ${this._renderEntriesByDate()}
@@ -391,9 +394,10 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     : nothing}
                 ${viewMode === 'day'
                     ? html`
-                          <lms-calendar-day 
+                          <lms-calendar-day
                               @open-menu=${this._handleOpenMenu}
-                              @clear-other-selections=${this._handleClearOtherSelections}
+                              @clear-other-selections=${this
+                                  ._handleClearOtherSelections}
                           >
                               ${this._renderEntriesByDate()}
                           </lms-calendar-day>
@@ -479,7 +483,6 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         this._menuOpen = true;
     }
 
-
     private _composeEntry({
         index,
         slot,
@@ -493,14 +496,22 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         index: number;
         slot: string;
         styles: CSSResult | typeof nothing;
-        entry: Partial<CalendarEntry> & { _accessibility?: { tabIndex: number; role: string; ariaLabel: string } };
+        entry: Partial<CalendarEntry> & {
+            accessibility?: {
+                tabIndex: number;
+                role: 'button';
+                ariaLabel: string;
+            };
+        };
         isContinuation?: boolean;
         density?: 'compact' | 'standard' | 'full';
         displayMode?: 'default' | 'month-dot';
         floatText?: boolean;
     }) {
         // Determine density based on event duration and context if not explicitly set
-        const determinedDensity = density || this._determineDensity(entry, undefined, undefined, undefined);
+        const determinedDensity =
+            density ||
+            this._determineDensity(entry, undefined, undefined, undefined);
 
         return html`
             <style>
@@ -517,7 +528,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 .density=${determinedDensity}
                 .displayMode=${displayMode}
                 .floatText=${floatText}
-                ._accessibility=${entry._accessibility}
+                .accessibility=${entry.accessibility}
             >
             </lms-calendar-entry>
         `;
@@ -719,7 +730,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             return nothing;
         }
 
-        // Get all entries for current day or week  
+        // Get all entries for current day or week
         const allEntriesForDate = R.pipe(
             this.entries,
             R.flatMap((entry) =>
@@ -736,26 +747,46 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     );
                 } else {
                     // Week view: filter for current week
-                    const weekStartDate = this._getWeekStartDate(currentActiveDate);
+                    const weekStartDate =
+                        this._getWeekStartDate(currentActiveDate);
                     const weekDates = Array.from({ length: 7 }, (_, i) => {
                         const date = new Date(weekStartDate);
                         date.setDate(weekStartDate.getDate() + i);
                         return DateTime.fromJSDate(date).toISODate();
                     });
-                    const entryDateStr = DateTime.fromObject(entry.date.start).toISODate();
+                    const entryDateStr = DateTime.fromObject(
+                        entry.date.start,
+                    ).toISODate();
                     return weekDates.includes(entryDateStr);
                 }
             }),
-        ) as Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>;
+        ) as Array<
+            CalendarEntry & { continuation: { is: boolean; has: boolean } }
+        >;
 
         // Separate all-day and timed entries
-        const allDayEntries = allEntriesForDate.filter(entry => !entry.time || 
-            (entry.time && Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) ||
-            entry.continuation?.is || entry.continuation?.has);
-            
-        const entriesByDate = allEntriesForDate.filter(entry => !!entry.time && 
-            !(Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) &&
-            !entry.continuation?.is && !entry.continuation?.has);
+        const allDayEntries = allEntriesForDate.filter(
+            (entry) =>
+                !entry.time ||
+                (entry.time &&
+                    Number(entry.time.end.hour) -
+                        Number(entry.time.start.hour) >=
+                        23) ||
+                entry.continuation?.is ||
+                entry.continuation?.has,
+        );
+
+        const entriesByDate = allEntriesForDate.filter(
+            (entry) =>
+                !!entry.time &&
+                !(
+                    Number(entry.time.end.hour) -
+                        Number(entry.time.start.hour) >=
+                    23
+                ) &&
+                !entry.continuation?.is &&
+                !entry.continuation?.has,
+        );
 
         if (!entriesByDate.length && !allDayEntries.length) {
             return nothing;
@@ -763,18 +794,22 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
 
         // Use SlotManager to handle positioning across different views
         return this._renderEntriesWithSlotManager(
-            viewMode, 
-            currentActiveDate, 
-            allDayEntries, 
-            entriesByDate
+            viewMode,
+            currentActiveDate,
+            allDayEntries,
+            entriesByDate,
         );
     }
 
     private _renderEntriesWithSlotManager(
         viewMode: 'day' | 'week',
         currentActiveDate: CalendarDate,
-        allDayEntries: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>,
-        entriesByDate: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>
+        allDayEntries: Array<
+            CalendarEntry & { continuation: { is: boolean; has: boolean } }
+        >,
+        entriesByDate: Array<
+            CalendarEntry & { continuation: { is: boolean; has: boolean } }
+        >,
     ) {
         const allElements: ReturnType<typeof this._composeEntry>[] = [];
 
@@ -782,40 +817,51 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         if (entriesByDate.length > 0) {
             if (viewMode === 'week') {
                 // Group timed entries by day for week view
-                const entriesByDay = R.groupBy(entriesByDate, entry => 
-                    `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`
+                const entriesByDay = R.groupBy(
+                    entriesByDate,
+                    (entry) =>
+                        `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
                 );
 
                 // Process each day's entries separately with LayoutCalculator in proper day order
                 const sortedDayEntries = Object.entries(entriesByDay)
                     .map(([dayKey, dayEntries]) => ({ dayKey, dayEntries }))
-                    .filter(({ dayEntries }) => dayEntries && dayEntries.length > 0) // Safety check
+                    .filter(
+                        ({ dayEntries }) => dayEntries && dayEntries.length > 0,
+                    ) // Safety check
                     .sort((a, b) => {
                         // Sort by actual day order within the week
                         const dayA = a.dayEntries[0];
                         const dayB = b.dayEntries[0];
-                        if (!dayA || !dayB || !dayA.date || !dayB.date) return 0; // Safety check
-                        const dayIndexA = slotManager.getWeekDayIndex(dayA.date.start, currentActiveDate);
-                        const dayIndexB = slotManager.getWeekDayIndex(dayB.date.start, currentActiveDate);
+                        if (!dayA || !dayB || !dayA.date || !dayB.date)
+                            return 0; // Safety check
+                        const dayIndexA = slotManager.getWeekDayIndex(
+                            dayA.date.start,
+                            currentActiveDate,
+                        );
+                        const dayIndexB = slotManager.getWeekDayIndex(
+                            dayB.date.start,
+                            currentActiveDate,
+                        );
                         return dayIndexA - dayIndexB;
                     });
 
                 sortedDayEntries.forEach(({ dayEntries }) => {
                     const dayElements = this._renderDayEntriesWithSlotManager(
-                        dayEntries, 
-                        viewMode, 
-                        currentActiveDate, 
-                        entriesByDate
+                        dayEntries,
+                        viewMode,
+                        currentActiveDate,
+                        entriesByDate,
                     );
                     allElements.push(...dayElements);
                 });
             } else {
                 // Day view: process all entries together
                 const dayElements = this._renderDayEntriesWithSlotManager(
-                    entriesByDate, 
-                    viewMode, 
-                    currentActiveDate, 
-                    entriesByDate
+                    entriesByDate,
+                    viewMode,
+                    currentActiveDate,
+                    entriesByDate,
                 );
                 allElements.push(...dayElements);
             }
@@ -824,26 +870,30 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         // Process all-day entries
         const allDayElements = allDayEntries.map((entry, index) => {
             const [background, text] = getColorTextWithContrast(entry.color);
-            
+
             // Use SlotManager to determine positioning and accessibility
             const positionConfig: PositionConfig = {
                 viewMode,
                 date: entry.date.start,
                 isAllDay: true,
-                activeDate: currentActiveDate
+                activeDate: currentActiveDate,
             };
-            
+
             const position = slotManager.calculatePosition(positionConfig);
-            const accessibility = slotManager.calculateAccessibility(positionConfig);
+            const accessibility =
+                slotManager.calculateAccessibility(positionConfig);
             const layoutDimensions: LayoutDimensions = {
                 width: 100,
                 x: 0,
                 zIndex: 100,
-                opacity: 1
+                opacity: 1,
             };
-            
-            const positionCSS = slotManager.generatePositionCSS(position, layoutDimensions);
-            
+
+            const positionCSS = slotManager.generatePositionCSS(
+                position,
+                layoutDimensions,
+            );
+
             return this._composeEntry({
                 index: index + entriesByDate.length,
                 slot: position.slotName || 'week-direct-grid', // Use fallback slot for direct grid positioning
@@ -851,14 +901,13 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     lms-calendar-entry._${index + entriesByDate.length} {
                         --entry-background-color: ${unsafeCSS(background)};
                         --entry-color: ${unsafeCSS(text)};
-                        --entry-tabindex: ${accessibility.tabIndex};
-                        ${positionCSS}
+                        ${positionCSS};
                     }
                 `,
                 entry: {
                     ...entry,
                     // Add accessibility data to entry
-                    _accessibility: accessibility
+                    accessibility: accessibility,
                 },
                 density: 'standard',
                 floatText: false,
@@ -869,10 +918,14 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
     }
 
     private _renderDayEntriesWithSlotManager(
-        dayEntries: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>,
+        dayEntries: Array<
+            CalendarEntry & { continuation: { is: boolean; has: boolean } }
+        >,
         viewMode: 'day' | 'week',
         currentActiveDate: CalendarDate,
-        allEntriesByDate: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>
+        allEntriesByDate: Array<
+            CalendarEntry & { continuation: { is: boolean; has: boolean } }
+        >,
     ) {
         // Convert to layout calculator format
         const layoutEvents = dayEntries.map((entry, index) => ({
@@ -896,27 +949,32 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         return dayEntries.map((entry, index) => {
             const layoutBox = layout.boxes[index];
             const globalIndex = allEntriesByDate.indexOf(entry);
-            
+
             // Use SlotManager to determine positioning and accessibility
             const positionConfig: PositionConfig = {
                 viewMode,
                 date: entry.date.start,
                 time: entry.time,
-                activeDate: currentActiveDate
+                activeDate: currentActiveDate,
             };
-            
+
             const position = slotManager.calculatePosition(positionConfig);
-            const accessibility = slotManager.calculateAccessibility(positionConfig);
+            const accessibility =
+                slotManager.calculateAccessibility(positionConfig);
             const layoutDimensions: LayoutDimensions = {
                 width: layoutBox.width,
                 x: layoutBox.x,
                 zIndex: layoutBox.zIndex,
                 opacity: layoutBox.opacity,
-                height: layoutBox.height
+                height: layoutBox.height,
             };
-            
-            const positionCSS = slotManager.generatePositionCSS(position, layoutDimensions, entry.time);
-            
+
+            const positionCSS = slotManager.generatePositionCSS(
+                position,
+                layoutDimensions,
+                entry.time,
+            );
+
             return this._composeEntry({
                 index: globalIndex,
                 slot: position.slotName || 'week-direct-grid', // Use fallback slot for direct grid positioning
@@ -925,19 +983,22 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         --entry-background-color: rgba(250, 250, 250, 0.8);
                         --entry-color: #333;
                         --entry-border: 1px solid rgba(0, 0, 0, 0.15);
-                        --entry-handle-color: ${unsafeCSS(entry.color || '#1976d2')};
+                        --entry-handle-color: ${unsafeCSS(
+                            entry.color || '#1976d2',
+                        )};
                         --entry-handle-width: 4px;
                         --entry-handle-display: block;
                         --entry-padding-left: calc(4px + 0.35em);
-                        --entry-layout: ${unsafeCSS(this._getSmartLayout(entry, layoutBox.height))};
-                        --entry-tabindex: ${accessibility.tabIndex};
-                        ${positionCSS}
+                        --entry-layout: ${unsafeCSS(
+                            this._getSmartLayout(entry, layoutBox.height),
+                        )};
+                        ${positionCSS};
                     }
                 `,
                 entry: {
                     ...entry,
                     // Add accessibility data to entry
-                    _accessibility: accessibility
+                    accessibility: accessibility,
                 },
                 density: 'standard',
                 floatText: false,
@@ -979,7 +1040,6 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         );
     }
 
-
     private _getWeekStartDate(date: CalendarDate): Date {
         const currentDate = new Date(date.year, date.month - 1, date.day);
         const dayOfWeek = currentDate.getDay();
@@ -989,31 +1049,23 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         return weekStart;
     }
 
-    private _getSmartLayout(entry: CalendarEntry, height: number): 'row' | 'column' {
+    private _getSmartLayout(
+        entry: CalendarEntry,
+        height: number,
+    ): 'row' | 'column' {
         if (!entry.time) return 'row';
-        
+
         // Calculate minimum height needed for two-line layout (title + time)
         const minTwoLineHeight = 40; // Approximately 2 lines with padding
-        
+
         // If event is tall enough for comfortable two-line layout, use column
         if (height >= minTwoLineHeight) {
             return 'column';
         }
-        
+
         // For short events, use compact single-line row layout
         return 'row';
     }
-
-    private _getGridSlotByTime({ start, end }: CalendarTimeInterval) {
-        const startRow = start.hour * 60 + (start.minute + 1);
-        const endRow = startRow + (end.hour * 60 + end.minute - startRow);
-        if (startRow === endRow) {
-            return `${startRow}/${endRow + 1}`;
-        }
-
-        return `${startRow}/${endRow}`;
-    }
-
 
     private _getDaysRange(date: CalendarDateInterval): [Date, Date, number] {
         const { start, end } = date;
@@ -1040,25 +1092,14 @@ declare global {
         'lms-calendar-menu': LMSCalendarMenu;
     }
 
-    type CalendarDate = {
-        day: number;
-        month: number;
-        year: number;
-    };
-
-    type CalendarDateInterval = {
-        start: CalendarDate;
-        end: CalendarDate;
-    };
-
     type CalendarTime = {
         hour: number;
         minute: number;
     };
 
-    type CalendarTimeInterval = {
-        start: CalendarTime;
-        end: CalendarTime;
+    type CalendarDateInterval = {
+        start: CalendarDate;
+        end: CalendarDate;
     };
 
     type CalendarEntry = {

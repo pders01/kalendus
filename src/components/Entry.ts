@@ -5,6 +5,11 @@ import { P, match } from 'ts-pattern';
 import { messages } from '../lib/messages.js';
 import type { CalendarDateInterval } from '../lms-calendar';
 
+/**
+ * Calendar entry component with accessibility and interaction support
+ *
+ * @prop {Object} accessibility - Accessibility configuration for tab order and ARIA attributes
+ */
 @customElement('lms-calendar-entry')
 @(localized() as ClassDecorator)
 export default class Entry extends LitElement {
@@ -27,12 +32,12 @@ export default class Entry extends LitElement {
 
     @property({ type: String, reflect: true, attribute: 'data-display-mode' })
     displayMode: 'default' | 'month-dot' = 'default';
-    
+
     @property({ type: Boolean, reflect: true, attribute: 'data-float-text' })
     floatText = false;
 
-    @property({ type: Object })
-    _accessibility?: { tabIndex: number; role: string; ariaLabel: string };
+    @property({ type: Object, attribute: false })
+    accessibility?: { tabIndex: number; role: 'button'; ariaLabel: string };
 
     @state()
     _highlighted?: boolean;
@@ -82,7 +87,8 @@ export default class Entry extends LitElement {
             bottom: 0;
             width: var(--entry-handle-width, 0px);
             background-color: var(--entry-handle-color, transparent);
-            border-radius: var(--entry-border-radius, var(--border-radius-sm)) 0 0 var(--entry-border-radius, var(--border-radius-sm));
+            border-radius: var(--entry-border-radius, var(--border-radius-sm)) 0
+                0 var(--entry-border-radius, var(--border-radius-sm));
             display: var(--entry-handle-display, none);
         }
 
@@ -95,7 +101,7 @@ export default class Entry extends LitElement {
         }
 
         /* ARIA-compliant highlighted border for active menu entries */
-        :host([aria-selected="true"]) {
+        :host([aria-selected='true']) {
             outline: 3px solid var(--entry-focus-color, var(--primary-color));
             outline-offset: 2px;
             position: relative;
@@ -153,7 +159,7 @@ export default class Entry extends LitElement {
         .main {
             padding-left: var(--entry-padding-left, 0.25em);
         }
-        
+
         .text-content {
             position: absolute;
             top: var(--entry-text-top, -20px);
@@ -161,7 +167,7 @@ export default class Entry extends LitElement {
             background: rgba(255, 255, 255, 0.95);
             padding: 2px 6px;
             border-radius: 3px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
             font-size: 0.7rem;
             z-index: 1000;
             white-space: nowrap;
@@ -209,12 +215,12 @@ export default class Entry extends LitElement {
         }
 
         /* For row layout in overlapping events, ensure content stays grouped */
-        .main[style*="--entry-layout: row"] {
+        .main[style*='--entry-layout: row'] {
             align-items: center; /* Center align for single-line layout */
             gap: 0.5em; /* Small gap between title and time */
         }
 
-        .main[style*="--entry-layout: row"] .title {
+        .main[style*='--entry-layout: row'] .title {
             flex: none; /* Don't expand title in row layout */
             max-width: 60%; /* Limit title width to leave space for time */
         }
@@ -356,26 +362,31 @@ export default class Entry extends LitElement {
 
     private _getAriaLabel(): string {
         const timeInfo = this.time
-            ? `${String(this.time.start.hour).padStart(2, '0')}:${String(this.time.start.minute).padStart(2, '0')} to ${String(this.time.end.hour).padStart(2, '0')}:${String(this.time.end.minute).padStart(2, '0')}`
+            ? `${String(this.time.start.hour).padStart(2, '0')}:${String(
+                  this.time.start.minute,
+              ).padStart(2, '0')} to ${String(this.time.end.hour).padStart(
+                  2,
+                  '0',
+              )}:${String(this.time.end.minute).padStart(2, '0')}`
             : 'All day';
-        
+
         const contentInfo = this.content ? `, ${this.content}` : '';
-        
+
         return `Calendar event: ${this.heading}${contentInfo}, ${timeInfo}. Press Enter or Space to open details.`;
     }
 
     override render() {
         const mainClass = `main ${this.density}`;
 
-
         if (this.displayMode === 'month-dot') {
             const isMultiDay = this.isContinuation;
             return html`
                 <div
                     class=${mainClass}
-                    tabindex=${this._accessibility?.tabIndex ?? 0}
-                    role=${this._accessibility?.role ?? 'button'}
-                    aria-label="${this._accessibility?.ariaLabel ?? this._getAriaLabel()}"
+                    tabindex=${this.accessibility?.tabIndex ?? 0}
+                    role="button"
+                    aria-label="${this.accessibility?.ariaLabel ??
+                    this._getAriaLabel()}"
                     aria-selected=${this._highlighted ? 'true' : 'false'}
                     title=${this._renderTitle()}
                     data-full-content=${this.content || ''}
@@ -388,11 +399,14 @@ export default class Entry extends LitElement {
                 </div>
             `;
         }
-        
+
         // Float text mode: render box with floating text above
         if (this.floatText) {
             return html`
-                <div class=${mainClass} style="background-color: var(--entry-background-color); height: 100%; position: relative; overflow: visible;">
+                <div
+                    class=${mainClass}
+                    style="background-color: var(--entry-background-color); height: 100%; position: relative; overflow: visible;"
+                >
                     <div class="text-content">
                         <span style="font-weight: 500;">${this.heading}</span>
                         ${this._renderTime()}
@@ -404,9 +418,10 @@ export default class Entry extends LitElement {
         return html`
             <div
                 class=${mainClass}
-                tabindex=${this._accessibility?.tabIndex ?? 0}
-                role=${this._accessibility?.role ?? 'button'}
-                aria-label="${this._accessibility?.ariaLabel ?? this._getAriaLabel()}"
+                tabindex=${this.accessibility?.tabIndex ?? 0}
+                role="button"
+                aria-label="${this.accessibility?.ariaLabel ??
+                this._getAriaLabel()}"
                 aria-selected=${this._highlighted ? 'true' : 'false'}
                 title=${this._renderTitle()}
                 data-full-content=${this.content || ''}
@@ -483,7 +498,7 @@ export default class Entry extends LitElement {
             this._highlighted = true;
             // Update ARIA attributes for screen readers
             this.setAttribute('aria-selected', 'true');
-            
+
             if (!this.date) {
                 return;
             }
