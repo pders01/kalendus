@@ -113,10 +113,19 @@ export default class Entry extends LitElement {
             box-sizing: border-box;
             display: flex;
             flex-direction: var(--entry-layout, row);
-            align-items: var(--entry-align, flex-start);
+            align-items: flex-start; /* Always align content to top */
+            justify-content: flex-start; /* Always align content to left */
             gap: var(--entry-gap, 0.25em);
             overflow: visible;
             position: relative;
+        }
+
+        /* Compact grouped content - don't stretch to fill height */
+        .main.compact,
+        .main.standard {
+            align-self: flex-start; /* Don't stretch vertically */
+            height: auto; /* Use natural content height instead of 100% */
+            min-height: var(--entry-min-height, 1.2em);
         }
 
         /* When handle design is used, adjust padding for the colored handle */
@@ -142,7 +151,7 @@ export default class Entry extends LitElement {
         /* Compact mode: single line with title only */
         .main.compact {
             flex-direction: row;
-            align-items: center;
+            align-items: flex-start; /* Top-left alignment for better overlapping visibility */
             gap: 0;
         }
 
@@ -175,6 +184,18 @@ export default class Entry extends LitElement {
             opacity: var(--entry-time-opacity, 0.8);
             white-space: nowrap;
             flex-shrink: 0;
+            margin-left: 0; /* Ensure time stays on the left, don't auto-align to right */
+        }
+
+        /* For row layout in overlapping events, ensure content stays grouped */
+        .main[style*="--entry-layout: row"] {
+            align-items: center; /* Center align for single-line layout */
+            gap: 0.5em; /* Small gap between title and time */
+        }
+
+        .main[style*="--entry-layout: row"] .title {
+            flex: none; /* Don't expand title in row layout */
+            max-width: 60%; /* Limit title width to leave space for time */
         }
 
         /* Month view dot indicator styles */
