@@ -368,20 +368,26 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     : nothing}
                 ${viewMode === 'week'
                     ? html`
-                          <lms-calendar-week
-                              @expand=${this._handleExpand}
-                              @open-menu=${this._handleOpenMenu}
-                              .activeDate=${currentActiveDate}
-                          >
-                              ${this._renderEntriesForWeek()}
-                          </lms-calendar-week>
+                          <div style="position: relative;">
+                              <lms-calendar-week
+                                  @expand=${this._handleExpand}
+                                  @open-menu=${this._handleOpenMenu}
+                                  .activeDate=${currentActiveDate}
+                              >
+                                  ${this._renderEntriesForWeek()}
+                              </lms-calendar-week>
+                              ${this._renderTextOverlay('week')}
+                          </div>
                       `
                     : nothing}
                 ${viewMode === 'day'
                     ? html`
-                          <lms-calendar-day @open-menu=${this._handleOpenMenu}>
-                              ${this._renderEntriesByDate()}
-                          </lms-calendar-day>
+                          <div style="position: relative;">
+                              <lms-calendar-day @open-menu=${this._handleOpenMenu}>
+                                  ${this._renderEntriesByDate()}
+                              </lms-calendar-day>
+                              ${this._renderTextOverlay('day')}
+                          </div>
                       `
                     : nothing}
 
@@ -448,6 +454,168 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         this._menuOpen = true;
     }
 
+    private _renderTextOverlay(viewMode: 'day' | 'week') {
+        const entries = viewMode === 'week' 
+            ? this._getEntriesInCurrentWeek() 
+            : this._getEntriesInCurrentDay();
+            
+        if (!entries.length) return nothing;
+
+        // Calculate grading for overlap detection
+        const grading = R.pipe(
+            entries,
+            R.map((entry) => entry.time!),
+            R.map((time) =>
+                this._getGridSlotByTime(time!)
+                    .replace(/[^0-9/]+/g, '')
+                    .split('/'),
+            ),
+            R.map(([start, end]) => ({
+                start: parseInt(start, 10),
+                end: parseInt(end, 10),
+            })),
+            partitionOverlappingIntervals,
+            getOverlappingEntitiesIndices,
+            getSortedGradingsByIndex,
+        );
+
+        // Identify overlapping groups - find groups with multiple events
+        const groupCounts = new Map<number, number>();
+        grading.forEach((grade) => {
+            const count = groupCounts.get(grade.group) || 0;
+            groupCounts.set(grade.group, count + 1);
+        });
+
+        const overlappingEntries = entries
+            .map((entry, index) => ({ 
+                ...entry, 
+                index, 
+                depth: grading[index]?.depth || 0,
+                group: grading[index]?.group || 0 
+            }))
+            .filter(entry => (groupCounts.get(entry.group) || 1) > 1); // Show text for ALL events in overlapping groups
+
+        if (!overlappingEntries.length) return nothing;
+
+        // Group overlapping entries by their exact start time to create precise stacks
+        const entriesByTimeSlot = new Map<string, Array<typeof overlappingEntries[0]>>();
+        
+        overlappingEntries.forEach((entry) => {
+            if (!entry.time) return; // Skip entries without time
+            const timeKey = `${entry.time.start.hour}-${entry.time.start.minute}`;
+            if (!entriesByTimeSlot.has(timeKey)) {
+                entriesByTimeSlot.set(timeKey, []);
+            }
+            entriesByTimeSlot.get(timeKey)!.push(entry);
+        });
+
+        // Create text labels with improved positioning algorithm
+        const labels = Array.from(entriesByTimeSlot.entries()).flatMap(([, timeSlotEntries]) => {
+            // Sort entries by depth for consistent stacking order
+            const sortedEntries = timeSlotEntries.sort((a, b) => a.depth - b.depth);
+            
+            return sortedEntries.map((entry, stackIndex) => {
+                if (!entry.time) return nothing; // Skip entries without time
+                
+                const timeStr = `${String(entry.time.start.hour).padStart(2, '0')}:${String(entry.time.start.minute).padStart(2, '0')}`;
+                
+                // Calculate precise positioning based on actual grid positioning
+                const startMinute = entry.time.start.hour * 60 + entry.time.start.minute;
+                const labelHeight = 18; // Approximate height of each label
+                const stackOffset = stackIndex * (labelHeight + 2); // Small gap between stacked labels
+                
+                // Position to the right of the calendar grid, accounting for depth
+                const leftOffset = 90 + (entry.depth * 12); // Offset based on event depth
+                
+                return html`
+                    <div
+                        style="
+                            position: absolute;
+                            top: ${startMinute + stackOffset}px;
+                            left: ${leftOffset}px;
+                            background: rgba(255, 255, 255, 0.95);
+                            padding: 2px 6px;
+                            border-radius: 3px;
+                            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+                            font-size: 0.7rem;
+                            z-index: ${1000 + stackIndex};
+                            white-space: nowrap;
+                            line-height: 1.2;
+                            max-width: 200px;
+                            pointer-events: none;
+                            border-left: 3px solid ${entry.color};
+                        "
+                    >
+                        <span style="font-weight: 500;">${entry.heading}</span>
+                        <span style="opacity: 0.7; margin-left: 6px;">${timeStr}</span>
+                    </div>
+                `;
+            });
+        });
+
+        return html`
+            <div 
+                class="text-overlay" 
+                style="
+                    position: absolute; 
+                    top: 0; 
+                    left: 0; 
+                    width: 100%; 
+                    height: 100%; 
+                    pointer-events: none;
+                    z-index: 500;
+                "
+            >
+                ${labels}
+            </div>
+        `;
+    }
+
+    private _getEntriesInCurrentWeek() {
+        const startOfWeek = DateTime.fromObject({
+            year: this.activeDate.year,
+            month: this.activeDate.month,
+            day: this.activeDate.day,
+        }).startOf('week');
+        
+        const endOfWeek = startOfWeek.endOf('week');
+        
+        return R.pipe(
+            this.entries,
+            R.flatMap((entry) =>
+                this._expandEntryMaybe({
+                    entry,
+                    range: this._getDaysRange(entry.date),
+                }),
+            ),
+            R.filter((entry) => {
+                const entryDate = DateTime.fromObject({
+                    year: entry.date.start.year,
+                    month: entry.date.start.month,
+                    day: entry.date.start.day,
+                });
+                return entryDate >= startOfWeek && entryDate <= endOfWeek;
+            }),
+        );
+    }
+
+    private _getEntriesInCurrentDay() {
+        return R.pipe(
+            this.entries,
+            R.flatMap((entry) =>
+                this._expandEntryMaybe({
+                    entry,
+                    range: this._getDaysRange(entry.date),
+                }),
+            ),
+            R.filter((entry) => 
+                entry.date.start.year === this.activeDate.year &&
+                entry.date.start.month === this.activeDate.month &&
+                entry.date.start.day === this.activeDate.day
+            ),
+        );
+    }
+
     private _composeEntry({
         index,
         slot,
@@ -456,6 +624,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         isContinuation = false,
         density,
         displayMode = 'default',
+        floatText = false,
     }: {
         index: number;
         slot: string;
@@ -464,6 +633,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         isContinuation?: boolean;
         density?: 'compact' | 'standard' | 'full';
         displayMode?: 'default' | 'month-dot';
+        floatText?: boolean;
     }) {
         // Determine density based on event duration and context if not explicitly set
         const determinedDensity = density || this._determineDensity(entry, undefined, undefined, undefined);
@@ -482,6 +652,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 .date=${entry.date}
                 .density=${determinedDensity}
                 .displayMode=${displayMode}
+                .floatText=${floatText}
             >
             </lms-calendar-entry>
         `;
@@ -500,7 +671,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
 
     private _determineDensity(
         entry: Partial<CalendarEntry>,
-        overlappingCount?: number,
+        _overlappingCount?: number,
         grading?: Grading[],
         index?: number,
     ): 'compact' | 'standard' | 'full' {
@@ -509,8 +680,6 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         // For overlapping events in day/week view, use consistent density
         // based on depth to maintain visual hierarchy
         if (grading && index !== undefined && grading[index]) {
-            const depth = grading[index].depth;
-            
             // All overlapping events should have consistent display
             // Top event (depth 0): show time
             // Deeper events: also show time for consistency
@@ -788,6 +957,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                 grading,
                                 index,
                             ),
+                            floatText: false, // Will render text separately in overlay
                         }),
                     )
                     .otherwise(() =>
@@ -811,6 +981,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                     --entry-color: ${unsafeCSS(text)};
                                     --entry-z-index: ${100 - (grading[index]?.depth || 0)};
                                     --entry-opacity: ${grading[index]?.depth === 0 ? 1.0 : 0.85};
+                                    --entry-text-top: ${-24 - (grading[index]?.depth || 0) * 20}px;
+                                    --entry-text-left: ${(grading[index]?.depth || 0) * 5}px;
                                 }
                             `,
                             entry,
@@ -820,6 +992,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                 grading,
                                 index,
                             ),
+                            floatText: false, // Will render text separately in overlay
                         }),
                     );
             }),
@@ -995,6 +1168,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                 --entry-color: ${unsafeCSS(text)};
                                 --entry-z-index: ${100 - (grading[index]?.depth || 0)};
                                 --entry-opacity: ${grading[index]?.depth === 0 ? 1.0 : 0.85};
+                                --entry-text-top: ${-24 - (grading[index]?.depth || 0) * 20}px;
+                                --entry-text-left: ${(grading[index]?.depth || 0) * 5}px;
                             }
                         `,
                         entry,
