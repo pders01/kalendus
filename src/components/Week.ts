@@ -202,9 +202,12 @@ export default class Week extends LitElement {
                                 })}"
                                 tabindex="0"
                                 role="button"
-                                aria-label="Switch to day view for ${getLocalizedWeekdayShort(index + 1)}, ${date.day}"
+                                aria-label="Switch to day view for ${getLocalizedWeekdayShort(
+                                    index + 1,
+                                )}, ${date.day}"
                                 @click=${() => this._handleDayLabelClick(date)}
-                                @keydown=${(e: KeyboardEvent) => this._handleDayLabelKeydown(e, date)}
+                                @keydown=${(e: KeyboardEvent) =>
+                                    this._handleDayLabelKeydown(e, date)}
                             >
                                 <div>
                                     ${getLocalizedWeekdayShort(index + 1)}
@@ -282,7 +285,10 @@ export default class Week extends LitElement {
                     )}
 
                     <!-- Fallback slot for direct grid positioned entries -->
-                    <slot name="week-direct-grid" style="display: contents;"></slot>
+                    <slot
+                        name="week-direct-grid"
+                        style="display: contents;"
+                    ></slot>
                 </div>
             </div>
         `;
