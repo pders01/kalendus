@@ -55,6 +55,9 @@ export interface SlotPosition {
     gridColumn?: number; // For direct grid positioning
     gridRow?: string; // For direct grid positioning
     useDirectGrid: boolean; // Whether to bypass slots entirely
+    isAllDay?: boolean; // Whether this is an all-day event
+    dayIndex?: number; // Which day column (0-6 for week view)
+    isMultiDay?: boolean; // Whether this spans multiple days
 }
 
 export class SlotManager {
@@ -167,10 +170,12 @@ export class SlotManager {
 
         if (isAllDay) {
             return {
-                slotName: '', // No slot - direct grid positioning
+                slotName: `all-day-${date.year}-${date.month}-${date.day}`,
                 gridColumn,
                 gridRow: '1 / 60', // All-day area spans first hour
-                useDirectGrid: true,
+                useDirectGrid: false, // Use slot-based positioning for all-day events
+                isAllDay: true,
+                dayIndex: dayColumnIndex,
             };
         }
 

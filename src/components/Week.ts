@@ -15,6 +15,11 @@ export default class Week extends LitElement {
         year: new Date().getFullYear(),
     };
 
+    private _hasAllDayEvents = false;
+    private _allDayEventCount = 0;
+    private _allDayEventsByPosition = new Map<number, Array<HTMLElement>>();
+    private _eventRowAssignments = new Map<string, number>(); // Track row assignments for multi-day events
+
     static override styles = css`
         :host {
             display: block;
@@ -132,19 +137,147 @@ export default class Week extends LitElement {
             z-index: 0;
         }
 
-        .all-day-area {
-            font-size: var(--day-all-day-font-size, 16px);
-            margin: var(--day-all-day-margin, 0);
-            padding: var(--day-padding, 0.5em);
-            z-index: 1;
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
         .hour-slot-container {
             overflow: hidden;
+        }
+
+        /* All-day events section */
+        .all-day-wrapper {
+            border-bottom: var(--separator-border);
+            padding: var(--day-padding) 0;
+            background: var(--background-color);
+            z-index: 2;
+            position: relative;
+            transition: height 0.2s ease;
+        }
+
+        /* JS-controlled visibility for all-day wrapper */
+        .all-day-wrapper.hidden {
+            display: none;
+        }
+
+        .all-day-container {
+            display: grid;
+            grid-template-columns: var(--calendar-grid-columns-week);
+            gap: var(--day-gap, 1px);
+            padding: 0 var(--day-padding, 0.5em);
+            min-height: 2em;
+        }
+
+        .all-day-day-column {
+            position: relative;
+            min-height: 2em;
+            padding: 0.25em 0;
+        }
+
+        /* Stack all-day events vertically with consistent positioning */
+        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry) {
+            position: relative !important;
+            display: block !important;
+            margin-bottom: 0.25em !important;
+            z-index: var(--entry-z-index, 1) !important;
+        }
+
+        /* Multi-day event continuation styling */
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry[data-is-continuation]) {
+            margin-left: -2px !important; /* Slight overlap for visual connection */
+            border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
+        }
+
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry:not([data-is-continuation])) {
+            border-right: 1px solid rgba(255, 255, 255, 0.2) !important; /* Prepare for continuation */
+        }
+
+        /* Enhanced multi-day spanning styles with consistent ordering */
+        /* Use higher specificity to override Entry component's border-radius */
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry.first-day) {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            border-top-left-radius: var(--entry-border-radius) !important;
+            border-bottom-left-radius: var(--entry-border-radius) !important;
+            position: relative !important;
+        }
+
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry.middle-day) {
+            border-top-left-radius: 0 !important;
+            border-top-right-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            position: relative !important;
+            border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
+            margin-left: -2px !important;
+        }
+
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry.last-day) {
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+            border-top-right-radius: var(--entry-border-radius) !important;
+            border-bottom-right-radius: var(--entry-border-radius) !important;
+            position: relative !important;
+            border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
+            margin-left: -2px !important;
+        }
+
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry.single-day) {
+            border-radius: var(--entry-border-radius) !important;
+            position: relative !important;
+        }
+
+        .all-day-time-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--hour-indicator-font-size);
+            color: var(--hour-indicator-color);
+            font-weight: var(--day-label-font-weight);
+            border-right: var(--separator-border);
+        }
+
+        /* Multi-day event spanning styles */
+        .week-spanning-event {
+            position: absolute;
+            top: 0;
+            height: 1.5em;
+            margin-bottom: 0.25em;
+            border-radius: var(--entry-border-radius);
+            font-size: var(--entry-font-size);
+            padding: var(--entry-padding);
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            z-index: 3;
+        }
+
+        .week-spanning-event.first-day {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .week-spanning-event.middle-day {
+            border-radius: 0;
+        }
+
+        .week-spanning-event.last-day {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .week-spanning-event.single-day {
+            border-radius: var(--entry-border-radius);
         }
     `;
 
@@ -152,6 +285,483 @@ export default class Week extends LitElement {
         super.connectedCallback();
         // Note: open-menu events from entry components naturally bubble up
         // No need to manually forward them as it causes infinite recursion
+    }
+
+    override firstUpdated() {
+        this._updateAllDayState();
+    }
+
+    private _updateAllDayState() {
+        // Count all-day slots across all days to determine container height
+        const weekDates = this._getWeekDates();
+
+        // Clear previous positioning maps
+        this._allDayEventsByPosition.clear();
+        this._eventRowAssignments.clear();
+
+        // First pass: collect all events and identify unique events (both multi-day and single-day)
+        const allEventsByDay = new Map<number, HTMLElement[]>();
+        const uniqueEvents = new Map<
+            string,
+            { days: Set<number>; isMultiDay: boolean }
+        >(); // event ID -> event info
+
+        weekDates.forEach((date, dayIndex) => {
+            const slotName = `all-day-${date.year}-${date.month}-${date.day}`;
+            const allDaySlot = this.shadowRoot?.querySelector(
+                `slot[name="${slotName}"]`,
+            ) as HTMLSlotElement;
+
+            if (allDaySlot) {
+                const childNodes = allDaySlot.assignedElements({
+                    flatten: true,
+                }) as Array<HTMLElement>;
+
+                allEventsByDay.set(dayIndex, childNodes);
+
+                // Track all events by their heading/id
+                childNodes.forEach((node) => {
+                    const element = node as HTMLElement & {
+                        heading?: string;
+                        isContinuation?: boolean;
+                        time?: { start: { hour: number; minute: number } };
+                    };
+                    // Create a unique event ID based on heading and other properties
+                    const eventId = this._getEventUniqueId(element);
+
+                    // Check if this is a multi-day event
+                    const isMultiDay = element.isContinuation || false;
+
+                    if (!uniqueEvents.has(eventId)) {
+                        uniqueEvents.set(eventId, {
+                            days: new Set(),
+                            isMultiDay: isMultiDay,
+                        });
+                    }
+                    uniqueEvents.get(eventId)!.days.add(dayIndex);
+                });
+            }
+        });
+
+        // Second pass: assign consistent row positions for all events
+        // using a proper allocation algorithm that handles overlaps
+        const eventRows = new Map<string, number>();
+        const nextRow = this._allocateRowsForEvents(uniqueEvents, eventRows);
+
+        // Third pass: position all events with consistent row assignments
+        let maxRowsNeeded = nextRow; // Start with the number of multi-day event rows
+
+        weekDates.forEach((date, dayIndex) => {
+            const events = allEventsByDay.get(dayIndex) || [];
+            const sortedEvents = this._sortAndPositionEvents(
+                events,
+                eventRows,
+                nextRow,
+            );
+
+            // Apply visual styling
+            this._applyEventPositioning(sortedEvents, dayIndex);
+
+            // Track the maximum number of rows needed
+            const rowsForThisDay = this._calculateRowsNeeded(
+                sortedEvents,
+                eventRows,
+            );
+            maxRowsNeeded = Math.max(maxRowsNeeded, rowsForThisDay);
+
+            // Store positioned events for this day
+            this._allDayEventsByPosition.set(dayIndex, sortedEvents);
+        });
+
+        this._hasAllDayEvents =
+            allEventsByDay.size > 0 &&
+            Array.from(allEventsByDay.values()).some(
+                (events) => events.length > 0,
+            );
+        this._allDayEventCount = maxRowsNeeded;
+
+        // Adjust week content height based on all-day events
+        const weekContent = this.shadowRoot?.querySelector(
+            '.week-content',
+        ) as HTMLElement;
+        if (weekContent) {
+            if (this._hasAllDayEvents) {
+                const allDayHeight =
+                    Math.max(2.5, this._allDayEventCount * 2) + 1; // Base height + events
+                weekContent.style.height = `calc(var(--main-content-height) - ${allDayHeight}em)`;
+            } else {
+                weekContent.style.height = 'var(--main-content-height)';
+            }
+        }
+
+        // Trigger re-render to update visibility
+        this.requestUpdate();
+    }
+
+    private _handleAllDaySlotChange = () => {
+        // Debounce to avoid excessive recalculations
+        setTimeout(() => this._updateAllDayState(), 0);
+    };
+
+    /**
+     * Sort events and assign them consistent row positions
+     * Multi-day events get their pre-assigned rows, single-day events fill in below
+     */
+    private _sortAndPositionEvents(
+        events: HTMLElement[],
+        eventRows: Map<string, number>,
+        _nextAvailableRow: number,
+    ): HTMLElement[] {
+        // Sort events by their assigned row
+        const sortedEvents = events.sort((a, b) => {
+            const aElement = a as HTMLElement & {
+                heading?: string;
+                time?: { start: { hour: number; minute: number } };
+            };
+            const bElement = b as HTMLElement & {
+                heading?: string;
+                time?: { start: { hour: number; minute: number } };
+            };
+            const aId = this._getEventUniqueId(aElement);
+            const bId = this._getEventUniqueId(bElement);
+            const aRow = eventRows.get(aId) ?? 999;
+            const bRow = eventRows.get(bId) ?? 999;
+            return aRow - bRow;
+        });
+
+        // Apply row positioning to all events
+        sortedEvents.forEach((event) => {
+            const element = event as HTMLElement & { heading?: string };
+            const eventId = this._getEventUniqueId(element);
+            const row = eventRows.get(eventId);
+
+            if (row !== undefined) {
+                event.style.order = row.toString();
+                event.setAttribute('data-row', row.toString());
+            }
+        });
+
+        return sortedEvents;
+    }
+
+    /**
+     * Calculate the number of rows needed for a day's events
+     */
+    private _calculateRowsNeeded(
+        events: HTMLElement[],
+        eventRows: Map<string, number>,
+    ): number {
+        let maxRow = 0;
+
+        events.forEach((event) => {
+            const element = event as HTMLElement & {
+                heading?: string;
+                time?: { start: { hour: number; minute: number } };
+            };
+            const eventId = this._getEventUniqueId(element);
+            const row = eventRows.get(eventId) || 0;
+            maxRow = Math.max(maxRow, row + 1);
+        });
+
+        return maxRow;
+    }
+
+    /**
+     * Get a unique identifier for an event
+     */
+    private _getEventUniqueId(
+        element: HTMLElement & {
+            heading?: string;
+            time?: { start: { hour: number; minute: number } };
+            date?: { start?: { year: number; month: number; day: number } };
+        },
+    ): string {
+        // Create a unique identifier based on the event's properties
+        const heading = element.heading || 'untitled';
+        const time = element.time
+            ? `${element.time.start.hour}:${element.time.start.minute}`
+            : 'allday';
+        const date = element.date?.start
+            ? `${element.date.start.year}-${element.date.start.month}-${element.date.start.day}`
+            : 'nodate';
+
+        // For continuation events (multi-day), use a consistent ID
+        if (element.isContinuation && element.date?.start) {
+            // Use the start date of the multi-day span as part of the ID
+            return `${heading}-${date}-continuation`;
+        }
+
+        // For regular events, include more details to ensure uniqueness
+        return `${heading}-${date}-${time}`;
+    }
+
+    /**
+     * Allocate rows for all events using a proper algorithm that handles overlaps
+     * This ensures events don't "jump" rows when other events end
+     */
+    private _allocateRowsForEvents(
+        uniqueEvents: Map<string, { days: Set<number>; isMultiDay: boolean }>,
+        eventRows: Map<string, number>,
+    ): number {
+        // Separate and sort events: multi-day first, then single-day
+        const multiDayEvents: Array<[string, Set<number>]> = [];
+        const singleDayEvents: Array<[string, Set<number>]> = [];
+
+        uniqueEvents.forEach((info, eventId) => {
+            if (info.isMultiDay) {
+                multiDayEvents.push([eventId, info.days]);
+            } else {
+                singleDayEvents.push([eventId, info.days]);
+            }
+        });
+
+        // Sort multi-day events by start day, then by event ID
+        multiDayEvents.sort((a, b) => {
+            const aMinDay = Math.min(...Array.from(a[1]));
+            const bMinDay = Math.min(...Array.from(b[1]));
+            if (aMinDay !== bMinDay) return aMinDay - bMinDay;
+            return a[0].localeCompare(b[0]);
+        });
+
+        // Sort single-day events by day
+        singleDayEvents.sort((a, b) => {
+            const aDay = Math.min(...Array.from(a[1]));
+            const bDay = Math.min(...Array.from(b[1]));
+            return aDay - bDay;
+        });
+
+        // Track which rows are occupied on each day
+        const rowOccupancy = new Map<number, Set<number>>(); // day -> set of occupied rows
+        for (let day = 0; day < 7; day++) {
+            rowOccupancy.set(day, new Set());
+        }
+
+        // First, assign rows to multi-day events
+        multiDayEvents.forEach(([eventId, days]) => {
+            // Find the lowest available row that's free on all days this event spans
+            let assignedRow = 0;
+            let foundRow = false;
+
+            while (!foundRow) {
+                // Check if this row is available on all days the event spans
+                let rowAvailable = true;
+                for (const day of days) {
+                    if (rowOccupancy.get(day)?.has(assignedRow)) {
+                        rowAvailable = false;
+                        break;
+                    }
+                }
+
+                if (rowAvailable) {
+                    // This row is available, assign it
+                    foundRow = true;
+                    eventRows.set(eventId, assignedRow);
+
+                    // Mark this row as occupied on all days the event spans
+                    for (const day of days) {
+                        rowOccupancy.get(day)?.add(assignedRow);
+                    }
+                } else {
+                    // Try the next row
+                    assignedRow++;
+                }
+            }
+        });
+
+        // Then assign rows to single-day events
+        singleDayEvents.forEach(([eventId, days]) => {
+            // For single-day events, find the first available row on that day
+            const day = Array.from(days)[0]; // Single day
+            let assignedRow = 0;
+
+            while (rowOccupancy.get(day)?.has(assignedRow)) {
+                assignedRow++;
+            }
+
+            eventRows.set(eventId, assignedRow);
+            rowOccupancy.get(day)?.add(assignedRow);
+        });
+
+        // Return the maximum number of rows needed
+        let maxRows = 0;
+        rowOccupancy.forEach((rows) => {
+            maxRows = Math.max(maxRows, rows.size);
+        });
+        return maxRows;
+    }
+
+    /**
+     * Apply positioning and visual styling to sorted events
+     * Ensures visual connections for multi-day spanning events
+     */
+    private _applyEventPositioning(events: HTMLElement[], dayIndex: number) {
+        events.forEach((event, eventIndex) => {
+            // Set z-index based on position (higher for events at top)
+            const zIndex = 10 + (events.length - eventIndex);
+            event.style.zIndex = zIndex.toString();
+
+            // Always apply styling to determine correct positioning
+            this._applyMultiDaySpanningStyles(event, dayIndex);
+
+            // Set consistent vertical positioning
+            event.style.position = 'relative';
+            event.style.order = eventIndex.toString();
+        });
+    }
+
+    /**
+     * Apply visual styling for multi-day spanning events
+     * Creates visual connections across days
+     */
+    private _applyMultiDaySpanningStyles(event: HTMLElement, dayIndex: number) {
+        const eventElement = event as HTMLElement & {
+            heading?: string;
+            isContinuation?: boolean;
+            continuation?: { has?: boolean; is?: boolean; index?: number };
+        };
+        const continuation = eventElement.continuation;
+        const isContinuation = eventElement.isContinuation;
+        const isMultiDay = continuation?.has || isContinuation || false;
+
+        if (!isMultiDay) {
+            // For single-day events, just ensure they have the single-day class
+            event.classList.remove('first-day', 'middle-day', 'last-day');
+            event.classList.add('single-day');
+            return;
+        }
+
+        // Remove all positioning classes first
+        event.classList.remove(
+            'first-day',
+            'middle-day',
+            'last-day',
+            'single-day',
+        );
+
+        // Determine position based on continuation.index and total span length
+        // We need to find all events with the same heading to determine the span length
+        const eventId = this._getEventUniqueId(eventElement);
+        const weekDates = this._getWeekDates();
+
+        // Count how many days this event spans within the current week
+        let eventSpanInWeek = 0;
+        let eventStartIndex = -1;
+
+        // Find this event across all days in the week
+        weekDates.forEach((date, index) => {
+            const slotName = `all-day-${date.year}-${date.month}-${date.day}`;
+            const slot = this.shadowRoot?.querySelector(
+                `slot[name="${slotName}"]`,
+            ) as HTMLSlotElement;
+            if (slot) {
+                const events = slot.assignedElements({
+                    flatten: true,
+                }) as HTMLElement[];
+                const matchingEvent = events.find(
+                    (e) =>
+                        this._getEventUniqueId(
+                            e as HTMLElement & {
+                                heading?: string;
+                                time?: {
+                                    start: { hour: number; minute: number };
+                                };
+                                date?: {
+                                    start?: {
+                                        year: number;
+                                        month: number;
+                                        day: number;
+                                    };
+                                };
+                            },
+                        ) === eventId,
+                );
+                if (matchingEvent) {
+                    if (eventStartIndex === -1) eventStartIndex = index;
+                    eventSpanInWeek++;
+                }
+            }
+        });
+
+        // Determine position within the week span
+        const currentDayPosition = dayIndex - eventStartIndex;
+        const isFirstDay = currentDayPosition === 0;
+        const isLastDay = currentDayPosition === eventSpanInWeek - 1;
+
+        if (isFirstDay && isLastDay) {
+            // Single day (shouldn't happen for multi-day, but safety check)
+            event.classList.add('single-day');
+        } else if (isFirstDay) {
+            event.classList.add('first-day');
+        } else if (isLastDay) {
+            event.classList.add('last-day');
+            // Add visual connection styling for continuation
+            event.style.borderLeftWidth = '3px';
+            event.style.borderLeftStyle = 'solid';
+            event.style.borderLeftColor = 'rgba(255, 255, 255, 0.4)';
+            event.style.marginLeft = '-2px';
+        } else {
+            event.classList.add('middle-day');
+            // Add visual connection styling for continuation
+            event.style.borderLeftWidth = '3px';
+            event.style.borderLeftStyle = 'solid';
+            event.style.borderLeftColor = 'rgba(255, 255, 255, 0.4)';
+            event.style.marginLeft = '-2px';
+        }
+
+        // Set the data attribute for CSS styling
+        event.setAttribute(
+            'data-is-continuation',
+            isMultiDay ? 'true' : 'false',
+        );
+    }
+
+    /**
+     * Extract event date from element attributes
+     */
+    private _getEventDate(event: HTMLElement): CalendarDate | null {
+        const slotName = event.getAttribute('slot');
+        if (!slotName) return null;
+
+        const match = slotName.match(/all-day-(\d+)-(\d+)-(\d+)/);
+        if (match) {
+            return {
+                year: parseInt(match[1]),
+                month: parseInt(match[2]),
+                day: parseInt(match[3]),
+            };
+        }
+        return null;
+    }
+
+    /**
+     * Find the start day index of an event within the current week
+     */
+    private _findEventStartInWeek(
+        event: HTMLElement,
+        weekDates: CalendarDate[],
+    ): number {
+        const eventDate = this._getEventDate(event);
+        if (!eventDate) return 0;
+
+        return weekDates.findIndex(
+            (date) =>
+                date.year === eventDate.year &&
+                date.month === eventDate.month &&
+                date.day === eventDate.day,
+        );
+    }
+
+    /**
+     * Find the end day index of an event within the current week
+     * For now, assumes single-day events; can be enhanced for true multi-day detection
+     */
+    private _findEventEndInWeek(
+        event: HTMLElement,
+        weekDates: CalendarDate[],
+    ): number {
+        // For now, return the same as start day
+        // This can be enhanced to detect actual event end dates
+        return this._findEventStartInWeek(event, weekDates);
     }
 
     private _getWeekDates(): CalendarDate[] {
@@ -217,6 +827,28 @@ export default class Week extends LitElement {
                         `,
                     )}
                 </div>
+
+                <!-- All-day events section -->
+                <div
+                    class="all-day-wrapper ${classMap({
+                        hidden: !this._hasAllDayEvents,
+                    })}"
+                >
+                    <div class="all-day-container">
+                        <div class="all-day-time-header">All Day</div>
+                        ${weekDates.map(
+                            (date) => html`
+                                <div class="all-day-day-column">
+                                    <slot
+                                        name="all-day-${date.year}-${date.month}-${date.day}"
+                                        @slotchange=${this
+                                            ._handleAllDaySlotChange}
+                                    ></slot>
+                                </div>
+                            `,
+                        )}
+                    </div>
+                </div>
                 <div class="week-content">
                     <!-- Hour indicators -->
                     ${Array.from({ length: 25 }).map(
@@ -243,21 +875,6 @@ export default class Week extends LitElement {
                                       ></div>
                                   `
                                 : ''}
-                        `,
-                    )}
-
-                    <!-- All-day area for each day -->
-                    ${weekDates.map(
-                        (date, dayIndex) => html`
-                            <div
-                                class="all-day-area"
-                                style="grid-column: ${dayIndex +
-                                2}; grid-row: 1 / 60;"
-                            >
-                                <slot
-                                    name="all-day-${date.year}-${date.month}-${date.day}"
-                                ></slot>
-                            </div>
                         `,
                     )}
 

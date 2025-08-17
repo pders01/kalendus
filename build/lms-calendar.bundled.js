@@ -8622,8 +8622,8 @@ Entry.styles = css`
             bottom: 0;
             width: var(--entry-handle-width, 0px);
             background-color: var(--entry-handle-color, transparent);
-            border-radius: var(--entry-border-radius) 0
-                0 var(--entry-border-radius);
+            border-radius: var(--entry-border-radius) 0 0
+                var(--entry-border-radius);
             display: var(--entry-handle-display, none);
         }
 
@@ -8652,7 +8652,10 @@ Entry.styles = css`
         }
 
         :host([data-extended]) {
-            background: var(--entry-extended-background-color, var(--background-color));
+            background: var(
+                --entry-extended-background-color,
+                var(--background-color)
+            );
         }
 
         :host(:focus-within) {
@@ -10470,9 +10473,357 @@ let Week = class extends LitElement {
       month: (/* @__PURE__ */ new Date()).getMonth() + 1,
       year: (/* @__PURE__ */ new Date()).getFullYear()
     };
+    this._hasAllDayEvents = false;
+    this._allDayEventCount = 0;
+    this._allDayEventsByPosition = /* @__PURE__ */ new Map();
+    this._eventRowAssignments = /* @__PURE__ */ new Map();
+    this._handleAllDaySlotChange = () => {
+      setTimeout(() => this._updateAllDayState(), 0);
+    };
   }
   connectedCallback() {
     super.connectedCallback();
+  }
+  firstUpdated() {
+    this._updateAllDayState();
+  }
+  _updateAllDayState() {
+    var _a;
+    const weekDates = this._getWeekDates();
+    this._allDayEventsByPosition.clear();
+    this._eventRowAssignments.clear();
+    const allEventsByDay = /* @__PURE__ */ new Map();
+    const uniqueEvents = /* @__PURE__ */ new Map();
+    weekDates.forEach((date, dayIndex) => {
+      var _a2;
+      const slotName = `all-day-${date.year}-${date.month}-${date.day}`;
+      const allDaySlot = (_a2 = this.shadowRoot) == null ? void 0 : _a2.querySelector(
+        `slot[name="${slotName}"]`
+      );
+      if (allDaySlot) {
+        const childNodes = allDaySlot.assignedElements({
+          flatten: true
+        });
+        allEventsByDay.set(dayIndex, childNodes);
+        childNodes.forEach((node) => {
+          const element = node;
+          const eventId = this._getEventUniqueId(element);
+          const isMultiDay = element.isContinuation || false;
+          if (!uniqueEvents.has(eventId)) {
+            uniqueEvents.set(eventId, {
+              days: /* @__PURE__ */ new Set(),
+              isMultiDay
+            });
+          }
+          uniqueEvents.get(eventId).days.add(dayIndex);
+        });
+      }
+    });
+    const eventRows = /* @__PURE__ */ new Map();
+    const nextRow = this._allocateRowsForEvents(uniqueEvents, eventRows);
+    let maxRowsNeeded = nextRow;
+    weekDates.forEach((date, dayIndex) => {
+      const events = allEventsByDay.get(dayIndex) || [];
+      const sortedEvents = this._sortAndPositionEvents(
+        events,
+        eventRows,
+        nextRow
+      );
+      this._applyEventPositioning(sortedEvents, dayIndex);
+      const rowsForThisDay = this._calculateRowsNeeded(
+        sortedEvents,
+        eventRows
+      );
+      maxRowsNeeded = Math.max(maxRowsNeeded, rowsForThisDay);
+      this._allDayEventsByPosition.set(dayIndex, sortedEvents);
+    });
+    this._hasAllDayEvents = allEventsByDay.size > 0 && Array.from(allEventsByDay.values()).some(
+      (events) => events.length > 0
+    );
+    this._allDayEventCount = maxRowsNeeded;
+    const weekContent = (_a = this.shadowRoot) == null ? void 0 : _a.querySelector(
+      ".week-content"
+    );
+    if (weekContent) {
+      if (this._hasAllDayEvents) {
+        const allDayHeight = Math.max(2.5, this._allDayEventCount * 2) + 1;
+        weekContent.style.height = `calc(var(--main-content-height) - ${allDayHeight}em)`;
+      } else {
+        weekContent.style.height = "var(--main-content-height)";
+      }
+    }
+    this.requestUpdate();
+  }
+  /**
+   * Sort events and assign them consistent row positions
+   * Multi-day events get their pre-assigned rows, single-day events fill in below
+   */
+  _sortAndPositionEvents(events, eventRows, nextAvailableRow) {
+    const sortedEvents = events.sort((a2, b2) => {
+      const aElement = a2;
+      const bElement = b2;
+      const aId = this._getEventUniqueId(aElement);
+      const bId = this._getEventUniqueId(bElement);
+      const aRow = eventRows.get(aId) ?? 999;
+      const bRow = eventRows.get(bId) ?? 999;
+      return aRow - bRow;
+    });
+    sortedEvents.forEach((event) => {
+      const element = event;
+      const eventId = this._getEventUniqueId(element);
+      const row = eventRows.get(eventId);
+      if (row !== void 0) {
+        event.style.order = row.toString();
+        event.setAttribute("data-row", row.toString());
+      }
+    });
+    return sortedEvents;
+  }
+  /**
+   * Calculate the number of rows needed for a day's events
+   */
+  _calculateRowsNeeded(events, eventRows) {
+    let maxRow = 0;
+    events.forEach((event) => {
+      const element = event;
+      const eventId = this._getEventUniqueId(element);
+      const row = eventRows.get(eventId) || 0;
+      maxRow = Math.max(maxRow, row + 1);
+    });
+    return maxRow;
+  }
+  /**
+   * Get a unique identifier for an event
+   */
+  _getEventUniqueId(element) {
+    var _a, _b;
+    const heading = element.heading || "untitled";
+    const time = element.time ? `${element.time.start.hour}:${element.time.start.minute}` : "allday";
+    const date = ((_a = element.date) == null ? void 0 : _a.start) ? `${element.date.start.year}-${element.date.start.month}-${element.date.start.day}` : "nodate";
+    if (element.isContinuation && ((_b = element.date) == null ? void 0 : _b.start)) {
+      return `${heading}-${date}-continuation`;
+    }
+    return `${heading}-${date}-${time}`;
+  }
+  /**
+   * Allocate rows for all events using a proper algorithm that handles overlaps
+   * This ensures events don't "jump" rows when other events end
+   */
+  _allocateRowsForEvents(uniqueEvents, eventRows) {
+    const multiDayEvents = [];
+    const singleDayEvents = [];
+    uniqueEvents.forEach((info, eventId) => {
+      if (info.isMultiDay) {
+        multiDayEvents.push([eventId, info.days]);
+      } else {
+        singleDayEvents.push([eventId, info.days]);
+      }
+    });
+    multiDayEvents.sort((a2, b2) => {
+      const aMinDay = Math.min(...Array.from(a2[1]));
+      const bMinDay = Math.min(...Array.from(b2[1]));
+      if (aMinDay !== bMinDay) return aMinDay - bMinDay;
+      return a2[0].localeCompare(b2[0]);
+    });
+    singleDayEvents.sort((a2, b2) => {
+      const aDay = Math.min(...Array.from(a2[1]));
+      const bDay = Math.min(...Array.from(b2[1]));
+      return aDay - bDay;
+    });
+    const rowOccupancy = /* @__PURE__ */ new Map();
+    for (let day = 0; day < 7; day++) {
+      rowOccupancy.set(day, /* @__PURE__ */ new Set());
+    }
+    multiDayEvents.forEach(([eventId, days]) => {
+      var _a, _b;
+      let assignedRow = 0;
+      let foundRow = false;
+      while (!foundRow) {
+        let rowAvailable = true;
+        for (const day of days) {
+          if ((_a = rowOccupancy.get(day)) == null ? void 0 : _a.has(assignedRow)) {
+            rowAvailable = false;
+            break;
+          }
+        }
+        if (rowAvailable) {
+          foundRow = true;
+          eventRows.set(eventId, assignedRow);
+          for (const day of days) {
+            (_b = rowOccupancy.get(day)) == null ? void 0 : _b.add(assignedRow);
+          }
+        } else {
+          assignedRow++;
+        }
+      }
+    });
+    singleDayEvents.forEach(([eventId, days]) => {
+      var _a, _b;
+      const day = Array.from(days)[0];
+      let assignedRow = 0;
+      while ((_a = rowOccupancy.get(day)) == null ? void 0 : _a.has(assignedRow)) {
+        assignedRow++;
+      }
+      eventRows.set(eventId, assignedRow);
+      (_b = rowOccupancy.get(day)) == null ? void 0 : _b.add(assignedRow);
+    });
+    let maxRows = 0;
+    rowOccupancy.forEach((rows) => {
+      maxRows = Math.max(maxRows, rows.size);
+    });
+    return maxRows;
+  }
+  /**
+   * Apply positioning and visual styling to sorted events
+   * Ensures visual connections for multi-day spanning events
+   */
+  _applyEventPositioning(events, dayIndex) {
+    events.forEach((event, eventIndex) => {
+      var _a;
+      const zIndex = 10 + (events.length - eventIndex);
+      event.style.zIndex = zIndex.toString();
+      const eventElement = event;
+      const hasDataAttr = event.hasAttribute("data-is-continuation");
+      const hasProperty = eventElement.isContinuation || ((_a = eventElement.continuation) == null ? void 0 : _a.has);
+      const isMultiDay = hasDataAttr || hasProperty;
+      console.log("Checking multi-day for:", eventElement.heading, {
+        hasDataAttr,
+        hasProperty,
+        isMultiDay,
+        isContinuation: eventElement.isContinuation,
+        continuation: eventElement.continuation
+      });
+      this._applyMultiDaySpanningStyles(event, dayIndex);
+      event.style.position = "relative";
+      event.style.order = eventIndex.toString();
+    });
+  }
+  /**
+   * Apply visual styling for multi-day spanning events
+   * Creates visual connections across days
+   */
+  _applyMultiDaySpanningStyles(event, dayIndex) {
+    const eventElement = event;
+    const continuation = eventElement.continuation;
+    const isContinuation = eventElement.isContinuation;
+    const isMultiDay = (continuation == null ? void 0 : continuation.has) || isContinuation || false;
+    console.log("Styling event:", eventElement.heading, {
+      dayIndex,
+      continuation,
+      isContinuation,
+      isMultiDay
+    });
+    if (!isMultiDay) {
+      event.classList.remove("first-day", "middle-day", "last-day");
+      event.classList.add("single-day");
+      console.log("Applied single-day to:", eventElement.heading);
+      return;
+    }
+    event.classList.remove(
+      "first-day",
+      "middle-day",
+      "last-day",
+      "single-day"
+    );
+    const eventId = this._getEventUniqueId(eventElement);
+    const weekDates = this._getWeekDates();
+    let eventSpanInWeek = 0;
+    let eventStartIndex = -1;
+    weekDates.forEach((date, index) => {
+      var _a;
+      const slotName = `all-day-${date.year}-${date.month}-${date.day}`;
+      const slot = (_a = this.shadowRoot) == null ? void 0 : _a.querySelector(
+        `slot[name="${slotName}"]`
+      );
+      if (slot) {
+        const events = slot.assignedElements({
+          flatten: true
+        });
+        const matchingEvent = events.find(
+          (e2) => this._getEventUniqueId(e2) === eventId
+        );
+        if (matchingEvent) {
+          if (eventStartIndex === -1) eventStartIndex = index;
+          eventSpanInWeek++;
+        }
+      }
+    });
+    const currentDayPosition = dayIndex - eventStartIndex;
+    const isFirstDay = currentDayPosition === 0;
+    const isLastDay = currentDayPosition === eventSpanInWeek - 1;
+    if (isFirstDay && isLastDay) {
+      event.classList.add("single-day");
+      console.log("Applied single-day class to:", eventElement.heading);
+    } else if (isFirstDay) {
+      event.classList.add("first-day");
+      console.log(
+        "Applied first-day class to:",
+        eventElement.heading,
+        "on day",
+        dayIndex
+      );
+    } else if (isLastDay) {
+      event.classList.add("last-day");
+      console.log(
+        "Applied last-day class to:",
+        eventElement.heading,
+        "on day",
+        dayIndex
+      );
+      event.style.borderLeftWidth = "3px";
+      event.style.borderLeftStyle = "solid";
+      event.style.borderLeftColor = "rgba(255, 255, 255, 0.4)";
+      event.style.marginLeft = "-2px";
+    } else {
+      event.classList.add("middle-day");
+      console.log(
+        "Applied middle-day class to:",
+        eventElement.heading,
+        "on day",
+        dayIndex
+      );
+      event.style.borderLeftWidth = "3px";
+      event.style.borderLeftStyle = "solid";
+      event.style.borderLeftColor = "rgba(255, 255, 255, 0.4)";
+      event.style.marginLeft = "-2px";
+    }
+    event.setAttribute(
+      "data-is-continuation",
+      isMultiDay ? "true" : "false"
+    );
+  }
+  /**
+   * Extract event date from element attributes
+   */
+  _getEventDate(event) {
+    const slotName = event.getAttribute("slot");
+    if (!slotName) return null;
+    const match2 = slotName.match(/all-day-(\d+)-(\d+)-(\d+)/);
+    if (match2) {
+      return {
+        year: parseInt(match2[1]),
+        month: parseInt(match2[2]),
+        day: parseInt(match2[3])
+      };
+    }
+    return null;
+  }
+  /**
+   * Find the start day index of an event within the current week
+   */
+  _findEventStartInWeek(event, weekDates) {
+    const eventDate = this._getEventDate(event);
+    if (!eventDate) return 0;
+    return weekDates.findIndex(
+      (date) => date.year === eventDate.year && date.month === eventDate.month && date.day === eventDate.day
+    );
+  }
+  /**
+   * Find the end day index of an event within the current week
+   * For now, assumes single-day events; can be enhanced for true multi-day detection
+   */
+  _findEventEndInWeek(event, weekDates) {
+    return this._findEventStartInWeek(event, weekDates);
   }
   _getWeekDates() {
     const currentDate = new Date(
@@ -10526,6 +10877,27 @@ let Week = class extends LitElement {
                         `
     )}
                 </div>
+
+                <!-- All-day events section -->
+                <div
+                    class="all-day-wrapper ${classMap({
+      hidden: !this._hasAllDayEvents
+    })}"
+                >
+                    <div class="all-day-container">
+                        <div class="all-day-time-header">All Day</div>
+                        ${weekDates.map(
+      (date) => html`
+                                <div class="all-day-day-column">
+                                    <slot
+                                        name="all-day-${date.year}-${date.month}-${date.day}"
+                                        @slotchange=${this._handleAllDaySlotChange}
+                                    ></slot>
+                                </div>
+                            `
+    )}
+                    </div>
+                </div>
                 <div class="week-content">
                     <!-- Hour indicators -->
                     ${Array.from({ length: 25 }).map(
@@ -10548,20 +10920,6 @@ let Week = class extends LitElement {
                                           style="grid-column: 2 / -1; grid-row: ${hour * 60};"
                                       ></div>
                                   ` : ""}
-                        `
-    )}
-
-                    <!-- All-day area for each day -->
-                    ${weekDates.map(
-      (date, dayIndex) => html`
-                            <div
-                                class="all-day-area"
-                                style="grid-column: ${dayIndex + 2}; grid-row: 1 / 60;"
-                            >
-                                <slot
-                                    name="all-day-${date.year}-${date.month}-${date.day}"
-                                ></slot>
-                            </div>
                         `
     )}
 
@@ -10728,19 +11086,147 @@ Week.styles = css`
             z-index: 0;
         }
 
-        .all-day-area {
-            font-size: var(--day-all-day-font-size, 16px);
-            margin: var(--day-all-day-margin, 0);
-            padding: var(--day-padding, 0.5em);
-            z-index: 1;
-            position: relative;
-            overflow: hidden;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
         .hour-slot-container {
             overflow: hidden;
+        }
+
+        /* All-day events section */
+        .all-day-wrapper {
+            border-bottom: var(--separator-border);
+            padding: var(--day-padding) 0;
+            background: var(--background-color);
+            z-index: 2;
+            position: relative;
+            transition: height 0.2s ease;
+        }
+
+        /* JS-controlled visibility for all-day wrapper */
+        .all-day-wrapper.hidden {
+            display: none;
+        }
+
+        .all-day-container {
+            display: grid;
+            grid-template-columns: var(--calendar-grid-columns-week);
+            gap: var(--day-gap, 1px);
+            padding: 0 var(--day-padding, 0.5em);
+            min-height: 2em;
+        }
+
+        .all-day-day-column {
+            position: relative;
+            min-height: 2em;
+            padding: 0.25em 0;
+        }
+
+        /* Stack all-day events vertically with consistent positioning */
+        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry) {
+            position: relative !important;
+            display: block !important;
+            margin-bottom: 0.25em !important;
+            z-index: var(--entry-z-index, 1) !important;
+        }
+
+        /* Multi-day event continuation styling */
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry[data-is-continuation]) {
+            margin-left: -2px !important; /* Slight overlap for visual connection */
+            border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
+        }
+
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry:not([data-is-continuation])) {
+            border-right: 1px solid rgba(255, 255, 255, 0.2) !important; /* Prepare for continuation */
+        }
+
+        /* Enhanced multi-day spanning styles with consistent ordering */
+        /* Use higher specificity to override Entry component's border-radius */
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry.first-day) {
+            border-top-right-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            border-top-left-radius: var(--entry-border-radius) !important;
+            border-bottom-left-radius: var(--entry-border-radius) !important;
+            position: relative !important;
+        }
+
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry.middle-day) {
+            border-top-left-radius: 0 !important;
+            border-top-right-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+            position: relative !important;
+            border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
+            margin-left: -2px !important;
+        }
+
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry.last-day) {
+            border-top-left-radius: 0 !important;
+            border-bottom-left-radius: 0 !important;
+            border-top-right-radius: var(--entry-border-radius) !important;
+            border-bottom-right-radius: var(--entry-border-radius) !important;
+            position: relative !important;
+            border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
+            margin-left: -2px !important;
+        }
+
+        .all-day-container
+            .all-day-day-column
+            ::slotted(lms-calendar-entry.single-day) {
+            border-radius: var(--entry-border-radius) !important;
+            position: relative !important;
+        }
+
+        .all-day-time-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--hour-indicator-font-size);
+            color: var(--hour-indicator-color);
+            font-weight: var(--day-label-font-weight);
+            border-right: var(--separator-border);
+        }
+
+        /* Multi-day event spanning styles */
+        .week-spanning-event {
+            position: absolute;
+            top: 0;
+            height: 1.5em;
+            margin-bottom: 0.25em;
+            border-radius: var(--entry-border-radius);
+            font-size: var(--entry-font-size);
+            padding: var(--entry-padding);
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            z-index: 3;
+        }
+
+        .week-spanning-event.first-day {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .week-spanning-event.middle-day {
+            border-radius: 0;
+        }
+
+        .week-spanning-event.last-day {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .week-spanning-event.single-day {
+            border-radius: var(--entry-border-radius);
         }
     `;
 __decorateClass$1([
@@ -11042,12 +11528,14 @@ class SlotManager {
     const gridColumn = dayColumnIndex + 2;
     if (isAllDay) {
       return {
-        slotName: "",
-        // No slot - direct grid positioning
+        slotName: `all-day-${date.year}-${date.month}-${date.day}`,
         gridColumn,
         gridRow: "1 / 60",
         // All-day area spans first hour
-        useDirectGrid: true
+        useDirectGrid: false,
+        // Use slot-based positioning for all-day events
+        isAllDay: true,
+        dayIndex: dayColumnIndex
       };
     }
     if (!time) {
@@ -11428,8 +11916,9 @@ let LMSCalendar = class extends e$2(LitElement) {
     entry,
     range
   }) {
+    console.log("Expanding entry:", entry.heading, "for", range[2], "days");
     return Array.from({ length: range[2] }, (_2, index) => {
-      var _a;
+      var _a, _b;
       const currentStartDate = DateTime.fromJSDate(range[0]).plus({
         days: index
       });
@@ -11440,14 +11929,24 @@ let LMSCalendar = class extends e$2(LitElement) {
           start: currentStartDate.toObject(),
           end: currentEndDate.toObject()
         },
+        isContinuation: index > 0,
+        // Any day after the first is a continuation
         continuation: {
           has: range[2] > 1,
-          is: index > 1,
+          is: index > 0,
+          // Fixed: index > 0, not index > 1
           index
         },
         // Preserve original start date for consistent sorting
         originalStartDate: (_a = entry.date) == null ? void 0 : _a.start
       };
+      console.log("Created expanded entry:", {
+        heading: currentEntry.heading,
+        index,
+        isContinuation: currentEntry.isContinuation,
+        continuation: currentEntry.continuation,
+        date: (_b = currentEntry.date) == null ? void 0 : _b.start
+      });
       return currentEntry;
     });
   }
@@ -11470,12 +11969,20 @@ let LMSCalendar = class extends e$2(LitElement) {
     });
     return pipe(
       this.entries,
-      flatMap(
-        (entry) => this._expandEntryMaybe({
+      flatMap((entry) => {
+        const expandedEntries = this._expandEntryMaybe({
           entry,
           range: this._getDaysRange(entry.date)
-        })
-      ),
+        });
+        console.log(
+          "Expanded entries for",
+          entry.heading,
+          ":",
+          expandedEntries.length,
+          "entries"
+        );
+        return expandedEntries;
+      }),
       // Sort: multi-day events first, then by original entry order for consistency
       sortBy((entry) => {
         var _a;
@@ -11491,14 +11998,17 @@ let LMSCalendar = class extends e$2(LitElement) {
         (entry) => [entry, ...getColorTextWithContrast(entry.color)]
       ),
       map.indexed(([entry, background, _text], index) => {
+        var _a;
         const baseId = this._createConsistentEventId(
           entry
         );
         const originalIndex = entryIdMap.get(baseId) || index;
+        const isMultiDay = entry.isContinuation || ((_a = entry.continuation) == null ? void 0 : _a.has) || false;
+        const slotPrefix = isMultiDay ? "all-day-" : "";
         return this._composeEntry({
           index: originalIndex,
           // Use original index for consistent CSS classes
-          slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
+          slot: `${slotPrefix}${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
           styles: css`
                         lms-calendar-entry._${originalIndex} {
                             --entry-color: ${unsafeCSS(background)};
@@ -11512,7 +12022,8 @@ let LMSCalendar = class extends e$2(LitElement) {
             heading: entry.heading,
             content: entry.content,
             date: entry.date,
-            isContinuation: entry.continuation.is
+            isContinuation: entry.isContinuation || false,
+            continuation: entry.continuation
           },
           density: this._determineDensity(
             {
@@ -11693,8 +12204,16 @@ let LMSCalendar = class extends e$2(LitElement) {
         viewMode,
         date: entry.date.start,
         time: entry.time,
-        activeDate: currentActiveDate
+        activeDate: currentActiveDate,
+        isAllDay: entry.isContinuation || this._isAllDayEvent(entry)
+        // Add all-day detection
       };
+      console.log("SlotManager config for:", entry.heading, {
+        isContinuation: entry.isContinuation,
+        isAllDay: positionConfig.isAllDay,
+        time: entry.time,
+        viewMode
+      });
       const position = slotManager.calculatePosition(positionConfig);
       const accessibility = slotManager.calculateAccessibility(positionConfig);
       const layoutDimensions = {
@@ -11865,6 +12384,11 @@ let LMSCalendar = class extends e$2(LitElement) {
       endDate,
       (endDate.getTime() - startDate.getTime()) / (1e3 * 3600 * 24) + 1
     ];
+  }
+  _isAllDayEvent(entry) {
+    if (!entry.time) return true;
+    const { start, end } = entry.time;
+    return start.hour === 0 && start.minute === 0 && end.hour === 23 && end.minute === 59;
   }
 };
 LMSCalendar.styles = css`
