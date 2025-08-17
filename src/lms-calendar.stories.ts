@@ -710,11 +710,13 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
                 daysInCurrentMonth,
             );
 
+            // Create a single multi-day event with proper date range
+            // The calendar system will handle expansion internally
             events.push({
                 heading: event.heading,
                 content: event.content,
                 color: colors[Math.floor(Math.random() * colors.length)],
-                isContinuation: false,
+                isContinuation: false, // This is the original event, not a continuation
                 date: {
                     start: {
                         day: startDay,

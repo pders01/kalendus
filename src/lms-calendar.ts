@@ -603,9 +603,10 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     start: currentStartDate.toObject(),
                     end: currentEndDate.toObject(),
                 },
+                isContinuation: index > 0, // Any day after the first is a continuation
                 continuation: {
                     has: range[2] > 1,
-                    is: index > 1,
+                    is: index > 0, // Fixed: index > 0, not index > 1
                     index,
                 },
                 // Preserve original start date for consistent sorting
@@ -656,12 +657,13 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
 
         return R.pipe(
             this.entries,
-            R.flatMap((entry) =>
-                this._expandEntryMaybe({
+            R.flatMap((entry) => {
+                const expandedEntries = this._expandEntryMaybe({
                     entry,
                     range: this._getDaysRange(entry.date),
-                }),
-            ),
+                });
+                return expandedEntries;
+            }),
             // Sort: multi-day events first, then by original entry order for consistency
             R.sortBy((entry) => {
                 const baseId = this._createConsistentEventId(
@@ -690,9 +692,13 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 );
                 const originalIndex = entryIdMap.get(baseId) || index;
 
+                const isMultiDay =
+                    entry.isContinuation || entry.continuation?.has || false;
+                const slotPrefix = isMultiDay ? 'all-day-' : '';
+
                 return this._composeEntry({
                     index: originalIndex, // Use original index for consistent CSS classes
-                    slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
+                    slot: `${slotPrefix}${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
                     styles: css`
                         lms-calendar-entry._${originalIndex} {
                             --entry-color: ${unsafeCSS(background)};
@@ -706,7 +712,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         heading: entry.heading,
                         content: entry.content,
                         date: entry.date,
-                        isContinuation: entry.continuation.is,
+                        isContinuation: entry.isContinuation || false,
+                        continuation: entry.continuation,
                     },
                     density: this._determineDensity(
                         {
@@ -958,6 +965,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 date: entry.date.start,
                 time: entry.time,
                 activeDate: currentActiveDate,
+                isAllDay: entry.isContinuation || this._isAllDayEvent(entry), // Add all-day detection
             };
 
             const position = slotManager.calculatePosition(positionConfig);
@@ -1187,6 +1195,19 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) + 1,
         ];
     }
+
+    private _isAllDayEvent(entry: Partial<CalendarEntry>): boolean {
+        // Check if it's a true all-day event (0:00 to 23:59)
+        if (!entry.time) return true;
+
+        const { start, end } = entry.time;
+        return (
+            start.hour === 0 &&
+            start.minute === 0 &&
+            end.hour === 23 &&
+            end.minute === 59
+        );
+    }
 }
 
 declare global {
@@ -1218,6 +1239,7 @@ declare global {
         content: string;
         color: string;
         isContinuation: boolean;
+        continuation?: Continuation;
     };
 
     type Continuation = {
