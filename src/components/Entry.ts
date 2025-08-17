@@ -31,6 +31,9 @@ export default class Entry extends LitElement {
     @property({ type: Boolean, reflect: true, attribute: 'data-float-text' })
     floatText = false;
 
+    @property({ type: Object })
+    _accessibility?: { tabIndex: number; role: string; ariaLabel: string };
+
     @state()
     _highlighted?: boolean;
 
@@ -89,6 +92,20 @@ export default class Entry extends LitElement {
 
         :host([data-highlighted]) {
             background: var(--entry-highlight-color, var(--separator-light));
+        }
+
+        /* ARIA-compliant highlighted border for active menu entries */
+        :host([aria-selected="true"]) {
+            outline: 3px solid var(--entry-focus-color, var(--primary-color));
+            outline-offset: 2px;
+            position: relative;
+            z-index: 999; /* Ensure highlighted entry appears above others */
+        }
+
+        /* Enhance focus styles for better accessibility */
+        :host(:focus) {
+            outline: 2px solid var(--entry-focus-color, var(--primary-color));
+            outline-offset: 2px;
         }
 
         :host([data-extended]) {
@@ -333,6 +350,16 @@ export default class Entry extends LitElement {
         return this.density === 'standard' || this.density === 'full';
     }
 
+    private _getAriaLabel(): string {
+        const timeInfo = this.time
+            ? `${String(this.time.start.hour).padStart(2, '0')}:${String(this.time.start.minute).padStart(2, '0')} to ${String(this.time.end.hour).padStart(2, '0')}:${String(this.time.end.minute).padStart(2, '0')}`
+            : 'All day';
+        
+        const contentInfo = this.content ? `, ${this.content}` : '';
+        
+        return `Calendar event: ${this.heading}${contentInfo}, ${timeInfo}. Press Enter or Space to open details.`;
+    }
+
     override render() {
         const mainClass = `main ${this.density}`;
 
@@ -342,7 +369,10 @@ export default class Entry extends LitElement {
             return html`
                 <div
                     class=${mainClass}
-                    tabindex="1"
+                    tabindex=${this._accessibility?.tabIndex ?? 0}
+                    role=${this._accessibility?.role ?? 'button'}
+                    aria-label="${this._accessibility?.ariaLabel ?? this._getAriaLabel()}"
+                    aria-selected=${this._highlighted ? 'true' : 'false'}
                     title=${this._renderTitle()}
                     data-full-content=${this.content || ''}
                     ?data-extended=${this._extended}
@@ -370,7 +400,10 @@ export default class Entry extends LitElement {
         return html`
             <div
                 class=${mainClass}
-                tabindex="1"
+                tabindex=${this._accessibility?.tabIndex ?? 0}
+                role=${this._accessibility?.role ?? 'button'}
+                aria-label="${this._accessibility?.ariaLabel ?? this._getAriaLabel()}"
+                aria-selected=${this._highlighted ? 'true' : 'false'}
                 title=${this._renderTitle()}
                 data-full-content=${this.content || ''}
                 ?data-extended=${this._extended}
@@ -424,6 +457,9 @@ export default class Entry extends LitElement {
 
         if (!this._highlighted) {
             this._highlighted = true;
+            // Update ARIA attributes for screen readers
+            this.setAttribute('aria-selected', 'true');
+            
             if (!this.date) {
                 return;
             }
@@ -458,6 +494,7 @@ export default class Entry extends LitElement {
             // Listen for menu close to remove highlight
             const handleMenuClose = () => {
                 this._highlighted = false;
+                this.setAttribute('aria-selected', 'false');
                 this.removeEventListener('menu-close', handleMenuClose);
             };
             this.addEventListener('menu-close', handleMenuClose);

@@ -44,6 +44,12 @@ export interface LayoutDimensions {
     height?: number;     // For absolute positioning
 }
 
+export interface AccessibilityInfo {
+    tabIndex: number;    // Tab order for keyboard navigation
+    role: string;        // ARIA role
+    ariaLabel: string;   // Screen reader description
+}
+
 export interface SlotPosition {
     slotName: string;
     gridColumn?: number;  // For direct grid positioning
@@ -138,7 +144,7 @@ export class SlotManager {
         activeDate: CalendarDate
     ): SlotPosition {
         // Calculate which day column this entry belongs to
-        const dayColumnIndex = this._getWeekDayIndex(date, activeDate);
+        const dayColumnIndex = this.getWeekDayIndex(date, activeDate);
         const gridColumn = dayColumnIndex + 2; // +2 because column 1 is for time indicators
         
         if (isAllDay) {
@@ -175,7 +181,7 @@ export class SlotManager {
     /**
      * Calculate which day of the week an entry belongs to (0-6, where 0 is Monday)
      */
-    private _getWeekDayIndex(entryDate: CalendarDate, activeDate: CalendarDate): number {
+    public getWeekDayIndex(entryDate: CalendarDate, activeDate: CalendarDate): number {
         // Get the start of the week (Monday)
         const currentDate = new Date(activeDate.year, activeDate.month - 1, activeDate.day);
         const dayOfWeek = currentDate.getDay();
@@ -196,11 +202,14 @@ export class SlotManager {
         });
         
         // Find which day this entry belongs to
-        return weekDates.findIndex(date => 
+        const dayIndex = weekDates.findIndex(date => 
             date.day === entryDate.day && 
             date.month === entryDate.month && 
             date.year === entryDate.year
         );
+        
+        // Return 0 (Monday) if not found, to prevent -1 from breaking sorting
+        return dayIndex >= 0 ? dayIndex : 0;
     }
     
     /**
@@ -217,6 +226,58 @@ export class SlotManager {
         return `${startRow}/${endRow}`;
     }
     
+    /**
+     * Calculate accessibility information including logical tab order
+     */
+    public calculateAccessibility(config: PositionConfig): AccessibilityInfo {
+        const { viewMode, date, time, isAllDay } = config;
+        
+        let tabIndex = 0;
+        
+        if (viewMode === 'week' && time && !isAllDay) {
+            // Week view: tab order by day first, then by time (vertical progression)
+            // Use very large gaps to ensure proper ordering regardless of DOM order
+            // Formula: 10000 + (dayOfWeek * 10000) + (hour * 100) + minute
+            // This ensures Mon 9:00 (10000+0+900+0=10900), Mon 10:00 (11000), Tue 9:00 (20900), etc.
+            const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!);
+            tabIndex = 10000 + (dayOfWeek * 10000) + (time.start.hour * 100) + time.start.minute;
+        } else if (viewMode === 'day' && time && !isAllDay) {
+            // Day view: tab order by time only
+            tabIndex = time.start.hour * 60 + time.start.minute;
+        } else if (isAllDay) {
+            // All-day events get lower tab indices (appear first in tab order)
+            if (viewMode === 'week') {
+                const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!);
+                tabIndex = 1000 + dayOfWeek; // 1000-1006 for all-day events (before timed events)
+            } else {
+                tabIndex = 0; // Single all-day event in day view
+            }
+        }
+        
+        return {
+            tabIndex,
+            role: 'button',
+            ariaLabel: this._generateAriaLabel(config)
+        };
+    }
+
+    /**
+     * Generate comprehensive ARIA label for screen readers
+     */
+    private _generateAriaLabel(config: PositionConfig): string {
+        const { date, time, isAllDay } = config;
+        
+        // Format date
+        const dateStr = `${date.month}/${date.day}/${date.year}`;
+        
+        // Format time
+        const timeStr = isAllDay || !time 
+            ? 'All day'
+            : `${String(time.start.hour).padStart(2, '0')}:${String(time.start.minute).padStart(2, '0')} to ${String(time.end.hour).padStart(2, '0')}:${String(time.end.minute).padStart(2, '0')}`;
+        
+        return `Calendar event on ${dateStr}, ${timeStr}. Press Enter or Space to open details.`;
+    }
+
     /**
      * Get human-readable description of position (for debugging)
      */
