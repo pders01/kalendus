@@ -696,8 +696,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             return nothing;
         }
 
-        // Get entries for current day or week
-        const entriesByDate = R.pipe(
+        // Get all entries for current day or week  
+        const allEntriesForDate = R.pipe(
             this.entries,
             R.flatMap((entry) =>
                 this._expandEntryMaybe({
@@ -723,14 +723,23 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     return weekDates.includes(entryDateStr);
                 }
             }),
-            R.filter((entry) => !!entry.time), // Only timed entries for layout calculation
         ) as Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>;
 
-        if (!entriesByDate.length) {
+        // Separate all-day and timed entries
+        const allDayEntries = allEntriesForDate.filter(entry => !entry.time || 
+            (entry.time && Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) ||
+            entry.continuation?.is || entry.continuation?.has);
+            
+        const entriesByDate = allEntriesForDate.filter(entry => !!entry.time && 
+            !(Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) &&
+            !entry.continuation?.is && !entry.continuation?.has);
+
+
+        if (!entriesByDate.length && !allDayEntries.length) {
             return nothing;
         }
 
-        // Convert to layout calculator format
+        // Convert timed entries to layout calculator format
         const layoutEvents = entriesByDate.map((entry, index) => ({
             id: String(index),
             heading: entry.heading || '',
@@ -745,33 +754,32 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             color: entry.color || '#1976d2',
         }));
 
-        // Calculate layout using our deterministic engine
-        const layout = this._layoutCalculator.calculateLayout(layoutEvents);
+        // Calculate layout using our deterministic engine (only for timed entries)
+        const layout = entriesByDate.length > 0 ? this._layoutCalculator.calculateLayout(layoutEvents) : { boxes: [] };
 
-        // Render entries using layout calculator results
-        return entriesByDate.map((entry, index) => {
-            const layoutBox = layout.boxes[index];
+        // Render all-day entries
+        const allDayElements = allDayEntries.map((entry, index) => {
             const [background, text] = getColorTextWithContrast(entry.color);
             
-            const isAllDay = Number(entry.time?.end.hour) - Number(entry.time?.start.hour) >= 23;
-            
-            if (entry.continuation?.is || entry.continuation?.has || isAllDay) {
-                // Render all-day events
-                return this._composeEntry({
-                    index,
-                    slot: 'all-day',
-                    styles: css`
-                        lms-calendar-entry._${index} {
-                            --entry-background-color: ${unsafeCSS(background)};
-                            --entry-color: ${unsafeCSS(text)};
-                        }
-                    `,
-                    entry,
-                    density: 'standard',
-                    floatText: false,
-                });
-            }
+            return this._composeEntry({
+                index: index + entriesByDate.length, // Offset index to avoid conflicts
+                slot: 'all-day',
+                styles: css`
+                    lms-calendar-entry._${index + entriesByDate.length} {
+                        --entry-background-color: ${unsafeCSS(background)};
+                        --entry-color: ${unsafeCSS(text)};
+                    }
+                `,
+                entry,
+                density: 'standard',
+                floatText: false,
+            });
+        });
 
+        // Render timed entries using layout calculator results
+        const timedEntryElements = entriesByDate.map((entry, index) => {
+            const layoutBox = layout.boxes[index];
+            
             // Render timed events using layout calculator positioning  
             const slot = viewMode === 'week'
                 ? `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}-${entry.time!.start.hour}`
@@ -802,6 +810,9 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 floatText: false, // Never use floating text - always render text within the event container
             });
         });
+
+        // Return both all-day and timed entries
+        return [...allDayElements, ...timedEntryElements];
     }
 
     private _renderEntriesSumByDay() {

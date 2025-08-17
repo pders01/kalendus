@@ -107,16 +107,19 @@ export class LayoutCalculator {
                 // Multiple overlapping events - assign depths intelligently
                 const groupIntervals = groupIndices.map(i => ({ ...intervals[i], originalIndex: i }));
                 
-                // Sort by start time, then by duration (longer events go behind)
-                groupIntervals.sort((a, b) => {
-                    if (a.start !== b.start) return a.start - b.start;
-                    return (b.end - b.start) - (a.end - a.start); // Longer events first (lower z-index)
+                // Find the longest event in the group (this should be the background event)
+                const longestEvent = groupIntervals.reduce((longest, current) => {
+                    const currentDuration = current.end - current.start;
+                    const longestDuration = longest.end - longest.start;
+                    return currentDuration > longestDuration ? current : longest;
                 });
                 
-                // Assign depths using a greedy algorithm
-                const assigned = this.assignDepthsGreedy(groupIntervals);
-                assigned.forEach(({ originalIndex, depth }) => {
-                    grading.push({ index: originalIndex, depth, group: groupId });
+                // Assign depths: longest event gets depth 0, others get cascading depths
+                let nextDepth = 1;
+                groupIntervals.forEach((interval) => {
+                    const isLongestEvent = interval.originalIndex === longestEvent.originalIndex;
+                    const depth = isLongestEvent ? 0 : nextDepth++;
+                    grading.push({ index: interval.originalIndex, depth, group: groupId });
                 });
             }
         });
@@ -130,7 +133,7 @@ export class LayoutCalculator {
         const groups: Array<number[]> = [];
         const assigned = new Set<number>();
         
-        intervals.forEach((interval, index) => {
+        intervals.forEach((_interval, index) => {
             if (assigned.has(index)) return;
             
             // Start a new group
@@ -163,36 +166,6 @@ export class LayoutCalculator {
         return groups;
     }
 
-    private assignDepthsGreedy(groupIntervals: Array<{start: number, end: number, originalIndex: number}>): Array<{originalIndex: number, depth: number}> {
-        const result: Array<{originalIndex: number, depth: number}> = [];
-        const layers: Array<{start: number, end: number}[]> = [];
-        
-        groupIntervals.forEach(interval => {
-            // Find the first layer where this interval can fit
-            let assignedLayer = -1;
-            
-            for (let layerIndex = 0; layerIndex < layers.length; layerIndex++) {
-                const layer = layers[layerIndex];
-                const canFit = !layer.some(existing => this.intervalsOverlap(interval, existing));
-                
-                if (canFit) {
-                    assignedLayer = layerIndex;
-                    break;
-                }
-            }
-            
-            // If no existing layer can fit this interval, create a new one
-            if (assignedLayer === -1) {
-                assignedLayer = layers.length;
-                layers.push([]);
-            }
-            
-            layers[assignedLayer].push(interval);
-            result.push({ originalIndex: interval.originalIndex, depth: assignedLayer });
-        });
-        
-        return result;
-    }
 
     private intervalsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
         return a.start < b.end && b.start < a.end;
