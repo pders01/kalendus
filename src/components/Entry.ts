@@ -59,6 +59,7 @@ export default class Entry extends LitElement {
                 var(--background-color)
             );
             color: var(--entry-color, var(--primary-color));
+            border: var(--entry-border, none);
             /* z-index of separators in day view is 0 */
             z-index: var(--entry-z-index, 1);
             opacity: var(--entry-opacity, 1);
@@ -67,6 +68,19 @@ export default class Entry extends LitElement {
             min-height: var(--entry-min-height, 1.2em);
             overflow: hidden;
             position: relative;
+        }
+
+        /* Color handle indicator on the left - only for day/week views */
+        :host::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--entry-handle-width, 0px);
+            background-color: var(--entry-handle-color, transparent);
+            border-radius: var(--entry-border-radius, var(--border-radius-sm)) 0 0 var(--entry-border-radius, var(--border-radius-sm));
+            display: var(--entry-handle-display, none);
         }
 
         :host(:last-child) {
@@ -103,6 +117,11 @@ export default class Entry extends LitElement {
             gap: var(--entry-gap, 0.25em);
             overflow: visible;
             position: relative;
+        }
+
+        /* When handle design is used, adjust padding for the colored handle */
+        .main {
+            padding-left: var(--entry-padding-left, 0.25em);
         }
         
         .text-content {

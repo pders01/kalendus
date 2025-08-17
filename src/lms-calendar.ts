@@ -31,6 +31,7 @@ import './components/Week.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import getOverlappingEntitiesIndices from './lib/getOverlappingEntitiesIndices.js';
 import getSortedGradingsByIndex from './lib/getSortedGradingsByIndex.js';
+import { LayoutCalculator } from './lib/LayoutCalculator.js';
 import { setAppLocale } from './lib/localization.js';
 import partitionOverlappingIntervals from './lib/partitionOverlappingIntervals.js';
 import {
@@ -80,6 +81,14 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         time: string;
         date?: CalendarDate;
     };
+
+    private _layoutCalculator = new LayoutCalculator({
+        timeColumnWidth: 80,
+        minuteHeight: 1,
+        eventMinHeight: 20,
+        cascadeOffset: 15,
+        paddingLeft: 10
+    });
 
     private _handleResize = (entries: ResizeObserverEntry[]): void => {
         const [div] = entries;
@@ -368,26 +377,20 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     : nothing}
                 ${viewMode === 'week'
                     ? html`
-                          <div style="position: relative;">
-                              <lms-calendar-week
-                                  @expand=${this._handleExpand}
-                                  @open-menu=${this._handleOpenMenu}
-                                  .activeDate=${currentActiveDate}
-                              >
-                                  ${this._renderEntriesForWeek()}
-                              </lms-calendar-week>
-                              ${this._renderFloatingLabels('week')}
-                          </div>
+                          <lms-calendar-week
+                              @expand=${this._handleExpand}
+                              @open-menu=${this._handleOpenMenu}
+                              .activeDate=${currentActiveDate}
+                          >
+                              ${this._renderEntriesByDate()}
+                          </lms-calendar-week>
                       `
                     : nothing}
                 ${viewMode === 'day'
                     ? html`
-                          <div style="position: relative;">
-                              <lms-calendar-day @open-menu=${this._handleOpenMenu}>
-                                  ${this._renderEntriesByDate()}
-                              </lms-calendar-day>
-                              ${this._renderFloatingLabels('day')}
-                          </div>
+                          <lms-calendar-day @open-menu=${this._handleOpenMenu}>
+                              ${this._renderEntriesByDate()}
+                          </lms-calendar-day>
                       `
                     : nothing}
 
@@ -454,140 +457,6 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         this._menuOpen = true;
     }
 
-    private _renderFloatingLabels(viewMode: 'day' | 'week') {
-        const currentActiveDate = activeSignal.get();
-        
-        // Get entries for the current view
-        let entries: CalendarEntry[] = [];
-        
-        if (viewMode === 'week') {
-            const weekStartDate = this._getWeekStartDate(currentActiveDate);
-            const weekDates = Array.from({ length: 7 }, (_, i) => {
-                const date = new Date(weekStartDate);
-                date.setDate(date.getDate() + i);
-                return {
-                    year: date.getFullYear(),
-                    month: date.getMonth() + 1,
-                    day: date.getDate(),
-                };
-            });
-            
-            entries = R.pipe(
-                this.entries,
-                R.flatMap((entry) =>
-                    this._expandEntryMaybe({
-                        entry,
-                        range: this._getDaysRange(entry.date),
-                    }),
-                ),
-                R.filter((entry) =>
-                    weekDates.some(date =>
-                        entry.date.start.year === date.year &&
-                        entry.date.start.month === date.month &&
-                        entry.date.start.day === date.day
-                    )
-                ),
-                R.filter((entry) => !!entry.time), // Only timed entries
-            );
-        } else {
-            entries = R.pipe(
-                this.entries,
-                R.flatMap((entry) =>
-                    this._expandEntryMaybe({
-                        entry,
-                        range: this._getDaysRange(entry.date),
-                    }),
-                ),
-                R.filter((entry) =>
-                    entry.date.start.year === currentActiveDate.year &&
-                    entry.date.start.month === currentActiveDate.month &&
-                    entry.date.start.day === currentActiveDate.day
-                ),
-                R.filter((entry) => !!entry.time), // Only timed entries
-            );
-        }
-        
-        if (!entries.length) return nothing;
-        
-        // Calculate grading for overlap detection
-        const grading = R.pipe(
-            entries,
-            R.map((entry) => entry.time!),
-            R.map((time) =>
-                this._getGridSlotByTime(time!)
-                    .replace(/[^0-9/]+/g, '')
-                    .split('/'),
-            ),
-            R.map(([start, end]) => ({
-                start: parseInt(start, 10),
-                end: parseInt(end, 10),
-            })),
-            partitionOverlappingIntervals,
-            getOverlappingEntitiesIndices,
-            getSortedGradingsByIndex,
-        );
-        
-        // Only render labels for overlapping events (depth > 0)
-        const overlappingEntries = entries
-            .map((entry, index) => ({ 
-                ...entry, 
-                index, 
-                depth: grading[index]?.depth || 0,
-                group: grading[index]?.group || 0 
-            }))
-            .filter(entry => entry.depth > 0);
-            
-        if (!overlappingEntries.length) return nothing;
-        
-        const labels = overlappingEntries.map((entry, labelIndex) => {
-            const timeStr = `${String(entry.time!.start.hour).padStart(2, '0')}:${String(entry.time!.start.minute).padStart(2, '0')}`;
-            
-            // Calculate position based on grid positioning
-            const startMinute = entry.time!.start.hour * 60 + entry.time!.start.minute;
-            const leftOffset = 90 + (entry.depth * 15); // 80px for time column + 10px margin + depth offset
-            const topOffset = (viewMode === 'day' ? 8 : 0) + startMinute + (labelIndex * 16); // Account for day view padding + grid position
-            
-            return html`
-                <div
-                    style="
-                        position: absolute;
-                        top: ${topOffset}px;
-                        left: ${leftOffset}px;
-                        background: rgba(${entry.color.includes('#') ? entry.color.slice(1).match(/.{2}/g)?.map(hex => parseInt(hex, 16)).join(', ') || '255, 255, 255' : '255, 255, 255'}, 0.9);
-                        backdrop-filter: blur(2px);
-                        padding: 1px 4px;
-                        border-radius: 2px;
-                        font-size: 0.65rem;
-                        z-index: 1000;
-                        white-space: nowrap;
-                        line-height: 1.1;
-                        max-width: 160px;
-                        pointer-events: auto;
-                        border: 1px solid ${entry.color};
-                        cursor: pointer;
-                        color: ${entry.color};
-                        font-weight: 600;
-                        text-shadow: 0 0 2px rgba(255, 255, 255, 0.8);
-                    "
-                    title="${entry.heading} (${timeStr})"
-                    @click=${(e: Event) => {
-                        e.stopPropagation();
-                        this._handleOpenMenu({
-                            heading: entry.heading || '',
-                            content: entry.content || '',
-                            time: timeStr,
-                            date: entry.date?.start,
-                        });
-                    }}
-                >
-                    <span style="margin-right: 3px;">${entry.heading}</span>
-                    <span style="opacity: 0.8; font-size: 0.6rem;">${timeStr}</span>
-                </div>
-            `;
-        });
-        
-        return labels;
-    }
 
     private _composeEntry({
         index,
@@ -823,10 +692,11 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         const currentActiveDate = activeSignal.get();
         const viewMode = currentViewMode.get();
 
-        if (viewMode !== 'day') {
+        if (viewMode !== 'day' && viewMode !== 'week') {
             return nothing;
         }
 
+        // Get entries for current day or week
         const entriesByDate = R.pipe(
             this.entries,
             R.flatMap((entry) =>
@@ -835,141 +705,98 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     range: this._getDaysRange(entry.date),
                 }),
             ),
-            R.filter((entry) =>
-                R.isDeepEqual(
-                    DateTime.fromObject(entry.date.start).toISODate(),
-                    DateTime.fromObject(currentActiveDate).toISODate(),
-                ),
-            ),
-        );
+            R.filter((entry) => {
+                if (viewMode === 'day') {
+                    return R.isDeepEqual(
+                        DateTime.fromObject(entry.date.start).toISODate(),
+                        DateTime.fromObject(currentActiveDate).toISODate(),
+                    );
+                } else {
+                    // Week view: filter for current week
+                    const weekStartDate = this._getWeekStartDate(currentActiveDate);
+                    const weekDates = Array.from({ length: 7 }, (_, i) => {
+                        const date = new Date(weekStartDate);
+                        date.setDate(weekStartDate.getDate() + i);
+                        return DateTime.fromJSDate(date).toISODate();
+                    });
+                    const entryDateStr = DateTime.fromObject(entry.date.start).toISODate();
+                    return weekDates.includes(entryDateStr);
+                }
+            }),
+            R.filter((entry) => !!entry.time), // Only timed entries for layout calculation
+        ) as Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>;
 
-        let grading: Grading[] = [];
-        if (!R.isEmpty(entriesByDate)) {
-            grading = R.pipe(
-                entriesByDate,
-                R.map((entry) =>
-                    Number(entry.time?.end.hour) -
-                        Number(entry.time?.start.hour) <
-                        23 &&
-                    !entry.continuation.is &&
-                    !entry.continuation.has
-                        ? entry
-                        : {
-                              ...entry,
-                              time: {
-                                  start: { hour: 0, minute: -1 },
-                                  end: { hour: 0, minute: 1 },
-                              },
-                          },
-                ),
-                R.map(({ time }) =>
-                    this._getGridSlotByTime(time!)
-                        .replace(/[^0-9/]+/g, '')
-                        .split('/'),
-                ),
-                R.map(([start, end]) => ({
-                    start: parseInt(start, 10),
-                    end: parseInt(end, 10),
-                })),
-                partitionOverlappingIntervals,
-                getOverlappingEntitiesIndices,
-                getSortedGradingsByIndex,
-            );
+        if (!entriesByDate.length) {
+            return nothing;
         }
 
-        return R.pipe(
-            entriesByDate,
-            R.map((entry) => ({
-                ...entry,
-                isAllDay:
-                    Number(entry.time?.end.hour) -
-                        Number(entry.time?.start.hour) >=
-                    23,
-            })),
-            R.map(
-                (entry) =>
-                    [entry, ...getColorTextWithContrast(entry.color)] as [
-                        CalendarEntry & {
-                            isAllDay: boolean;
-                            continuation: Continuation;
-                        },
-                        string,
-                        string,
-                    ],
-            ),
-            R.map.indexed(([entry, background, text], index) => {
-                // Calculate overlapping count for this entry
-                const overlappingCount =
-                    grading.length > 0
-                        ? grading.filter(
-                              (g) => g.group === grading[index]?.group,
-                          ).length
-                        : 0;
+        // Convert to layout calculator format
+        const layoutEvents = entriesByDate.map((entry, index) => ({
+            id: String(index),
+            heading: entry.heading || '',
+            startTime: {
+                hour: entry.time!.start.hour,
+                minute: entry.time!.start.minute,
+            },
+            endTime: {
+                hour: entry.time!.end.hour,
+                minute: entry.time!.end.minute,
+            },
+            color: entry.color || '#1976d2',
+        }));
 
-                return match(
-                    entry.continuation.is ||
-                        entry.continuation.has ||
-                        entry.isAllDay,
-                )
-                    .with(true, () =>
-                        this._composeEntry({
-                            index,
-                            slot: 'all-day',
-                            styles: css`
-                                lms-calendar-entry._${index} {
-                                    --entry-background-color: ${unsafeCSS(
-                                        background,
-                                    )};
-                                    --entry-color: ${unsafeCSS(text)};
-                                }
-                            `,
-                            entry,
-                            density: (grading[index]?.depth || 0) > 0 ? 'compact' : this._determineDensity(
-                                entry,
-                                overlappingCount,
-                                grading,
-                                index,
-                            ),
-                            floatText: false, // Text will be rendered in separate overlay for overlapping events
-                        }),
-                    )
-                    .otherwise(() =>
-                        this._composeEntry({
-                            index,
-                            slot: entry.time.start.hour.toString(),
-                            styles: css`
-                                lms-calendar-entry._${index} {
-                                    --start-slot: ${unsafeCSS(
-                                        this._getGridSlotByTime(entry.time),
-                                    )};
-                                    --entry-width: calc(100% - ${(grading[index]?.depth || 0) * 15}px);
-                                    --entry-margin-left: ${(grading[index]?.depth || 0) * 15}px;
-                                    --entry-padding-top: ${(grading[index]?.depth || 0) * 3}px;
-                                    --entry-border-radius: var(
-                                        --border-radius-sm
-                                    );
-                                    --entry-background-color: ${unsafeCSS(
-                                        background,
-                                    )};
-                                    --entry-color: ${unsafeCSS(text)};
-                                    --entry-z-index: ${100 - (grading[index]?.depth || 0)};
-                                    --entry-opacity: ${grading[index]?.depth === 0 ? 1.0 : 0.85};
-                                    --entry-text-top: ${-24 - (grading[index]?.depth || 0) * 20}px;
-                                    --entry-text-left: ${(grading[index]?.depth || 0) * 5}px;
-                                }
-                            `,
-                            entry,
-                            density: (grading[index]?.depth || 0) > 0 ? 'compact' : this._determineDensity(
-                                entry,
-                                overlappingCount,
-                                grading,
-                                index,
-                            ),
-                            floatText: false, // Text will be rendered in separate overlay for overlapping events
-                        }),
-                    );
-            }),
-        );
+        // Calculate layout using our deterministic engine
+        const layout = this._layoutCalculator.calculateLayout(layoutEvents);
+
+        // Render entries using layout calculator results
+        return entriesByDate.map((entry, index) => {
+            const layoutBox = layout.boxes[index];
+            const [background, text] = getColorTextWithContrast(entry.color);
+            
+            const isAllDay = Number(entry.time?.end.hour) - Number(entry.time?.start.hour) >= 23;
+            
+            if (entry.continuation?.is || entry.continuation?.has || isAllDay) {
+                // Render all-day events
+                return this._composeEntry({
+                    index,
+                    slot: 'all-day',
+                    styles: css`
+                        lms-calendar-entry._${index} {
+                            --entry-background-color: ${unsafeCSS(background)};
+                            --entry-color: ${unsafeCSS(text)};
+                        }
+                    `,
+                    entry,
+                    density: 'standard',
+                    floatText: false,
+                });
+            }
+
+            // Render timed events using layout calculator positioning
+            return this._composeEntry({
+                index,
+                slot: entry.time!.start.hour.toString(),
+                styles: css`
+                    lms-calendar-entry._${index} {
+                        --start-slot: ${unsafeCSS(this._getGridSlotByTime(entry.time!))};
+                        --entry-width: ${layoutBox.width}%;
+                        --entry-margin-left: ${layoutBox.x}%;
+                        --entry-background-color: rgba(250, 250, 250, 0.8);
+                        --entry-color: #333;
+                        --entry-border: 1px solid rgba(0, 0, 0, 0.15);
+                        --entry-handle-color: ${unsafeCSS(entry.color || '#1976d2')};
+                        --entry-handle-width: 4px;
+                        --entry-handle-display: block;
+                        --entry-padding-left: calc(4px + 0.35em);
+                        --entry-z-index: ${layoutBox.zIndex};
+                        --entry-opacity: ${layoutBox.opacity};
+                    }
+                `,
+                entry,
+                density: 'standard', // Always use standard density for overlapping events to ensure text is visible
+                floatText: false, // Never use floating text - always render text within the event container
+            });
+        });
     }
 
     private _renderEntriesSumByDay() {
@@ -1006,155 +833,6 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         );
     }
 
-    private _renderEntriesForWeek() {
-        const currentActiveDate = activeSignal.get();
-        const viewMode = currentViewMode.get();
-
-        if (!this.entries.length || viewMode !== 'week') {
-            return nothing;
-        }
-
-        const weekStartDate = this._getWeekStartDate(currentActiveDate);
-        const weekDates = Array.from({ length: 7 }, (_, i) => {
-            const date = new Date(weekStartDate);
-            date.setDate(weekStartDate.getDate() + i);
-            return {
-                day: date.getDate(),
-                month: date.getMonth() + 1,
-                year: date.getFullYear(),
-            };
-        });
-
-        const entriesInWeek = R.pipe(
-            this.entries,
-            R.flatMap((entry) =>
-                this._expandEntryMaybe({
-                    entry,
-                    range: this._getDaysRange(entry.date),
-                }),
-            ),
-            R.filter((entry) => {
-                const entryDateStr = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
-                return weekDates.some(
-                    (date) =>
-                        `${date.year}-${date.month}-${date.day}` ===
-                        entryDateStr,
-                );
-            }),
-        );
-
-        // Group entries by day for overlap calculation
-        const entriesByDay = R.groupBy(
-            entriesInWeek,
-            (entry) =>
-                `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-        );
-
-        // Calculate grading for overlapping entries (day view)
-        const grading = R.pipe(
-            entriesInWeek,
-            R.map((entry) => entry.time!),
-            R.map((time) =>
-                this._getGridSlotByTime(time!)
-                    .replace(/[^0-9/]+/g, '')
-                    .split('/'),
-            ),
-            R.map(([start, end]) => ({
-                start: parseInt(start, 10),
-                end: parseInt(end, 10),
-            })),
-            partitionOverlappingIntervals,
-            getOverlappingEntitiesIndices,
-            getSortedGradingsByIndex,
-        );
-
-        return R.pipe(
-            entriesInWeek,
-            R.map(
-                (entry) =>
-                    [entry, ...getColorTextWithContrast(entry.color)] as [
-                        CalendarEntry & { continuation: Continuation },
-                        string,
-                        string,
-                    ],
-            ),
-            R.map.indexed(([entry, background, text], index) => {
-                const isAllDay =
-                    Number(entry.time?.end.hour) -
-                        Number(entry.time?.start.hour) >=
-                        23 ||
-                    entry.continuation.is ||
-                    entry.continuation.has;
-
-                // Calculate overlapping count for this day
-                const dayKey = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
-                const dayEntries = entriesByDay[dayKey] || [];
-                const overlappingCount = dayEntries.filter((otherEntry) => {
-                    if (otherEntry === entry || !entry.time || !otherEntry.time)
-                        return false;
-                    const start1 =
-                        entry.time.start.hour * 60 + entry.time.start.minute;
-                    const end1 =
-                        entry.time.end.hour * 60 + entry.time.end.minute;
-                    const start2 =
-                        otherEntry.time.start.hour * 60 +
-                        otherEntry.time.start.minute;
-                    const end2 =
-                        otherEntry.time.end.hour * 60 +
-                        otherEntry.time.end.minute;
-                    return start1 < end2 && start2 < end1;
-                }).length;
-
-                if (isAllDay) {
-                    return this._composeEntry({
-                        index,
-                        slot: `all-day-${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-                        styles: css`
-                            lms-calendar-entry._${index} {
-                                --entry-background-color: ${unsafeCSS(
-                                    background,
-                                )};
-                                --entry-color: ${unsafeCSS(text)};
-                            }
-                        `,
-                        entry,
-                        density: this._determineDensity(
-                            entry,
-                            overlappingCount,
-                        ),
-                    });
-                } else {
-                    return this._composeEntry({
-                        index,
-                        slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}-${entry.time.start.hour}`,
-                        styles: css`
-                            lms-calendar-entry._${index} {
-                                --start-slot: ${unsafeCSS(
-                                    this._getGridSlotByTime(entry.time),
-                                )};
-                                --entry-width: calc(100% - ${(grading[index]?.depth || 0) * 15}px);
-                                --entry-margin-left: ${(grading[index]?.depth || 0) * 15}px;
-                                --entry-padding-top: ${(grading[index]?.depth || 0) * 3}px;
-                                --entry-background-color: ${unsafeCSS(
-                                    background,
-                                )};
-                                --entry-color: ${unsafeCSS(text)};
-                                --entry-z-index: ${100 - (grading[index]?.depth || 0)};
-                                --entry-opacity: ${grading[index]?.depth === 0 ? 1.0 : 0.85};
-                                --entry-text-top: ${-24 - (grading[index]?.depth || 0) * 20}px;
-                                --entry-text-left: ${(grading[index]?.depth || 0) * 5}px;
-                            }
-                        `,
-                        entry,
-                        density: this._determineDensity(
-                            entry,
-                            overlappingCount,
-                        ),
-                    });
-                }
-            }),
-        );
-    }
 
     private _getWeekStartDate(date: CalendarDate): Date {
         const currentDate = new Date(date.year, date.month - 1, date.day);
