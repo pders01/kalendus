@@ -27,6 +27,9 @@ export default class Entry extends LitElement {
 
     @property({ type: String, reflect: true, attribute: 'data-display-mode' })
     displayMode: 'default' | 'month-dot' = 'default';
+    
+    @property({ type: Boolean, reflect: true, attribute: 'data-float-text' })
+    floatText = false;
 
     @state()
     _highlighted?: boolean;
@@ -98,7 +101,23 @@ export default class Entry extends LitElement {
             flex-direction: var(--entry-layout, row);
             align-items: var(--entry-align, flex-start);
             gap: var(--entry-gap, 0.25em);
-            overflow: hidden;
+            overflow: visible;
+            position: relative;
+        }
+        
+        .text-content {
+            position: absolute;
+            top: var(--entry-text-top, -20px);
+            left: var(--entry-text-left, 0);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2px 6px;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            font-size: 0.7rem;
+            z-index: 1000;
+            white-space: nowrap;
+            pointer-events: auto;
+            line-height: 1.2;
         }
 
         /* Compact mode: single line with title only */
@@ -277,6 +296,7 @@ export default class Entry extends LitElement {
     override render() {
         const mainClass = `main ${this.density}`;
 
+
         if (this.displayMode === 'month-dot') {
             const isMultiDay = this.isContinuation;
             return html`
@@ -291,6 +311,18 @@ export default class Entry extends LitElement {
                     ${!isMultiDay ? html`<span class="color-dot"></span>` : ''}
                     <span class="title">${this.heading}</span>
                     ${this._renderTime()}
+                </div>
+            `;
+        }
+        
+        // Float text mode: render box with floating text above
+        if (this.floatText) {
+            return html`
+                <div class=${mainClass} style="background-color: var(--entry-background-color); height: 100%; position: relative; overflow: visible;">
+                    <div class="text-content">
+                        <span style="font-weight: 500;">${this.heading}</span>
+                        ${this._renderTime()}
+                    </div>
                 </div>
             `;
         }
