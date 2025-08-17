@@ -368,6 +368,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                           <lms-calendar-month
                               @expand=${this._handleExpand}
                               @open-menu=${this._handleOpenMenu}
+                              @clear-other-selections=${this._handleClearOtherSelections}
                               .activeDate=${currentActiveDate}
                           >
                               ${this._calendarWidth < 768
@@ -381,6 +382,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                           <lms-calendar-week
                               @expand=${this._handleExpand}
                               @open-menu=${this._handleOpenMenu}
+                              @clear-other-selections=${this._handleClearOtherSelections}
                               .activeDate=${currentActiveDate}
                           >
                               ${this._renderEntriesByDate()}
@@ -389,7 +391,10 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     : nothing}
                 ${viewMode === 'day'
                     ? html`
-                          <lms-calendar-day @open-menu=${this._handleOpenMenu}>
+                          <lms-calendar-day 
+                              @open-menu=${this._handleOpenMenu}
+                              @clear-other-selections=${this._handleClearOtherSelections}
+                          >
                               ${this._renderEntriesByDate()}
                           </lms-calendar-day>
                       `
@@ -435,12 +440,28 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
 
     private _handleOpenMenu(e: CustomEvent) {
         // Reset any previously highlighted entries before opening new menu
+        // but exclude the entry that triggered this event
+        const clickedEntry = e.target as LMSCalendarEntry;
         this.shadowRoot
             ?.querySelectorAll('lms-calendar-entry')
             .forEach((entry) => {
-                (entry as LMSCalendarEntry)._highlighted = false;
+                if (entry !== clickedEntry) {
+                    (entry as LMSCalendarEntry).clearSelection();
+                }
             });
         this.openMenu(e.detail);
+    }
+
+    private _handleClearOtherSelections(e: CustomEvent) {
+        // Clear all selections except the entry that triggered this event
+        const focusedEntry = e.detail.exceptEntry as LMSCalendarEntry;
+        this.shadowRoot
+            ?.querySelectorAll('lms-calendar-entry')
+            .forEach((entry) => {
+                if (entry !== focusedEntry) {
+                    (entry as LMSCalendarEntry).clearSelection();
+                }
+            });
     }
 
     private _handleMenuClose() {
