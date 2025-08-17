@@ -60,6 +60,12 @@ export default class Week extends LitElement {
             background-color: var(--separator-light);
         }
 
+        .day-label:focus {
+            outline: 2px solid var(--entry-focus-color, var(--primary-color));
+            outline-offset: 2px;
+            background-color: var(--separator-light);
+        }
+
         .day-label:last-child {
             border-right: none;
         }
@@ -194,7 +200,11 @@ export default class Week extends LitElement {
                                 class="day-label ${classMap({
                                     current: this._isCurrentDate(date),
                                 })}"
+                                tabindex="0"
+                                role="button"
+                                aria-label="Switch to day view for ${getLocalizedWeekdayShort(index + 1)}, ${date.day}"
                                 @click=${() => this._handleDayLabelClick(date)}
+                                @keydown=${(e: KeyboardEvent) => this._handleDayLabelKeydown(e, date)}
                             >
                                 <div>
                                     ${getLocalizedWeekdayShort(index + 1)}
@@ -290,6 +300,13 @@ export default class Week extends LitElement {
             composed: true,
         });
         this.dispatchEvent(event);
+    }
+
+    private _handleDayLabelKeydown(e: KeyboardEvent, date: CalendarDate) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this._handleDayLabelClick(date);
+        }
     }
 
     private _handleDayColumnClick(e: Event, _date: CalendarDate) {
