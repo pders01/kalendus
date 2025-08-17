@@ -92,8 +92,8 @@ export class SlotManager {
                 grid-row: ${unsafeCSS(position.gridRow || '1')};
                 --entry-width: ${unsafeCSS(String(layout.width))}%;
                 --entry-margin-left: ${unsafeCSS(String(layout.x))}%;
-                z-index: ${unsafeCSS(String(layout.zIndex))};
-                opacity: ${unsafeCSS(String(layout.opacity))};
+                --entry-z-index: ${unsafeCSS(String(layout.zIndex))};
+                --entry-opacity: ${unsafeCSS(String(layout.opacity))};
             `;
         } else {
             // Slot-based positioning with CSS variables

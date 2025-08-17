@@ -99,13 +99,15 @@ export default class Entry extends LitElement {
             outline: 3px solid var(--entry-focus-color, var(--primary-color));
             outline-offset: 2px;
             position: relative;
-            z-index: 999; /* Ensure highlighted entry appears above others */
+            z-index: 999 !important; /* Ensure highlighted entry appears above others */
         }
 
         /* Enhance focus styles for better accessibility */
         :host(:focus) {
             outline: 2px solid var(--entry-focus-color, var(--primary-color));
             outline-offset: 2px;
+            position: relative;
+            z-index: 999 !important; /* Ensure focused entry appears above others */
         }
 
         :host([data-extended]) {
@@ -118,6 +120,8 @@ export default class Entry extends LitElement {
         :host(:focus-within) {
             outline: 2px solid var(--entry-focus-color, var(--primary-color));
             outline-offset: -2px;
+            position: relative;
+            z-index: 999 !important; /* Ensure entry with focused child appears above others */
         }
 
         .main {
