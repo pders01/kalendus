@@ -314,10 +314,4 @@ export default class Week extends LitElement {
             this._handleDayLabelClick(date);
         }
     }
-
-    private _handleDayColumnClick(e: Event, _date: CalendarDate) {
-        // Handle clicks on day columns - could be used for day expansion or other interactions
-        // For now, just prevent event bubbling if needed
-        e.stopPropagation();
-    }
 }
