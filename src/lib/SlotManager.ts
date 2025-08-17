@@ -46,7 +46,7 @@ export interface LayoutDimensions {
 
 export interface AccessibilityInfo {
     tabIndex: number; // Tab order for keyboard navigation
-    role: string; // ARIA role
+    role: 'button'; // ARIA role
     ariaLabel: string; // Screen reader description
 }
 
@@ -70,9 +70,9 @@ export class SlotManager {
             case 'week':
                 return this._calculateWeekPosition(
                     date,
+                    config.activeDate!,
                     time,
                     isAllDay,
-                    config.activeDate!,
                 );
             case 'month':
                 return this._calculateMonthPosition(date);
@@ -130,7 +130,7 @@ export class SlotManager {
      * Day view positioning: uses time-based slots
      */
     private _calculateDayPosition(
-        date: CalendarDate,
+        _date: CalendarDate,
         time?: CalendarTimeInterval,
         isAllDay?: boolean,
     ): SlotPosition {
@@ -157,9 +157,9 @@ export class SlotManager {
      */
     private _calculateWeekPosition(
         date: CalendarDate,
+        activeDate: CalendarDate,
         time?: CalendarTimeInterval,
         isAllDay?: boolean,
-        activeDate: CalendarDate,
     ): SlotPosition {
         // Calculate which day column this entry belongs to
         const dayColumnIndex = this.getWeekDayIndex(date, activeDate);
