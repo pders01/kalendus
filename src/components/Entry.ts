@@ -49,8 +49,8 @@ export default class Entry extends LitElement {
             user-select: none;
             border-radius: var(--entry-border-radius, var(--border-radius-sm));
             grid-row: var(--start-slot);
-            width: var(--entry-width);
-            margin: var(--entry-margin);
+            width: var(--entry-width, 100%);
+            margin-left: var(--entry-margin-left, 0);
             background-color: var(
                 --entry-background-color,
                 var(--background-color)
@@ -88,6 +88,7 @@ export default class Entry extends LitElement {
 
         .main {
             padding: var(--entry-padding, 0.15em 0.25em);
+            padding-top: calc(var(--entry-padding-top, 0) + 0.15em);
             border-radius: var(--entry-border-radius, var(--border-radius-sm));
             background-color: inherit;
             text-align: left;

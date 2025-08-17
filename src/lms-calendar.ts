@@ -466,7 +466,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         displayMode?: 'default' | 'month-dot';
     }) {
         // Determine density based on event duration and context if not explicitly set
-        const determinedDensity = density || this._determineDensity(entry);
+        const determinedDensity = density || this._determineDensity(entry, undefined, undefined, undefined);
 
         return html`
             <style>
@@ -501,41 +501,33 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
     private _determineDensity(
         entry: Partial<CalendarEntry>,
         overlappingCount?: number,
+        grading?: Grading[],
+        index?: number,
     ): 'compact' | 'standard' | 'full' {
         if (!entry.time) return 'compact'; // Default to compact for month view
+
+        // For overlapping events in day/week view, use consistent density
+        // based on depth to maintain visual hierarchy
+        if (grading && index !== undefined && grading[index]) {
+            const depth = grading[index].depth;
+            
+            // All overlapping events should have consistent display
+            // Top event (depth 0): show time
+            // Deeper events: also show time for consistency
+            // This prevents the visual chaos of mixed display modes
+            return 'standard';
+        }
 
         const durationMinutes =
             (entry.time.end.hour - entry.time.start.hour) * 60 +
             (entry.time.end.minute - entry.time.start.minute);
 
-        // Check viewport size for additional density considerations
-        const isSmallViewport = this._calendarWidth < 768;
-
-        // High-density scenario: many overlapping events -> force compact mode
-        if (overlappingCount && overlappingCount > 6) {
-            return 'compact';
-        }
-
-        // Medium-density scenario: some overlapping events -> prefer compact for short events
-        if (overlappingCount && overlappingCount > 3) {
-            return durationMinutes < 60 ? 'compact' : 'standard';
-        }
-
-        // Small viewport: prefer compact mode for better space utilization
-        if (isSmallViewport) {
-            return durationMinutes < 60 ? 'compact' : 'standard';
-        }
-
-        // Low-density scenario: consider event duration and content
+        // For non-overlapping events, use duration-based density
         if (durationMinutes < 30) {
             return 'compact';
         }
 
-        if (
-            durationMinutes > 120 &&
-            entry.content &&
-            (!overlappingCount || overlappingCount <= 2)
-        ) {
+        if (durationMinutes > 120 && entry.content) {
             return 'full';
         }
 
@@ -676,6 +668,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                             content: entry.content,
                         },
                         this._getEntriesCountForDay(entry.date.start),
+                        undefined,
+                        undefined,
                     ),
                     displayMode: 'month-dot',
                 });
@@ -791,6 +785,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                             density: this._determineDensity(
                                 entry,
                                 overlappingCount,
+                                grading,
+                                index,
                             ),
                         }),
                     )
@@ -803,15 +799,9 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                     --start-slot: ${unsafeCSS(
                                         this._getGridSlotByTime(entry.time),
                                     )};
-                                    --entry-width: ${this._getWidthByGroupSize({
-                                        grading,
-                                        index,
-                                    })}%;
-                                    --entry-margin: 0 1.5em 0
-                                        ${this._getOffsetByDepth({
-                                            grading,
-                                            index,
-                                        })}%;
+                                    --entry-width: calc(100% - ${(grading[index]?.depth || 0) * 15}px);
+                                    --entry-margin-left: ${(grading[index]?.depth || 0) * 15}px;
+                                    --entry-padding-top: ${(grading[index]?.depth || 0) * 3}px;
                                     --entry-border-radius: var(
                                         --border-radius-sm
                                     );
@@ -819,19 +809,16 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                         background,
                                     )};
                                     --entry-color: ${unsafeCSS(text)};
-                                    --entry-z-index: ${10 +
-                                    (grading[index]?.depth || 0)};
-                                    --entry-opacity: ${Math.max(
-                                        0.7,
-                                        1.0 -
-                                            (grading[index]?.depth || 0) * 0.15,
-                                    )};
+                                    --entry-z-index: ${100 - (grading[index]?.depth || 0)};
+                                    --entry-opacity: ${grading[index]?.depth === 0 ? 1.0 : 0.85};
                                 }
                             `,
                             entry,
                             density: this._determineDensity(
                                 entry,
                                 overlappingCount,
+                                grading,
+                                index,
                             ),
                         }),
                     );
@@ -999,16 +986,15 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                                 --start-slot: ${unsafeCSS(
                                     this._getGridSlotByTime(entry.time),
                                 )};
+                                --entry-width: calc(100% - ${(grading[index]?.depth || 0) * 15}px);
+                                --entry-margin-left: ${(grading[index]?.depth || 0) * 15}px;
+                                --entry-padding-top: ${(grading[index]?.depth || 0) * 3}px;
                                 --entry-background-color: ${unsafeCSS(
                                     background,
                                 )};
                                 --entry-color: ${unsafeCSS(text)};
-                                --entry-z-index: ${10 +
-                                (grading[index]?.depth || 0)};
-                                --entry-opacity: ${Math.max(
-                                    0.7,
-                                    1.0 - (grading[index]?.depth || 0) * 0.15,
-                                )};
+                                --entry-z-index: ${100 - (grading[index]?.depth || 0)};
+                                --entry-opacity: ${grading[index]?.depth === 0 ? 1.0 : 0.85};
                             }
                         `,
                         entry,
@@ -1041,38 +1027,6 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         return `${startRow}/${endRow}`;
     }
 
-    private _getWidthByGroupSize({
-        grading,
-        index,
-    }: {
-        grading: Grading[];
-        index: number;
-    }) {
-        return (
-            100 /
-            grading.filter((item) => item.group === grading[index].group).length
-        );
-    }
-
-    private _getOffsetByDepth({
-        grading,
-        index,
-    }: {
-        grading: Grading[];
-        index: number;
-    }) {
-        if (!grading[index]) {
-            return 0;
-        }
-
-        return grading[index].depth === 0
-            ? 0
-            : grading[index].depth *
-                  (100 /
-                      grading.filter(
-                          (item) => item.group === grading[index].group,
-                      ).length);
-    }
 
     private _getDaysRange(date: CalendarDateInterval): [Date, Date, number] {
         const { start, end } = date;
