@@ -32,7 +32,7 @@ import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import getOverlappingEntitiesIndices from './lib/getOverlappingEntitiesIndices.js';
 import getSortedGradingsByIndex from './lib/getSortedGradingsByIndex.js';
 import { LayoutCalculator } from './lib/LayoutCalculator.js';
-import { slotManager, type PositionConfig, type LayoutDimensions } from './lib/SlotManager.js';
+import { slotManager, type PositionConfig, type LayoutDimensions, type AccessibilityInfo } from './lib/SlotManager.js';
 import { setAppLocale } from './lib/localization.js';
 import partitionOverlappingIntervals from './lib/partitionOverlappingIntervals.js';
 import {
@@ -472,7 +472,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         index: number;
         slot: string;
         styles: CSSResult | typeof nothing;
-        entry: Partial<CalendarEntry>;
+        entry: Partial<CalendarEntry> & { _accessibility?: { tabIndex: number; role: string; ariaLabel: string } };
         isContinuation?: boolean;
         density?: 'compact' | 'standard' | 'full';
         displayMode?: 'default' | 'month-dot';
@@ -496,6 +496,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 .density=${determinedDensity}
                 .displayMode=${displayMode}
                 .floatText=${floatText}
+                ._accessibility=${entry._accessibility}
             >
             </lms-calendar-entry>
         `;
@@ -764,8 +765,21 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`
                 );
 
-                // Process each day's entries separately with LayoutCalculator
-                Object.entries(entriesByDay).forEach(([_dayKey, dayEntries]) => {
+                // Process each day's entries separately with LayoutCalculator in proper day order
+                const sortedDayEntries = Object.entries(entriesByDay)
+                    .map(([dayKey, dayEntries]) => ({ dayKey, dayEntries }))
+                    .filter(({ dayEntries }) => dayEntries && dayEntries.length > 0) // Safety check
+                    .sort((a, b) => {
+                        // Sort by actual day order within the week
+                        const dayA = a.dayEntries[0];
+                        const dayB = b.dayEntries[0];
+                        if (!dayA || !dayB || !dayA.date || !dayB.date) return 0; // Safety check
+                        const dayIndexA = slotManager.getWeekDayIndex(dayA.date.start, currentActiveDate);
+                        const dayIndexB = slotManager.getWeekDayIndex(dayB.date.start, currentActiveDate);
+                        return dayIndexA - dayIndexB;
+                    });
+
+                sortedDayEntries.forEach(({ dayEntries }) => {
                     const dayElements = this._renderDayEntriesWithSlotManager(
                         dayEntries, 
                         viewMode, 
@@ -790,7 +804,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         const allDayElements = allDayEntries.map((entry, index) => {
             const [background, text] = getColorTextWithContrast(entry.color);
             
-            // Use SlotManager to determine positioning
+            // Use SlotManager to determine positioning and accessibility
             const positionConfig: PositionConfig = {
                 viewMode,
                 date: entry.date.start,
@@ -799,6 +813,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             };
             
             const position = slotManager.calculatePosition(positionConfig);
+            const accessibility = slotManager.calculateAccessibility(positionConfig);
             const layoutDimensions: LayoutDimensions = {
                 width: 100,
                 x: 0,
@@ -815,10 +830,15 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     lms-calendar-entry._${index + entriesByDate.length} {
                         --entry-background-color: ${unsafeCSS(background)};
                         --entry-color: ${unsafeCSS(text)};
+                        --entry-tabindex: ${accessibility.tabIndex};
                         ${positionCSS}
                     }
                 `,
-                entry,
+                entry: {
+                    ...entry,
+                    // Add accessibility data to entry
+                    _accessibility: accessibility
+                },
                 density: 'standard',
                 floatText: false,
             });
@@ -856,7 +876,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             const layoutBox = layout.boxes[index];
             const globalIndex = allEntriesByDate.indexOf(entry);
             
-            // Use SlotManager to determine positioning
+            // Use SlotManager to determine positioning and accessibility
             const positionConfig: PositionConfig = {
                 viewMode,
                 date: entry.date.start,
@@ -865,6 +885,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             };
             
             const position = slotManager.calculatePosition(positionConfig);
+            const accessibility = slotManager.calculateAccessibility(positionConfig);
             const layoutDimensions: LayoutDimensions = {
                 width: layoutBox.width,
                 x: layoutBox.x,
@@ -888,10 +909,15 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         --entry-handle-display: block;
                         --entry-padding-left: calc(4px + 0.35em);
                         --entry-layout: ${unsafeCSS(this._getSmartLayout(entry, layoutBox.height))};
+                        --entry-tabindex: ${accessibility.tabIndex};
                         ${positionCSS}
                     }
                 `,
-                entry,
+                entry: {
+                    ...entry,
+                    // Add accessibility data to entry
+                    _accessibility: accessibility
+                },
                 density: 'standard',
                 floatText: false,
             });
