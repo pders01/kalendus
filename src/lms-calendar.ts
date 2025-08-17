@@ -772,10 +772,14 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 });
             }
 
-            // Render timed events using layout calculator positioning
+            // Render timed events using layout calculator positioning  
+            const slot = viewMode === 'week'
+                ? `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}-${entry.time!.start.hour}`
+                : entry.time!.start.hour.toString();
+                
             return this._composeEntry({
                 index,
-                slot: entry.time!.start.hour.toString(),
+                slot,
                 styles: css`
                     lms-calendar-entry._${index} {
                         --start-slot: ${unsafeCSS(this._getGridSlotByTime(entry.time!))};
@@ -788,6 +792,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         --entry-handle-width: 4px;
                         --entry-handle-display: block;
                         --entry-padding-left: calc(4px + 0.35em);
+                        --entry-layout: ${unsafeCSS(this._getSmartLayout(entry, layoutBox.height))}; /* Smart layout based on available space */
                         --entry-z-index: ${layoutBox.zIndex};
                         --entry-opacity: ${layoutBox.opacity};
                     }
@@ -841,6 +846,21 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         const weekStart = new Date(currentDate);
         weekStart.setDate(currentDate.getDate() + mondayOffset);
         return weekStart;
+    }
+
+    private _getSmartLayout(entry: CalendarEntry, height: number): 'row' | 'column' {
+        if (!entry.time) return 'row';
+        
+        // Calculate minimum height needed for two-line layout (title + time)
+        const minTwoLineHeight = 40; // Approximately 2 lines with padding
+        
+        // If event is tall enough for comfortable two-line layout, use column
+        if (height >= minTwoLineHeight) {
+            return 'column';
+        }
+        
+        // For short events, use compact single-line row layout
+        return 'row';
     }
 
     private _getGridSlotByTime({ start, end }: CalendarTimeInterval) {
