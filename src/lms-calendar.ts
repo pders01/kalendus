@@ -32,6 +32,7 @@ import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import getOverlappingEntitiesIndices from './lib/getOverlappingEntitiesIndices.js';
 import getSortedGradingsByIndex from './lib/getSortedGradingsByIndex.js';
 import { LayoutCalculator } from './lib/LayoutCalculator.js';
+import { slotManager, type PositionConfig, type LayoutDimensions } from './lib/SlotManager.js';
 import { setAppLocale } from './lib/localization.js';
 import partitionOverlappingIntervals from './lib/partitionOverlappingIntervals.js';
 import {
@@ -734,13 +735,106 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             !(Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) &&
             !entry.continuation?.is && !entry.continuation?.has);
 
-
         if (!entriesByDate.length && !allDayEntries.length) {
             return nothing;
         }
 
-        // Convert timed entries to layout calculator format
-        const layoutEvents = entriesByDate.map((entry, index) => ({
+        // Use SlotManager to handle positioning across different views
+        return this._renderEntriesWithSlotManager(
+            viewMode, 
+            currentActiveDate, 
+            allDayEntries, 
+            entriesByDate
+        );
+    }
+
+    private _renderEntriesWithSlotManager(
+        viewMode: 'day' | 'week',
+        currentActiveDate: CalendarDate,
+        allDayEntries: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>,
+        entriesByDate: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>
+    ) {
+        const allElements: ReturnType<typeof this._composeEntry>[] = [];
+
+        // Process timed entries
+        if (entriesByDate.length > 0) {
+            if (viewMode === 'week') {
+                // Group timed entries by day for week view
+                const entriesByDay = R.groupBy(entriesByDate, entry => 
+                    `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`
+                );
+
+                // Process each day's entries separately with LayoutCalculator
+                Object.entries(entriesByDay).forEach(([_dayKey, dayEntries]) => {
+                    const dayElements = this._renderDayEntriesWithSlotManager(
+                        dayEntries, 
+                        viewMode, 
+                        currentActiveDate, 
+                        entriesByDate
+                    );
+                    allElements.push(...dayElements);
+                });
+            } else {
+                // Day view: process all entries together
+                const dayElements = this._renderDayEntriesWithSlotManager(
+                    entriesByDate, 
+                    viewMode, 
+                    currentActiveDate, 
+                    entriesByDate
+                );
+                allElements.push(...dayElements);
+            }
+        }
+
+        // Process all-day entries
+        const allDayElements = allDayEntries.map((entry, index) => {
+            const [background, text] = getColorTextWithContrast(entry.color);
+            
+            // Use SlotManager to determine positioning
+            const positionConfig: PositionConfig = {
+                viewMode,
+                date: entry.date.start,
+                isAllDay: true,
+                activeDate: currentActiveDate
+            };
+            
+            const position = slotManager.calculatePosition(positionConfig);
+            const layoutDimensions: LayoutDimensions = {
+                width: 100,
+                x: 0,
+                zIndex: 100,
+                opacity: 1
+            };
+            
+            const positionCSS = slotManager.generatePositionCSS(position, layoutDimensions);
+            
+            return this._composeEntry({
+                index: index + entriesByDate.length,
+                slot: position.slotName || 'week-direct-grid', // Use fallback slot for direct grid positioning
+                styles: css`
+                    lms-calendar-entry._${index + entriesByDate.length} {
+                        --entry-background-color: ${unsafeCSS(background)};
+                        --entry-color: ${unsafeCSS(text)};
+                        ${positionCSS}
+                    }
+                `,
+                entry,
+                density: 'standard',
+                floatText: false,
+            });
+        });
+
+        return [...allDayElements, ...allElements];
+    }
+
+    private _renderDayEntriesWithSlotManager(
+        dayEntries: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>,
+        viewMode: 'day' | 'week',
+        currentActiveDate: CalendarDate,
+        allEntriesByDate: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>
+    ) {
+        // Convert to layout calculator format
+        const layoutEvents = dayEntries.map((entry, index) => ({
             id: String(index),
             heading: entry.heading || '',
             startTime: {
@@ -754,45 +848,38 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             color: entry.color || '#1976d2',
         }));
 
-        // Calculate layout using our deterministic engine (only for timed entries)
-        const layout = entriesByDate.length > 0 ? this._layoutCalculator.calculateLayout(layoutEvents) : { boxes: [] };
+        // Calculate layout for this set of entries
+        const layout = this._layoutCalculator.calculateLayout(layoutEvents);
 
-        // Render all-day entries
-        const allDayElements = allDayEntries.map((entry, index) => {
-            const [background, text] = getColorTextWithContrast(entry.color);
-            
-            return this._composeEntry({
-                index: index + entriesByDate.length, // Offset index to avoid conflicts
-                slot: 'all-day',
-                styles: css`
-                    lms-calendar-entry._${index + entriesByDate.length} {
-                        --entry-background-color: ${unsafeCSS(background)};
-                        --entry-color: ${unsafeCSS(text)};
-                    }
-                `,
-                entry,
-                density: 'standard',
-                floatText: false,
-            });
-        });
-
-        // Render timed entries using layout calculator results
-        const timedEntryElements = entriesByDate.map((entry, index) => {
+        // Render entries using SlotManager
+        return dayEntries.map((entry, index) => {
             const layoutBox = layout.boxes[index];
+            const globalIndex = allEntriesByDate.indexOf(entry);
             
-            // Render timed events using layout calculator positioning  
-            const slot = viewMode === 'week'
-                ? `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}-${entry.time!.start.hour}`
-                : entry.time!.start.hour.toString();
-                
+            // Use SlotManager to determine positioning
+            const positionConfig: PositionConfig = {
+                viewMode,
+                date: entry.date.start,
+                time: entry.time,
+                activeDate: currentActiveDate
+            };
+            
+            const position = slotManager.calculatePosition(positionConfig);
+            const layoutDimensions: LayoutDimensions = {
+                width: layoutBox.width,
+                x: layoutBox.x,
+                zIndex: layoutBox.zIndex,
+                opacity: layoutBox.opacity,
+                height: layoutBox.height
+            };
+            
+            const positionCSS = slotManager.generatePositionCSS(position, layoutDimensions, entry.time);
+            
             return this._composeEntry({
-                index,
-                slot,
+                index: globalIndex,
+                slot: position.slotName || 'week-direct-grid', // Use fallback slot for direct grid positioning
                 styles: css`
-                    lms-calendar-entry._${index} {
-                        --start-slot: ${unsafeCSS(this._getGridSlotByTime(entry.time!))};
-                        --entry-width: ${layoutBox.width}%;
-                        --entry-margin-left: ${layoutBox.x}%;
+                    lms-calendar-entry._${globalIndex} {
                         --entry-background-color: rgba(250, 250, 250, 0.8);
                         --entry-color: #333;
                         --entry-border: 1px solid rgba(0, 0, 0, 0.15);
@@ -800,19 +887,15 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         --entry-handle-width: 4px;
                         --entry-handle-display: block;
                         --entry-padding-left: calc(4px + 0.35em);
-                        --entry-layout: ${unsafeCSS(this._getSmartLayout(entry, layoutBox.height))}; /* Smart layout based on available space */
-                        --entry-z-index: ${layoutBox.zIndex};
-                        --entry-opacity: ${layoutBox.opacity};
+                        --entry-layout: ${unsafeCSS(this._getSmartLayout(entry, layoutBox.height))};
+                        ${positionCSS}
                     }
                 `,
                 entry,
-                density: 'standard', // Always use standard density for overlapping events to ensure text is visible
-                floatText: false, // Never use floating text - always render text within the event container
+                density: 'standard',
+                floatText: false,
             });
         });
-
-        // Return both all-day and timed entries
-        return [...allDayElements, ...timedEntryElements];
     }
 
     private _renderEntriesSumByDay() {

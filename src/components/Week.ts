@@ -270,6 +270,9 @@ export default class Week extends LitElement {
                             )}
                         `,
                     )}
+
+                    <!-- Fallback slot for direct grid positioned entries -->
+                    <slot name="week-direct-grid" style="display: contents;"></slot>
                 </div>
             </div>
         `;
