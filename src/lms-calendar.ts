@@ -205,6 +205,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             --day-gap: 1px;
             --day-text-align: center;
             --day-padding: 0.5em;
+            --day-all-day-font-size: 16px;
+            --day-all-day-margin: 0 1.25em 0 4.25em;
             --hour-text-align: center;
             --indicator-top: -0.6em;
             --separator-border: 1px solid var(--separator-light);
