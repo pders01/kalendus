@@ -214,15 +214,49 @@ export default class Entry extends LitElement {
             margin-left: 0; /* Ensure time stays on the left, don't auto-align to right */
         }
 
-        /* For row layout in overlapping events, ensure content stays grouped */
+        /* Row layout: optimized for side-by-side content */
         .main[style*='--entry-layout: row'] {
             align-items: center; /* Center align for single-line layout */
-            gap: 0.5em; /* Small gap between title and time */
+            gap: 0.5em; /* Gap between title and time */
+            flex-wrap: nowrap; /* Prevent wrapping */
+            min-height: 1.4em; /* Ensure consistent height */
         }
 
         .main[style*='--entry-layout: row'] .title {
-            flex: none; /* Don't expand title in row layout */
-            max-width: 60%; /* Limit title width to leave space for time */
+            flex: 1 1 auto; /* Allow title to grow but not beyond container */
+            min-width: 0; /* Allow title to shrink below content size */
+            max-width: 65%; /* Reserve space for time, but allow more for title */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .main[style*='--entry-layout: row'] .time {
+            flex: 0 0 auto; /* Fixed size, don't grow or shrink */
+            min-width: fit-content; /* Ensure time always fits */
+            font-size: 0.8em; /* Slightly smaller in row layout */
+            opacity: 0.9;
+        }
+
+        /* Column layout: optimized for stacked content */
+        .main[style*='--entry-layout: column'] {
+            align-items: flex-start;
+            gap: 0.15em; /* Tighter spacing for stacked layout */
+            padding-top: 0.2em; /* Slight top padding for better visual balance */
+        }
+
+        .main[style*='--entry-layout: column'] .title {
+            width: 100%;
+            font-weight: 500; /* Slightly bolder in column layout */
+            line-height: 1.2;
+            margin-bottom: 0.1em;
+        }
+
+        .main[style*='--entry-layout: column'] .time {
+            width: 100%;
+            font-size: 0.85em;
+            opacity: 0.8;
+            line-height: 1.1;
         }
 
         /* Month view dot indicator styles */
