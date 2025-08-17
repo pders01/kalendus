@@ -990,7 +990,15 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         --entry-handle-display: block;
                         --entry-padding-left: calc(4px + 0.35em);
                         --entry-layout: ${unsafeCSS(
-                            this._getSmartLayout(entry, layoutBox.height),
+                            this._getSmartLayout(
+                                entry,
+                                layoutBox.height,
+                                layoutBox.width,
+                                {
+                                    depth: layoutBox.depth,
+                                    opacity: layoutBox.opacity,
+                                },
+                            ),
                         )};
                         ${positionCSS};
                     }
@@ -1052,18 +1060,117 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
     private _getSmartLayout(
         entry: CalendarEntry,
         height: number,
+        width?: number,
+        layoutBox?: { depth: number; opacity: number },
     ): 'row' | 'column' {
         if (!entry.time) return 'row';
 
-        // Calculate minimum height needed for two-line layout (title + time)
-        const minTwoLineHeight = 40; // Approximately 2 lines with padding
+        // Calculate event duration in minutes
+        const durationMinutes = entry.time
+            ? entry.time.end.hour * 60 +
+              entry.time.end.minute -
+              (entry.time.start.hour * 60 + entry.time.start.minute)
+            : 0;
 
-        // If event is tall enough for comfortable two-line layout, use column
-        if (height >= minTwoLineHeight) {
+        // Estimate content requirements
+        const titleLength = entry.heading?.length || 0;
+        const hasContent = Boolean(entry.content);
+
+        // Overlap context analysis
+        const isOverlapping = layoutBox && layoutBox.depth > 0;
+        const isBackgroundEvent = layoutBox && layoutBox.depth > 0;
+        const isTransparent = layoutBox && layoutBox.opacity < 0.8;
+        const hasSignificantOverlap =
+            layoutBox && (layoutBox.depth > 1 || layoutBox.opacity < 0.6);
+
+        // Dynamic thresholds based on content and viewport
+        const minTwoLineHeight = hasContent ? 50 : 40; // More space needed if there's content
+        const comfortableRowWidth = Math.max(120, this._calendarWidth * 0.15); // Scale with viewport
+        const longTitleThreshold = Math.max(
+            15,
+            Math.min(25, this._calendarWidth / 50),
+        ); // Adaptive threshold
+
+        // Multi-factor decision making
+        const factors = {
+            // Height factors
+            hasEnoughHeight: height >= minTwoLineHeight,
+            hasComfortableHeight: height >= minTwoLineHeight + 20,
+
+            // Width factors
+            hasEnoughWidth: !width || width >= comfortableRowWidth,
+            hasComfortableWidth: !width || width >= comfortableRowWidth + 40,
+
+            // Content factors
+            hasLongTitle: titleLength > longTitleThreshold,
+            hasAdditionalContent: hasContent,
+
+            // Duration factors
+            isVeryShort: durationMinutes <= 15, // 15 minutes or less
+            isShort: durationMinutes <= 30, // 30 minutes or less
+            isMedium: durationMinutes <= 60, // 1 hour or less
+            isLong: durationMinutes > 60, // More than 1 hour
+
+            // Overlap factors - KEY FOR VISIBILITY
+            isOverlapping: Boolean(isOverlapping),
+            isBackgroundEvent: Boolean(isBackgroundEvent),
+            isTransparent: Boolean(isTransparent),
+            hasSignificantOverlap: Boolean(hasSignificantOverlap),
+        };
+
+        // OVERLAP-AWARE DECISION LOGIC - PRIORITIZE VISIBILITY
+
+        // CRITICAL: Force column for background events that might be obscured
+        if (factors.isBackgroundEvent && factors.hasEnoughHeight) {
+            return 'column'; // Time must be visible in top area
+        }
+
+        // CRITICAL: Force column for highly transparent events (poor text contrast)
+        if (factors.hasSignificantOverlap && factors.hasEnoughHeight) {
+            return 'column'; // Better text visibility with stacked layout
+        }
+
+        // Force column for any overlapping event with adequate space
+        if (factors.isOverlapping && factors.hasComfortableHeight) {
+            return 'column'; // Overlapping events need better visibility
+        }
+
+        // Force row ONLY for very short events with no overlapping issues
+        if (factors.isVeryShort && !factors.isOverlapping) {
+            return 'row';
+        }
+
+        // Prefer column when we have long titles and enough height
+        if (factors.hasLongTitle && factors.hasEnoughHeight) {
             return 'column';
         }
 
-        // For short events, use compact single-line row layout
+        // Prefer column when we have additional content and space
+        if (
+            factors.hasAdditionalContent &&
+            factors.hasEnoughHeight &&
+            factors.hasEnoughWidth
+        ) {
+            return 'column';
+        }
+
+        // For medium events, consider space efficiency
+        if (factors.isMedium) {
+            // If we have good height but limited width, stack vertically
+            if (factors.hasEnoughHeight && !factors.hasComfortableWidth) {
+                return 'column';
+            }
+            // If we have good width but limited height, go horizontal
+            if (factors.hasComfortableWidth && !factors.hasEnoughHeight) {
+                return 'row';
+            }
+        }
+
+        // Default: use height-based decision with width consideration
+        if (factors.hasEnoughHeight && factors.hasEnoughWidth) {
+            return 'column';
+        }
+
         return 'row';
     }
 
