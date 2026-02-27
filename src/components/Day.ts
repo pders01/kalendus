@@ -94,6 +94,10 @@ export default class Day extends LitElement {
             border-bottom: none;
         }
 
+        .all-day-wrapper.collapsed .all-day {
+            padding: 0;
+        }
+
         .all-day {
             font-size: var(--day-all-day-font-size, 16px);
             margin: var(--day-all-day-margin, 0 1.25em 0 4.25em);

@@ -162,6 +162,10 @@ export default class Week extends LitElement {
             border-bottom: none;
         }
 
+        .all-day-wrapper.collapsed .all-day-container {
+            padding: 0;
+        }
+
         .all-day-container {
             display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
@@ -269,6 +273,12 @@ export default class Week extends LitElement {
     override render() {
         const weekDates = this._getWeekDates();
         const hasAllDay = this.allDayRowCount > 0;
+        const allDayHeight = hasAllDay
+            ? Math.max(2.5, this.allDayRowCount * 2) + 1
+            : 0;
+        const weekContentHeight = hasAllDay
+            ? `calc(var(--main-content-height) - ${allDayHeight}em)`
+            : 'var(--main-content-height)';
 
         return html`
             <div class="week-container">
@@ -315,7 +325,7 @@ export default class Week extends LitElement {
                         )}
                     </div>
                 </div>
-                <div class="week-content">
+                <div class="week-content" style="height: ${weekContentHeight}">
                     <!-- Hour indicators -->
                     ${Array.from({ length: 25 }).map(
                         (_, hour) => html`

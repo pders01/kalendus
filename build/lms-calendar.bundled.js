@@ -124,6 +124,10 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             border-bottom: none;
         }
 
+        .all-day-wrapper.collapsed .all-day {
+            padding: 0;
+        }
+
         .all-day {
             font-size: var(--day-all-day-font-size, 16px);
             margin: var(--day-all-day-margin, 0 1.25em 0 4.25em);
@@ -871,7 +875,7 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
         .day.scrolled .indicator {
             opacity: 0;
         }
-    `,go([u({attribute:!1})],po.prototype,"activeDate",2),po=go([l("lms-calendar-month"),D()],po);var vo=Object.defineProperty,wo=Object.getOwnPropertyDescriptor,bo=(e,t,n,r)=>{for(var i,a=r>1?void 0:r?wo(t,n):t,s=e.length-1;s>=0;s--)(i=e[s])&&(a=(r?i(t,n,a):i(a))||a);return r&&a&&vo(t,n,a),a};let ko=class extends i{constructor(){super(...arguments),this.activeDate={day:/* @__PURE__ */(new Date).getDate(),month:/* @__PURE__ */(new Date).getMonth()+1,year:/* @__PURE__ */(new Date).getFullYear()},this.allDayRowCount=0}connectedCallback(){super.connectedCallback()}_getWeekDates(){const e=new Date(this.activeDate.year,this.activeDate.month-1,this.activeDate.day),t=e.getDay(),n=0===t?-6:1-t,r=new Date(e);return r.setDate(e.getDate()+n),Array.from({length:7},(e,t)=>{const n=new Date(r);return n.setDate(r.getDate()+t),{day:n.getDate(),month:n.getMonth()+1,year:n.getFullYear()}})}_isCurrentDate(e){const t=/* @__PURE__ */new Date;return e.day===t.getDate()&&e.month===t.getMonth()+1&&e.year===t.getFullYear()}render(){const e=this._getWeekDates(),t=this.allDayRowCount>0;return a`
+    `,go([u({attribute:!1})],po.prototype,"activeDate",2),po=go([l("lms-calendar-month"),D()],po);var vo=Object.defineProperty,wo=Object.getOwnPropertyDescriptor,bo=(e,t,n,r)=>{for(var i,a=r>1?void 0:r?wo(t,n):t,s=e.length-1;s>=0;s--)(i=e[s])&&(a=(r?i(t,n,a):i(a))||a);return r&&a&&vo(t,n,a),a};let ko=class extends i{constructor(){super(...arguments),this.activeDate={day:/* @__PURE__ */(new Date).getDate(),month:/* @__PURE__ */(new Date).getMonth()+1,year:/* @__PURE__ */(new Date).getFullYear()},this.allDayRowCount=0}connectedCallback(){super.connectedCallback()}_getWeekDates(){const e=new Date(this.activeDate.year,this.activeDate.month-1,this.activeDate.day),t=e.getDay(),n=0===t?-6:1-t,r=new Date(e);return r.setDate(e.getDate()+n),Array.from({length:7},(e,t)=>{const n=new Date(r);return n.setDate(r.getDate()+t),{day:n.getDate(),month:n.getMonth()+1,year:n.getFullYear()}})}_isCurrentDate(e){const t=/* @__PURE__ */new Date;return e.day===t.getDate()&&e.month===t.getMonth()+1&&e.year===t.getFullYear()}render(){const e=this._getWeekDates(),t=this.allDayRowCount>0,n=t?Math.max(2.5,2*this.allDayRowCount)+1:0,r=t?`calc(var(--main-content-height) - ${n}em)`:"var(--main-content-height)";return a`
             <div class="week-container">
                 <div class="week-header">
                     <div class="time-header"></div>
@@ -905,7 +909,7 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
                             `)}
                     </div>
                 </div>
-                <div class="week-content">
+                <div class="week-content" style="height: ${r}">
                     <!-- Hour indicators -->
                     ${Array.from({length:25}).map((e,t)=>a`
                             <div
@@ -1089,6 +1093,10 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             grid-template-rows: 0fr;
             overflow: hidden;
             border-bottom: none;
+        }
+
+        .all-day-wrapper.collapsed .all-day-container {
+            padding: 0;
         }
 
         .all-day-container {
