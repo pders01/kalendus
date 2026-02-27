@@ -172,34 +172,40 @@ export default class Header extends LitElement {
                     <span class="year">${date.year}</span>
                 </div>
             </div>
-            <div class="context" @click=${this._dispatchSwitchView}>
+            <nav class="context" aria-label="Calendar view" @click=${this._dispatchSwitchView}>
                 <button
+                    type="button"
                     ?data-active=${this.viewMode === 'day'}
+                    aria-pressed=${this.viewMode === 'day' ? 'true' : 'false'}
                     data-context="day"
                     class="btn-change-view"
                 >
                     ${messages.day()}
                 </button>
                 <button
+                    type="button"
                     ?data-active=${this.viewMode === 'week'}
+                    aria-pressed=${this.viewMode === 'week' ? 'true' : 'false'}
                     data-context="week"
                     class="btn-change-view"
                 >
                     ${messages.week()}
                 </button>
                 <button
+                    type="button"
                     ?data-active=${this.viewMode === 'month'}
+                    aria-pressed=${this.viewMode === 'month' ? 'true' : 'false'}
                     data-context="month"
                     class="btn-change-view"
                 >
                     ${messages.month()}
                 </button>
-            </div>
+            </nav>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
-                <button name="previous">«</button>
-                <button name="next">»</button>
+                <button type="button" name="previous" aria-label="Previous">«</button>
+                <button type="button" name="next" aria-label="Next">»</button>
                 <span class="separator"></span>
-                <button name="today" @click=${this._handleTodayClick}>
+                <button type="button" name="today" @click=${this._handleTodayClick}>
                     ${messages.today()}
                 </button>
             </div>
