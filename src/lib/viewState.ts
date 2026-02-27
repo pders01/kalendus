@@ -51,11 +51,7 @@ export function navigateNext() {
         });
     } else if (viewMode === 'week') {
         // Navigate to next week
-        const currentDateObj = new Date(
-            current.year,
-            current.month - 1,
-            current.day,
-        );
+        const currentDateObj = new Date(current.year, current.month - 1, current.day);
         currentDateObj.setDate(currentDateObj.getDate() + 7);
         setActiveDate({
             day: currentDateObj.getDate(),
@@ -64,11 +60,7 @@ export function navigateNext() {
         });
     } else if (viewMode === 'day') {
         // Navigate to next day
-        const nextDay = new Date(
-            current.year,
-            current.month - 1,
-            current.day + 1,
-        );
+        const nextDay = new Date(current.year, current.month - 1, current.day + 1);
         setActiveDate({
             day: nextDay.getDate(),
             month: nextDay.getMonth() + 1,
@@ -91,11 +83,7 @@ export function navigatePrevious() {
         });
     } else if (viewMode === 'week') {
         // Navigate to previous week
-        const currentDateObj = new Date(
-            current.year,
-            current.month - 1,
-            current.day,
-        );
+        const currentDateObj = new Date(current.year, current.month - 1, current.day);
         currentDateObj.setDate(currentDateObj.getDate() - 7);
         setActiveDate({
             day: currentDateObj.getDate(),
@@ -104,11 +92,7 @@ export function navigatePrevious() {
         });
     } else if (viewMode === 'day') {
         // Navigate to previous day
-        const prevDay = new Date(
-            current.year,
-            current.month - 1,
-            current.day - 1,
-        );
+        const prevDay = new Date(current.year, current.month - 1, current.day - 1);
         setActiveDate({
             day: prevDay.getDate(),
             month: prevDay.getMonth() + 1,

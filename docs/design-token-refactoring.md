@@ -8,27 +8,30 @@ After examining all component styles, I've identified significant opportunities 
 
 ### 1. **Hardcoded Values Repeated Across Components**
 
-| Value | Day.ts | Week.ts | Month.ts | Main Calendar |
-|-------|---------|---------|----------|---------------|
-| `0.75em` (font-size) | ✅ | ✅ | ❌ | ❌ |
-| `rgba(0, 0, 0, 0.6)` (text color) | ✅ | ✅ | ❌ | ✅ (as token) |
-| `4em` (time column width) | ✅ | ✅ | ❌ | ❌ |
-| `1px solid var(--separator-light)` | ✅ | ✅ | ✅ | ✅ (as token) |
-| `calc(100% - var(--day-header-height, 3.5em))` | ✅ | ✅ | ❌ | ❌ |
-| `repeat(1440, 1fr)` | ✅ | ✅ | ❌ | ❌ |
-| `center` (text-align) | ✅ | ✅ | ❌ | ✅ (as token) |
+| Value                                          | Day.ts | Week.ts | Month.ts | Main Calendar |
+| ---------------------------------------------- | ------ | ------- | -------- | ------------- |
+| `0.75em` (font-size)                           | ✅     | ✅      | ❌       | ❌            |
+| `rgba(0, 0, 0, 0.6)` (text color)              | ✅     | ✅      | ❌       | ✅ (as token) |
+| `4em` (time column width)                      | ✅     | ✅      | ❌       | ❌            |
+| `1px solid var(--separator-light)`             | ✅     | ✅      | ✅       | ✅ (as token) |
+| `calc(100% - var(--day-header-height, 3.5em))` | ✅     | ✅      | ❌       | ❌            |
+| `repeat(1440, 1fr)`                            | ✅     | ✅      | ❌       | ❌            |
+| `center` (text-align)                          | ✅     | ✅      | ❌       | ✅ (as token) |
 
 ### 2. **Inconsistent Token Usage**
 
 **Grid Calculations:**
+
 - Day/Week use hardcoded `4em` for time column
 - Should use `--time-column-width` token
 
 **Typography:**
-- Day/Week use hardcoded `0.75em` for hour indicators  
+
+- Day/Week use hardcoded `0.75em` for hour indicators
 - Should use `--hour-indicator-font-size` token
 
 **Border Styles:**
+
 - Some components use `border-right: 1px solid var(--separator-light)`
 - Others use `border-right: var(--sidebar-border, 1px solid var(--separator-light))`
 - Inconsistent fallback patterns
@@ -36,18 +39,21 @@ After examining all component styles, I've identified significant opportunities 
 ### 3. **Missing Semantic Tokens**
 
 **Layout Tokens:**
+
 - No `--time-column-width` (currently hardcoded as `4em`)
 - No `--grid-rows-per-day` (currently hardcoded as `1440`)
 - No `--main-container-height-offset`
 
 **Typography Tokens:**
+
 - No `--hour-indicator-font-size`
 - No `--day-label-font-weight`
 - No `--month-indicator-font-weight`
 
 **Grid Tokens:**
+
 - No `--calendar-grid-columns-day`
-- No `--calendar-grid-columns-week`  
+- No `--calendar-grid-columns-week`
 - No `--calendar-grid-columns-month`
 
 ## Proposed Design Token Architecture
@@ -123,7 +129,7 @@ After examining all component styles, I've identified significant opportunities 
     padding: var(--day-padding);
     overflow-y: auto;
     position: relative;
-}
+};
 ```
 
 ## Refactoring Implementation Plan
@@ -131,6 +137,7 @@ After examining all component styles, I've identified significant opportunities 
 ### Phase 1: Core Layout Tokens
 
 1. **Add new tokens to main calendar**:
+
 ```css
 --time-column-width: 4em;
 --grid-rows-per-day: 1440;
@@ -141,6 +148,7 @@ After examining all component styles, I've identified significant opportunities 
 ```
 
 2. **Update Day component**:
+
 ```css
 .container {
     height: var(--view-container-height);
@@ -154,6 +162,7 @@ After examining all component styles, I've identified significant opportunities 
 ```
 
 3. **Update Week component**:
+
 ```css
 .week-container {
     height: var(--view-container-height);
@@ -173,6 +182,7 @@ After examining all component styles, I've identified significant opportunities 
 ### Phase 2: Typography Tokens
 
 1. **Add typography tokens**:
+
 ```css
 --hour-indicator-font-size: 0.75em;
 --hour-indicator-color: var(--header-text-color);
@@ -180,6 +190,7 @@ After examining all component styles, I've identified significant opportunities 
 ```
 
 2. **Update all hour indicator styles**:
+
 ```css
 /* Day.ts */
 .hour {
@@ -201,52 +212,74 @@ After examining all component styles, I've identified significant opportunities 
 ### Phase 3: Border Standardization
 
 1. **Standardize border usage**:
+
 ```css
 /* Replace inconsistent patterns */
 /* OLD: border-right: 1px solid var(--separator-light) */
 /* NEW: border-right: var(--border-separator-right) */
 
-/* OLD: border-right: var(--sidebar-border, 1px solid var(--separator-light)) */  
+/* OLD: border-right: var(--sidebar-border, 1px solid var(--separator-light)) */
 /* NEW: border-right: var(--sidebar-border, var(--border-separator-right)) */
 ```
 
 ### Phase 4: Utility Classes
 
 1. **Create reusable utility classes**:
+
 ```css
 /* Width utilities (currently duplicated) */
-.w-100 { width: 100%; }
-.w-70 { width: 70%; }
-.w-30 { width: 30%; }
-.w-0 { width: 0; }
+.w-100 {
+    width: 100%;
+}
+.w-70 {
+    width: 70%;
+}
+.w-30 {
+    width: 30%;
+}
+.w-0 {
+    width: 0;
+}
 
 /* Border removal utilities */
-.border-right-none { border-right: var(--border-none-right); }
-.border-bottom-none { border-bottom: var(--border-none-bottom); }
+.border-right-none {
+    border-right: var(--border-none-right);
+}
+.border-bottom-none {
+    border-bottom: var(--border-none-bottom);
+}
 
 /* Grid positioning utilities */
-.grid-col-1 { grid-column: 1; }
-.grid-col-2-to-end { grid-column: 2 / -1; }
+.grid-col-1 {
+    grid-column: 1;
+}
+.grid-col-2-to-end {
+    grid-column: 2 / -1;
+}
 ```
 
 ## Benefits of Refactoring
 
 ### 1. **Reduced Duplication**
+
 - Remove ~20 hardcoded values across components
 - Eliminate inconsistent fallback patterns
 - Consolidate repeated calculation patterns
 
 ### 2. **Improved Maintainability**
+
 - Single source of truth for layout values
 - Easier to modify grid system globally
 - Consistent token naming patterns
 
 ### 3. **Better Theming Support**
+
 - All layout values become themeable
 - Consistent override patterns
 - Clear semantic meaning
 
 ### 4. **Enhanced Developer Experience**
+
 - Clear token names indicate purpose
 - Easier to understand component relationships
 - Better IDE autocomplete with consistent naming
@@ -254,7 +287,7 @@ After examining all component styles, I've identified significant opportunities 
 ## Implementation Priority
 
 1. **High Priority** (Phase 1): Layout tokens - fixes hardcoded grid values
-2. **Medium Priority** (Phase 2): Typography tokens - standardizes text styling  
+2. **Medium Priority** (Phase 2): Typography tokens - standardizes text styling
 3. **Low Priority** (Phase 3-4): Border/utility standardization - reduces minor duplication
 
 ## Testing Strategy
@@ -267,14 +300,17 @@ After examining all component styles, I've identified significant opportunities 
 ## Files to Update
 
 ### Core Token Definitions
+
 - `src/lms-calendar.ts` - Add new design tokens
 
-### Component Updates  
+### Component Updates
+
 - `src/components/Day.ts` - Replace hardcoded values
 - `src/components/Week.ts` - Replace hardcoded values
 - `src/components/Month.ts` - Add missing token usage
 
 ### Documentation Updates
+
 - `docs/rendering-calculations.md` - Update with new token system
 - Add token documentation for themers
 - Update examples with new token names

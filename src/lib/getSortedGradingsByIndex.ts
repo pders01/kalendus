@@ -5,9 +5,7 @@ export default function rearrangeDepths(gradings: Grading[]) {
         if (!groups.has(item.group)) {
             groups.set(item.group, []);
         }
-        groups
-            .get(item.group)!
-            .push({ index: item.index, depth: item.depth, group: item.group });
+        groups.get(item.group)!.push({ index: item.index, depth: item.depth, group: item.group });
     });
 
     const result: Grading[] = [];

@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+
 import { CalendarDate } from '../lms-calendar';
 
 /**
@@ -19,13 +20,7 @@ export default class DirectionalCalendarDateCalculator {
     private _date?: DateTime;
     private _direction?: string;
 
-    constructor({
-        date,
-        direction,
-    }: {
-        date?: CalendarDate;
-        direction?: 'previous' | 'next';
-    }) {
+    constructor({ date, direction }: { date?: CalendarDate; direction?: 'previous' | 'next' }) {
         if (date) {
             this.date = date;
         }

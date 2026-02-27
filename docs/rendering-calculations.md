@@ -26,6 +26,7 @@ grid-template-columns: 4em repeat(N, 1fr); /* N = 1 for Day, 7 for Week */
 ```
 
 **Key Constants:**
+
 - **1440 rows**: 24 hours × 60 minutes = 1440 total minutes
 - **4em time column**: Fixed width for hour indicators
 - **1fr per day**: Equal width distribution for day columns
@@ -52,6 +53,7 @@ function getHourSlotSpan(hour: number): string {
 ```
 
 **Examples:**
+
 - Hour 0 (midnight): Indicator at row 1, spans rows 1-60
 - Hour 12 (noon): Indicator at row 721, spans rows 721-780
 - Hour 23 (11pm): Indicator at row 1381, spans rows 1381-1440
@@ -67,7 +69,7 @@ Used for precise event positioning within hours:
 function getGridSlotByTime(time: { start: CalendarTime; end: CalendarTime }): string {
     const startRow = time.start.hour * 60 + (time.start.minute + 1);
     const endRow = startRow + (time.end.hour * 60 + time.end.minute - startRow);
-    
+
     if (startRow === endRow) {
         return `${startRow}/${endRow + 1}`;
     }
@@ -76,10 +78,11 @@ function getGridSlotByTime(time: { start: CalendarTime; end: CalendarTime }): st
 ```
 
 **Example:**
+
 - Event from 9:30 AM to 10:15 AM:
-  - Start: 9 × 60 + 30 + 1 = 571
-  - End: 10 × 60 + 15 = 615
-  - Grid slot: "571/615"
+    - Start: 9 × 60 + 30 + 1 = 571
+    - End: 10 × 60 + 15 = 615
+    - Grid slot: "571/615"
 
 ### All-Day Event Detection
 
@@ -164,7 +167,7 @@ function getDayColumn(dayIndex: number): number {
 }
 
 // Hour separators span all day columns
-const SEPARATOR_SPAN = "2 / -1"; // Columns 2 through last
+const SEPARATOR_SPAN = '2 / -1'; // Columns 2 through last
 ```
 
 ### Week Date Calculations
@@ -175,10 +178,10 @@ function getWeekDates(activeDate: CalendarDate): CalendarDate[] {
     const currentDate = new Date(activeDate.year, activeDate.month - 1, activeDate.day);
     const dayOfWeek = currentDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    
+
     const weekStart = new Date(currentDate);
     weekStart.setDate(currentDate.getDate() + mondayOffset);
-    
+
     // Generate 7 consecutive dates starting from Monday
     return Array.from({ length: 7 }, (_, i) => {
         const date = new Date(weekStart);
@@ -211,11 +214,11 @@ Multi-day entries are expanded into individual day entries:
 ```typescript
 function expandEntryMaybe(entry: CalendarEntry): CalendarEntry[] {
     const [startDate, endDate, dayCount] = getDaysRange(entry.date);
-    
+
     return Array.from({ length: dayCount }, (_, index) => {
         const currentStartDate = DateTime.fromJSDate(startDate).plus({ days: index });
         const currentEndDate = currentStartDate.plus({ days: 1 }).minus({ seconds: 1 });
-        
+
         return {
             ...entry,
             date: {
@@ -261,7 +264,7 @@ const gradings = getSortedGradingsByIndex(overlappingIndices);
 
 ```typescript
 function getWidthByGroupSize(grading: Grading[], index: number): number {
-    const groupSize = grading.filter(item => item.group === grading[index].group).length;
+    const groupSize = grading.filter((item) => item.group === grading[index].group).length;
     return 100 / groupSize; // Percentage width
 }
 
@@ -269,8 +272,8 @@ function getOffsetByDepth(grading: Grading[], index: number): number {
     if (!grading[index] || grading[index].depth === 0) {
         return 0;
     }
-    
-    const groupSize = grading.filter(item => item.group === grading[index].group).length;
+
+    const groupSize = grading.filter((item) => item.group === grading[index].group).length;
     return grading[index].depth * (100 / groupSize); // Percentage offset
 }
 ```
@@ -284,9 +287,9 @@ function getDaysRange(dateInterval: CalendarDateInterval): [Date, Date, number] 
     const { start, end } = dateInterval;
     const startDate = new Date(start.year, start.month - 1, start.day);
     const endDate = new Date(end.year, end.month - 1, end.day);
-    
+
     const dayCount = (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) + 1;
-    
+
     return [startDate, endDate, dayCount];
 }
 ```
@@ -298,11 +301,11 @@ class DirectionalCalendarDateCalculator {
     getDateByMonthInDirection(): CalendarDate {
         // Navigate by months for month view
     }
-    
+
     getDateByDayInDirection(): CalendarDate {
         // Navigate by days for day view
     }
-    
+
     getDateByWeekInDirection(): CalendarDate {
         // Navigate by weeks for week view (7 days)
     }
@@ -321,14 +324,14 @@ All views use consistent CSS custom properties for alignment:
     --day-gap: 1px;
     --day-padding: 0.5em;
     --day-main-offset: 1em;
-    
+
     /* Heights */
     --day-header-height: 3.5em;
-    
+
     /* Borders */
     --separator-border: 1px solid var(--separator-light);
     --sidebar-border: 1px solid var(--separator-light);
-    
+
     /* Typography */
     --hour-text-align: center;
     --day-text-align: center;
@@ -341,11 +344,11 @@ Week view can override Day component properties:
 
 ```css
 .week-days lms-calendar-day {
-    --day-show-time-column: none;      /* Hide time column in week view */
-    --day-grid-columns: 1fr;           /* Single column layout */
-    --day-padding: 0;                  /* No padding in week context */
-    --day-all-day-margin: 0;           /* Reset all-day margins */
-    --day-all-day-font-size: 0.75em;   /* Smaller font in week view */
+    --day-show-time-column: none; /* Hide time column in week view */
+    --day-grid-columns: 1fr; /* Single column layout */
+    --day-padding: 0; /* No padding in week context */
+    --day-all-day-margin: 0; /* Reset all-day margins */
+    --day-all-day-font-size: 0.75em; /* Smaller font in week view */
 }
 ```
 
@@ -362,7 +365,7 @@ describe('Grid row calculations', () => {
         expect(getHourIndicatorRow(12)).to.equal(721);
         expect(getHourIndicatorRow(23)).to.equal(1381);
     });
-    
+
     it('should have exactly 1440 total grid rows for 24 hours', () => {
         expect(24 * 60).to.equal(1440);
     });
@@ -380,12 +383,12 @@ To verify pixel-perfect alignment:
 
 ### Common Issues and Solutions
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| Misaligned columns | Different gap/padding between header and content | Use identical CSS properties |
-| Events in wrong columns | Incorrect slot naming or positioning | Verify slot name generation |
-| Height overflow | Missing height constraints | Apply proper calc() and flex properties |
-| Separator gaps | Off-by-one in row calculations | Use hour * 60 for separators, hour * 60 + 1 for content |
+| Issue                   | Cause                                            | Solution                                                |
+| ----------------------- | ------------------------------------------------ | ------------------------------------------------------- |
+| Misaligned columns      | Different gap/padding between header and content | Use identical CSS properties                            |
+| Events in wrong columns | Incorrect slot naming or positioning             | Verify slot name generation                             |
+| Height overflow         | Missing height constraints                       | Apply proper calc() and flex properties                 |
+| Separator gaps          | Off-by-one in row calculations                   | Use hour _ 60 for separators, hour _ 60 + 1 for content |
 
 ## Best Practices
 
@@ -399,7 +402,7 @@ To verify pixel-perfect alignment:
 ## Related Files
 
 - `src/components/Day.ts` - Day view implementation
-- `src/components/Week.ts` - Week view implementation  
+- `src/components/Week.ts` - Week view implementation
 - `src/components/Month.ts` - Month view implementation
 - `src/lms-calendar.ts` - Main calendar and entry rendering
 - `src/lib/DirectionalCalendarDateCalculator.ts` - Date navigation

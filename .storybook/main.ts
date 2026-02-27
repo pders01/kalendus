@@ -19,7 +19,7 @@ const config: StorybookConfig = {
                 sourcemap: true,
             },
         });
-    }
+    },
 };
 
 export default config;

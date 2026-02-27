@@ -71,12 +71,7 @@ export class SlotManager {
             case 'day':
                 return this._calculateDayPosition(date, time, isAllDay);
             case 'week':
-                return this._calculateWeekPosition(
-                    date,
-                    config.activeDate!,
-                    time,
-                    isAllDay,
-                );
+                return this._calculateWeekPosition(date, config.activeDate!, time, isAllDay);
             case 'month':
                 return this._calculateMonthPosition(date);
             default:
@@ -180,9 +175,7 @@ export class SlotManager {
         }
 
         if (!time) {
-            throw new Error(
-                'Week view timed entries must have time information',
-            );
+            throw new Error('Week view timed entries must have time information');
         }
 
         return {
@@ -206,16 +199,9 @@ export class SlotManager {
     /**
      * Calculate which day of the week an entry belongs to (0-6, where 0 is Monday)
      */
-    public getWeekDayIndex(
-        entryDate: CalendarDate,
-        activeDate: CalendarDate,
-    ): number {
+    public getWeekDayIndex(entryDate: CalendarDate, activeDate: CalendarDate): number {
         // Get the start of the week (Monday)
-        const currentDate = new Date(
-            activeDate.year,
-            activeDate.month - 1,
-            activeDate.day,
-        );
+        const currentDate = new Date(activeDate.year, activeDate.month - 1, activeDate.day);
         const dayOfWeek = currentDate.getDay();
         const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
 
@@ -273,21 +259,14 @@ export class SlotManager {
             // Formula: 10000 + (dayOfWeek * 10000) + (hour * 100) + minute
             // This ensures Mon 9:00 (10000+0+900+0=10900), Mon 10:00 (11000), Tue 9:00 (20900), etc.
             const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!);
-            tabIndex =
-                10000 +
-                dayOfWeek * 10000 +
-                time.start.hour * 100 +
-                time.start.minute;
+            tabIndex = 10000 + dayOfWeek * 10000 + time.start.hour * 100 + time.start.minute;
         } else if (viewMode === 'day' && time && !isAllDay) {
             // Day view: tab order by time only
             tabIndex = time.start.hour * 60 + time.start.minute;
         } else if (isAllDay) {
             // All-day events get lower tab indices (appear first in tab order)
             if (viewMode === 'week') {
-                const dayOfWeek = this.getWeekDayIndex(
-                    date,
-                    config.activeDate!,
-                );
+                const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!);
                 tabIndex = 1000 + dayOfWeek; // 1000-1006 for all-day events (before timed events)
             } else {
                 tabIndex = 0; // Single all-day event in day view
@@ -314,9 +293,10 @@ export class SlotManager {
         const timeStr =
             isAllDay || !time
                 ? 'All day'
-                : `${String(time.start.hour).padStart(2, '0')}:${String(
-                      time.start.minute,
-                  ).padStart(2, '0')} to ${String(time.end.hour).padStart(
+                : `${String(time.start.hour).padStart(2, '0')}:${String(time.start.minute).padStart(
+                      2,
+                      '0',
+                  )} to ${String(time.end.hour).padStart(
                       2,
                       '0',
                   )}:${String(time.end.minute).padStart(2, '0')}`;
@@ -350,10 +330,7 @@ export class SlotManager {
         } catch (error) {
             return {
                 valid: false,
-                error:
-                    error instanceof Error
-                        ? error.message
-                        : 'Unknown validation error',
+                error: error instanceof Error ? error.message : 'Unknown validation error',
             };
         }
     }

@@ -1,6 +1,7 @@
-import { expect, userEvent } from 'storybook/test';
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { html } from 'lit';
+import { expect, userEvent } from 'storybook/test';
+
 import './lms-calendar.js';
 import type LMSCalendar from './lms-calendar.js';
 import type { CalendarEntry } from './lms-calendar.js';
@@ -252,9 +253,7 @@ export const WithInteractions: Story = {
         // Wait for the calendar to be rendered
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        const calendar = canvasElement.querySelector(
-            'lms-calendar',
-        ) as LMSCalendar;
+        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
         await expect(calendar).toBeInTheDocument();
 
         // Access the shadow root
@@ -265,9 +264,7 @@ export const WithInteractions: Story = {
         const header = shadowRoot?.querySelector('lms-calendar-header');
         if (header) {
             const headerShadow = header.shadowRoot;
-            const dayButton = headerShadow?.querySelector(
-                '[data-context="day"]',
-            ) as HTMLElement;
+            const dayButton = headerShadow?.querySelector('[data-context="day"]') as HTMLElement;
             if (dayButton) {
                 await userEvent.click(dayButton);
 
@@ -329,9 +326,7 @@ export const NavigateMonths: Story = {
         ></lms-calendar>
     `,
     play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        const calendar = canvasElement.querySelector(
-            'lms-calendar',
-        ) as LMSCalendar;
+        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
         await expect(calendar).toBeInTheDocument();
 
         const shadowRoot = calendar.shadowRoot;
@@ -518,8 +513,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
         const eventsThisDay: CalendarEntry[] = [];
 
         for (let eventIndex = 0; eventIndex < baseEventsPerDay; eventIndex++) {
-            const eventType =
-                eventTypes[Math.floor(Math.random() * eventTypes.length)];
+            const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
             const color = colors[Math.floor(Math.random() * colors.length)];
 
             // More realistic time distribution
@@ -528,9 +522,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
 
             if (eventType.typical) {
                 // Common meeting times
-                startHour = [8, 9, 10, 11, 13, 14, 15, 16, 17][
-                    Math.floor(Math.random() * 9)
-                ];
+                startHour = [8, 9, 10, 11, 13, 14, 15, 16, 17][Math.floor(Math.random() * 9)];
                 startMinute = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
             } else {
                 // Any business hours
@@ -543,8 +535,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
             const weights = [5, 40, 15, 25, 10, 3, 1, 1]; // 30min and 60min most common
 
             let durationMinutes: number;
-            const randomWeight =
-                Math.random() * weights.reduce((a, b) => a + b, 0);
+            const randomWeight = Math.random() * weights.reduce((a, b) => a + b, 0);
             let cumWeight = 0;
             for (let i = 0; i < durations.length; i++) {
                 cumWeight += weights[i];
@@ -565,13 +556,10 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
             if (endHour >= 22) continue;
 
             // Create overlapping events intentionally (realistic scenario)
-            const shouldOverlap =
-                Math.random() < 0.3 && eventsThisDay.length > 0;
+            const shouldOverlap = Math.random() < 0.3 && eventsThisDay.length > 0;
             if (shouldOverlap) {
                 const existingEvent =
-                    eventsThisDay[
-                        Math.floor(Math.random() * eventsThisDay.length)
-                    ];
+                    eventsThisDay[Math.floor(Math.random() * eventsThisDay.length)];
                 startHour = existingEvent.time.start.hour;
                 startMinute = existingEvent.time.start.minute + 15; // 15min offset
                 if (startMinute >= 60) {
@@ -581,9 +569,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
             }
 
             const newEvent: CalendarEntry = {
-                heading: `${eventType.heading}${
-                    eventIndex > 0 ? ` ${eventIndex + 1}` : ''
-                }`,
+                heading: `${eventType.heading}${eventIndex > 0 ? ` ${eventIndex + 1}` : ''}`,
                 content: eventType.content,
                 color: color,
                 isContinuation: false,
@@ -635,10 +621,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
                 'Workshop Day',
             ];
             events.push({
-                heading:
-                    allDayEvents[
-                        Math.floor(Math.random() * allDayEvents.length)
-                    ],
+                heading: allDayEvents[Math.floor(Math.random() * allDayEvents.length)],
                 content: 'All-day event',
                 color: colors[Math.floor(Math.random() * colors.length)],
                 isContinuation: false,
@@ -702,13 +685,8 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
 
     multiDayEvents.forEach((event) => {
         if (Math.random() < event.probability) {
-            const startDay =
-                Math.floor(Math.random() * (daysInCurrentMonth - event.days)) +
-                1;
-            const endDay = Math.min(
-                startDay + event.days - 1,
-                daysInCurrentMonth,
-            );
+            const startDay = Math.floor(Math.random() * (daysInCurrentMonth - event.days)) + 1;
+            const endDay = Math.min(startDay + event.days - 1, daysInCurrentMonth);
 
             // Create a single multi-day event with proper date range
             // The calendar system will handle expansion internally
@@ -789,9 +767,7 @@ export const StressTestAllViews: Story = {
         ></lms-calendar>
     `,
     play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        const calendar = canvasElement.querySelector(
-            'lms-calendar',
-        ) as LMSCalendar;
+        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
         await expect(calendar).toBeInTheDocument();
 
         const shadowRoot = calendar.shadowRoot;
@@ -804,9 +780,7 @@ export const StressTestAllViews: Story = {
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
             // Switch to Week View
-            const weekButton = headerShadow?.querySelector(
-                '[data-context="week"]',
-            ) as HTMLElement;
+            const weekButton = headerShadow?.querySelector('[data-context="week"]') as HTMLElement;
             if (weekButton) {
                 await userEvent.click(weekButton);
                 await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -817,9 +791,7 @@ export const StressTestAllViews: Story = {
             }
 
             // Switch to Day View
-            const dayButton = headerShadow?.querySelector(
-                '[data-context="day"]',
-            ) as HTMLElement;
+            const dayButton = headerShadow?.querySelector('[data-context="day"]') as HTMLElement;
             if (dayButton) {
                 await userEvent.click(dayButton);
                 await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -1089,11 +1061,7 @@ export const ExtremeEdgeCases: Story = {
 
             // Cross-month multi-day event (if near month boundary)
             if (currentMonth < 12) {
-                const lastDay = new Date(
-                    currentYear,
-                    currentMonth,
-                    0,
-                ).getDate();
+                const lastDay = new Date(currentYear, currentMonth, 0).getDate();
                 if (lastDay >= 29) {
                     events.push({
                         heading: 'Cross-Month Event',

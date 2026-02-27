@@ -1,6 +1,7 @@
 import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
+
 import { getLocalizedWeekdayShort } from '../lib/localization.js';
 
 @customElement('lms-calendar-context')
