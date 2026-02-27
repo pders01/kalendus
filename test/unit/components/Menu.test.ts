@@ -45,7 +45,7 @@ describe('Menu Component', () => {
         expect(el.hasAttribute('open')).to.be.true;
     });
 
-    it('should have role="dialog" on the card', async () => {
+    it('should have role="dialog" with aria-modal on the card', async () => {
         const el: Menu = await fixture(html`
             <lms-menu ?open=${true}></lms-menu>
         `);
@@ -54,6 +54,7 @@ describe('Menu Component', () => {
         const card = el.shadowRoot?.querySelector('.card');
         expect(card).to.exist;
         expect(card?.getAttribute('role')).to.equal('dialog');
+        expect(card?.getAttribute('aria-modal')).to.equal('true');
         expect(card?.getAttribute('aria-label')).to.equal('Event Details');
     });
 

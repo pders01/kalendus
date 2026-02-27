@@ -128,9 +128,40 @@ export class Menu extends LitElement {
             if (this.open && this.anchorRect) {
                 this._positioned = false;
                 this._computePosition();
+                // Move focus into the dialog after positioning
+                requestAnimationFrame(() => {
+                    const closeBtn = this.renderRoot.querySelector('.close-btn') as HTMLElement;
+                    closeBtn?.focus();
+                });
             }
         }
     }
+
+    private _handleKeydown = (e: KeyboardEvent) => {
+        if (e.key !== 'Tab') return;
+
+        const focusable = Array.from(
+            this.renderRoot.querySelectorAll<HTMLElement>(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+            ),
+        );
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+            if (this.renderRoot.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else {
+            if (this.renderRoot.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    };
 
     private _computePosition() {
         requestAnimationFrame(() => {
@@ -264,14 +295,17 @@ export class Menu extends LitElement {
             <div
                 class=${cardClasses}
                 role="dialog"
+                aria-modal="true"
                 aria-label=${messages.eventDetails()}
                 style="top: ${this._cardTop}px; left: ${this._cardLeft}px;"
+                @keydown=${this._handleKeydown}
             >
                 <div class="header">
                     <span class="title"
                         >${this.eventDetails.heading || messages.noTitle()}</span
                     >
                     <button
+                        type="button"
                         class="close-btn"
                         @click=${this._handleClose}
                         title=${messages.close()}
@@ -297,6 +331,7 @@ export class Menu extends LitElement {
                 }
                 <div class="actions">
                     <button
+                        type="button"
                         class="export-btn"
                         @click=${this._handleExport}
                         title=${messages.exportAsICS()}

@@ -63,6 +63,7 @@ export default class LMSCalendar extends LitElement {
         date?: CalendarDate;
         anchorRect?: DOMRect;
     };
+    private _menuTriggerEntry?: HTMLElement;
 
     private _layoutCalculator = new LayoutCalculator({
         timeColumnWidth: 80,
@@ -226,7 +227,7 @@ export default class LMSCalendar extends LitElement {
             --menu-detail-label-font-size: 0.8125em;
             --menu-detail-gap: 0.5em;
         }
-        div {
+        .calendar-container {
             width: var(--width);
             height: var(--height);
             background-color: var(--background-color);
@@ -237,6 +238,12 @@ export default class LMSCalendar extends LitElement {
             box-shadow: var(--shadow-md);
             position: relative;
             overflow: hidden;
+        }
+        header, main {
+            display: block;
+        }
+        main {
+            height: calc(100% - var(--header-height, 3.5em));
         }
 
         /* Responsive entry scaling based on viewport width */
@@ -306,9 +313,20 @@ export default class LMSCalendar extends LitElement {
     private _closeMenuAndClearSelections() {
         this._menuOpen = false;
         this._menuEventDetails = undefined;
+        this._returnFocusToTrigger();
         this.shadowRoot?.querySelectorAll('lms-calendar-entry').forEach((entry) => {
             (entry as LMSCalendarEntry).clearSelection();
         });
+    }
+
+    private _returnFocusToTrigger() {
+        if (this._menuTriggerEntry) {
+            // Focus the interactive element inside the entry's shadow root
+            const focusable =
+                this._menuTriggerEntry.shadowRoot?.querySelector('[role="button"]') as HTMLElement;
+            (focusable ?? this._menuTriggerEntry).focus();
+            this._menuTriggerEntry = undefined;
+        }
     }
 
     protected override firstUpdated(
@@ -366,72 +384,76 @@ export default class LMSCalendar extends LitElement {
         const currentActiveDate = this._viewState.activeDate;
 
         return html`
-            <div>
-                <lms-calendar-header
-                    @switchdate=${this._handleSwitchDate}
-                    @switchview=${this._handleSwitchView}
-                    @jumptoday=${this._handleJumpToday}
-                    .heading=${this.heading}
-                    .activeDate=${currentActiveDate}
-                    .viewMode=${viewMode}
-                    .expandedDate=${viewMode === 'day' ? currentActiveDate : undefined}
-                >
-                </lms-calendar-header>
+            <div class="calendar-container">
+                <header>
+                    <lms-calendar-header
+                        @switchdate=${this._handleSwitchDate}
+                        @switchview=${this._handleSwitchView}
+                        @jumptoday=${this._handleJumpToday}
+                        .heading=${this.heading}
+                        .activeDate=${currentActiveDate}
+                        .viewMode=${viewMode}
+                        .expandedDate=${viewMode === 'day' ? currentActiveDate : undefined}
+                    >
+                    </lms-calendar-header>
+                </header>
 
-                ${
-                    viewMode === 'month'
-                        ? html`
-                          <lms-calendar-context> </lms-calendar-context>
+                <main role="region" aria-live="polite" aria-label="${viewMode} view">
+                    ${
+                        viewMode === 'month'
+                            ? html`
+                              <lms-calendar-context> </lms-calendar-context>
 
-                          <lms-calendar-month
-                              @expand=${this._handleExpand}
-                              @open-menu=${this._handleOpenMenu}
-                              @clear-other-selections=${this._handleClearOtherSelections}
-                              .activeDate=${currentActiveDate}
-                          >
-                              ${
-                                  this._calendarWidth < 768
-                                      ? this._renderEntriesSumByDay()
-                                      : this._renderEntries()
-                              }
-                          </lms-calendar-month>
-                      `
-                        : nothing
-                }
-                ${
-                    viewMode === 'week'
-                        ? (() => {
-                              const result = this._renderEntriesByDate();
-                              return html`
-                                  <lms-calendar-week
-                                      @expand=${this._handleExpand}
-                                      @open-menu=${this._handleOpenMenu}
-                                      @clear-other-selections=${this._handleClearOtherSelections}
-                                      .activeDate=${currentActiveDate}
-                                      .allDayRowCount=${result.allDayRowCount}
-                                  >
-                                      ${result.elements}
-                                  </lms-calendar-week>
-                              `;
-                          })()
-                        : nothing
-                }
-                ${
-                    viewMode === 'day'
-                        ? (() => {
-                              const result = this._renderEntriesByDate();
-                              return html`
-                                  <lms-calendar-day
-                                      @open-menu=${this._handleOpenMenu}
-                                      @clear-other-selections=${this._handleClearOtherSelections}
-                                      .allDayRowCount=${result.allDayRowCount}
-                                  >
-                                      ${result.elements}
-                                  </lms-calendar-day>
-                              `;
-                          })()
-                        : nothing
-                }
+                              <lms-calendar-month
+                                  @expand=${this._handleExpand}
+                                  @open-menu=${this._handleOpenMenu}
+                                  @clear-other-selections=${this._handleClearOtherSelections}
+                                  .activeDate=${currentActiveDate}
+                              >
+                                  ${
+                                      this._calendarWidth < 768
+                                          ? this._renderEntriesSumByDay()
+                                          : this._renderEntries()
+                                  }
+                              </lms-calendar-month>
+                          `
+                            : nothing
+                    }
+                    ${
+                        viewMode === 'week'
+                            ? (() => {
+                                  const result = this._renderEntriesByDate();
+                                  return html`
+                                      <lms-calendar-week
+                                          @expand=${this._handleExpand}
+                                          @open-menu=${this._handleOpenMenu}
+                                          @clear-other-selections=${this._handleClearOtherSelections}
+                                          .activeDate=${currentActiveDate}
+                                          .allDayRowCount=${result.allDayRowCount}
+                                      >
+                                          ${result.elements}
+                                      </lms-calendar-week>
+                                  `;
+                              })()
+                            : nothing
+                    }
+                    ${
+                        viewMode === 'day'
+                            ? (() => {
+                                  const result = this._renderEntriesByDate();
+                                  return html`
+                                      <lms-calendar-day
+                                          @open-menu=${this._handleOpenMenu}
+                                          @clear-other-selections=${this._handleClearOtherSelections}
+                                          .allDayRowCount=${result.allDayRowCount}
+                                      >
+                                          ${result.elements}
+                                      </lms-calendar-day>
+                                  `;
+                              })()
+                            : nothing
+                    }
+                </main>
 
                 <lms-menu
                     ?open=${this._menuOpen}
@@ -483,6 +505,7 @@ export default class LMSCalendar extends LitElement {
                 (entry as LMSCalendarEntry).clearSelection();
             }
         });
+        this._menuTriggerEntry = clickedEntry;
         this.openMenu(e.detail);
     }
 
@@ -499,6 +522,7 @@ export default class LMSCalendar extends LitElement {
     private _handleMenuClose() {
         this._menuOpen = false;
         this._menuEventDetails = undefined;
+        this._returnFocusToTrigger();
     }
 
     public openMenu(eventDetails: {
