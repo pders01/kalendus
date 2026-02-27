@@ -21,7 +21,7 @@ export default class Month extends LitElement {
 
     static override styles = css`
         .month {
-            height: calc(100% - var(--month-header-context-height, 5.5em) + 2px);
+            height: calc(100% - var(--context-height, 1.75em) - var(--context-padding, 0.25em) * 2);
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             border-top: 1px solid var(--separator-light);
