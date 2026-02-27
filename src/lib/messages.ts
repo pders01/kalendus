@@ -17,8 +17,6 @@ export const messages = {
     time: () => msg('Time'),
     date: () => msg('Date'),
     notes: () => msg('Notes'),
-    minimize: () => msg('Minimize'),
     close: () => msg('Close'),
-    dragToMove: () => msg('Drag to move menu'),
     calendarWeek: () => msg('CW'),
 } as const;

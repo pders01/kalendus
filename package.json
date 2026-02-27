@@ -36,9 +36,7 @@
     },
     "dependencies": {
         "@lit-labs/observers": "^2.1.0",
-        "@lit-labs/signals": "^0.2.0",
         "@lit/localize": "^0.12.2",
-        "@neodrag/vanilla": "^2.3.1",
         "@types/luxon": "^3.7.1",
         "lit": "^3.3.2",
         "luxon": "^3.7.2",

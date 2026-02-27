@@ -541,6 +541,7 @@ export default class Entry extends LitElement {
                       )}:${String(this.time.end.minute).padStart(2, '0')}`
                     : messages.noTime(),
                 date: this.date?.start,
+                anchorRect: this.getBoundingClientRect(),
             };
 
             const openMenuEvent = new CustomEvent('open-menu', {
