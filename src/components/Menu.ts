@@ -1,6 +1,5 @@
 import { localized } from '@lit/localize';
-import { Draggable } from '@neodrag/vanilla';
-import { css, html, LitElement } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
 
@@ -17,145 +16,164 @@ interface EventDetails {
 @customElement('lms-menu')
 @(localized() as ClassDecorator)
 export class Menu extends LitElement {
-    @property({ type: Boolean }) open = false;
+    @property({ type: Boolean, reflect: true }) open = false;
     @property({ type: Object }) eventDetails: EventDetails = {
         heading: '',
         content: '',
         time: '',
     };
-    @state() minimized = false;
-    private _dragInstance?: Draggable;
+    @property({ attribute: false }) anchorRect?: DOMRect;
+
+    @state() private _cardTop = 0;
+    @state() private _cardLeft = 0;
+    @state() private _positioned = false;
 
     static override styles = css`
         :host {
-            position: fixed;
-            top: 20%;
-            left: 50%;
-            transform: translate(-50%, 0);
+            position: absolute;
+            inset: 0;
             z-index: 10000;
+            pointer-events: none;
+            display: none;
+        }
+        :host([open]) {
+            display: block;
+        }
+        .card {
+            position: absolute;
+            pointer-events: auto;
             background: var(--background-color);
-            box-shadow: var(--shadow-md);
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--shadow-lg);
             border: 1px solid var(--separator-light);
-            border-radius: var(--border-radius-sm);
-            min-width: var(--menu-min-width);
-            max-width: var(--menu-max-width);
             font-family: var(--system-ui);
+            min-width: 16em;
+            max-width: 22em;
+            padding: 0.875em 1em;
+            opacity: 0;
+            transform: scale(0.95);
             transition:
-                opacity 0.2s,
-                visibility 0.2s;
+                opacity 0.15s ease,
+                transform 0.15s ease;
+        }
+        .card.visible {
             opacity: 1;
-            visibility: visible;
+            transform: scale(1);
         }
         .header {
             display: flex;
-            align-items: center;
-            gap: var(--menu-detail-gap);
-            background: var(--background-color);
-            cursor: grab;
-            padding: var(--menu-header-padding);
-            border-bottom: 1px solid var(--separator-light);
-            border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
-            user-select: none;
-        }
-        .header .title {
-            flex: 1;
-            font-size: var(--menu-title-font-size);
-            font-weight: var(--menu-title-font-weight);
-            color: var(--separator-dark);
-        }
-        .header button {
-            background: none;
-            border: 1px solid transparent;
-            border-radius: var(--button-border-radius);
-            cursor: pointer;
-            font-size: var(--menu-title-font-size);
-            line-height: 1;
-            padding: var(--menu-button-padding);
-            width: var(--menu-button-size);
-            height: var(--menu-button-size);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--header-text-color);
-            transition:
-                background-color 0.15s,
-                color 0.15s;
-        }
-        .header button:hover {
-            background-color: var(--separator-light);
-            color: var(--separator-dark);
-        }
-        .content {
-            padding: var(--menu-content-padding);
-            display: block;
-            font-size: var(--menu-content-font-size);
-        }
-        .content[hidden] {
-            display: none;
-        }
-        .menu-item {
-            padding: var(--menu-item-padding);
-            margin-bottom: var(--menu-item-margin-bottom);
-            background: var(--separator-light);
-            border-radius: var(--border-radius-sm);
-            cursor: pointer;
-            font-weight: var(--menu-item-font-weight);
-            text-align: center;
-            transition:
-                background-color 0.15s,
-                color 0.15s;
-            border: 1px solid transparent;
-        }
-        .menu-item:hover {
-            background: var(--primary-color);
-            color: white;
-        }
-        .event-details {
-            display: flex;
-            flex-direction: column;
-            gap: var(--menu-detail-gap);
-        }
-        .event-detail {
-            display: flex;
             align-items: flex-start;
-            gap: var(--menu-detail-gap);
+            gap: 0.5em;
+            margin-bottom: 0.25em;
         }
-        .event-detail strong {
-            min-width: var(--menu-detail-label-min-width);
-            font-weight: var(--menu-item-font-weight);
-            color: var(--header-text-color);
-            font-size: var(--menu-detail-label-font-size);
-        }
-        .event-detail span {
+        .title {
             flex: 1;
+            font-size: 1em;
+            font-weight: 600;
+            color: var(--separator-dark);
+            line-height: 1.3;
+            word-break: break-word;
+        }
+        .close-btn {
+            flex-shrink: 0;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.125em;
+            line-height: 1;
+            padding: 0.15em 0.25em;
+            margin: -0.15em -0.25em 0 0;
+            border-radius: var(--border-radius-sm);
+            color: var(--header-text-color);
+            transition: background-color 0.15s;
+        }
+        .close-btn:hover {
+            background-color: var(--separator-light);
+        }
+        .meta {
+            font-size: 0.8125em;
+            color: var(--header-text-color);
+            line-height: 1.5;
+        }
+        .notes {
+            margin-top: 0.5em;
+            padding-top: 0.625em;
+            border-top: 1px solid var(--separator-light);
+            font-size: 0.8125em;
             color: var(--separator-dark);
             word-break: break-word;
+            line-height: 1.4;
+        }
+        .actions {
+            padding-top: 0.625em;
+        }
+        .export-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: var(--system-ui);
+            font-size: 0.8125em;
+            font-weight: 500;
+            color: var(--primary-color);
+            padding: 0;
+            transition: opacity 0.15s;
+        }
+        .export-btn:hover {
+            opacity: 0.7;
         }
     `;
 
-    override connectedCallback() {
-        super.connectedCallback();
-        // Removed out-of-bounds click detection for now; rely on close button only
-    }
-    override disconnectedCallback() {
-        super.disconnectedCallback();
-        this._dragInstance?.destroy();
-    }
-
-    override firstUpdated() {
-        const handle = this.renderRoot.querySelector('.header') as HTMLElement;
-        if (handle) {
-            this._dragInstance = new Draggable(this, { handle });
+    override updated(changed: Map<string, unknown>) {
+        if (changed.has('open') || changed.has('anchorRect')) {
+            if (this.open && this.anchorRect) {
+                this._positioned = false;
+                this._computePosition();
+            }
         }
     }
 
-    private _handleMinimize = () => {
-        this.minimized = !this.minimized;
-    };
+    private _computePosition() {
+        requestAnimationFrame(() => {
+            const card = this.renderRoot.querySelector('.card') as HTMLElement;
+            const container = this.parentElement;
+            if (!card || !container || !this.anchorRect) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const cardRect = card.getBoundingClientRect();
+
+            // Convert anchor from viewport coords to container-relative coords
+            const anchorTop = this.anchorRect.top - containerRect.top;
+            const anchorLeft = this.anchorRect.left - containerRect.left;
+            const anchorRight = anchorLeft + this.anchorRect.width;
+            const anchorMidY = anchorTop + this.anchorRect.height / 2;
+
+            const gap = 8;
+            const cardW = cardRect.width || 260;
+            const cardH = cardRect.height || 200;
+
+            // Prefer right placement; flip left if overflow
+            let left: number;
+            if (anchorRight + gap + cardW <= containerRect.width) {
+                left = anchorRight + gap;
+            } else if (anchorLeft - gap - cardW >= 0) {
+                left = anchorLeft - gap - cardW;
+            } else {
+                // Fallback: center horizontally in container
+                left = Math.max(gap, (containerRect.width - cardW) / 2);
+            }
+
+            // Center vertically on anchor, clamp to container
+            let top = anchorMidY - cardH / 2;
+            top = Math.max(gap, Math.min(top, containerRect.height - cardH - gap));
+
+            this._cardTop = top;
+            this._cardLeft = left;
+            this._positioned = true;
+        });
+    }
 
     private _handleClose = () => {
         this.open = false;
-        this.minimized = false;
         this.dispatchEvent(new CustomEvent('menu-close', { bubbles: true, composed: true }));
     };
 
@@ -166,9 +184,8 @@ export class Menu extends LitElement {
             time: string;
             date?: CalendarDate;
         };
-        // Use date for ICS export
         const eventYear = date?.year ?? 2025;
-        const eventMonth = (date?.month ?? 4) - 1; // JS months are 0-based
+        const eventMonth = (date?.month ?? 4) - 1;
         const eventDay = date?.day ?? 18;
         let start, end;
         if (typeof time === 'string') {
@@ -228,68 +245,64 @@ export class Menu extends LitElement {
         }, 0);
     };
 
+    private _formatDate(date: CalendarDate): string {
+        const d = new Date(date.year, date.month - 1, date.day);
+        return d.toLocaleDateString(undefined, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        });
+    }
+
     override render() {
-        // Use display style instead of hidden attribute to avoid update cycles
-        this.style.display = this.open ? '' : 'none';
+        const cardClasses = `card${this._positioned ? ' visible' : ''}`;
+        const hasNotes =
+            this.eventDetails.content &&
+            this.eventDetails.content !== messages.noContent();
+
         return html`
-            <div>
-                <div class="header" title=${messages.dragToMove()}>
-                    <span class="title">${messages.eventDetails()}</span>
-                    <button
-                        @click=${this._handleMinimize}
-                        title=${messages.minimize()}
+            <div
+                class=${cardClasses}
+                role="dialog"
+                aria-label=${messages.eventDetails()}
+                style="top: ${this._cardTop}px; left: ${this._cardLeft}px;"
+            >
+                <div class="header">
+                    <span class="title"
+                        >${this.eventDetails.heading || messages.noTitle()}</span
                     >
-                        ${this.minimized ? '+' : '-'}
-                    </button>
                     <button
+                        class="close-btn"
                         @click=${this._handleClose}
                         title=${messages.close()}
+                        aria-label=${messages.close()}
                     >
-                        ×
+                        &times;
                     </button>
                 </div>
-                <div class="content" ?hidden=${this.minimized}>
-                    <div
-                        class="menu-item"
+                <div class="meta">
+                    ${this.eventDetails.time || messages.noTime()}
+                </div>
+                ${
+                    this.eventDetails.date
+                        ? html`<div class="meta">
+                              ${this._formatDate(this.eventDetails.date)}
+                          </div>`
+                        : nothing
+                }
+                ${
+                    hasNotes
+                        ? html`<div class="notes">${this.eventDetails.content}</div>`
+                        : nothing
+                }
+                <div class="actions">
+                    <button
+                        class="export-btn"
                         @click=${this._handleExport}
                         title=${messages.exportAsICS()}
                     >
                         ${messages.exportAsICS()}
-                    </div>
-                    <div class="event-details">
-                        <div class="event-detail">
-                            <strong>${messages.title()}:</strong>
-                            <span
-                                >${this.eventDetails.heading || messages.noTitle()}</span
-                            >
-                        </div>
-                        <div class="event-detail">
-                            <strong>${messages.time()}:</strong>
-                            <span
-                                >${this.eventDetails.time || messages.noTime()}</span
-                            >
-                        </div>
-                        ${
-                            this.eventDetails.date
-                                ? html`<div class="event-detail">
-                                  <strong>${messages.date()}:</strong>
-                                  <span
-                                      >${this.eventDetails.date.day}/${
-                                          this.eventDetails.date.month
-                                      }/${this.eventDetails.date.year}</span
-                                  >
-                              </div>`
-                                : ''
-                        }
-                        ${
-                            this.eventDetails.content
-                                ? html`<div class="event-detail">
-                                  <strong>${messages.notes()}:</strong>
-                                  <span>${this.eventDetails.content}</span>
-                              </div>`
-                                : ''
-                        }
-                    </div>
+                    </button>
                 </div>
             </div>
         `;

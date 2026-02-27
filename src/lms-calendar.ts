@@ -61,6 +61,7 @@ export default class LMSCalendar extends LitElement {
         content: string;
         time: string;
         date?: CalendarDate;
+        anchorRect?: DOMRect;
     };
 
     private _layoutCalculator = new LayoutCalculator({
@@ -234,6 +235,8 @@ export default class LMSCalendar extends LitElement {
             font-family: var(--system-ui);
             color: var(--separator-dark);
             box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
         }
 
         /* Responsive entry scaling based on viewport width */
@@ -265,6 +268,48 @@ export default class LMSCalendar extends LitElement {
             }
         }
     `;
+
+    override connectedCallback() {
+        super.connectedCallback();
+        document.addEventListener('click', this._handleClickOutside, true);
+        document.addEventListener('keydown', this._handleEscape);
+    }
+
+    override disconnectedCallback() {
+        super.disconnectedCallback();
+        document.removeEventListener('click', this._handleClickOutside, true);
+        document.removeEventListener('keydown', this._handleEscape);
+    }
+
+    private _handleClickOutside = (e: MouseEvent) => {
+        if (!this._menuOpen) return;
+
+        const path = e.composedPath();
+        const menuEl = this.shadowRoot?.querySelector('lms-menu');
+        // Close if click is not inside the menu and not on a calendar entry
+        const clickedInsideMenu = menuEl && path.includes(menuEl);
+        const clickedOnEntry = path.some(
+            (el) => el instanceof HTMLElement && el.tagName === 'LMS-CALENDAR-ENTRY',
+        );
+
+        if (!clickedInsideMenu && !clickedOnEntry) {
+            this._closeMenuAndClearSelections();
+        }
+    };
+
+    private _handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && this._menuOpen) {
+            this._closeMenuAndClearSelections();
+        }
+    };
+
+    private _closeMenuAndClearSelections() {
+        this._menuOpen = false;
+        this._menuEventDetails = undefined;
+        this.shadowRoot?.querySelectorAll('lms-calendar-entry').forEach((entry) => {
+            (entry as LMSCalendarEntry).clearSelection();
+        });
+    }
 
     protected override firstUpdated(
         _changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
@@ -397,6 +442,7 @@ export default class LMSCalendar extends LitElement {
                             time: '',
                         }
                     }
+                    .anchorRect=${this._menuEventDetails?.anchorRect}
                     @menu-close=${this._handleMenuClose}
                 ></lms-menu>
             </div>
@@ -460,6 +506,7 @@ export default class LMSCalendar extends LitElement {
         content: string;
         time: string;
         date?: CalendarDate;
+        anchorRect?: DOMRect;
     }) {
         this._menuEventDetails = eventDetails;
         this._menuOpen = true;
