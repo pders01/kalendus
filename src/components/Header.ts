@@ -1,4 +1,3 @@
-import { SignalWatcher } from '@lit-labs/signals';
 import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
@@ -6,16 +5,19 @@ import { DateTime } from 'luxon';
 
 import { getLocalizedMonth } from '../lib/localization.js';
 import { messages } from '../lib/messages.js';
-import { activeDate, currentViewMode } from '../lib/viewState.js';
+import type { ViewMode } from '../lib/ViewStateController.js';
 
 @customElement('lms-calendar-header')
 @(localized() as ClassDecorator)
-export default class Header extends SignalWatcher(LitElement) {
+export default class Header extends LitElement {
     @property({ type: String })
     heading?: string;
 
     @property({ type: Object })
     activeDate?: CalendarDate;
+
+    @property({ type: String })
+    viewMode: ViewMode = 'month';
 
     @property({ type: Object })
     expandedDate?: CalendarDate;
@@ -99,54 +101,56 @@ export default class Header extends SignalWatcher(LitElement) {
     }
 
     override render() {
+        const date = this.activeDate!;
+
         return html`<div class="controls">
             <div class="info">
                 <span>
                     <strong>${this.heading || messages.currentMonth()}</strong>
                 </span>
-                <div ?hidden=${currentViewMode.get() !== 'day'}>
-                    <span class="day">${activeDate.get().day}</span>
+                <div ?hidden=${this.viewMode !== 'day'}>
+                    <span class="day">${date.day}</span>
                     <span class="month"
-                        >${getLocalizedMonth(activeDate.get().month)}</span
+                        >${getLocalizedMonth(date.month)}</span
                     >
-                    <span class="year">${activeDate.get().year}</span>
+                    <span class="year">${date.year}</span>
                 </div>
-                <div ?hidden=${currentViewMode.get() !== 'week'}>
+                <div ?hidden=${this.viewMode !== 'week'}>
                     <span class="week"
                         >${messages.calendarWeek()}
-                        ${this._getWeekInfo(activeDate.get()).weekNumber}</span
+                        ${this._getWeekInfo(date).weekNumber}</span
                     >
                     <span class="month"
-                        >${getLocalizedMonth(activeDate.get().month)}</span
+                        >${getLocalizedMonth(date.month)}</span
                     >
                     <span class="year"
-                        >${this._getWeekInfo(activeDate.get()).weekYear}</span
+                        >${this._getWeekInfo(date).weekYear}</span
                     >
                 </div>
-                <div ?hidden=${currentViewMode.get() !== 'month'}>
+                <div ?hidden=${this.viewMode !== 'month'}>
                     <span class="month"
-                        >${getLocalizedMonth(activeDate.get().month)}</span
+                        >${getLocalizedMonth(date.month)}</span
                     >
-                    <span class="year">${activeDate.get().year}</span>
+                    <span class="year">${date.year}</span>
                 </div>
             </div>
             <div class="context" @click=${this._dispatchSwitchView}>
                 <button
-                    ?data-active=${currentViewMode.get() === 'day'}
+                    ?data-active=${this.viewMode === 'day'}
                     data-context="day"
                     class="btn-change-view"
                 >
                     ${messages.day()}
                 </button>
                 <button
-                    ?data-active=${currentViewMode.get() === 'week'}
+                    ?data-active=${this.viewMode === 'week'}
                     data-context="week"
                     class="btn-change-view"
                 >
                     ${messages.week()}
                 </button>
                 <button
-                    ?data-active=${currentViewMode.get() === 'month'}
+                    ?data-active=${this.viewMode === 'month'}
                     data-context="month"
                     class="btn-change-view"
                 >

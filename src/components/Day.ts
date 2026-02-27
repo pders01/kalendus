@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { map } from 'lit/directives/map.js';
 
@@ -11,10 +11,8 @@ export default class Day extends LitElement {
     @state()
     _hasActiveSidebar = false;
 
-    @state()
-    _hasAllDayEvents = false;
-
-    @query('.container') container!: HTMLDivElement;
+    @property({ type: Number })
+    allDayRowCount = 0;
 
     static override styles = css`
         .wrapper {
@@ -102,62 +100,29 @@ export default class Day extends LitElement {
         return hour < 10 ? `0${hour}:00` : `${hour}:00`;
     }
 
-    override firstUpdated() {
-        // Initialize state after first render
-        this._updateAllDayState();
-    }
-
-    private _updateAllDayState() {
-        const allDaySlot = this.shadowRoot?.querySelector(
-            'slot[name="all-day"]',
-        ) as HTMLSlotElement;
-        if (allDaySlot) {
-            const childNodes = allDaySlot.assignedElements({
-                flatten: true,
-            }) as Array<HTMLElement>;
-
-            this._hasAllDayEvents = childNodes.length > 0;
-
-            if (this.container) {
-                if (this._hasAllDayEvents) {
-                    this.container.style.height = `calc(100% - 3.5em - ${
-                        childNodes.length * 24
-                    }px)`;
-                } else {
-                    this.container.style.height = '100%';
-                }
-            }
-        }
-    }
-
     override render() {
+        const hasAllDay = this.allDayRowCount > 0;
+        const containerHeight = hasAllDay
+            ? `calc(100% - 3.5em - ${this.allDayRowCount * 24}px)`
+            : '100%';
+
         return html` <div class="wrapper">
             ${
-                this._hasAllDayEvents
+                hasAllDay
                     ? html`
                       <div class="all-day-wrapper">
                           <div class="all-day">
-                              <slot
-                                  name="all-day"
-                                  id="all-day"
-                                  class="entry"
-                                  @slotchange=${this._handleSlotChange}
-                              ></slot>
+                              <slot name="all-day" id="all-day" class="entry"></slot>
                           </div>
                       </div>
                   `
                     : html`
                       <div style="display: none;">
-                          <slot
-                              name="all-day"
-                              id="all-day"
-                              class="entry"
-                              @slotchange=${this._handleSlotChange}
-                          ></slot>
+                          <slot name="all-day" id="all-day" class="entry"></slot>
                       </div>
                   `
             }
-            <div class="container">
+            <div class="container" style="height: ${containerHeight}">
                 <div
                     class="main ${classMap({
                         'w-100': !this._hasActiveSidebar,
@@ -186,18 +151,6 @@ export default class Day extends LitElement {
                 ></div>
             </div>
         </div>`;
-    }
-
-    private _handleSlotChange(e: Event) {
-        const target = e.target;
-        if (!(target instanceof HTMLSlotElement)) {
-            return;
-        }
-
-        // Only handle all-day slot changes
-        if (target.name === 'all-day') {
-            this._updateAllDayState();
-        }
     }
 
     private _getHourIndicator(hour: number) {
