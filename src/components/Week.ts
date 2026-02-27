@@ -147,24 +147,28 @@ export default class Week extends LitElement {
 
         /* All-day events section */
         .all-day-wrapper {
+            display: grid;
+            grid-template-rows: 1fr;
+            transition: grid-template-rows 0.2s ease;
             border-bottom: var(--separator-border);
-            padding: var(--day-padding) 0;
             background: var(--background-color);
             z-index: 2;
             position: relative;
-            transition: height 0.2s ease;
         }
 
-        .all-day-wrapper.hidden {
-            display: none;
+        .all-day-wrapper.collapsed {
+            grid-template-rows: 0fr;
+            overflow: hidden;
+            border-bottom: none;
         }
 
         .all-day-container {
             display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
             gap: var(--day-gap, 1px);
-            padding: 0 var(--day-padding, 0.5em);
-            min-height: 2em;
+            padding: var(--day-padding, 0.5em);
+            min-height: 0;
+            overflow: hidden;
         }
 
         .all-day-day-column {
@@ -265,12 +269,6 @@ export default class Week extends LitElement {
     override render() {
         const weekDates = this._getWeekDates();
         const hasAllDay = this.allDayRowCount > 0;
-        const allDayHeight = hasAllDay
-            ? Math.max(2.5, this.allDayRowCount * 2) + 1
-            : 0;
-        const weekContentHeight = hasAllDay
-            ? `calc(var(--main-content-height) - ${allDayHeight}em)`
-            : 'var(--main-content-height)';
 
         return html`
             <div class="week-container">
@@ -301,7 +299,7 @@ export default class Week extends LitElement {
                 <!-- All-day events section -->
                 <div
                     class="all-day-wrapper ${classMap({
-                        hidden: !hasAllDay,
+                        collapsed: !hasAllDay,
                     })}"
                 >
                     <div class="all-day-container">
@@ -317,7 +315,7 @@ export default class Week extends LitElement {
                         )}
                     </div>
                 </div>
-                <div class="week-content" style="height: ${weekContentHeight}">
+                <div class="week-content">
                     <!-- Hour indicators -->
                     ${Array.from({ length: 25 }).map(
                         (_, hour) => html`
