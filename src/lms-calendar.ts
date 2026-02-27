@@ -338,7 +338,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         ),
                     ).isValid,
             ),
-            R.sort.strict(
+            R.sort(
                 (a, b) =>
                     a.time.start.hour - b.time.start.hour ||
                     a.time.start.minute - b.time.start.minute,
@@ -686,7 +686,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                         string,
                     ],
             ),
-            R.map.indexed(([entry, background, _text], index) => {
+            R.map(([entry, background, _text], index) => {
                 const baseId = this._createConsistentEventId(
                     entry as CalendarEntry,
                 );
@@ -1039,7 +1039,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 return acc;
             }, {} as Record<string, number>),
             Object.entries,
-            R.map.indexed(([key, value], index) =>
+            R.map(([key, value], index) =>
                 this._composeEntry({
                     index,
                     slot: key.split('-').reverse().join('-'),

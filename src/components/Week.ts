@@ -351,7 +351,7 @@ export default class Week extends LitElement {
         // Third pass: position all events with consistent row assignments
         let maxRowsNeeded = nextRow; // Start with the number of multi-day event rows
 
-        weekDates.forEach((date, dayIndex) => {
+        weekDates.forEach((_date, dayIndex) => {
             const events = allEventsByDay.get(dayIndex) || [];
             const sortedEvents = this._sortAndPositionEvents(
                 events,
@@ -474,6 +474,7 @@ export default class Week extends LitElement {
             heading?: string;
             time?: { start: { hour: number; minute: number } };
             date?: { start?: { year: number; month: number; day: number } };
+            isContinuation?: boolean;
         },
     ): string {
         // Create a unique identifier based on the event's properties
@@ -713,55 +714,6 @@ export default class Week extends LitElement {
             'data-is-continuation',
             isMultiDay ? 'true' : 'false',
         );
-    }
-
-    /**
-     * Extract event date from element attributes
-     */
-    private _getEventDate(event: HTMLElement): CalendarDate | null {
-        const slotName = event.getAttribute('slot');
-        if (!slotName) return null;
-
-        const match = slotName.match(/all-day-(\d+)-(\d+)-(\d+)/);
-        if (match) {
-            return {
-                year: parseInt(match[1]),
-                month: parseInt(match[2]),
-                day: parseInt(match[3]),
-            };
-        }
-        return null;
-    }
-
-    /**
-     * Find the start day index of an event within the current week
-     */
-    private _findEventStartInWeek(
-        event: HTMLElement,
-        weekDates: CalendarDate[],
-    ): number {
-        const eventDate = this._getEventDate(event);
-        if (!eventDate) return 0;
-
-        return weekDates.findIndex(
-            (date) =>
-                date.year === eventDate.year &&
-                date.month === eventDate.month &&
-                date.day === eventDate.day,
-        );
-    }
-
-    /**
-     * Find the end day index of an event within the current week
-     * For now, assumes single-day events; can be enhanced for true multi-day detection
-     */
-    private _findEventEndInWeek(
-        event: HTMLElement,
-        weekDates: CalendarDate[],
-    ): number {
-        // For now, return the same as start day
-        // This can be enhanced to detect actual event end dates
-        return this._findEventStartInWeek(event, weekDates);
     }
 
     private _getWeekDates(): CalendarDate[] {
