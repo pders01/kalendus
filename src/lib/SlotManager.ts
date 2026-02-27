@@ -12,6 +12,8 @@
 
 import { CSSResult, unsafeCSS } from 'lit';
 
+import type { ViewMode } from './ViewStateController.js';
+
 // Import types - these should be available globally but let's be explicit
 declare global {
     type CalendarDate = {
@@ -26,7 +28,7 @@ declare global {
     };
 }
 
-export type ViewMode = 'day' | 'week' | 'month';
+export type { ViewMode };
 
 export interface PositionConfig {
     viewMode: ViewMode;

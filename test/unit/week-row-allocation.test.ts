@@ -1,62 +1,25 @@
 import { expect } from 'chai';
+import { allocateAllDayRows, type AllDayEvent } from '../../src/lib/allDayLayout.js';
 
 describe('Week View Row Allocation for Multi-Day Events', () => {
     /**
-     * Helper function to simulate the row allocation algorithm
-     * This represents the expected behavior we want to achieve
+     * Helper that wraps allocateAllDayRows to return the same Map interface
+     * the original inline helper returned.
      */
     function allocateRows(
         events: Array<{
             id: string;
-            days: number[]; // Array of day indices (0-6 for Mon-Sun)
+            days: number[];
         }>,
     ): Map<string, number> {
-        const eventRows = new Map<string, number>();
+        const allDayEvents: AllDayEvent[] = events.map((e) => ({
+            id: e.id,
+            days: e.days,
+            isMultiDay: e.days.length > 1,
+        }));
 
-        // Sort events by start day, then by id
-        const sortedEvents = [...events].sort((a, b) => {
-            const aMinDay = Math.min(...a.days);
-            const bMinDay = Math.min(...b.days);
-            if (aMinDay !== bMinDay) return aMinDay - bMinDay;
-            return a.id.localeCompare(b.id);
-        });
-
-        // Track which rows are occupied on each day
-        const rowOccupancy = new Map<number, Set<number>>();
-        for (let day = 0; day < 7; day++) {
-            rowOccupancy.set(day, new Set());
-        }
-
-        // Assign rows to each event
-        sortedEvents.forEach((event) => {
-            let assignedRow = 0;
-            let foundRow = false;
-
-            while (!foundRow) {
-                // Check if this row is available on all days the event spans
-                let rowAvailable = true;
-                for (const day of event.days) {
-                    if (rowOccupancy.get(day)?.has(assignedRow)) {
-                        rowAvailable = false;
-                        break;
-                    }
-                }
-
-                if (rowAvailable) {
-                    foundRow = true;
-                    eventRows.set(event.id, assignedRow);
-
-                    // Mark this row as occupied on all days the event spans
-                    for (const day of event.days) {
-                        rowOccupancy.get(day)?.add(assignedRow);
-                    }
-                } else {
-                    assignedRow++;
-                }
-            }
-        });
-
-        return eventRows;
+        const { rowAssignments } = allocateAllDayRows(allDayEvents);
+        return rowAssignments;
     }
 
     describe('Basic non-overlapping events', () => {

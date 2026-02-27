@@ -1,5 +1,4 @@
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
-import { SignalWatcher } from '@lit-labs/signals';
 import { localized } from '@lit/localize';
 import { CSSResult, LitElement, PropertyValueMap, css, html, nothing, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
@@ -24,32 +23,24 @@ import './components/Week.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator } from './lib/LayoutCalculator.js';
 import { setAppLocale } from './lib/localization.js';
+import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
 import { slotManager, type LayoutDimensions, type PositionConfig } from './lib/SlotManager.js';
-import {
-    activeDate as activeSignal,
-    currentViewMode,
-    jumpToToday,
-    navigateNext,
-    navigatePrevious,
-    setActiveDate,
-    switchToDayView,
-    switchToMonthView,
-    switchToWeekView,
-} from './lib/viewState.js';
+import { ViewStateController } from './lib/ViewStateController.js';
 
 @customElement('lms-calendar')
 @(localized() as ClassDecorator)
-export default class LMSCalendar extends SignalWatcher(LitElement) {
+export default class LMSCalendar extends LitElement {
     @property({ type: String })
     heading?: string;
 
-    // activeDate is now managed by signals - this property is kept for backward compatibility
+    private _viewState = new ViewStateController(this);
+
     get activeDate(): CalendarDate {
-        return activeSignal.get();
+        return this._viewState.activeDate;
     }
 
     set activeDate(value: CalendarDate) {
-        setActiveDate(value);
+        this._viewState.setActiveDate(value);
     }
 
     @property({ type: Array })
@@ -58,9 +49,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
     @property({ type: String })
     color = '#000000';
 
-    // _expandedDate is now managed through view mode signals
     get _expandedDate(): CalendarDate | undefined {
-        return currentViewMode.get() === 'day' ? activeSignal.get() : undefined;
+        return this._viewState.expandedDate;
     }
 
     @state() _calendarWidth: number = window.innerWidth;
@@ -327,8 +317,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
     }
 
     override render() {
-        const viewMode = currentViewMode.get();
-        const currentActiveDate = activeSignal.get();
+        const viewMode = this._viewState.viewMode;
+        const currentActiveDate = this._viewState.activeDate;
 
         return html`
             <div>
@@ -338,6 +328,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                     @jumptoday=${this._handleJumpToday}
                     .heading=${this.heading}
                     .activeDate=${currentActiveDate}
+                    .viewMode=${viewMode}
                     .expandedDate=${viewMode === 'day' ? currentActiveDate : undefined}
                 >
                 </lms-calendar-header>
@@ -364,28 +355,36 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 }
                 ${
                     viewMode === 'week'
-                        ? html`
-                          <lms-calendar-week
-                              @expand=${this._handleExpand}
-                              @open-menu=${this._handleOpenMenu}
-                              @clear-other-selections=${this._handleClearOtherSelections}
-                              .activeDate=${currentActiveDate}
-                          >
-                              ${this._renderEntriesByDate()}
-                          </lms-calendar-week>
-                      `
+                        ? (() => {
+                              const result = this._renderEntriesByDate();
+                              return html`
+                                  <lms-calendar-week
+                                      @expand=${this._handleExpand}
+                                      @open-menu=${this._handleOpenMenu}
+                                      @clear-other-selections=${this._handleClearOtherSelections}
+                                      .activeDate=${currentActiveDate}
+                                      .allDayRowCount=${result.allDayRowCount}
+                                  >
+                                      ${result.elements}
+                                  </lms-calendar-week>
+                              `;
+                          })()
                         : nothing
                 }
                 ${
                     viewMode === 'day'
-                        ? html`
-                          <lms-calendar-day
-                              @open-menu=${this._handleOpenMenu}
-                              @clear-other-selections=${this._handleClearOtherSelections}
-                          >
-                              ${this._renderEntriesByDate()}
-                          </lms-calendar-day>
-                      `
+                        ? (() => {
+                              const result = this._renderEntriesByDate();
+                              return html`
+                                  <lms-calendar-day
+                                      @open-menu=${this._handleOpenMenu}
+                                      @clear-other-selections=${this._handleClearOtherSelections}
+                                      .allDayRowCount=${result.allDayRowCount}
+                                  >
+                                      ${result.elements}
+                                  </lms-calendar-day>
+                              `;
+                          })()
                         : nothing
                 }
 
@@ -406,27 +405,27 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
 
     private _handleSwitchDate(e: CustomEvent) {
         if (e.detail.direction === 'next') {
-            navigateNext();
+            this._viewState.navigateNext();
         } else if (e.detail.direction === 'previous') {
-            navigatePrevious();
+            this._viewState.navigatePrevious();
         }
     }
 
     private _handleSwitchView(e: CustomEvent) {
         return match(e.detail.view)
-            .with('day', () => switchToDayView())
-            .with('week', () => switchToWeekView())
-            .with('month', () => switchToMonthView())
+            .with('day', () => this._viewState.switchToDayView())
+            .with('week', () => this._viewState.switchToWeekView())
+            .with('month', () => this._viewState.switchToMonthView())
             .otherwise(() => {});
     }
 
     private _handleJumpToday(_e: CustomEvent) {
-        jumpToToday();
+        this._viewState.jumpToToday();
     }
 
     private _handleExpand(e: CustomEvent) {
-        setActiveDate(e.detail.date);
-        switchToDayView();
+        this._viewState.setActiveDate(e.detail.date);
+        this._viewState.switchToDayView();
     }
 
     private _handleOpenMenu(e: CustomEvent) {
@@ -475,6 +474,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         density,
         displayMode = 'default',
         floatText = false,
+        spanClass,
     }: {
         index: number;
         slot: string;
@@ -490,6 +490,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         density?: 'compact' | 'standard' | 'full';
         displayMode?: 'default' | 'month-dot';
         floatText?: boolean;
+        spanClass?: string;
     }) {
         // Determine density based on event duration and context if not explicitly set
         const determinedDensity =
@@ -500,7 +501,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 ${styles}
             </style>
             <lms-calendar-entry
-                class=${`_${index}`}
+                class=${`_${index}${spanClass ? ` ${spanClass}` : ''}`}
                 slot=${slot}
                 .time=${entry.time}
                 .heading=${entry.heading ?? ''}
@@ -584,8 +585,9 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
                 isContinuation: index > 0, // Any day after the first is a continuation
                 continuation: {
                     has: range[2] > 1,
-                    is: index > 0, // Fixed: index > 0, not index > 1
+                    is: index > 0,
                     index,
+                    total: range[2],
                 },
                 // Preserve original start date for consistent sorting
                 originalStartDate: entry.date?.start,
@@ -703,8 +705,8 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
     }
 
     private _renderEntriesByDate() {
-        const currentActiveDate = activeSignal.get();
-        const viewMode = currentViewMode.get();
+        const currentActiveDate = this._viewState.activeDate;
+        const viewMode = this._viewState.viewMode;
 
         if (viewMode !== 'day' && viewMode !== 'week') {
             return nothing;
@@ -757,7 +759,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         );
 
         if (!entriesByDate.length && !allDayEntries.length) {
-            return nothing;
+            return { elements: nothing, allDayRowCount: 0 };
         }
 
         // Use SlotManager to handle positioning across different views
@@ -828,11 +830,39 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             }
         }
 
-        // Process all-day entries
+        // Compute all-day layout declaratively
+        const allDayLayoutEvents: AllDayEvent[] = allDayEntries.map((entry) => {
+            const eventId = this._createConsistentEventId(entry);
+            const dayIndex = viewMode === 'week'
+                ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate)
+                : 0;
+            return {
+                id: eventId,
+                days: [dayIndex],
+                isMultiDay: entry.continuation?.is || entry.continuation?.has || false,
+            };
+        });
+
+        // Merge days for multi-day events with the same id
+        const mergedEvents = new Map<string, AllDayEvent>();
+        allDayLayoutEvents.forEach((event) => {
+            const existing = mergedEvents.get(event.id);
+            if (existing) {
+                existing.days.push(...event.days);
+            } else {
+                mergedEvents.set(event.id, { ...event, days: [...event.days] });
+            }
+        });
+
+        const { rowAssignments, totalRows } = allocateAllDayRows(
+            Array.from(mergedEvents.values()),
+        );
+
+        // Process all-day entries with layout info
         const allDayElements = allDayEntries.map((entry, index) => {
             const [background, text] = getColorTextWithContrast(entry.color);
+            const eventId = this._createConsistentEventId(entry);
 
-            // Use SlotManager to determine positioning and accessibility
             const positionConfig: PositionConfig = {
                 viewMode,
                 date: entry.date.start,
@@ -842,36 +872,57 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
 
             const position = slotManager.calculatePosition(positionConfig);
             const accessibility = slotManager.calculateAccessibility(positionConfig);
+            const row = rowAssignments.get(eventId) ?? 0;
             const layoutDimensions: LayoutDimensions = {
                 width: 100,
                 x: 0,
-                zIndex: 100,
+                zIndex: 100 + row,
                 opacity: 1,
             };
 
             const positionCSS = slotManager.generatePositionCSS(position, layoutDimensions);
 
+            // Compute span class for multi-day events
+            const continuation = (entry as CalendarEntry & { continuation?: Continuation }).continuation;
+            const isMultiDay = continuation?.has || continuation?.is || false;
+            let spanClass = 'single-day';
+            if (isMultiDay && continuation) {
+                const mergedEvent = mergedEvents.get(eventId);
+                const visibleDays = mergedEvent?.days ?? [];
+                const sortedDays = [...visibleDays].sort((a, b) => a - b);
+                const dayIndex = viewMode === 'week'
+                    ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate)
+                    : 0;
+                spanClass = computeSpanClass({
+                    continuationIndex: dayIndex,
+                    totalDays: continuation.total,
+                    visibleStartIndex: sortedDays[0] ?? dayIndex,
+                    visibleEndIndex: sortedDays[sortedDays.length - 1] ?? dayIndex,
+                });
+            }
+
             return this._composeEntry({
                 index: index + entriesByDate.length,
-                slot: position.slotName || 'week-direct-grid', // Use fallback slot for direct grid positioning
+                slot: position.slotName || 'week-direct-grid',
                 styles: css`
                     lms-calendar-entry._${index + entriesByDate.length} {
                         --entry-background-color: ${unsafeCSS(background)};
                         --entry-color: ${unsafeCSS(text)};
+                        order: ${row};
                         ${positionCSS};
                     }
                 `,
                 entry: {
                     ...entry,
-                    // Add accessibility data to entry
                     accessibility: accessibility,
                 },
                 density: 'standard',
                 floatText: false,
+                spanClass,
             });
         });
 
-        return [...allDayElements, ...allElements];
+        return { elements: [...allDayElements, ...allElements], allDayRowCount: totalRows };
     }
 
     private _renderDayEntriesWithSlotManager(
@@ -1084,6 +1135,7 @@ declare global {
         has: boolean;
         is: boolean;
         index: number;
+        total: number;
     };
 
     type Interval = {
