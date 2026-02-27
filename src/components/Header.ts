@@ -62,6 +62,17 @@ export default class Header extends LitElement {
         .info {
             padding-left: var(--header-info-padding-left, 1em);
             text-align: right;
+            display: grid;
+        }
+
+        .view-detail {
+            grid-row: 2;
+            grid-column: 1;
+            visibility: hidden;
+        }
+
+        .view-detail.active {
+            visibility: visible;
         }
         .day,
         .week,
@@ -108,14 +119,14 @@ export default class Header extends LitElement {
                 <span>
                     <strong>${this.heading || messages.currentMonth()}</strong>
                 </span>
-                <div ?hidden=${this.viewMode !== 'day'}>
+                <div class="view-detail${this.viewMode === 'day' ? ' active' : ''}">
                     <span class="day">${date.day}</span>
                     <span class="month"
                         >${getLocalizedMonth(date.month)}</span
                     >
                     <span class="year">${date.year}</span>
                 </div>
-                <div ?hidden=${this.viewMode !== 'week'}>
+                <div class="view-detail${this.viewMode === 'week' ? ' active' : ''}">
                     <span class="week"
                         >${messages.calendarWeek()}
                         ${this._getWeekInfo(date).weekNumber}</span
@@ -127,7 +138,7 @@ export default class Header extends LitElement {
                         >${this._getWeekInfo(date).weekYear}</span
                     >
                 </div>
-                <div ?hidden=${this.viewMode !== 'month'}>
+                <div class="view-detail${this.viewMode === 'month' ? ' active' : ''}">
                     <span class="month"
                         >${getLocalizedMonth(date.month)}</span
                     >
