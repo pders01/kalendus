@@ -4,9 +4,7 @@
  * @param {string} color - The color to process.
  * @returns {[string, string]} An array containing the text color and background color.
  */
-export default function getColorTextWithContrast(
-    color?: string,
-): [string, string] {
+export default function getColorTextWithContrast(color?: string): [string, string] {
     let red = 0;
     let green = 0;
     let blue = 0;
@@ -20,10 +18,7 @@ export default function getColorTextWithContrast(
     const normalizedColor = color.startsWith('#') ? color : `#${color}`;
 
     const matches: RegExpMatchArray | null = normalizedColor
-        .replace(
-            /^#?([a-f\d])([a-f\d])([a-f\d])$/i,
-            (_m, r, g, b) => `#${r}${r}${g}${g}${b}${b}`,
-        )
+        .replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i, (_m, r, g, b) => `#${r}${r}${g}${g}${b}${b}`)
         .substring(1)
         .match(/.{2}/g);
 

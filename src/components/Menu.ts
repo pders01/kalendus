@@ -3,6 +3,7 @@ import { Draggable } from '@neodrag/vanilla';
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
+
 import { messages } from '../lib/messages.js';
 import type { CalendarDate } from '../lms-calendar';
 
@@ -39,7 +40,9 @@ export class Menu extends LitElement {
             min-width: var(--menu-min-width);
             max-width: var(--menu-max-width);
             font-family: var(--system-ui);
-            transition: opacity 0.2s, visibility 0.2s;
+            transition:
+                opacity 0.2s,
+                visibility 0.2s;
             opacity: 1;
             visibility: visible;
         }
@@ -74,7 +77,9 @@ export class Menu extends LitElement {
             align-items: center;
             justify-content: center;
             color: var(--header-text-color);
-            transition: background-color 0.15s, color 0.15s;
+            transition:
+                background-color 0.15s,
+                color 0.15s;
         }
         .header button:hover {
             background-color: var(--separator-light);
@@ -96,7 +101,9 @@ export class Menu extends LitElement {
             cursor: pointer;
             font-weight: var(--menu-item-font-weight);
             text-align: center;
-            transition: background-color 0.15s, color 0.15s;
+            transition:
+                background-color 0.15s,
+                color 0.15s;
             border: 1px solid transparent;
         }
         .menu-item:hover {
@@ -149,9 +156,7 @@ export class Menu extends LitElement {
     private _handleClose = () => {
         this.open = false;
         this.minimized = false;
-        this.dispatchEvent(
-            new CustomEvent('menu-close', { bubbles: true, composed: true }),
-        );
+        this.dispatchEvent(new CustomEvent('menu-close', { bubbles: true, composed: true }));
     };
 
     private _handleExport = () => {
@@ -191,14 +196,10 @@ export class Menu extends LitElement {
         }
         const event: IcsEvent = {
             start: {
-                date:
-                    (start && start.date) ||
-                    new Date(eventYear, eventMonth, eventDay, 12, 0),
+                date: (start && start.date) || new Date(eventYear, eventMonth, eventDay, 12, 0),
             },
             end: {
-                date:
-                    (end && end.date) ||
-                    new Date(eventYear, eventMonth, eventDay, 13, 0),
+                date: (end && end.date) || new Date(eventYear, eventMonth, eventDay, 13, 0),
             },
             summary: heading,
             description: content,
@@ -259,33 +260,35 @@ export class Menu extends LitElement {
                         <div class="event-detail">
                             <strong>${messages.title()}:</strong>
                             <span
-                                >${this.eventDetails.heading ||
-                                messages.noTitle()}</span
+                                >${this.eventDetails.heading || messages.noTitle()}</span
                             >
                         </div>
                         <div class="event-detail">
                             <strong>${messages.time()}:</strong>
                             <span
-                                >${this.eventDetails.time ||
-                                messages.noTime()}</span
+                                >${this.eventDetails.time || messages.noTime()}</span
                             >
                         </div>
-                        ${this.eventDetails.date
-                            ? html`<div class="event-detail">
+                        ${
+                            this.eventDetails.date
+                                ? html`<div class="event-detail">
                                   <strong>${messages.date()}:</strong>
                                   <span
-                                      >${this.eventDetails.date.day}/${this
-                                          .eventDetails.date.month}/${this
-                                          .eventDetails.date.year}</span
+                                      >${this.eventDetails.date.day}/${
+                                          this.eventDetails.date.month
+                                      }/${this.eventDetails.date.year}</span
                                   >
                               </div>`
-                            : ''}
-                        ${this.eventDetails.content
-                            ? html`<div class="event-detail">
+                                : ''
+                        }
+                        ${
+                            this.eventDetails.content
+                                ? html`<div class="event-detail">
                                   <strong>${messages.notes()}:</strong>
                                   <span>${this.eventDetails.content}</span>
                               </div>`
-                            : ''}
+                                : ''
+                        }
                     </div>
                 </div>
             </div>

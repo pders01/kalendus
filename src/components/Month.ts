@@ -3,6 +3,7 @@ import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { P, match } from 'ts-pattern';
+
 import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator.js';
 import { getLocalizedMonth } from '../lib/localization.js';
 
@@ -20,9 +21,7 @@ export default class Month extends LitElement {
 
     static override styles = css`
         .month {
-            height: calc(
-                100% - var(--month-header-context-height, 5.5em) + 2px
-            );
+            height: calc(100% - var(--month-header-context-height, 5.5em) + 2px);
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             border-top: 1px solid var(--separator-light);
@@ -135,39 +134,28 @@ export default class Month extends LitElement {
             const days = this.shadowRoot?.querySelectorAll('.day');
             days?.forEach((day) => {
                 const dayElement = day as HTMLElement;
-                dayElement.addEventListener(
-                    'scroll',
-                    () => handleScroll(dayElement),
-                    { passive: true },
-                );
+                dayElement.addEventListener('scroll', () => handleScroll(dayElement), {
+                    passive: true,
+                });
             });
         });
     }
 
     private _isCurrentDate(date: string) {
-        return (
-            new Date(date).toDateString() === this.currentDate.toDateString()
-        );
+        return new Date(date).toDateString() === this.currentDate.toDateString();
     }
 
     private _renderIndicator({ year, month, day }: CalendarDate) {
         const isCurrentDate = this._isCurrentDate(`${year}/${month}/${day}`);
-        const isActiveMonth =
-            month === this.activeDate.month && year === this.activeDate.year;
+        const isActiveMonth = month === this.activeDate.month && year === this.activeDate.year;
         return html` <div
             class="indicator ${classMap({
                 current: isCurrentDate,
             })}"
         >
             ${match([day, isActiveMonth])
-                .with(
-                    [1, true],
-                    () => html` ${day}. ${getLocalizedMonth(month)} `,
-                )
-                .with(
-                    [1, false],
-                    () => html` ${day}. ${getLocalizedMonth(month)} `,
-                )
+                .with([1, true], () => html` ${day}. ${getLocalizedMonth(month)} `)
+                .with([1, false], () => html` ${day}. ${getLocalizedMonth(month)} `)
                 .otherwise(() => html` ${day} `)}
         </div>`;
     }
@@ -208,9 +196,7 @@ export default class Month extends LitElement {
             return;
         }
 
-        const [year, month, day] = date
-            .split('-')
-            .map((field: string) => parseInt(field, 10));
+        const [year, month, day] = date.split('-').map((field: string) => parseInt(field, 10));
         const event = new CustomEvent('expand', {
             detail: { date: { day, month, year } },
             bubbles: true,
@@ -232,13 +218,10 @@ export default class Month extends LitElement {
         /** Important note: Passing 0 as the date shifts the
          *  months indices by positive 1, so 1-12 */
         return match(date)
-            .with(
-                { year: P.number, month: P.number, day: P.number },
-                ({ year, month }) => {
-                    const days = new Date(year, month, 0).getDate();
-                    return days > 0 ? days : 0;
-                },
-            )
+            .with({ year: P.number, month: P.number, day: P.number }, ({ year, month }) => {
+                const days = new Date(year, month, 0).getDate();
+                return days > 0 ? days : 0;
+            })
             .otherwise(() => 0);
     }
 
@@ -278,28 +261,23 @@ export default class Month extends LitElement {
             const offset = this._getOffsetOfFirstDayInMonth(this.activeDate);
             const previousMonth =
                 offset > 0
-                    ? this._getDatesInMonthAsArray(
-                          dateTransformer.getDateByMonthInDirection(),
-                          [-offset],
-                      )
+                    ? this._getDatesInMonthAsArray(dateTransformer.getDateByMonthInDirection(), [
+                          -offset,
+                      ])
                     : [];
 
-            const activeMonth = this._getDatesInMonthAsArray(
-                this.activeDate,
-                [],
-            );
+            const activeMonth = this._getDatesInMonthAsArray(this.activeDate, []);
 
             // Reset the date transformer to the active date before getting next month
             dateTransformer.date = this.activeDate;
             dateTransformer.direction = 'next';
-            const remainingDays =
-                42 - (previousMonth.length + activeMonth.length);
+            const remainingDays = 42 - (previousMonth.length + activeMonth.length);
             const nextMonth =
                 remainingDays > 0
-                    ? this._getDatesInMonthAsArray(
-                          dateTransformer.getDateByMonthInDirection(),
-                          [0, remainingDays],
-                      )
+                    ? this._getDatesInMonthAsArray(dateTransformer.getDateByMonthInDirection(), [
+                          0,
+                          remainingDays,
+                      ])
                     : [];
 
             return previousMonth.concat(activeMonth, nextMonth);

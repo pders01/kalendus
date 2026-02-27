@@ -1,2138 +1,2138 @@
 {
-  "schemaVersion": "1.0.0",
-  "readme": "",
-  "modules": [
-    {
-      "kind": "javascript-module",
-      "path": "src/lms-calendar.stories.ts",
-      "declarations": [
+    "schemaVersion": "1.0.0",
+    "readme": "",
+    "modules": [
         {
-          "kind": "variable",
-          "name": "meta",
-          "type": {
-            "text": "Meta<LMSCalendar>"
-          },
-          "default": "{\n    title: 'Components/LMSCalendar',\n    component: 'lms-calendar',\n    tags: ['autodocs'],\n    parameters: {\n        layout: 'fullscreen',\n    },\n    argTypes: {\n        heading: {\n            control: 'text',\n            description: 'Calendar heading text',\n        },\n        color: {\n            control: 'color',\n            description: 'Primary calendar color',\n        },\n        activeDate: {\n            control: 'object',\n            description: 'Currently active date',\n        },\n        entries: {\n            control: 'object',\n            description: 'Array of calendar entries',\n        },\n    },\n    args: {\n        heading: 'My Calendar',\n        color: '#1976d2',\n        activeDate: {\n            day: new Date().getDate(),\n            month: new Date().getMonth() + 1,\n            year: new Date().getFullYear(),\n        },\n    },\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "Default",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        entries: sampleEntries,\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "MonthView",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        activeDate: { day: 1, month: currentMonth, year: currentYear },\n        entries: sampleEntries,\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "EmptyCalendar",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        heading: 'Empty Calendar',\n        entries: [],\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "CustomTheming",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        entries: sampleEntries,\n        color: '#9c27b0',\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"\n        height: 720px; \n        display: block;\n        --primary-color: #9c27b0;\n        --background-color: #f5f5f5;\n        --entry-border-radius: 10px;\n        --header-height: 4em;\n      \"\n        ></lms-calendar>\n    `,\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "MobileView",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        entries: sampleEntries,\n    },\n    parameters: {\n        viewport: {\n            defaultViewport: 'mobile1',\n        },\n    },\n    render: (args) => html`\n        <div style=\"width: 375px; height: 667px;\">\n            <lms-calendar\n                .heading=${args.heading}\n                .activeDate=${args.activeDate}\n                .entries=${args.entries}\n                .color=${args.color}\n                style=\"height: 100%; display: block;\"\n            ></lms-calendar>\n        </div>\n    `,\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "WithInteractions",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        activeDate: { day: 15, month: currentMonth, year: currentYear },\n        entries: sampleEntries,\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {\n        // Wait for the calendar to be rendered\n        await new Promise((resolve) => setTimeout(resolve, 100));\n\n        const calendar = canvasElement.querySelector(\n            'lms-calendar',\n        ) as LMSCalendar;\n        await expect(calendar).toBeInTheDocument();\n\n        // Access the shadow root\n        const shadowRoot = calendar.shadowRoot;\n        await expect(shadowRoot).toBeTruthy();\n\n        // Find and click the day view button\n        const header = shadowRoot?.querySelector('lms-calendar-header');\n        if (header) {\n            const headerShadow = header.shadowRoot;\n            const dayButton = headerShadow?.querySelector(\n                '[data-context=\"day\"]',\n            ) as HTMLElement;\n            if (dayButton) {\n                await userEvent.click(dayButton);\n\n                // Wait for view change\n                await new Promise((resolve) => setTimeout(resolve, 300));\n\n                // Verify day view is shown\n                const dayView = shadowRoot?.querySelector('lms-calendar-day');\n                await expect(dayView).toBeInTheDocument();\n            }\n        }\n    },\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "SeptemberView",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        heading: 'September Calendar',\n        activeDate: { day: 1, month: 9, year: 2024 },\n        entries: [\n            {\n                heading: 'Test Event',\n                content: 'September test event',\n                color: '#1976d2',\n                isContinuation: false,\n                date: {\n                    start: { day: 15, month: 9, year: 2024 },\n                    end: { day: 15, month: 9, year: 2024 },\n                },\n                time: {\n                    start: { hour: 9, minute: 0 },\n                    end: { hour: 10, minute: 0 },\n                },\n            },\n        ],\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "NavigateMonths",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        activeDate: { day: 1, month: currentMonth, year: currentYear },\n        entries: sampleEntries,\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {\n        const calendar = canvasElement.querySelector(\n            'lms-calendar',\n        ) as LMSCalendar;\n        await expect(calendar).toBeInTheDocument();\n\n        const shadowRoot = calendar.shadowRoot;\n        const header = shadowRoot?.querySelector('lms-calendar-header');\n\n        if (header) {\n            const headerShadow = header.shadowRoot;\n            const nextButton = headerShadow?.querySelector(\n                'button[name=\"next\"]',\n            ) as HTMLButtonElement;\n\n            if (nextButton) {\n                // Click next month button\n                await userEvent.click(nextButton);\n                await new Promise((resolve) => setTimeout(resolve, 300));\n\n                // Click previous month button\n                const prevButton = headerShadow?.querySelector(\n                    'button[name=\"previous\"]',\n                ) as HTMLButtonElement;\n                if (prevButton) {\n                    await userEvent.click(prevButton);\n                    await new Promise((resolve) => setTimeout(resolve, 300));\n                }\n            }\n        }\n    },\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "HeavyEventLoad",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        heading: 'Heavy Event Load Test',\n        activeDate: { day: 15, month: currentMonth, year: currentYear },\n        entries: generateHeavyEventLoad(),\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    parameters: {\n        docs: {\n            description: {\n                story: 'Stress test with 100+ events across the month. Tests performance and visual layout with realistic heavy calendar usage including overlapping events, all-day events, and multi-day events.'\n            }\n        }\n    }\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "StressTestAllViews",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        heading: 'Stress Test - All Views',\n        activeDate: { day: 15, month: currentMonth, year: currentYear },\n        entries: generateHeavyEventLoad(),\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {\n        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;\n        await expect(calendar).toBeInTheDocument();\n\n        const shadowRoot = calendar.shadowRoot;\n        const header = shadowRoot?.querySelector('lms-calendar-header');\n        \n        if (header) {\n            const headerShadow = header.shadowRoot;\n            \n            // Test Month View (default)\n            await new Promise(resolve => setTimeout(resolve, 1000));\n            \n            // Switch to Week View\n            const weekButton = headerShadow?.querySelector('[data-context=\"week\"]') as HTMLElement;\n            if (weekButton) {\n                await userEvent.click(weekButton);\n                await new Promise(resolve => setTimeout(resolve, 1000));\n                \n                // Verify week view with heavy load\n                const weekView = shadowRoot?.querySelector('lms-calendar-week');\n                await expect(weekView).toBeInTheDocument();\n            }\n            \n            // Switch to Day View\n            const dayButton = headerShadow?.querySelector('[data-context=\"day\"]') as HTMLElement;\n            if (dayButton) {\n                await userEvent.click(dayButton);\n                await new Promise(resolve => setTimeout(resolve, 1000));\n                \n                // Verify day view with heavy load\n                const dayView = shadowRoot?.querySelector('lms-calendar-day');\n                await expect(dayView).toBeInTheDocument();\n            }\n            \n            // Navigate to next day to test different day's heavy load\n            const nextButton = headerShadow?.querySelector('button[name=\"next\"]') as HTMLButtonElement;\n            if (nextButton) {\n                await userEvent.click(nextButton);\n                await new Promise(resolve => setTimeout(resolve, 500));\n                await userEvent.click(nextButton);\n                await new Promise(resolve => setTimeout(resolve, 500));\n            }\n            \n            // Switch back to Month View\n            const monthButton = headerShadow?.querySelector('[data-context=\"month\"]') as HTMLElement;\n            if (monthButton) {\n                await userEvent.click(monthButton);\n                await new Promise(resolve => setTimeout(resolve, 1000));\n            }\n        }\n    },\n    parameters: {\n        docs: {\n            description: {\n                story: 'Comprehensive stress test that automatically cycles through all three views (Month, Week, Day) with heavy event load. Tests view switching performance, rendering quality, and layout stability under realistic high-usage scenarios.'\n            }\n        }\n    }\n}"
-        },
-        {
-          "kind": "variable",
-          "name": "OverlappingEventsStressTest",
-          "type": {
-            "text": "Story"
-          },
-          "default": "{\n    args: {\n        heading: 'Overlapping Events Stress Test',\n        activeDate: { day: 15, month: currentMonth, year: currentYear },\n        entries: (() => {\n            const events: CalendarEntry[] = [];\n            const testDay = 15;\n            \n            // Create 20 overlapping events on the same day for maximum stress\n            for (let i = 0; i < 20; i++) {\n                const startHour = 9 + Math.floor(i / 4); // Start between 9-13\n                const startMinute = (i % 4) * 15; // 0, 15, 30, 45 minutes\n                \n                events.push({\n                    heading: `Meeting ${i + 1}`,\n                    content: `Overlapping meeting ${i + 1}`,\n                    color: `hsl(${i * 18}, 70%, 50%)`, // Different colors\n                    isContinuation: false,\n                    date: {\n                        start: { day: testDay, month: currentMonth, year: currentYear },\n                        end: { day: testDay, month: currentMonth, year: currentYear },\n                    },\n                    time: {\n                        start: { hour: startHour, minute: startMinute },\n                        end: { hour: startHour + 1, minute: startMinute },\n                    },\n                });\n            }\n            \n            return events;\n        })(),\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    parameters: {\n        docs: {\n            description: {\n                story: 'Stress test with 20 heavily overlapping events on a single day. Tests the overlap detection algorithms, positioning calculations, and visual rendering quality.'\n            }\n        }\n    }\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "meta",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Default",
-          "declaration": {
-            "name": "Default",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "MonthView",
-          "declaration": {
-            "name": "MonthView",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "EmptyCalendar",
-          "declaration": {
-            "name": "EmptyCalendar",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "CustomTheming",
-          "declaration": {
-            "name": "CustomTheming",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "MobileView",
-          "declaration": {
-            "name": "MobileView",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "WithInteractions",
-          "declaration": {
-            "name": "WithInteractions",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "SeptemberView",
-          "declaration": {
-            "name": "SeptemberView",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "NavigateMonths",
-          "declaration": {
-            "name": "NavigateMonths",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "HeavyEventLoad",
-          "declaration": {
-            "name": "HeavyEventLoad",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "StressTestAllViews",
-          "declaration": {
-            "name": "StressTestAllViews",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "OverlappingEventsStressTest",
-          "declaration": {
-            "name": "OverlappingEventsStressTest",
-            "module": "src/lms-calendar.stories.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lms-calendar.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "LMSCalendar",
-          "members": [
-            {
-              "kind": "field",
-              "name": "heading",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "heading"
-            },
-            {
-              "kind": "field",
-              "name": "activeDate",
-              "type": {
-                "text": "CalendarDate"
-              }
-            },
-            {
-              "kind": "field",
-              "name": "entries",
-              "type": {
-                "text": "CalendarEntry[]"
-              },
-              "default": "[]",
-              "attribute": "entries"
-            },
-            {
-              "kind": "field",
-              "name": "color",
-              "type": {
-                "text": "string"
-              },
-              "default": "'#000000'",
-              "attribute": "color"
-            },
-            {
-              "kind": "field",
-              "name": "_expandedDate",
-              "type": {
-                "text": "CalendarDate | undefined"
-              }
-            },
-            {
-              "kind": "field",
-              "name": "_calendarWidth",
-              "type": {
-                "text": "number"
-              }
-            },
-            {
-              "kind": "field",
-              "name": "_menuOpen",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false"
-            },
-            {
-              "kind": "field",
-              "name": "_menuEventDetails",
-              "type": {
-                "text": "{\n        heading: string;\n        content: string;\n        time: string;\n        date?: CalendarDate;\n    } | undefined"
-              }
-            },
-            {
-              "kind": "field",
-              "name": "_handleResize",
-              "privacy": "private"
-            },
-            {
-              "kind": "field",
-              "name": "_resizeController",
-              "type": {
-                "text": "ResizeController<void>"
-              },
-              "privacy": "private",
-              "default": "new ResizeController<void>(this, {\n            target: null,\n            callback: this._handleResize,\n            skipInitial: true,\n        })"
-            },
-            {
-              "kind": "method",
-              "name": "_handleSwitchDate",
-              "privacy": "private",
-              "parameters": [
+            "kind": "javascript-module",
+            "path": "src/lms-calendar.stories.ts",
+            "declarations": [
                 {
-                  "name": "e",
-                  "type": {
-                    "text": "CustomEvent"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleSwitchView",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "CustomEvent"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleJumpToday",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "_e",
-                  "type": {
-                    "text": "CustomEvent"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleExpand",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "CustomEvent"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleOpenMenu",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "CustomEvent"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleMenuClose",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "openMenu",
-              "privacy": "public",
-              "parameters": [
-                {
-                  "name": "eventDetails",
-                  "type": {
-                    "text": "{\n        heading: string;\n        content: string;\n        time: string;\n        date?: CalendarDate;\n    }"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_composeEntry",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "{\n        index,\n        slot,\n        styles,\n        entry,\n        isContinuation = false,\n    }",
-                  "type": {
-                    "text": "{\n        index: number;\n        slot: string;\n        styles: CSSResult | typeof nothing;\n        entry: Partial<CalendarEntry>;\n        isContinuation?: boolean;\n    }"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_expandEntryMaybe",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "{\n        entry,\n        range,\n    }",
-                  "type": {
-                    "text": "{\n        entry: Partial<CalendarEntry>;\n        range: [Date, Date, number];\n    }"
-                  }
-                }
-              ],
-              "description": "Create an array of <lms-calendar-entry> elements for each day the entry spans\nand add them to the entries array."
-            },
-            {
-              "kind": "method",
-              "name": "_renderEntries",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "_renderEntriesByDate",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "_renderEntriesSumByDay",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "_renderEntriesForWeek",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "_getWeekStartDate",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "Date"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getGridSlotByTime",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "{ start, end }",
-                  "type": {
-                    "text": "CalendarTimeInterval"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getWidthByGroupSize",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "{\n        grading,\n        index,\n    }",
-                  "type": {
-                    "text": "{\n        grading: Grading[];\n        index: number;\n    }"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getOffsetByDepth",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "{\n        grading,\n        index,\n    }",
-                  "type": {
-                    "text": "{\n        grading: Grading[];\n        index: number;\n    }"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getDaysRange",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "[Date, Date, number]"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "CalendarDateInterval"
-                  }
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "heading",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "heading"
-            },
-            {
-              "name": "entries",
-              "type": {
-                "text": "CalendarEntry[]"
-              },
-              "default": "[]",
-              "fieldName": "entries"
-            },
-            {
-              "name": "color",
-              "type": {
-                "text": "string"
-              },
-              "default": "'#000000'",
-              "fieldName": "color"
-            }
-          ],
-          "mixins": [
-            {
-              "name": "SignalWatcher",
-              "package": "@lit-labs/signals"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "lms-calendar",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "LMSCalendar",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "lms-calendar",
-          "declaration": {
-            "name": "LMSCalendar",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "CalendarDate",
-          "declaration": {
-            "name": "CalendarDate",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "CalendarDateInterval",
-          "declaration": {
-            "name": "CalendarDateInterval",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "CalendarEntry",
-          "declaration": {
-            "name": "CalendarEntry",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "CalendarTime",
-          "declaration": {
-            "name": "CalendarTime",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "CalendarTimeInterval",
-          "declaration": {
-            "name": "CalendarTimeInterval",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Continuation",
-          "declaration": {
-            "name": "Continuation",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Grading",
-          "declaration": {
-            "name": "Grading",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Interval",
-          "declaration": {
-            "name": "Interval",
-            "module": "src/lms-calendar.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "Partition",
-          "declaration": {
-            "name": "Partition",
-            "module": "src/lms-calendar.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/components/Context.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Context",
-          "members": [],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "lms-calendar-context",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Context",
-            "module": "src/components/Context.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "lms-calendar-context",
-          "declaration": {
-            "name": "Context",
-            "module": "src/components/Context.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/components/Day.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Day",
-          "members": [
-            {
-              "kind": "field",
-              "name": "_hours",
-              "type": {
-                "text": "array"
-              },
-              "default": "[...Array(25).keys()]"
-            },
-            {
-              "kind": "field",
-              "name": "_hasActiveSidebar",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false"
-            },
-            {
-              "kind": "field",
-              "name": "container",
-              "type": {
-                "text": "HTMLDivElement"
-              }
-            },
-            {
-              "kind": "method",
-              "name": "_renderSeparatorMaybe",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "index",
-                  "type": {
-                    "text": "number"
-                  }
+                    "kind": "variable",
+                    "name": "meta",
+                    "type": {
+                        "text": "Meta<LMSCalendar>"
+                    },
+                    "default": "{\n    title: 'Components/LMSCalendar',\n    component: 'lms-calendar',\n    tags: ['autodocs'],\n    parameters: {\n        layout: 'fullscreen',\n    },\n    argTypes: {\n        heading: {\n            control: 'text',\n            description: 'Calendar heading text',\n        },\n        color: {\n            control: 'color',\n            description: 'Primary calendar color',\n        },\n        activeDate: {\n            control: 'object',\n            description: 'Currently active date',\n        },\n        entries: {\n            control: 'object',\n            description: 'Array of calendar entries',\n        },\n    },\n    args: {\n        heading: 'My Calendar',\n        color: '#1976d2',\n        activeDate: {\n            day: new Date().getDate(),\n            month: new Date().getMonth() + 1,\n            year: new Date().getFullYear(),\n        },\n    },\n}"
                 },
                 {
-                  "name": "hour",
-                  "type": {
-                    "text": "number"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_renderIndicatorValue",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "hour",
-                  "type": {
-                    "text": "number"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleSlotChange",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "Event"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getHourIndicator",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "hour",
-                  "type": {
-                    "text": "number"
-                  }
-                }
-              ]
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "lms-calendar-day",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Day",
-            "module": "src/components/Day.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "lms-calendar-day",
-          "declaration": {
-            "name": "Day",
-            "module": "src/components/Day.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/components/Entry.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Entry",
-          "members": [
-            {
-              "kind": "field",
-              "name": "time",
-              "type": {
-                "text": "CalendarTimeInterval | undefined"
-              }
-            },
-            {
-              "kind": "field",
-              "name": "heading",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "heading"
-            },
-            {
-              "kind": "field",
-              "name": "content",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "content"
-            },
-            {
-              "kind": "field",
-              "name": "isContinuation",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "isContinuation"
-            },
-            {
-              "kind": "field",
-              "name": "date",
-              "type": {
-                "text": "CalendarDateInterval | undefined"
-              },
-              "attribute": "date"
-            },
-            {
-              "kind": "field",
-              "name": "_highlighted",
-              "type": {
-                "text": "boolean | undefined"
-              }
-            },
-            {
-              "kind": "field",
-              "name": "_extended",
-              "type": {
-                "text": "boolean | undefined"
-              }
-            },
-            {
-              "kind": "field",
-              "name": "_sumReducer",
-              "type": {
-                "text": "(accumulator: number, currentValue: number) => number"
-              },
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "_renderTitle",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "_renderInterval",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "_displayInterval",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "time",
-                  "optional": true,
-                  "type": {
-                    "text": "CalendarTimeInterval"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleInteraction",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "Event"
-                  }
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "heading",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "heading"
-            },
-            {
-              "name": "content",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "content"
-            },
-            {
-              "name": "isContinuation",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "isContinuation"
-            },
-            {
-              "name": "date",
-              "type": {
-                "text": "CalendarDateInterval | undefined"
-              },
-              "fieldName": "date"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "lms-calendar-entry",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Entry",
-            "module": "src/components/Entry.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "lms-calendar-entry",
-          "declaration": {
-            "name": "Entry",
-            "module": "src/components/Entry.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/components/Header.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Header",
-          "members": [
-            {
-              "kind": "field",
-              "name": "heading",
-              "type": {
-                "text": "string | undefined"
-              },
-              "attribute": "heading"
-            },
-            {
-              "kind": "field",
-              "name": "activeDate",
-              "type": {
-                "text": "CalendarDate | undefined"
-              },
-              "attribute": "activeDate"
-            },
-            {
-              "kind": "field",
-              "name": "expandedDate",
-              "type": {
-                "text": "CalendarDate | undefined"
-              },
-              "attribute": "expandedDate"
-            },
-            {
-              "kind": "method",
-              "name": "_getWeekInfo",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleTodayClick",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "Event"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_dispatchSwitchDate",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "Event"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_dispatchSwitchView",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "Event"
-                  }
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "heading",
-              "type": {
-                "text": "string | undefined"
-              },
-              "fieldName": "heading"
-            },
-            {
-              "name": "activeDate",
-              "type": {
-                "text": "CalendarDate | undefined"
-              },
-              "fieldName": "activeDate"
-            },
-            {
-              "name": "expandedDate",
-              "type": {
-                "text": "CalendarDate | undefined"
-              },
-              "fieldName": "expandedDate"
-            }
-          ],
-          "mixins": [
-            {
-              "name": "SignalWatcher",
-              "package": "@lit-labs/signals"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "lms-calendar-header",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Header",
-            "module": "src/components/Header.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "lms-calendar-header",
-          "declaration": {
-            "name": "Header",
-            "module": "src/components/Header.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/components/Menu.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Menu",
-          "members": [
-            {
-              "kind": "field",
-              "name": "open",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "open"
-            },
-            {
-              "kind": "field",
-              "name": "eventDetails",
-              "type": {
-                "text": "EventDetails"
-              },
-              "default": "{\n        heading: '',\n        content: '',\n        time: '',\n    }",
-              "attribute": "eventDetails"
-            },
-            {
-              "kind": "field",
-              "name": "minimized",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false"
-            },
-            {
-              "kind": "field",
-              "name": "_dragInstance",
-              "type": {
-                "text": "Draggable | undefined"
-              },
-              "privacy": "private"
-            },
-            {
-              "kind": "field",
-              "name": "_handleMinimize",
-              "privacy": "private"
-            },
-            {
-              "kind": "field",
-              "name": "_handleClose",
-              "privacy": "private"
-            },
-            {
-              "kind": "field",
-              "name": "_handleExport",
-              "privacy": "private"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "open",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "open"
-            },
-            {
-              "name": "eventDetails",
-              "type": {
-                "text": "EventDetails"
-              },
-              "default": "{\n        heading: '',\n        content: '',\n        time: '',\n    }",
-              "fieldName": "eventDetails"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "lms-menu",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "Menu",
-          "declaration": {
-            "name": "Menu",
-            "module": "src/components/Menu.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "lms-menu",
-          "declaration": {
-            "name": "Menu",
-            "module": "src/components/Menu.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Menu",
-            "module": "src/components/Menu.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/components/Month.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Month",
-          "members": [
-            {
-              "kind": "field",
-              "name": "currentDate",
-              "privacy": "private",
-              "default": "new Date()"
-            },
-            {
-              "kind": "field",
-              "name": "activeDate",
-              "type": {
-                "text": "CalendarDate"
-              },
-              "default": "{\n        day: this.currentDate.getDate(),\n        month: this.currentDate.getMonth() + 1,\n        year: this.currentDate.getFullYear(),\n    }"
-            },
-            {
-              "kind": "method",
-              "name": "_isCurrentDate",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "string"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_renderIndicator",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "{ year, month, day }",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_dispatchExpand",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "Event"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleKeydown",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "KeyboardEvent"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getDaysInMonth",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getOffsetOfFirstDayInMonth",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getDatesInMonthAsArray",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
+                    "kind": "variable",
+                    "name": "Default",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        entries: sampleEntries,\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n}"
                 },
                 {
-                  "name": "sliceArgs",
-                  "type": {
-                    "text": "number[]"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_getCalendarArray",
-              "privacy": "private"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "lms-calendar-month",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Month",
-            "module": "src/components/Month.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "lms-calendar-month",
-          "declaration": {
-            "name": "Month",
-            "module": "src/components/Month.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/components/Week.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "Week",
-          "members": [
-            {
-              "kind": "field",
-              "name": "activeDate",
-              "type": {
-                "text": "CalendarDate"
-              },
-              "default": "{\n        day: new Date().getDate(),\n        month: new Date().getMonth() + 1,\n        year: new Date().getFullYear(),\n    }"
-            },
-            {
-              "kind": "method",
-              "name": "_getWeekDates",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "CalendarDate[]"
-                }
-              }
-            },
-            {
-              "kind": "method",
-              "name": "_isCurrentDate",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_renderIndicatorValue",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "hour",
-                  "type": {
-                    "text": "number"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleDayLabelClick",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "date",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "_handleDayColumnClick",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "Event"
-                  }
+                    "kind": "variable",
+                    "name": "MonthView",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        activeDate: { day: 1, month: currentMonth, year: currentYear },\n        entries: sampleEntries,\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n}"
                 },
                 {
-                  "name": "_date",
-                  "type": {
-                    "text": "CalendarDate"
-                  }
-                }
-              ]
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "lms-calendar-week",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "Week",
-            "module": "src/components/Week.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "lms-calendar-week",
-          "declaration": {
-            "name": "Week",
-            "module": "src/components/Week.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/generated/locale-codes.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "sourceLocale",
-          "default": "`en`",
-          "description": "The locale code that templates in this source code are written in."
-        },
-        {
-          "kind": "variable",
-          "name": "targetLocales",
-          "type": {
-            "text": "[`de`, `de-DE`]"
-          },
-          "default": "[`de`, `de-DE`]",
-          "description": "The other locale codes that this application is localized into. Sorted\nlexicographically."
-        },
-        {
-          "kind": "variable",
-          "name": "allLocales",
-          "type": {
-            "text": "[`de`, `de-DE`, `en`]"
-          },
-          "default": "[`de`, `de-DE`, `en`]",
-          "description": "All valid project locale codes. Sorted lexicographically."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "sourceLocale",
-          "declaration": {
-            "name": "sourceLocale",
-            "module": "src/generated/locale-codes.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "targetLocales",
-          "declaration": {
-            "name": "targetLocales",
-            "module": "src/generated/locale-codes.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "allLocales",
-          "declaration": {
-            "name": "allLocales",
-            "module": "src/generated/locale-codes.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/DirectionalCalendarDateCalculator.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "This class handles calculations and adjustments for CalendarDate objects based on a specified direction.",
-          "name": "DirectionalCalendarDateCalculator",
-          "members": [
-            {
-              "kind": "field",
-              "name": "_date",
-              "type": {
-                "text": "DateTime | undefined"
-              },
-              "privacy": "private"
-            },
-            {
-              "kind": "field",
-              "name": "_direction",
-              "type": {
-                "text": "string | undefined"
-              },
-              "privacy": "private",
-              "default": "direction"
-            },
-            {
-              "kind": "field",
-              "name": "date"
-            },
-            {
-              "kind": "field",
-              "name": "direction"
-            },
-            {
-              "kind": "method",
-              "name": "_toCalendarDate",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "CalendarDate"
-                }
-              },
-              "parameters": [
+                    "kind": "variable",
+                    "name": "EmptyCalendar",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        heading: 'Empty Calendar',\n        entries: [],\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n}"
+                },
                 {
-                  "name": "date",
-                  "type": {
-                    "text": "DateTime"
-                  }
+                    "kind": "variable",
+                    "name": "CustomTheming",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        entries: sampleEntries,\n        color: '#9c27b0',\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"\n        height: 720px; \n        display: block;\n        --primary-color: #9c27b0;\n        --background-color: #f5f5f5;\n        --entry-border-radius: 10px;\n        --header-height: 4em;\n      \"\n        ></lms-calendar>\n    `,\n}"
+                },
+                {
+                    "kind": "variable",
+                    "name": "MobileView",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        entries: sampleEntries,\n    },\n    parameters: {\n        viewport: {\n            defaultViewport: 'mobile1',\n        },\n    },\n    render: (args) => html`\n        <div style=\"width: 375px; height: 667px;\">\n            <lms-calendar\n                .heading=${args.heading}\n                .activeDate=${args.activeDate}\n                .entries=${args.entries}\n                .color=${args.color}\n                style=\"height: 100%; display: block;\"\n            ></lms-calendar>\n        </div>\n    `,\n}"
+                },
+                {
+                    "kind": "variable",
+                    "name": "WithInteractions",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        activeDate: { day: 15, month: currentMonth, year: currentYear },\n        entries: sampleEntries,\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {\n        // Wait for the calendar to be rendered\n        await new Promise((resolve) => setTimeout(resolve, 100));\n\n        const calendar = canvasElement.querySelector(\n            'lms-calendar',\n        ) as LMSCalendar;\n        await expect(calendar).toBeInTheDocument();\n\n        // Access the shadow root\n        const shadowRoot = calendar.shadowRoot;\n        await expect(shadowRoot).toBeTruthy();\n\n        // Find and click the day view button\n        const header = shadowRoot?.querySelector('lms-calendar-header');\n        if (header) {\n            const headerShadow = header.shadowRoot;\n            const dayButton = headerShadow?.querySelector(\n                '[data-context=\"day\"]',\n            ) as HTMLElement;\n            if (dayButton) {\n                await userEvent.click(dayButton);\n\n                // Wait for view change\n                await new Promise((resolve) => setTimeout(resolve, 300));\n\n                // Verify day view is shown\n                const dayView = shadowRoot?.querySelector('lms-calendar-day');\n                await expect(dayView).toBeInTheDocument();\n            }\n        }\n    },\n}"
+                },
+                {
+                    "kind": "variable",
+                    "name": "SeptemberView",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        heading: 'September Calendar',\n        activeDate: { day: 1, month: 9, year: 2024 },\n        entries: [\n            {\n                heading: 'Test Event',\n                content: 'September test event',\n                color: '#1976d2',\n                isContinuation: false,\n                date: {\n                    start: { day: 15, month: 9, year: 2024 },\n                    end: { day: 15, month: 9, year: 2024 },\n                },\n                time: {\n                    start: { hour: 9, minute: 0 },\n                    end: { hour: 10, minute: 0 },\n                },\n            },\n        ],\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n}"
+                },
+                {
+                    "kind": "variable",
+                    "name": "NavigateMonths",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        activeDate: { day: 1, month: currentMonth, year: currentYear },\n        entries: sampleEntries,\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {\n        const calendar = canvasElement.querySelector(\n            'lms-calendar',\n        ) as LMSCalendar;\n        await expect(calendar).toBeInTheDocument();\n\n        const shadowRoot = calendar.shadowRoot;\n        const header = shadowRoot?.querySelector('lms-calendar-header');\n\n        if (header) {\n            const headerShadow = header.shadowRoot;\n            const nextButton = headerShadow?.querySelector(\n                'button[name=\"next\"]',\n            ) as HTMLButtonElement;\n\n            if (nextButton) {\n                // Click next month button\n                await userEvent.click(nextButton);\n                await new Promise((resolve) => setTimeout(resolve, 300));\n\n                // Click previous month button\n                const prevButton = headerShadow?.querySelector(\n                    'button[name=\"previous\"]',\n                ) as HTMLButtonElement;\n                if (prevButton) {\n                    await userEvent.click(prevButton);\n                    await new Promise((resolve) => setTimeout(resolve, 300));\n                }\n            }\n        }\n    },\n}"
+                },
+                {
+                    "kind": "variable",
+                    "name": "HeavyEventLoad",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        heading: 'Heavy Event Load Test',\n        activeDate: { day: 15, month: currentMonth, year: currentYear },\n        entries: generateHeavyEventLoad(),\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    parameters: {\n        docs: {\n            description: {\n                story: 'Stress test with 100+ events across the month. Tests performance and visual layout with realistic heavy calendar usage including overlapping events, all-day events, and multi-day events.'\n            }\n        }\n    }\n}"
+                },
+                {
+                    "kind": "variable",
+                    "name": "StressTestAllViews",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        heading: 'Stress Test - All Views',\n        activeDate: { day: 15, month: currentMonth, year: currentYear },\n        entries: generateHeavyEventLoad(),\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {\n        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;\n        await expect(calendar).toBeInTheDocument();\n\n        const shadowRoot = calendar.shadowRoot;\n        const header = shadowRoot?.querySelector('lms-calendar-header');\n        \n        if (header) {\n            const headerShadow = header.shadowRoot;\n            \n            // Test Month View (default)\n            await new Promise(resolve => setTimeout(resolve, 1000));\n            \n            // Switch to Week View\n            const weekButton = headerShadow?.querySelector('[data-context=\"week\"]') as HTMLElement;\n            if (weekButton) {\n                await userEvent.click(weekButton);\n                await new Promise(resolve => setTimeout(resolve, 1000));\n                \n                // Verify week view with heavy load\n                const weekView = shadowRoot?.querySelector('lms-calendar-week');\n                await expect(weekView).toBeInTheDocument();\n            }\n            \n            // Switch to Day View\n            const dayButton = headerShadow?.querySelector('[data-context=\"day\"]') as HTMLElement;\n            if (dayButton) {\n                await userEvent.click(dayButton);\n                await new Promise(resolve => setTimeout(resolve, 1000));\n                \n                // Verify day view with heavy load\n                const dayView = shadowRoot?.querySelector('lms-calendar-day');\n                await expect(dayView).toBeInTheDocument();\n            }\n            \n            // Navigate to next day to test different day's heavy load\n            const nextButton = headerShadow?.querySelector('button[name=\"next\"]') as HTMLButtonElement;\n            if (nextButton) {\n                await userEvent.click(nextButton);\n                await new Promise(resolve => setTimeout(resolve, 500));\n                await userEvent.click(nextButton);\n                await new Promise(resolve => setTimeout(resolve, 500));\n            }\n            \n            // Switch back to Month View\n            const monthButton = headerShadow?.querySelector('[data-context=\"month\"]') as HTMLElement;\n            if (monthButton) {\n                await userEvent.click(monthButton);\n                await new Promise(resolve => setTimeout(resolve, 1000));\n            }\n        }\n    },\n    parameters: {\n        docs: {\n            description: {\n                story: 'Comprehensive stress test that automatically cycles through all three views (Month, Week, Day) with heavy event load. Tests view switching performance, rendering quality, and layout stability under realistic high-usage scenarios.'\n            }\n        }\n    }\n}"
+                },
+                {
+                    "kind": "variable",
+                    "name": "OverlappingEventsStressTest",
+                    "type": {
+                        "text": "Story"
+                    },
+                    "default": "{\n    args: {\n        heading: 'Overlapping Events Stress Test',\n        activeDate: { day: 15, month: currentMonth, year: currentYear },\n        entries: (() => {\n            const events: CalendarEntry[] = [];\n            const testDay = 15;\n            \n            // Create 20 overlapping events on the same day for maximum stress\n            for (let i = 0; i < 20; i++) {\n                const startHour = 9 + Math.floor(i / 4); // Start between 9-13\n                const startMinute = (i % 4) * 15; // 0, 15, 30, 45 minutes\n                \n                events.push({\n                    heading: `Meeting ${i + 1}`,\n                    content: `Overlapping meeting ${i + 1}`,\n                    color: `hsl(${i * 18}, 70%, 50%)`, // Different colors\n                    isContinuation: false,\n                    date: {\n                        start: { day: testDay, month: currentMonth, year: currentYear },\n                        end: { day: testDay, month: currentMonth, year: currentYear },\n                    },\n                    time: {\n                        start: { hour: startHour, minute: startMinute },\n                        end: { hour: startHour + 1, minute: startMinute },\n                    },\n                });\n            }\n            \n            return events;\n        })(),\n    },\n    render: (args) => html`\n        <lms-calendar\n            .heading=${args.heading}\n            .activeDate=${args.activeDate}\n            .entries=${args.entries}\n            .color=${args.color}\n            style=\"height: 720px; display: block;\"\n        ></lms-calendar>\n    `,\n    parameters: {\n        docs: {\n            description: {\n                story: 'Stress test with 20 heavily overlapping events on a single day. Tests the overlap detection algorithms, positioning calculations, and visual rendering quality.'\n            }\n        }\n    }\n}"
                 }
-              ]
-            },
-            {
-              "kind": "method",
-              "name": "getDateByDayInDirection",
-              "privacy": "public"
-            },
-            {
-              "kind": "method",
-              "name": "getDateByMonthInDirection",
-              "privacy": "public"
-            }
-          ]
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "meta",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "Default",
+                    "declaration": {
+                        "name": "Default",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "MonthView",
+                    "declaration": {
+                        "name": "MonthView",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "EmptyCalendar",
+                    "declaration": {
+                        "name": "EmptyCalendar",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "CustomTheming",
+                    "declaration": {
+                        "name": "CustomTheming",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "MobileView",
+                    "declaration": {
+                        "name": "MobileView",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "WithInteractions",
+                    "declaration": {
+                        "name": "WithInteractions",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "SeptemberView",
+                    "declaration": {
+                        "name": "SeptemberView",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "NavigateMonths",
+                    "declaration": {
+                        "name": "NavigateMonths",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "HeavyEventLoad",
+                    "declaration": {
+                        "name": "HeavyEventLoad",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "StressTestAllViews",
+                    "declaration": {
+                        "name": "StressTestAllViews",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "OverlappingEventsStressTest",
+                    "declaration": {
+                        "name": "OverlappingEventsStressTest",
+                        "module": "src/lms-calendar.stories.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lms-calendar.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "",
+                    "name": "LMSCalendar",
+                    "members": [
+                        {
+                            "kind": "field",
+                            "name": "heading",
+                            "type": {
+                                "text": "string | undefined"
+                            },
+                            "attribute": "heading"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "activeDate",
+                            "type": {
+                                "text": "CalendarDate"
+                            }
+                        },
+                        {
+                            "kind": "field",
+                            "name": "entries",
+                            "type": {
+                                "text": "CalendarEntry[]"
+                            },
+                            "default": "[]",
+                            "attribute": "entries"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "color",
+                            "type": {
+                                "text": "string"
+                            },
+                            "default": "'#000000'",
+                            "attribute": "color"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_expandedDate",
+                            "type": {
+                                "text": "CalendarDate | undefined"
+                            }
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_calendarWidth",
+                            "type": {
+                                "text": "number"
+                            }
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_menuOpen",
+                            "type": {
+                                "text": "boolean"
+                            },
+                            "default": "false"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_menuEventDetails",
+                            "type": {
+                                "text": "{\n        heading: string;\n        content: string;\n        time: string;\n        date?: CalendarDate;\n    } | undefined"
+                            }
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_handleResize",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_resizeController",
+                            "type": {
+                                "text": "ResizeController<void>"
+                            },
+                            "privacy": "private",
+                            "default": "new ResizeController<void>(this, {\n            target: null,\n            callback: this._handleResize,\n            skipInitial: true,\n        })"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleSwitchDate",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "CustomEvent"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleSwitchView",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "CustomEvent"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleJumpToday",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "_e",
+                                    "type": {
+                                        "text": "CustomEvent"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleExpand",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "CustomEvent"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleOpenMenu",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "CustomEvent"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleMenuClose",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "openMenu",
+                            "privacy": "public",
+                            "parameters": [
+                                {
+                                    "name": "eventDetails",
+                                    "type": {
+                                        "text": "{\n        heading: string;\n        content: string;\n        time: string;\n        date?: CalendarDate;\n    }"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_composeEntry",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "{\n        index,\n        slot,\n        styles,\n        entry,\n        isContinuation = false,\n    }",
+                                    "type": {
+                                        "text": "{\n        index: number;\n        slot: string;\n        styles: CSSResult | typeof nothing;\n        entry: Partial<CalendarEntry>;\n        isContinuation?: boolean;\n    }"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_expandEntryMaybe",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "{\n        entry,\n        range,\n    }",
+                                    "type": {
+                                        "text": "{\n        entry: Partial<CalendarEntry>;\n        range: [Date, Date, number];\n    }"
+                                    }
+                                }
+                            ],
+                            "description": "Create an array of <lms-calendar-entry> elements for each day the entry spans\nand add them to the entries array."
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderEntries",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderEntriesByDate",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderEntriesSumByDay",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderEntriesForWeek",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getWeekStartDate",
+                            "privacy": "private",
+                            "return": {
+                                "type": {
+                                    "text": "Date"
+                                }
+                            },
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getGridSlotByTime",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "{ start, end }",
+                                    "type": {
+                                        "text": "CalendarTimeInterval"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getWidthByGroupSize",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "{\n        grading,\n        index,\n    }",
+                                    "type": {
+                                        "text": "{\n        grading: Grading[];\n        index: number;\n    }"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getOffsetByDepth",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "{\n        grading,\n        index,\n    }",
+                                    "type": {
+                                        "text": "{\n        grading: Grading[];\n        index: number;\n    }"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getDaysRange",
+                            "privacy": "private",
+                            "return": {
+                                "type": {
+                                    "text": "[Date, Date, number]"
+                                }
+                            },
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "CalendarDateInterval"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "attributes": [
+                        {
+                            "name": "heading",
+                            "type": {
+                                "text": "string | undefined"
+                            },
+                            "fieldName": "heading"
+                        },
+                        {
+                            "name": "entries",
+                            "type": {
+                                "text": "CalendarEntry[]"
+                            },
+                            "default": "[]",
+                            "fieldName": "entries"
+                        },
+                        {
+                            "name": "color",
+                            "type": {
+                                "text": "string"
+                            },
+                            "default": "'#000000'",
+                            "fieldName": "color"
+                        }
+                    ],
+                    "mixins": [
+                        {
+                            "name": "SignalWatcher",
+                            "package": "@lit-labs/signals"
+                        }
+                    ],
+                    "superclass": {
+                        "name": "LitElement",
+                        "package": "lit"
+                    },
+                    "tagName": "lms-calendar",
+                    "customElement": true
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "LMSCalendar",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "custom-element-definition",
+                    "name": "lms-calendar",
+                    "declaration": {
+                        "name": "LMSCalendar",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "CalendarDate",
+                    "declaration": {
+                        "name": "CalendarDate",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "CalendarDateInterval",
+                    "declaration": {
+                        "name": "CalendarDateInterval",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "CalendarEntry",
+                    "declaration": {
+                        "name": "CalendarEntry",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "CalendarTime",
+                    "declaration": {
+                        "name": "CalendarTime",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "CalendarTimeInterval",
+                    "declaration": {
+                        "name": "CalendarTimeInterval",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "Continuation",
+                    "declaration": {
+                        "name": "Continuation",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "Grading",
+                    "declaration": {
+                        "name": "Grading",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "Interval",
+                    "declaration": {
+                        "name": "Interval",
+                        "module": "src/lms-calendar.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "Partition",
+                    "declaration": {
+                        "name": "Partition",
+                        "module": "src/lms-calendar.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/components/Context.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "",
+                    "name": "Context",
+                    "members": [],
+                    "superclass": {
+                        "name": "LitElement",
+                        "package": "lit"
+                    },
+                    "tagName": "lms-calendar-context",
+                    "customElement": true
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "Context",
+                        "module": "src/components/Context.ts"
+                    }
+                },
+                {
+                    "kind": "custom-element-definition",
+                    "name": "lms-calendar-context",
+                    "declaration": {
+                        "name": "Context",
+                        "module": "src/components/Context.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/components/Day.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "",
+                    "name": "Day",
+                    "members": [
+                        {
+                            "kind": "field",
+                            "name": "_hours",
+                            "type": {
+                                "text": "array"
+                            },
+                            "default": "[...Array(25).keys()]"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_hasActiveSidebar",
+                            "type": {
+                                "text": "boolean"
+                            },
+                            "default": "false"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "container",
+                            "type": {
+                                "text": "HTMLDivElement"
+                            }
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderSeparatorMaybe",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "index",
+                                    "type": {
+                                        "text": "number"
+                                    }
+                                },
+                                {
+                                    "name": "hour",
+                                    "type": {
+                                        "text": "number"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderIndicatorValue",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "hour",
+                                    "type": {
+                                        "text": "number"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleSlotChange",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "Event"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getHourIndicator",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "hour",
+                                    "type": {
+                                        "text": "number"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "superclass": {
+                        "name": "LitElement",
+                        "package": "lit"
+                    },
+                    "tagName": "lms-calendar-day",
+                    "customElement": true
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "Day",
+                        "module": "src/components/Day.ts"
+                    }
+                },
+                {
+                    "kind": "custom-element-definition",
+                    "name": "lms-calendar-day",
+                    "declaration": {
+                        "name": "Day",
+                        "module": "src/components/Day.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/components/Entry.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "",
+                    "name": "Entry",
+                    "members": [
+                        {
+                            "kind": "field",
+                            "name": "time",
+                            "type": {
+                                "text": "CalendarTimeInterval | undefined"
+                            }
+                        },
+                        {
+                            "kind": "field",
+                            "name": "heading",
+                            "type": {
+                                "text": "string"
+                            },
+                            "default": "''",
+                            "attribute": "heading"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "content",
+                            "type": {
+                                "text": "string | undefined"
+                            },
+                            "attribute": "content"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "isContinuation",
+                            "type": {
+                                "text": "boolean"
+                            },
+                            "default": "false",
+                            "attribute": "isContinuation"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "date",
+                            "type": {
+                                "text": "CalendarDateInterval | undefined"
+                            },
+                            "attribute": "date"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_highlighted",
+                            "type": {
+                                "text": "boolean | undefined"
+                            }
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_extended",
+                            "type": {
+                                "text": "boolean | undefined"
+                            }
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_sumReducer",
+                            "type": {
+                                "text": "(accumulator: number, currentValue: number) => number"
+                            },
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderTitle",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderInterval",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_displayInterval",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "time",
+                                    "optional": true,
+                                    "type": {
+                                        "text": "CalendarTimeInterval"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleInteraction",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "Event"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "attributes": [
+                        {
+                            "name": "heading",
+                            "type": {
+                                "text": "string"
+                            },
+                            "default": "''",
+                            "fieldName": "heading"
+                        },
+                        {
+                            "name": "content",
+                            "type": {
+                                "text": "string | undefined"
+                            },
+                            "fieldName": "content"
+                        },
+                        {
+                            "name": "isContinuation",
+                            "type": {
+                                "text": "boolean"
+                            },
+                            "default": "false",
+                            "fieldName": "isContinuation"
+                        },
+                        {
+                            "name": "date",
+                            "type": {
+                                "text": "CalendarDateInterval | undefined"
+                            },
+                            "fieldName": "date"
+                        }
+                    ],
+                    "superclass": {
+                        "name": "LitElement",
+                        "package": "lit"
+                    },
+                    "tagName": "lms-calendar-entry",
+                    "customElement": true
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "Entry",
+                        "module": "src/components/Entry.ts"
+                    }
+                },
+                {
+                    "kind": "custom-element-definition",
+                    "name": "lms-calendar-entry",
+                    "declaration": {
+                        "name": "Entry",
+                        "module": "src/components/Entry.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/components/Header.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "",
+                    "name": "Header",
+                    "members": [
+                        {
+                            "kind": "field",
+                            "name": "heading",
+                            "type": {
+                                "text": "string | undefined"
+                            },
+                            "attribute": "heading"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "activeDate",
+                            "type": {
+                                "text": "CalendarDate | undefined"
+                            },
+                            "attribute": "activeDate"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "expandedDate",
+                            "type": {
+                                "text": "CalendarDate | undefined"
+                            },
+                            "attribute": "expandedDate"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getWeekInfo",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleTodayClick",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "Event"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_dispatchSwitchDate",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "Event"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_dispatchSwitchView",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "Event"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "attributes": [
+                        {
+                            "name": "heading",
+                            "type": {
+                                "text": "string | undefined"
+                            },
+                            "fieldName": "heading"
+                        },
+                        {
+                            "name": "activeDate",
+                            "type": {
+                                "text": "CalendarDate | undefined"
+                            },
+                            "fieldName": "activeDate"
+                        },
+                        {
+                            "name": "expandedDate",
+                            "type": {
+                                "text": "CalendarDate | undefined"
+                            },
+                            "fieldName": "expandedDate"
+                        }
+                    ],
+                    "mixins": [
+                        {
+                            "name": "SignalWatcher",
+                            "package": "@lit-labs/signals"
+                        }
+                    ],
+                    "superclass": {
+                        "name": "LitElement",
+                        "package": "lit"
+                    },
+                    "tagName": "lms-calendar-header",
+                    "customElement": true
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "Header",
+                        "module": "src/components/Header.ts"
+                    }
+                },
+                {
+                    "kind": "custom-element-definition",
+                    "name": "lms-calendar-header",
+                    "declaration": {
+                        "name": "Header",
+                        "module": "src/components/Header.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/components/Menu.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "",
+                    "name": "Menu",
+                    "members": [
+                        {
+                            "kind": "field",
+                            "name": "open",
+                            "type": {
+                                "text": "boolean"
+                            },
+                            "default": "false",
+                            "attribute": "open"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "eventDetails",
+                            "type": {
+                                "text": "EventDetails"
+                            },
+                            "default": "{\n        heading: '',\n        content: '',\n        time: '',\n    }",
+                            "attribute": "eventDetails"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "minimized",
+                            "type": {
+                                "text": "boolean"
+                            },
+                            "default": "false"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_dragInstance",
+                            "type": {
+                                "text": "Draggable | undefined"
+                            },
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_handleMinimize",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_handleClose",
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_handleExport",
+                            "privacy": "private"
+                        }
+                    ],
+                    "attributes": [
+                        {
+                            "name": "open",
+                            "type": {
+                                "text": "boolean"
+                            },
+                            "default": "false",
+                            "fieldName": "open"
+                        },
+                        {
+                            "name": "eventDetails",
+                            "type": {
+                                "text": "EventDetails"
+                            },
+                            "default": "{\n        heading: '',\n        content: '',\n        time: '',\n    }",
+                            "fieldName": "eventDetails"
+                        }
+                    ],
+                    "superclass": {
+                        "name": "LitElement",
+                        "package": "lit"
+                    },
+                    "tagName": "lms-menu",
+                    "customElement": true
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "Menu",
+                    "declaration": {
+                        "name": "Menu",
+                        "module": "src/components/Menu.ts"
+                    }
+                },
+                {
+                    "kind": "custom-element-definition",
+                    "name": "lms-menu",
+                    "declaration": {
+                        "name": "Menu",
+                        "module": "src/components/Menu.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "Menu",
+                        "module": "src/components/Menu.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/components/Month.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "",
+                    "name": "Month",
+                    "members": [
+                        {
+                            "kind": "field",
+                            "name": "currentDate",
+                            "privacy": "private",
+                            "default": "new Date()"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "activeDate",
+                            "type": {
+                                "text": "CalendarDate"
+                            },
+                            "default": "{\n        day: this.currentDate.getDate(),\n        month: this.currentDate.getMonth() + 1,\n        year: this.currentDate.getFullYear(),\n    }"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_isCurrentDate",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "string"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderIndicator",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "{ year, month, day }",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_dispatchExpand",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "Event"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleKeydown",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "KeyboardEvent"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getDaysInMonth",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getOffsetOfFirstDayInMonth",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getDatesInMonthAsArray",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                },
+                                {
+                                    "name": "sliceArgs",
+                                    "type": {
+                                        "text": "number[]"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getCalendarArray",
+                            "privacy": "private"
+                        }
+                    ],
+                    "superclass": {
+                        "name": "LitElement",
+                        "package": "lit"
+                    },
+                    "tagName": "lms-calendar-month",
+                    "customElement": true
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "Month",
+                        "module": "src/components/Month.ts"
+                    }
+                },
+                {
+                    "kind": "custom-element-definition",
+                    "name": "lms-calendar-month",
+                    "declaration": {
+                        "name": "Month",
+                        "module": "src/components/Month.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/components/Week.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "",
+                    "name": "Week",
+                    "members": [
+                        {
+                            "kind": "field",
+                            "name": "activeDate",
+                            "type": {
+                                "text": "CalendarDate"
+                            },
+                            "default": "{\n        day: new Date().getDate(),\n        month: new Date().getMonth() + 1,\n        year: new Date().getFullYear(),\n    }"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_getWeekDates",
+                            "privacy": "private",
+                            "return": {
+                                "type": {
+                                    "text": "CalendarDate[]"
+                                }
+                            }
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_isCurrentDate",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_renderIndicatorValue",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "hour",
+                                    "type": {
+                                        "text": "number"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleDayLabelClick",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_handleDayColumnClick",
+                            "privacy": "private",
+                            "parameters": [
+                                {
+                                    "name": "e",
+                                    "type": {
+                                        "text": "Event"
+                                    }
+                                },
+                                {
+                                    "name": "_date",
+                                    "type": {
+                                        "text": "CalendarDate"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "superclass": {
+                        "name": "LitElement",
+                        "package": "lit"
+                    },
+                    "tagName": "lms-calendar-week",
+                    "customElement": true
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "Week",
+                        "module": "src/components/Week.ts"
+                    }
+                },
+                {
+                    "kind": "custom-element-definition",
+                    "name": "lms-calendar-week",
+                    "declaration": {
+                        "name": "Week",
+                        "module": "src/components/Week.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/generated/locale-codes.ts",
+            "declarations": [
+                {
+                    "kind": "variable",
+                    "name": "sourceLocale",
+                    "default": "`en`",
+                    "description": "The locale code that templates in this source code are written in."
+                },
+                {
+                    "kind": "variable",
+                    "name": "targetLocales",
+                    "type": {
+                        "text": "[`de`, `de-DE`]"
+                    },
+                    "default": "[`de`, `de-DE`]",
+                    "description": "The other locale codes that this application is localized into. Sorted\nlexicographically."
+                },
+                {
+                    "kind": "variable",
+                    "name": "allLocales",
+                    "type": {
+                        "text": "[`de`, `de-DE`, `en`]"
+                    },
+                    "default": "[`de`, `de-DE`, `en`]",
+                    "description": "All valid project locale codes. Sorted lexicographically."
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "sourceLocale",
+                    "declaration": {
+                        "name": "sourceLocale",
+                        "module": "src/generated/locale-codes.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "targetLocales",
+                    "declaration": {
+                        "name": "targetLocales",
+                        "module": "src/generated/locale-codes.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "allLocales",
+                    "declaration": {
+                        "name": "allLocales",
+                        "module": "src/generated/locale-codes.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/DirectionalCalendarDateCalculator.ts",
+            "declarations": [
+                {
+                    "kind": "class",
+                    "description": "This class handles calculations and adjustments for CalendarDate objects based on a specified direction.",
+                    "name": "DirectionalCalendarDateCalculator",
+                    "members": [
+                        {
+                            "kind": "field",
+                            "name": "_date",
+                            "type": {
+                                "text": "DateTime | undefined"
+                            },
+                            "privacy": "private"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "_direction",
+                            "type": {
+                                "text": "string | undefined"
+                            },
+                            "privacy": "private",
+                            "default": "direction"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "date"
+                        },
+                        {
+                            "kind": "field",
+                            "name": "direction"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "_toCalendarDate",
+                            "privacy": "private",
+                            "return": {
+                                "type": {
+                                    "text": "CalendarDate"
+                                }
+                            },
+                            "parameters": [
+                                {
+                                    "name": "date",
+                                    "type": {
+                                        "text": "DateTime"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "kind": "method",
+                            "name": "getDateByDayInDirection",
+                            "privacy": "public"
+                        },
+                        {
+                            "kind": "method",
+                            "name": "getDateByMonthInDirection",
+                            "privacy": "public"
+                        }
+                    ]
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "DirectionalCalendarDateCalculator",
+                        "module": "src/lib/DirectionalCalendarDateCalculator.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/catchError.ts",
+            "declarations": [
+                {
+                    "kind": "function",
+                    "name": "catchError",
+                    "return": {
+                        "type": {
+                            "text": "Promise<[undefined, T] | [Error]>"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "promise",
+                            "type": {
+                                "text": "Promise<T>"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "catchError",
+                    "declaration": {
+                        "name": "catchError",
+                        "module": "src/lib/catchError.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/getColorTextWithContrast.ts",
+            "declarations": [
+                {
+                    "kind": "function",
+                    "name": "getColorTextWithContrast",
+                    "return": {
+                        "type": {
+                            "text": "[string, string]"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "color",
+                            "optional": true,
+                            "type": {
+                                "text": "string"
+                            },
+                            "description": "The color to process."
+                        }
+                    ],
+                    "description": "Calculates the text color and background color based on the given color."
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "getColorTextWithContrast",
+                        "module": "src/lib/getColorTextWithContrast.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/getOverlappingEntitiesIndices.ts",
+            "declarations": [
+                {
+                    "kind": "function",
+                    "name": "getOverlappingEntitiesIndices",
+                    "return": {
+                        "type": {
+                            "text": "Array<Grading>"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "partitions",
+                            "type": {
+                                "text": "Array<Interval[]>"
+                            },
+                            "description": "An array of partitions, where each partition is an array of intervals."
+                        }
+                    ],
+                    "description": "Calculates the indices and depths of overlapping entities within a set of partitions."
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "getOverlappingEntitiesIndices",
+                        "module": "src/lib/getOverlappingEntitiesIndices.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/getSortedGradingsByIndex.ts",
+            "declarations": [
+                {
+                    "kind": "function",
+                    "name": "rearrangeDepths",
+                    "parameters": [
+                        {
+                            "name": "gradings",
+                            "type": {
+                                "text": "Grading[]"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "rearrangeDepths",
+                        "module": "src/lib/getSortedGradingsByIndex.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/localization.ts",
+            "declarations": [
+                {
+                    "kind": "variable",
+                    "name": "{ getLocale, setLocale }"
+                },
+                {
+                    "kind": "function",
+                    "name": "getCurrentLocale",
+                    "return": {
+                        "type": {
+                            "text": "string"
+                        }
+                    },
+                    "description": "Get the current locale, falling back to browser language or 'en'"
+                },
+                {
+                    "kind": "function",
+                    "name": "setAppLocale",
+                    "return": {
+                        "type": {
+                            "text": "Promise<void>"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "locale",
+                            "type": {
+                                "text": "string"
+                            }
+                        }
+                    ],
+                    "description": "Set locale for both @lit/localize and Luxon"
+                },
+                {
+                    "kind": "function",
+                    "name": "formatDateTime",
+                    "return": {
+                        "type": {
+                            "text": "string"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "dateTime",
+                            "type": {
+                                "text": "DateTime"
+                            }
+                        },
+                        {
+                            "name": "format",
+                            "type": {
+                                "text": "string"
+                            }
+                        }
+                    ],
+                    "description": "Format a DateTime with the current locale"
+                },
+                {
+                    "kind": "function",
+                    "name": "getLocalizedMonth",
+                    "return": {
+                        "type": {
+                            "text": "string"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "month",
+                            "type": {
+                                "text": "number"
+                            }
+                        }
+                    ],
+                    "description": "Get localized month name"
+                },
+                {
+                    "kind": "function",
+                    "name": "getLocalizedWeekday",
+                    "return": {
+                        "type": {
+                            "text": "string"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "weekday",
+                            "type": {
+                                "text": "number"
+                            }
+                        }
+                    ],
+                    "description": "Get localized weekday name (short)"
+                },
+                {
+                    "kind": "function",
+                    "name": "getLocalizedWeekdayShort",
+                    "return": {
+                        "type": {
+                            "text": "string"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "weekday",
+                            "type": {
+                                "text": "number"
+                            }
+                        }
+                    ],
+                    "description": "Get localized weekday name (abbreviated for calendar headers)"
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "{ getLocale, setLocale }",
+                    "declaration": {
+                        "name": "{ getLocale, setLocale }",
+                        "module": "src/lib/localization.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "getCurrentLocale",
+                    "declaration": {
+                        "name": "getCurrentLocale",
+                        "module": "src/lib/localization.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "setAppLocale",
+                    "declaration": {
+                        "name": "setAppLocale",
+                        "module": "src/lib/localization.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "formatDateTime",
+                    "declaration": {
+                        "name": "formatDateTime",
+                        "module": "src/lib/localization.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "getLocalizedMonth",
+                    "declaration": {
+                        "name": "getLocalizedMonth",
+                        "module": "src/lib/localization.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "getLocalizedWeekday",
+                    "declaration": {
+                        "name": "getLocalizedWeekday",
+                        "module": "src/lib/localization.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "getLocalizedWeekdayShort",
+                    "declaration": {
+                        "name": "getLocalizedWeekdayShort",
+                        "module": "src/lib/localization.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/messages.ts",
+            "declarations": [
+                {
+                    "kind": "variable",
+                    "name": "messages",
+                    "type": {
+                        "text": "{\n    day: () => msg('Day'),\n    week: () => msg('Week'),\n    month: () => msg('Month'),\n    currentMonth: () => msg('Current Month'),\n    allDay: () => msg('All Day'),\n    today: () => msg('Today'),\n    noTitle: () => msg('No Title'),\n    noContent: () => msg('No Content'),\n    noTime: () => msg('No Time'),\n    eventDetails: () => msg('Event Details'),\n    exportAsICS: () => msg('Export as ICS'),\n    title: () => msg('Title'),\n    time: () => msg('Time'),\n    date: () => msg('Date'),\n    notes: () => msg('Notes'),\n    minimize: () => msg('Minimize'),\n    close: () => msg('Close'),\n    dragToMove: () => msg('Drag to move menu'),\n    calendarWeek: () => msg('CW'),\n}"
+                    },
+                    "default": "{\n    day: () => msg('Day'),\n    week: () => msg('Week'),\n    month: () => msg('Month'),\n    currentMonth: () => msg('Current Month'),\n    allDay: () => msg('All Day'),\n    today: () => msg('Today'),\n    noTitle: () => msg('No Title'),\n    noContent: () => msg('No Content'),\n    noTime: () => msg('No Time'),\n    eventDetails: () => msg('Event Details'),\n    exportAsICS: () => msg('Export as ICS'),\n    title: () => msg('Title'),\n    time: () => msg('Time'),\n    date: () => msg('Date'),\n    notes: () => msg('Notes'),\n    minimize: () => msg('Minimize'),\n    close: () => msg('Close'),\n    dragToMove: () => msg('Drag to move menu'),\n    calendarWeek: () => msg('CW'),\n}"
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "messages",
+                    "declaration": {
+                        "name": "messages",
+                        "module": "src/lib/messages.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/partitionOverlappingIntervals.ts",
+            "declarations": [
+                {
+                    "kind": "function",
+                    "name": "partitionOverlappingIntervals",
+                    "return": {
+                        "type": {
+                            "text": "Array<Interval[]>"
+                        }
+                    },
+                    "parameters": [
+                        {
+                            "name": "intervals",
+                            "type": {
+                                "text": "Array<Interval>"
+                            }
+                        }
+                    ],
+                    "description": "This is an implementation of the sweep-line algorithm\nRef: https://www.baeldung.com/cs/finding-all-overlapping-intervals \\\nExample: https://stackoverflow.com/questions/30472556/how-to-find-all-overlapping-ranges-and-partition-them-into-chunks"
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "default",
+                    "declaration": {
+                        "name": "partitionOverlappingIntervals",
+                        "module": "src/lib/partitionOverlappingIntervals.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/lib/viewState.ts",
+            "declarations": [
+                {
+                    "kind": "variable",
+                    "name": "currentViewMode"
+                },
+                {
+                    "kind": "variable",
+                    "name": "activeDate"
+                },
+                {
+                    "kind": "function",
+                    "name": "switchToMonthView"
+                },
+                {
+                    "kind": "function",
+                    "name": "switchToWeekView"
+                },
+                {
+                    "kind": "function",
+                    "name": "switchToDayView"
+                },
+                {
+                    "kind": "function",
+                    "name": "jumpToToday"
+                },
+                {
+                    "kind": "function",
+                    "name": "setActiveDate",
+                    "parameters": [
+                        {
+                            "name": "date",
+                            "type": {
+                                "text": "CalendarDate"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "kind": "function",
+                    "name": "navigateNext"
+                },
+                {
+                    "kind": "function",
+                    "name": "navigatePrevious"
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "currentViewMode",
+                    "declaration": {
+                        "name": "currentViewMode",
+                        "module": "src/lib/viewState.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "activeDate",
+                    "declaration": {
+                        "name": "activeDate",
+                        "module": "src/lib/viewState.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "switchToMonthView",
+                    "declaration": {
+                        "name": "switchToMonthView",
+                        "module": "src/lib/viewState.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "switchToWeekView",
+                    "declaration": {
+                        "name": "switchToWeekView",
+                        "module": "src/lib/viewState.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "switchToDayView",
+                    "declaration": {
+                        "name": "switchToDayView",
+                        "module": "src/lib/viewState.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "jumpToToday",
+                    "declaration": {
+                        "name": "jumpToToday",
+                        "module": "src/lib/viewState.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "setActiveDate",
+                    "declaration": {
+                        "name": "setActiveDate",
+                        "module": "src/lib/viewState.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "navigateNext",
+                    "declaration": {
+                        "name": "navigateNext",
+                        "module": "src/lib/viewState.ts"
+                    }
+                },
+                {
+                    "kind": "js",
+                    "name": "navigatePrevious",
+                    "declaration": {
+                        "name": "navigatePrevious",
+                        "module": "src/lib/viewState.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/generated/locales/de-DE.ts",
+            "declarations": [
+                {
+                    "kind": "variable",
+                    "name": "templates",
+                    "type": {
+                        "text": "object"
+                    },
+                    "default": "{\n    s090f2107b5a69a7f: `KW`,\n    se0955919920ee87d: `Day`,\n    s680f01021b5e339d: `Week`,\n    sb47daaf9e1c4a905: `Month`,\n    s15ba5784a11e0b88: `Current Month`,\n    s58ab939b42a026a6: `All Day`,\n    s63d040e37887f17e: `Today`,\n    s98b32ef4a0856c08: `No Title`,\n    s22380c7fc798a44f: `No Content`,\n    sfce4bfbe0f911aa7: `No Time`,\n    sa0fd990c985f24bd: `Event Details`,\n    s2bc4d1196bce49dc: `Export as ICS`,\n    s99f110d27e30b289: `Title`,\n    s48e186fb300e5464: `Time`,\n    sac8252732f2edb19: `Date`,\n    s005053d82b712e0a: `Notes`,\n    s1c109a21525649fd: `Minimize`,\n    s5e8250fb85d64c23: `Close`,\n    s7264933e3c515250: `Drag to move menu`,\n}"
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "templates",
+                    "declaration": {
+                        "name": "templates",
+                        "module": "src/generated/locales/de-DE.ts"
+                    }
+                }
+            ]
+        },
+        {
+            "kind": "javascript-module",
+            "path": "src/generated/locales/de.ts",
+            "declarations": [
+                {
+                    "kind": "variable",
+                    "name": "templates",
+                    "type": {
+                        "text": "object"
+                    },
+                    "default": "{\n    s090f2107b5a69a7f: `KW`,\n    se0955919920ee87d: `Day`,\n    s680f01021b5e339d: `Week`,\n    sb47daaf9e1c4a905: `Month`,\n    s15ba5784a11e0b88: `Current Month`,\n    s58ab939b42a026a6: `All Day`,\n    s63d040e37887f17e: `Today`,\n    s98b32ef4a0856c08: `No Title`,\n    s22380c7fc798a44f: `No Content`,\n    sfce4bfbe0f911aa7: `No Time`,\n    sa0fd990c985f24bd: `Event Details`,\n    s2bc4d1196bce49dc: `Export as ICS`,\n    s99f110d27e30b289: `Title`,\n    s48e186fb300e5464: `Time`,\n    sac8252732f2edb19: `Date`,\n    s005053d82b712e0a: `Notes`,\n    s1c109a21525649fd: `Minimize`,\n    s5e8250fb85d64c23: `Close`,\n    s7264933e3c515250: `Drag to move menu`,\n}"
+                }
+            ],
+            "exports": [
+                {
+                    "kind": "js",
+                    "name": "templates",
+                    "declaration": {
+                        "name": "templates",
+                        "module": "src/generated/locales/de.ts"
+                    }
+                }
+            ]
         }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "DirectionalCalendarDateCalculator",
-            "module": "src/lib/DirectionalCalendarDateCalculator.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/catchError.ts",
-      "declarations": [
-        {
-          "kind": "function",
-          "name": "catchError",
-          "return": {
-            "type": {
-              "text": "Promise<[undefined, T] | [Error]>"
-            }
-          },
-          "parameters": [
-            {
-              "name": "promise",
-              "type": {
-                "text": "Promise<T>"
-              }
-            }
-          ]
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "catchError",
-          "declaration": {
-            "name": "catchError",
-            "module": "src/lib/catchError.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/getColorTextWithContrast.ts",
-      "declarations": [
-        {
-          "kind": "function",
-          "name": "getColorTextWithContrast",
-          "return": {
-            "type": {
-              "text": "[string, string]"
-            }
-          },
-          "parameters": [
-            {
-              "name": "color",
-              "optional": true,
-              "type": {
-                "text": "string"
-              },
-              "description": "The color to process."
-            }
-          ],
-          "description": "Calculates the text color and background color based on the given color."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "getColorTextWithContrast",
-            "module": "src/lib/getColorTextWithContrast.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/getOverlappingEntitiesIndices.ts",
-      "declarations": [
-        {
-          "kind": "function",
-          "name": "getOverlappingEntitiesIndices",
-          "return": {
-            "type": {
-              "text": "Array<Grading>"
-            }
-          },
-          "parameters": [
-            {
-              "name": "partitions",
-              "type": {
-                "text": "Array<Interval[]>"
-              },
-              "description": "An array of partitions, where each partition is an array of intervals."
-            }
-          ],
-          "description": "Calculates the indices and depths of overlapping entities within a set of partitions."
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "getOverlappingEntitiesIndices",
-            "module": "src/lib/getOverlappingEntitiesIndices.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/getSortedGradingsByIndex.ts",
-      "declarations": [
-        {
-          "kind": "function",
-          "name": "rearrangeDepths",
-          "parameters": [
-            {
-              "name": "gradings",
-              "type": {
-                "text": "Grading[]"
-              }
-            }
-          ]
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "rearrangeDepths",
-            "module": "src/lib/getSortedGradingsByIndex.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/localization.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "{ getLocale, setLocale }"
-        },
-        {
-          "kind": "function",
-          "name": "getCurrentLocale",
-          "return": {
-            "type": {
-              "text": "string"
-            }
-          },
-          "description": "Get the current locale, falling back to browser language or 'en'"
-        },
-        {
-          "kind": "function",
-          "name": "setAppLocale",
-          "return": {
-            "type": {
-              "text": "Promise<void>"
-            }
-          },
-          "parameters": [
-            {
-              "name": "locale",
-              "type": {
-                "text": "string"
-              }
-            }
-          ],
-          "description": "Set locale for both @lit/localize and Luxon"
-        },
-        {
-          "kind": "function",
-          "name": "formatDateTime",
-          "return": {
-            "type": {
-              "text": "string"
-            }
-          },
-          "parameters": [
-            {
-              "name": "dateTime",
-              "type": {
-                "text": "DateTime"
-              }
-            },
-            {
-              "name": "format",
-              "type": {
-                "text": "string"
-              }
-            }
-          ],
-          "description": "Format a DateTime with the current locale"
-        },
-        {
-          "kind": "function",
-          "name": "getLocalizedMonth",
-          "return": {
-            "type": {
-              "text": "string"
-            }
-          },
-          "parameters": [
-            {
-              "name": "month",
-              "type": {
-                "text": "number"
-              }
-            }
-          ],
-          "description": "Get localized month name"
-        },
-        {
-          "kind": "function",
-          "name": "getLocalizedWeekday",
-          "return": {
-            "type": {
-              "text": "string"
-            }
-          },
-          "parameters": [
-            {
-              "name": "weekday",
-              "type": {
-                "text": "number"
-              }
-            }
-          ],
-          "description": "Get localized weekday name (short)"
-        },
-        {
-          "kind": "function",
-          "name": "getLocalizedWeekdayShort",
-          "return": {
-            "type": {
-              "text": "string"
-            }
-          },
-          "parameters": [
-            {
-              "name": "weekday",
-              "type": {
-                "text": "number"
-              }
-            }
-          ],
-          "description": "Get localized weekday name (abbreviated for calendar headers)"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "{ getLocale, setLocale }",
-          "declaration": {
-            "name": "{ getLocale, setLocale }",
-            "module": "src/lib/localization.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "getCurrentLocale",
-          "declaration": {
-            "name": "getCurrentLocale",
-            "module": "src/lib/localization.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "setAppLocale",
-          "declaration": {
-            "name": "setAppLocale",
-            "module": "src/lib/localization.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "formatDateTime",
-          "declaration": {
-            "name": "formatDateTime",
-            "module": "src/lib/localization.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "getLocalizedMonth",
-          "declaration": {
-            "name": "getLocalizedMonth",
-            "module": "src/lib/localization.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "getLocalizedWeekday",
-          "declaration": {
-            "name": "getLocalizedWeekday",
-            "module": "src/lib/localization.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "getLocalizedWeekdayShort",
-          "declaration": {
-            "name": "getLocalizedWeekdayShort",
-            "module": "src/lib/localization.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/messages.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "messages",
-          "type": {
-            "text": "{\n    day: () => msg('Day'),\n    week: () => msg('Week'),\n    month: () => msg('Month'),\n    currentMonth: () => msg('Current Month'),\n    allDay: () => msg('All Day'),\n    today: () => msg('Today'),\n    noTitle: () => msg('No Title'),\n    noContent: () => msg('No Content'),\n    noTime: () => msg('No Time'),\n    eventDetails: () => msg('Event Details'),\n    exportAsICS: () => msg('Export as ICS'),\n    title: () => msg('Title'),\n    time: () => msg('Time'),\n    date: () => msg('Date'),\n    notes: () => msg('Notes'),\n    minimize: () => msg('Minimize'),\n    close: () => msg('Close'),\n    dragToMove: () => msg('Drag to move menu'),\n    calendarWeek: () => msg('CW'),\n}"
-          },
-          "default": "{\n    day: () => msg('Day'),\n    week: () => msg('Week'),\n    month: () => msg('Month'),\n    currentMonth: () => msg('Current Month'),\n    allDay: () => msg('All Day'),\n    today: () => msg('Today'),\n    noTitle: () => msg('No Title'),\n    noContent: () => msg('No Content'),\n    noTime: () => msg('No Time'),\n    eventDetails: () => msg('Event Details'),\n    exportAsICS: () => msg('Export as ICS'),\n    title: () => msg('Title'),\n    time: () => msg('Time'),\n    date: () => msg('Date'),\n    notes: () => msg('Notes'),\n    minimize: () => msg('Minimize'),\n    close: () => msg('Close'),\n    dragToMove: () => msg('Drag to move menu'),\n    calendarWeek: () => msg('CW'),\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "messages",
-          "declaration": {
-            "name": "messages",
-            "module": "src/lib/messages.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/partitionOverlappingIntervals.ts",
-      "declarations": [
-        {
-          "kind": "function",
-          "name": "partitionOverlappingIntervals",
-          "return": {
-            "type": {
-              "text": "Array<Interval[]>"
-            }
-          },
-          "parameters": [
-            {
-              "name": "intervals",
-              "type": {
-                "text": "Array<Interval>"
-              }
-            }
-          ],
-          "description": "This is an implementation of the sweep-line algorithm\nRef: https://www.baeldung.com/cs/finding-all-overlapping-intervals \\\nExample: https://stackoverflow.com/questions/30472556/how-to-find-all-overlapping-ranges-and-partition-them-into-chunks"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "default",
-          "declaration": {
-            "name": "partitionOverlappingIntervals",
-            "module": "src/lib/partitionOverlappingIntervals.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/lib/viewState.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "currentViewMode"
-        },
-        {
-          "kind": "variable",
-          "name": "activeDate"
-        },
-        {
-          "kind": "function",
-          "name": "switchToMonthView"
-        },
-        {
-          "kind": "function",
-          "name": "switchToWeekView"
-        },
-        {
-          "kind": "function",
-          "name": "switchToDayView"
-        },
-        {
-          "kind": "function",
-          "name": "jumpToToday"
-        },
-        {
-          "kind": "function",
-          "name": "setActiveDate",
-          "parameters": [
-            {
-              "name": "date",
-              "type": {
-                "text": "CalendarDate"
-              }
-            }
-          ]
-        },
-        {
-          "kind": "function",
-          "name": "navigateNext"
-        },
-        {
-          "kind": "function",
-          "name": "navigatePrevious"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "currentViewMode",
-          "declaration": {
-            "name": "currentViewMode",
-            "module": "src/lib/viewState.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "activeDate",
-          "declaration": {
-            "name": "activeDate",
-            "module": "src/lib/viewState.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "switchToMonthView",
-          "declaration": {
-            "name": "switchToMonthView",
-            "module": "src/lib/viewState.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "switchToWeekView",
-          "declaration": {
-            "name": "switchToWeekView",
-            "module": "src/lib/viewState.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "switchToDayView",
-          "declaration": {
-            "name": "switchToDayView",
-            "module": "src/lib/viewState.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "jumpToToday",
-          "declaration": {
-            "name": "jumpToToday",
-            "module": "src/lib/viewState.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "setActiveDate",
-          "declaration": {
-            "name": "setActiveDate",
-            "module": "src/lib/viewState.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "navigateNext",
-          "declaration": {
-            "name": "navigateNext",
-            "module": "src/lib/viewState.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "navigatePrevious",
-          "declaration": {
-            "name": "navigatePrevious",
-            "module": "src/lib/viewState.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/generated/locales/de-DE.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "templates",
-          "type": {
-            "text": "object"
-          },
-          "default": "{\n    s090f2107b5a69a7f: `KW`,\n    se0955919920ee87d: `Day`,\n    s680f01021b5e339d: `Week`,\n    sb47daaf9e1c4a905: `Month`,\n    s15ba5784a11e0b88: `Current Month`,\n    s58ab939b42a026a6: `All Day`,\n    s63d040e37887f17e: `Today`,\n    s98b32ef4a0856c08: `No Title`,\n    s22380c7fc798a44f: `No Content`,\n    sfce4bfbe0f911aa7: `No Time`,\n    sa0fd990c985f24bd: `Event Details`,\n    s2bc4d1196bce49dc: `Export as ICS`,\n    s99f110d27e30b289: `Title`,\n    s48e186fb300e5464: `Time`,\n    sac8252732f2edb19: `Date`,\n    s005053d82b712e0a: `Notes`,\n    s1c109a21525649fd: `Minimize`,\n    s5e8250fb85d64c23: `Close`,\n    s7264933e3c515250: `Drag to move menu`,\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "templates",
-          "declaration": {
-            "name": "templates",
-            "module": "src/generated/locales/de-DE.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/generated/locales/de.ts",
-      "declarations": [
-        {
-          "kind": "variable",
-          "name": "templates",
-          "type": {
-            "text": "object"
-          },
-          "default": "{\n    s090f2107b5a69a7f: `KW`,\n    se0955919920ee87d: `Day`,\n    s680f01021b5e339d: `Week`,\n    sb47daaf9e1c4a905: `Month`,\n    s15ba5784a11e0b88: `Current Month`,\n    s58ab939b42a026a6: `All Day`,\n    s63d040e37887f17e: `Today`,\n    s98b32ef4a0856c08: `No Title`,\n    s22380c7fc798a44f: `No Content`,\n    sfce4bfbe0f911aa7: `No Time`,\n    sa0fd990c985f24bd: `Event Details`,\n    s2bc4d1196bce49dc: `Export as ICS`,\n    s99f110d27e30b289: `Title`,\n    s48e186fb300e5464: `Time`,\n    sac8252732f2edb19: `Date`,\n    s005053d82b712e0a: `Notes`,\n    s1c109a21525649fd: `Minimize`,\n    s5e8250fb85d64c23: `Close`,\n    s7264933e3c515250: `Drag to move menu`,\n}"
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "templates",
-          "declaration": {
-            "name": "templates",
-            "module": "src/generated/locales/de.ts"
-          }
-        }
-      ]
-    }
-  ]
+    ]
 }

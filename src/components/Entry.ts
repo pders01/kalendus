@@ -2,6 +2,7 @@ import { localized } from '@lit/localize';
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { P, match } from 'ts-pattern';
+
 import { messages } from '../lib/messages.js';
 import type { CalendarDateInterval } from '../lms-calendar';
 
@@ -45,8 +46,10 @@ export default class Entry extends LitElement {
     @state()
     _extended?: boolean;
 
-    private _sumReducer: (accumulator: number, currentValue: number) => number =
-        (accumulator, currentValue) => accumulator + currentValue;
+    private _sumReducer: (accumulator: number, currentValue: number) => number = (
+        accumulator,
+        currentValue,
+    ) => accumulator + currentValue;
 
     static override styles = css`
         :host {
@@ -85,8 +88,7 @@ export default class Entry extends LitElement {
             bottom: 0;
             width: var(--entry-handle-width, 0px);
             background-color: var(--entry-handle-color, transparent);
-            border-radius: var(--entry-border-radius) 0 0
-                var(--entry-border-radius);
+            border-radius: var(--entry-border-radius) 0 0 var(--entry-border-radius);
             display: var(--entry-handle-display, none);
         }
 
@@ -106,26 +108,23 @@ export default class Entry extends LitElement {
             z-index: 999 !important; /* Ensure highlighted entry appears above others */
         }
 
-        /* Enhance focus styles for better accessibility */
-        :host(:focus) {
+        /* Keyboard-only focus styles — mouse clicks won't trigger the outline */
+        :host(:focus-visible) {
             outline: 2px solid var(--entry-focus-color);
             outline-offset: 2px;
             position: relative;
-            z-index: 999 !important; /* Ensure focused entry appears above others */
+            z-index: 999 !important;
         }
 
         :host([data-extended]) {
-            background: var(
-                --entry-extended-background-color,
-                var(--background-color)
-            );
+            background: var(--entry-extended-background-color, var(--background-color));
         }
 
-        :host(:focus-within) {
+        :host(:has(:focus-visible)) {
             outline: 2px solid var(--entry-focus-color);
-            outline-offset: -2px;
+            outline-offset: 2px;
             position: relative;
-            z-index: 999 !important; /* Ensure entry with focused child appears above others */
+            z-index: 999 !important;
         }
 
         .main {
@@ -360,9 +359,7 @@ export default class Entry extends LitElement {
                 return html`<span class="time">${messages.allDay()}</span>`;
             }
             const timeString = this._displayInterval(this.time);
-            return timeString
-                ? html`<span class="time">${timeString}</span>`
-                : nothing;
+            return timeString ? html`<span class="time">${timeString}</span>` : nothing;
         }
 
         if (this.density === 'compact') {
@@ -374,9 +371,7 @@ export default class Entry extends LitElement {
         }
 
         const timeString = this._displayInterval(this.time);
-        return timeString
-            ? html`<span class="time">${timeString}</span>`
-            : nothing;
+        return timeString ? html`<span class="time">${timeString}</span>` : nothing;
     }
 
     private _renderContent() {
@@ -417,15 +412,20 @@ export default class Entry extends LitElement {
                     class=${mainClass}
                     tabindex=${this.accessibility?.tabIndex ?? 0}
                     role="button"
-                    aria-label="${this.accessibility?.ariaLabel ??
-                    this._getAriaLabel()}"
+                    aria-label="${this.accessibility?.ariaLabel ?? this._getAriaLabel()}"
                     aria-selected=${this._highlighted ? 'true' : 'false'}
                     title=${this._renderTitle()}
                     data-full-content=${this.content || ''}
                     ?data-extended=${this._extended}
                     ?data-is-multi-day=${isMultiDay}
                 >
-                    ${!isMultiDay ? html`<span class="color-dot"></span>` : ''}
+                    ${
+                        !isMultiDay
+                            ? html`
+                                  <span class="color-dot"></span>
+                              `
+                            : ''
+                    }
                     <span class="title">${this.heading}</span>
                     ${this._renderTime()}
                 </div>
@@ -452,8 +452,7 @@ export default class Entry extends LitElement {
                 class=${mainClass}
                 tabindex=${this.accessibility?.tabIndex ?? 0}
                 role="button"
-                aria-label="${this.accessibility?.ariaLabel ??
-                this._getAriaLabel()}"
+                aria-label="${this.accessibility?.ariaLabel ?? this._getAriaLabel()}"
                 aria-selected=${this._highlighted ? 'true' : 'false'}
                 title=${this._renderTitle()}
                 data-full-content=${this.content || ''}
@@ -472,22 +471,16 @@ export default class Entry extends LitElement {
         }
 
         const END_HOURS = 2;
-        const components = [
-            time.start.hour,
-            time.start.minute,
-            time.end.hour,
-            time.end.minute,
-        ];
+        const components = [time.start.hour, time.start.minute, time.end.hour, time.end.minute];
 
         const lastsAllDay =
-            components[END_HOURS] === 24 &&
-            components.reduce(this._sumReducer, 0) % 24 === 0;
+            components[END_HOURS] === 24 && components.reduce(this._sumReducer, 0) % 24 === 0;
         if (lastsAllDay) {
             return messages.allDay();
         }
 
-        const [startHours, startMinutes, endHours, endMinutes] = components.map(
-            (component) => (component < 10 ? `0${component}` : component),
+        const [startHours, startMinutes, endHours, endMinutes] = components.map((component) =>
+            component < 10 ? `0${component}` : component,
         );
 
         return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
@@ -540,13 +533,9 @@ export default class Entry extends LitElement {
                 heading: this.heading || messages.noTitle(),
                 content: this.content || messages.noContent(),
                 time: this.time
-                    ? `${String(this.time.start.hour).padStart(
-                          2,
-                          '0',
-                      )}:${String(this.time.start.minute).padStart(
-                          2,
-                          '0',
-                      )} - ${String(this.time.end.hour).padStart(
+                    ? `${String(this.time.start.hour).padStart(2, '0')}:${String(
+                          this.time.start.minute,
+                      ).padStart(2, '0')} - ${String(this.time.end.hour).padStart(
                           2,
                           '0',
                       )}:${String(this.time.end.minute).padStart(2, '0')}`

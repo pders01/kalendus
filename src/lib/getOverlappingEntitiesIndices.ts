@@ -30,9 +30,7 @@ export default function getOverlappingEntitiesIndices(
  * @returns {number} The calculated index of the entity.
  */
 function calculateIndex(partitions: Array<Interval[]>, index: number): number {
-    return [partitions.slice(0, index)].flatMap(
-        (item) => item.flat().length,
-    )[0];
+    return [partitions.slice(0, index)].flatMap((item) => item.flat().length)[0];
 }
 
 /**
@@ -41,9 +39,7 @@ function calculateIndex(partitions: Array<Interval[]>, index: number): number {
  * @param {Array<Interval[]>} partitions - The array of partitions.
  * @returns {Array<Grading>}  An array of Grading objects representing non-overlapping partitions.
  */
-function getNonOverlappingPartitions(
-    partitions: Array<Interval[]>,
-): Array<Grading> {
+function getNonOverlappingPartitions(partitions: Array<Interval[]>): Array<Grading> {
     return partitions.reduce(
         (accumulator: Grading[], partition, index: number) =>
             partition.length === 1
@@ -153,16 +149,7 @@ function recursiveReduce(
     }
 
     const [currentPartition, ...remainingPartitions] = partitions;
-    const updatedAccumulator = partitionReducer(
-        accumulator,
-        currentPartition,
-        depth,
-    );
+    const updatedAccumulator = partitionReducer(accumulator, currentPartition, depth);
 
-    return recursiveReduce(
-        remainingPartitions,
-        updatedAccumulator,
-        depth + 1,
-        currentGroup,
-    );
+    return recursiveReduce(remainingPartitions, updatedAccumulator, depth + 1, currentGroup);
 }

@@ -1,5 +1,6 @@
 import { configureLocalization } from '@lit/localize';
 import { DateTime } from 'luxon';
+
 import { sourceLocale, targetLocales } from '../generated/locale-codes.js';
 
 // Configure @lit/localize

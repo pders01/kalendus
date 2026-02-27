@@ -84,9 +84,7 @@ export class LayoutCalculator {
         };
     }
 
-    private eventsToIntervals(
-        events: CalendarEvent[],
-    ): Array<{ start: number; end: number }> {
+    private eventsToIntervals(events: CalendarEvent[]): Array<{ start: number; end: number }> {
         return events.map((event) => ({
             start: event.startTime.hour * 60 + event.startTime.minute,
             end: event.endTime.hour * 60 + event.endTime.minute,
@@ -97,8 +95,7 @@ export class LayoutCalculator {
         intervals: Array<{ start: number; end: number }>,
     ): Array<{ index: number; depth: number; group: number }> {
         // Advanced grading system that properly handles overlap direction and z-indexing
-        const grading: Array<{ index: number; depth: number; group: number }> =
-            [];
+        const grading: Array<{ index: number; depth: number; group: number }> = [];
 
         // Step 1: Find all overlap groups
         const groups = this.findOverlapGroups(intervals);
@@ -120,21 +117,16 @@ export class LayoutCalculator {
                 }));
 
                 // Find the longest event in the group (this should be the background event)
-                const longestEvent = groupIntervals.reduce(
-                    (longest, current) => {
-                        const currentDuration = current.end - current.start;
-                        const longestDuration = longest.end - longest.start;
-                        return currentDuration > longestDuration
-                            ? current
-                            : longest;
-                    },
-                );
+                const longestEvent = groupIntervals.reduce((longest, current) => {
+                    const currentDuration = current.end - current.start;
+                    const longestDuration = longest.end - longest.start;
+                    return currentDuration > longestDuration ? current : longest;
+                });
 
                 // Assign depths: longest event gets depth 0, others get cascading depths
                 let nextDepth = 1;
                 groupIntervals.forEach((interval) => {
-                    const isLongestEvent =
-                        interval.originalIndex === longestEvent.originalIndex;
+                    const isLongestEvent = interval.originalIndex === longestEvent.originalIndex;
                     const depth = isLongestEvent ? 0 : nextDepth++;
                     grading.push({
                         index: interval.originalIndex,
@@ -150,9 +142,7 @@ export class LayoutCalculator {
         return grading;
     }
 
-    private findOverlapGroups(
-        intervals: Array<{ start: number; end: number }>,
-    ): Array<number[]> {
+    private findOverlapGroups(intervals: Array<{ start: number; end: number }>): Array<number[]> {
         const groups: Array<number[]> = [];
         const assigned = new Set<number>();
 
@@ -172,10 +162,7 @@ export class LayoutCalculator {
 
                     // Check if this interval overlaps with any in the current group
                     const overlapsWithGroup = group.some((groupIndex) =>
-                        this.intervalsOverlap(
-                            intervals[groupIndex],
-                            otherInterval,
-                        ),
+                        this.intervalsOverlap(intervals[groupIndex], otherInterval),
                     );
 
                     if (overlapsWithGroup) {
@@ -223,15 +210,12 @@ export class LayoutCalculator {
 
         return events.map((event, index) => {
             const grade = grading[index] || { depth: 0, group: index };
-            const startMinute =
-                event.startTime.hour * 60 + event.startTime.minute;
+            const startMinute = event.startTime.hour * 60 + event.startTime.minute;
             const endMinute = event.endTime.hour * 60 + event.endTime.minute;
             const duration = endMinute - startMinute;
 
             const groupEvents = eventsByGroup.get(grade.group) || [];
-            const maxDepthInGroup = Math.max(
-                ...groupEvents.map((g) => g.grade.depth),
-            );
+            const maxDepthInGroup = Math.max(...groupEvents.map((g) => g.grade.depth));
 
             // Calculate intelligent width allocation and positioning - cascading approach
             let width: number;
@@ -242,24 +226,18 @@ export class LayoutCalculator {
                 width = 100; // Percentage
                 x = 0; // Relative position (percentage)
             } else {
-                // Multiple overlapping events - use cascading layout for narrow viewports
-                const totalEvents = maxDepthInGroup + 1;
-
-                // Calculate offset based on depth
-                const baseOffset = Math.min(12, Math.floor(60 / totalEvents)); // Responsive offset
-                const offsetX = grade.depth * baseOffset;
-
-                // Width calculation: ensure minimum readable width
+                // Multiple overlapping events - distribute proportionally across available range
                 const minReadableWidth = 65; // Minimum 65% for good readability
-                const maxOffset = Math.min(offsetX, 100 - minReadableWidth);
+                const maxRange = 100 - minReadableWidth; // Available cascade range (35%)
 
-                x = maxOffset;
-                width = 100 - maxOffset; // Width shrinks as we cascade right
-
-                // Special case: if depth 0 (background event), it should fill more space
                 if (grade.depth === 0) {
-                    width = 100; // Background events always get full width
+                    // Background event: full width, no offset
                     x = 0;
+                    width = 100;
+                } else {
+                    // Distribute offset evenly across the available range
+                    x = maxDepthInGroup > 0 ? (grade.depth / maxDepthInGroup) * maxRange : 0;
+                    width = 100 - x;
                 }
             }
 
@@ -273,25 +251,16 @@ export class LayoutCalculator {
                 x: x, // Store as percentage
                 y: startMinute * this.config.minuteHeight,
                 width: width, // Store as percentage
-                height: Math.max(
-                    duration * this.config.minuteHeight,
-                    this.config.eventMinHeight,
-                ),
+                height: Math.max(duration * this.config.minuteHeight, this.config.eventMinHeight),
                 depth: grade.depth,
                 group: grade.group,
-                opacity:
-                    grade.depth === 0
-                        ? 0.95
-                        : Math.max(0.85, 0.95 - grade.depth * 0.05),
+                opacity: grade.depth === 0 ? 0.95 : Math.max(0.85, 0.95 - grade.depth * 0.05),
                 zIndex: zIndex,
             };
         });
     }
 
-    private calculateLabels(
-        events: CalendarEvent[],
-        boxes: LayoutBox[],
-    ): TextLabel[] {
+    private calculateLabels(events: CalendarEvent[], boxes: LayoutBox[]): TextLabel[] {
         return events.map((event, index) => {
             const box = boxes[index];
             const timeStr = `${String(event.startTime.hour).padStart(
@@ -368,24 +337,13 @@ export class ASCIIRenderer {
     private renderBoxes(grid: string[][], boxes: LayoutBox[]): void {
         boxes.forEach((box) => {
             const startRow = Math.floor(box.y / 15); // Scale down for ASCII
-            const endRow = Math.min(
-                startRow + Math.floor(box.height / 15) + 1,
-                this.height - 1,
-            );
+            const endRow = Math.min(startRow + Math.floor(box.height / 15) + 1, this.height - 1);
             const startCol = Math.floor(box.x / 8) + 7; // Scale and offset for time column
-            const endCol = Math.min(
-                startCol + Math.floor(box.width / 8),
-                this.width - 1,
-            );
+            const endCol = Math.min(startCol + Math.floor(box.width / 8), this.width - 1);
 
             for (let row = startRow; row <= endRow; row++) {
                 for (let col = startCol; col <= endCol; col++) {
-                    if (
-                        row >= 0 &&
-                        row < this.height &&
-                        col >= 0 &&
-                        col < this.width
-                    ) {
+                    if (row >= 0 && row < this.height && col >= 0 && col < this.width) {
                         grid[row][col] = box.depth === 0 ? '█' : '▓';
                     }
                 }

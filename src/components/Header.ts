@@ -3,6 +3,7 @@ import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { DateTime } from 'luxon';
+
 import { getLocalizedMonth } from '../lib/localization.js';
 import { messages } from '../lib/messages.js';
 import { activeDate, currentViewMode } from '../lib/viewState.js';
@@ -35,7 +36,25 @@ export default class Header extends SignalWatcher(LitElement) {
         @media (max-width: 375px) {
             .controls {
                 font-size: small;
-                height: var(--header-height-mobile, 4.5em);
+                height: auto;
+                min-height: var(--header-height-mobile, 4.5em);
+                flex-wrap: wrap;
+                padding: 0.25em 0;
+                gap: 0.25em;
+            }
+            .info {
+                width: 100%;
+                text-align: center;
+                padding-left: 0;
+            }
+            .context > * {
+                margin: 0 0.25em;
+            }
+            .buttons {
+                padding-right: 0.5em;
+            }
+            button {
+                padding: 0.5em;
             }
         }
         .info {
@@ -168,8 +187,7 @@ export default class Header extends SignalWatcher(LitElement) {
             return;
         }
 
-        const direction =
-            e.target === e.currentTarget ? 'container' : target.name;
+        const direction = e.target === e.currentTarget ? 'container' : target.name;
         const event = new CustomEvent('switchdate', {
             detail: { direction },
             bubbles: true,
@@ -184,8 +202,7 @@ export default class Header extends SignalWatcher(LitElement) {
             return;
         }
 
-        const view =
-            e.target === e.currentTarget ? 'container' : target.dataset.context;
+        const view = e.target === e.currentTarget ? 'container' : target.dataset.context;
         const event = new CustomEvent('switchview', {
             detail: { view },
             bubbles: true,

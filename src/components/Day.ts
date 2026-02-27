@@ -32,10 +32,7 @@ export default class Day extends LitElement {
 
         .main {
             display: grid;
-            grid-template-columns: var(
-                --day-grid-columns,
-                var(--calendar-grid-columns-day)
-            );
+            grid-template-columns: var(--day-grid-columns, var(--calendar-grid-columns-day));
             grid-template-rows: var(--calendar-grid-rows-time);
             height: var(--main-content-height);
             gap: var(--day-gap, 1px);
@@ -59,10 +56,7 @@ export default class Day extends LitElement {
 
         .separator {
             grid-column: 2 / 3;
-            border-top: var(
-                --separator-border,
-                1px solid var(--separator-light)
-            );
+            border-top: var(--separator-border, 1px solid var(--separator-light));
             position: absolute;
             width: 100%;
             z-index: 0;
@@ -70,10 +64,7 @@ export default class Day extends LitElement {
 
         .sidebar {
             height: 100%;
-            border-left: var(
-                --sidebar-border,
-                1px solid var(--separator-light)
-            );
+            border-left: var(--sidebar-border, 1px solid var(--separator-light));
         }
 
         .w-100 {
@@ -104,9 +95,7 @@ export default class Day extends LitElement {
     `;
 
     private _renderSeparatorMaybe(index: number, hour: number) {
-        return index
-            ? html`<div class="separator" style="grid-row: ${hour * 60}"></div>`
-            : nothing;
+        return index ? html`<div class="separator" style="grid-row: ${hour * 60}"></div>` : nothing;
     }
 
     private _renderIndicatorValue(hour: number) {
@@ -143,8 +132,9 @@ export default class Day extends LitElement {
 
     override render() {
         return html` <div class="wrapper">
-            ${this._hasAllDayEvents
-                ? html`
+            ${
+                this._hasAllDayEvents
+                    ? html`
                       <div class="all-day-wrapper">
                           <div class="all-day">
                               <slot
@@ -156,7 +146,7 @@ export default class Day extends LitElement {
                           </div>
                       </div>
                   `
-                : html`
+                    : html`
                       <div style="display: none;">
                           <slot
                               name="all-day"
@@ -165,7 +155,8 @@ export default class Day extends LitElement {
                               @slotchange=${this._handleSlotChange}
                           ></slot>
                       </div>
-                  `}
+                  `
+            }
             <div class="container">
                 <div
                     class="main ${classMap({

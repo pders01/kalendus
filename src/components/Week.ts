@@ -2,6 +2,7 @@ import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
+
 import { getLocalizedWeekdayShort } from '../lib/localization.js';
 import './Day.js';
 
@@ -95,10 +96,7 @@ export default class Week extends LitElement {
 
         .time-slots {
             grid-column: 1;
-            border-right: var(
-                --sidebar-border,
-                1px solid var(--separator-light)
-            );
+            border-right: var(--sidebar-border, 1px solid var(--separator-light));
             background: var(--background-color, white);
         }
 
@@ -115,10 +113,7 @@ export default class Week extends LitElement {
         }
 
         .day-column {
-            border-right: var(
-                --sidebar-border,
-                1px solid var(--separator-light)
-            );
+            border-right: var(--sidebar-border, 1px solid var(--separator-light));
             position: relative;
         }
 
@@ -128,10 +123,7 @@ export default class Week extends LitElement {
 
         .hour-separator {
             grid-column: 2 / 3;
-            border-top: var(
-                --separator-border,
-                1px solid var(--separator-light)
-            );
+            border-top: var(--separator-border, 1px solid var(--separator-light));
             position: absolute;
             width: 100%;
             z-index: 0;
@@ -179,24 +171,18 @@ export default class Week extends LitElement {
         }
 
         /* Multi-day event continuation styling */
-        .all-day-container
-            .all-day-day-column
-            ::slotted(lms-calendar-entry[data-is-continuation]) {
+        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry[data-is-continuation]) {
             margin-left: -2px !important; /* Slight overlap for visual connection */
             border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
         }
 
-        .all-day-container
-            .all-day-day-column
-            ::slotted(lms-calendar-entry:not([data-is-continuation])) {
+        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry:not([data-is-continuation])) {
             border-right: 1px solid rgba(255, 255, 255, 0.2) !important; /* Prepare for continuation */
         }
 
         /* Enhanced multi-day spanning styles with consistent ordering */
         /* Use higher specificity to override Entry component's border-radius */
-        .all-day-container
-            .all-day-day-column
-            ::slotted(lms-calendar-entry.first-day) {
+        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.first-day) {
             border-top-right-radius: 0 !important;
             border-bottom-right-radius: 0 !important;
             border-top-left-radius: var(--entry-border-radius) !important;
@@ -204,9 +190,7 @@ export default class Week extends LitElement {
             position: relative !important;
         }
 
-        .all-day-container
-            .all-day-day-column
-            ::slotted(lms-calendar-entry.middle-day) {
+        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.middle-day) {
             border-top-left-radius: 0 !important;
             border-top-right-radius: 0 !important;
             border-bottom-left-radius: 0 !important;
@@ -216,9 +200,7 @@ export default class Week extends LitElement {
             margin-left: -2px !important;
         }
 
-        .all-day-container
-            .all-day-day-column
-            ::slotted(lms-calendar-entry.last-day) {
+        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.last-day) {
             border-top-left-radius: 0 !important;
             border-bottom-left-radius: 0 !important;
             border-top-right-radius: var(--entry-border-radius) !important;
@@ -228,9 +210,7 @@ export default class Week extends LitElement {
             margin-left: -2px !important;
         }
 
-        .all-day-container
-            .all-day-day-column
-            ::slotted(lms-calendar-entry.single-day) {
+        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.single-day) {
             border-radius: var(--entry-border-radius) !important;
             position: relative !important;
         }
@@ -301,10 +281,7 @@ export default class Week extends LitElement {
 
         // First pass: collect all events and identify unique events (both multi-day and single-day)
         const allEventsByDay = new Map<number, HTMLElement[]>();
-        const uniqueEvents = new Map<
-            string,
-            { days: Set<number>; isMultiDay: boolean }
-        >(); // event ID -> event info
+        const uniqueEvents = new Map<string, { days: Set<number>; isMultiDay: boolean }>(); // event ID -> event info
 
         weekDates.forEach((date, dayIndex) => {
             const slotName = `all-day-${date.year}-${date.month}-${date.day}`;
@@ -353,20 +330,13 @@ export default class Week extends LitElement {
 
         weekDates.forEach((_date, dayIndex) => {
             const events = allEventsByDay.get(dayIndex) || [];
-            const sortedEvents = this._sortAndPositionEvents(
-                events,
-                eventRows,
-                nextRow,
-            );
+            const sortedEvents = this._sortAndPositionEvents(events, eventRows, nextRow);
 
             // Apply visual styling
             this._applyEventPositioning(sortedEvents, dayIndex);
 
             // Track the maximum number of rows needed
-            const rowsForThisDay = this._calculateRowsNeeded(
-                sortedEvents,
-                eventRows,
-            );
+            const rowsForThisDay = this._calculateRowsNeeded(sortedEvents, eventRows);
             maxRowsNeeded = Math.max(maxRowsNeeded, rowsForThisDay);
 
             // Store positioned events for this day
@@ -375,19 +345,14 @@ export default class Week extends LitElement {
 
         this._hasAllDayEvents =
             allEventsByDay.size > 0 &&
-            Array.from(allEventsByDay.values()).some(
-                (events) => events.length > 0,
-            );
+            Array.from(allEventsByDay.values()).some((events) => events.length > 0);
         this._allDayEventCount = maxRowsNeeded;
 
         // Adjust week content height based on all-day events
-        const weekContent = this.shadowRoot?.querySelector(
-            '.week-content',
-        ) as HTMLElement;
+        const weekContent = this.shadowRoot?.querySelector('.week-content') as HTMLElement;
         if (weekContent) {
             if (this._hasAllDayEvents) {
-                const allDayHeight =
-                    Math.max(2.5, this._allDayEventCount * 2) + 1; // Base height + events
+                const allDayHeight = Math.max(2.5, this._allDayEventCount * 2) + 1; // Base height + events
                 weekContent.style.height = `calc(var(--main-content-height) - ${allDayHeight}em)`;
             } else {
                 weekContent.style.height = 'var(--main-content-height)';
@@ -447,10 +412,7 @@ export default class Week extends LitElement {
     /**
      * Calculate the number of rows needed for a day's events
      */
-    private _calculateRowsNeeded(
-        events: HTMLElement[],
-        eventRows: Map<string, number>,
-    ): number {
+    private _calculateRowsNeeded(events: HTMLElement[], eventRows: Map<string, number>): number {
         let maxRow = 0;
 
         events.forEach((event) => {
@@ -632,12 +594,7 @@ export default class Week extends LitElement {
         }
 
         // Remove all positioning classes first
-        event.classList.remove(
-            'first-day',
-            'middle-day',
-            'last-day',
-            'single-day',
-        );
+        event.classList.remove('first-day', 'middle-day', 'last-day', 'single-day');
 
         // Determine position based on continuation.index and total span length
         // We need to find all events with the same heading to determine the span length
@@ -710,10 +667,7 @@ export default class Week extends LitElement {
         }
 
         // Set the data attribute for CSS styling
-        event.setAttribute(
-            'data-is-continuation',
-            isMultiDay ? 'true' : 'false',
-        );
+        event.setAttribute('data-is-continuation', isMultiDay ? 'true' : 'false');
     }
 
     private _getWeekDates(): CalendarDate[] {
@@ -793,8 +747,7 @@ export default class Week extends LitElement {
                                 <div class="all-day-day-column">
                                     <slot
                                         name="all-day-${date.year}-${date.month}-${date.day}"
-                                        @slotchange=${this
-                                            ._handleAllDaySlotChange}
+                                        @slotchange=${this._handleAllDaySlotChange}
                                     ></slot>
                                 </div>
                             `,
@@ -807,8 +760,7 @@ export default class Week extends LitElement {
                         (_, hour) => html`
                             <div
                                 class="hour-indicator"
-                                style="grid-column: 1; grid-row: ${hour * 60 +
-                                1};"
+                                style="grid-column: 1; grid-row: ${hour * 60 + 1};"
                             >
                                 ${this._renderIndicatorValue(hour)}
                             </div>
@@ -818,15 +770,16 @@ export default class Week extends LitElement {
                     <!-- Hour separators -->
                     ${Array.from({ length: 25 }).map(
                         (_, hour) => html`
-                            ${hour > 0
-                                ? html`
+                            ${
+                                hour > 0
+                                    ? html`
                                       <div
                                           class="hour-separator"
-                                          style="grid-column: 2 / -1; grid-row: ${hour *
-                                          60};"
+                                          style="grid-column: 2 / -1; grid-row: ${hour * 60};"
                                       ></div>
                                   `
-                                : ''}
+                                    : ''
+                            }
                         `,
                     )}
 
@@ -837,15 +790,15 @@ export default class Week extends LitElement {
                                 (_, hour) => html`
                                     <div
                                         class="hour-slot-container"
-                                        style="grid-column: ${dayIndex +
-                                        2}; grid-row: ${hour * 60 +
-                                        1} / ${(hour + 1) * 60 +
-                                        1}; position: relative;"
+                                        style="grid-column: ${dayIndex + 2}; grid-row: ${
+                                            hour * 60 + 1
+                                        } / ${(hour + 1) * 60 + 1}; position: relative;"
                                     >
                                         <slot
                                             name="${date.year}-${date.month}-${date.day}-${hour}"
-                                            data-debug="Day ${dayIndex +
-                                            1} (${date.month}/${date.day}) Hour ${hour}"
+                                            data-debug="Day ${
+                                                dayIndex + 1
+                                            } (${date.month}/${date.day}) Hour ${hour}"
                                         ></slot>
                                     </div>
                                 `,
