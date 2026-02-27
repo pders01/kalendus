@@ -161,7 +161,7 @@ export default class LMSCalendar extends LitElement {
             /* Core layout tokens */
             --time-column-width: 4em;
             --grid-rows-per-day: 1440;
-            --view-container-height-offset: var(--day-header-height, 3.5em);
+            --view-container-height-offset: 0px;
             --main-content-height-offset: 1em;
 
             /* Grid template tokens */
@@ -204,7 +204,6 @@ export default class LMSCalendar extends LitElement {
             --button-padding: 0.75em;
             --button-border-radius: var(--border-radius-sm);
 
-            --month-header-context-height: 5.5em;
             --month-day-gap: 1px;
             --indicator-color: var(--primary-color);
             --indicator-font-weight: bold;
@@ -238,12 +237,16 @@ export default class LMSCalendar extends LitElement {
             box-shadow: var(--shadow-md);
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
-        header, main {
-            display: block;
+        header {
+            flex-shrink: 0;
         }
         main {
-            height: calc(100% - var(--header-height, 3.5em));
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
         /* Responsive entry scaling based on viewport width */

@@ -793,7 +793,7 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             </div>
         `}_dispatchExpand(e){const t=e.target;if(!(t instanceof HTMLElement))return;if(t.closest("lms-calendar-entry"))return;const{date:n}=t.dataset;if(!n)return;const[r,i,a]=n.split("-").map(e=>parseInt(e,10)),s=new CustomEvent("expand",{detail:{date:{day:a,month:i,year:r}},bubbles:!0,composed:!0});this.dispatchEvent(s)}_handleKeydown(e){const t=e.key;"Space"!==t&&"Enter"!==t||this._dispatchExpand(e)}_getDaysInMonth(e){return Xi(e).with({year:Ki.number,month:Ki.number,day:Ki.number},({year:e,month:t})=>{const n=new Date(e,t,0).getDate();return n>0?n:0}).otherwise(()=>0)}_getOffsetOfFirstDayInMonth(e){return Xi(e).with({year:Ki.number,month:Ki.number},({year:e,month:t})=>{const n=/* @__PURE__ */new Date(`${e}/${t}/01`).getDay();return 0===n?6:n-1}).otherwise(()=>0)}_getDatesInMonthAsArray(e,t){return Xi(this._getDaysInMonth(e)).with(0,()=>[]).otherwise(n=>Array.from(Array(n).keys(),(t,n)=>({year:e.year,month:e.month,day:n+1})).slice(...t||[0]))}_getCalendarArray(){if(!this.activeDate)return[];const e=new Ks({date:this.activeDate});try{e.direction="previous";const t=this._getOffsetOfFirstDayInMonth(this.activeDate),n=t>0?this._getDatesInMonthAsArray(e.getDateByMonthInDirection(),[-t]):[],r=this._getDatesInMonthAsArray(this.activeDate,[]);e.date=this.activeDate,e.direction="next";const i=42-(n.length+r.length),a=i>0?this._getDatesInMonthAsArray(e.getDateByMonthInDirection(),[0,i]):[];return n.concat(r,a)}catch(t){return console.error("Error generating calendar array:",t),[]}}};eo.styles=r`
         .month {
-            height: calc(100% - var(--month-header-context-height, 5.5em) + 2px);
+            height: calc(100% - var(--context-height, 1.75em) - var(--context-padding, 0.25em) * 2);
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             border-top: 1px solid var(--separator-light);
@@ -1331,7 +1331,7 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             /* Core layout tokens */
             --time-column-width: 4em;
             --grid-rows-per-day: 1440;
-            --view-container-height-offset: var(--day-header-height, 3.5em);
+            --view-container-height-offset: 0px;
             --main-content-height-offset: 1em;
 
             /* Grid template tokens */
@@ -1374,7 +1374,6 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             --button-padding: 0.75em;
             --button-border-radius: var(--border-radius-sm);
 
-            --month-header-context-height: 5.5em;
             --month-day-gap: 1px;
             --indicator-color: var(--primary-color);
             --indicator-font-weight: bold;
@@ -1408,12 +1407,16 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             box-shadow: var(--shadow-md);
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
-        header, main {
-            display: block;
+        header {
+            flex-shrink: 0;
         }
         main {
-            height: calc(100% - var(--header-height, 3.5em));
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
 
         /* Responsive entry scaling based on viewport width */
