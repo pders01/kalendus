@@ -58,8 +58,22 @@ export default class Week extends LitElement {
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            gap: var(--day-label-gap, 0.15em);
             cursor: pointer;
             transition: background-color 0.2s ease;
+        }
+
+        .day-name {
+            font-size: var(--day-label-name-font-size, 0.75em);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            opacity: 0.7;
+        }
+
+        .day-number {
+            font-size: var(--day-label-number-font-size, 1.125em);
+            font-weight: var(--day-label-number-font-weight, 600);
+            line-height: 1;
         }
 
         .day-label:hover {
@@ -725,10 +739,8 @@ export default class Week extends LitElement {
                                 @keydown=${(e: KeyboardEvent) =>
                                     this._handleDayLabelKeydown(e, date)}
                             >
-                                <div>
-                                    ${getLocalizedWeekdayShort(index + 1)}
-                                </div>
-                                <div>${date.day}</div>
+                                <span class="day-name">${getLocalizedWeekdayShort(index + 1)}</span>
+                                <span class="day-number">${date.day}</span>
                             </div>
                         `,
                     )}

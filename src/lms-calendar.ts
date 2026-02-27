@@ -125,17 +125,17 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             --width: 100%;
 
             /* Entry design tokens - responsive and density-aware */
-            --entry-font-size: 0.7rem;
-            --entry-line-height: 1.1;
-            --entry-min-height: 1.1em;
+            --entry-font-size: 0.8rem;
+            --entry-line-height: 1.3;
+            --entry-min-height: 1.2em;
             --entry-border-radius: var(--border-radius-sm);
             --entry-background-color: var(--background-color);
             --entry-color: var(--primary-color);
             --entry-highlight-color: var(--separator-light);
             --entry-focus-color: var(--primary-color);
-            --entry-padding: 0.1em 0.2em;
+            --entry-padding: 0.2em 0.35em;
             --entry-font-family: system-ui;
-            --entry-gap: 0.15em;
+            --entry-gap: 0.25em;
 
             /* Month view dot indicator tokens */
             --entry-dot-size: 0.5em;
@@ -158,9 +158,9 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             --entry-align: flex-start;
 
             /* Responsive scaling for different viewport sizes */
-            --entry-font-size-sm: 0.65rem;
-            --entry-font-size-md: 0.7rem;
-            --entry-font-size-lg: 0.75rem;
+            --entry-font-size-sm: 0.7rem;
+            --entry-font-size-md: 0.75rem;
+            --entry-font-size-lg: 0.8rem;
 
             --context-height: 1.75em;
             --context-padding: 0.25em;
@@ -188,7 +188,7 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             --day-gap: 1px;
             --day-text-align: center;
             --day-padding: 0.5em;
-            --day-all-day-font-size: 16px;
+            --day-all-day-font-size: 0.875rem;
             --day-all-day-margin: 0 1.25em 0 4.25em;
             --hour-text-align: center;
             --indicator-top: -0.6em;
@@ -196,9 +196,13 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
             --sidebar-border: 1px solid var(--separator-light);
 
             /* Typography tokens */
-            --hour-indicator-font-size: 0.75em;
+            --hour-indicator-font-size: 0.8125em;
             --hour-indicator-color: var(--header-text-color, rgba(0, 0, 0, 0.6));
             --day-label-font-weight: 500;
+            --day-label-name-font-size: 0.75em;
+            --day-label-number-font-size: 1.125em;
+            --day-label-number-font-weight: 600;
+            --day-label-gap: 0.15em;
 
             --header-height: 3.5em;
             --header-height-mobile: 4.5em;
@@ -246,10 +250,10 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         @media (max-width: 480px) {
             :host {
                 --entry-font-size: var(--entry-font-size-sm);
-                --entry-padding: 0.05em 0.15em;
-                --entry-gap: 0.1em;
-                --entry-line-height: 1;
-                --entry-min-height: 1em;
+                --entry-padding: 0.1em 0.2em;
+                --entry-gap: 0.15em;
+                --entry-line-height: 1.15;
+                --entry-min-height: 1.1em;
                 --entry-compact-show-time: none;
             }
         }
@@ -257,9 +261,9 @@ export default class LMSCalendar extends SignalWatcher(LitElement) {
         @media (min-width: 481px) and (max-width: 768px) {
             :host {
                 --entry-font-size: var(--entry-font-size-md);
-                --entry-padding: 0.08em 0.18em;
-                --entry-gap: 0.12em;
-                --entry-line-height: 1.05;
+                --entry-padding: 0.15em 0.25em;
+                --entry-gap: 0.2em;
+                --entry-line-height: 1.2;
                 --entry-compact-show-time: none;
             }
         }
