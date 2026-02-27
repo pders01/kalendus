@@ -3,14 +3,13 @@ import { mergeConfig } from 'vite';
 
 const config: StorybookConfig = {
     stories: ['../src/**/*.stories.@(js|ts)'],
-    addons: ['@storybook/addon-essentials', '@storybook/addon-interactions'],
+    addons: ['@storybook/addon-docs'],
+
     framework: {
         name: '@storybook/web-components-vite',
         options: {},
     },
-    docs: {
-        autodocs: 'tag',
-    },
+
     async viteFinal(config) {
         return mergeConfig(config, {
             build: {
@@ -20,7 +19,7 @@ const config: StorybookConfig = {
                 sourcemap: true,
             },
         });
-    },
+    }
 };
 
 export default config;

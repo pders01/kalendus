@@ -1,5 +1,5 @@
-import { expect, userEvent } from '@storybook/test';
-import type { Meta, StoryObj } from '@storybook/web-components';
+import { expect, userEvent } from 'storybook/test';
+import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { html } from 'lit';
 import './lms-calendar.js';
 import type LMSCalendar from './lms-calendar.js';
