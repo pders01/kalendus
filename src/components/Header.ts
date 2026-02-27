@@ -49,14 +49,8 @@ export default class Header extends LitElement {
                 text-align: center;
                 padding-left: 0;
             }
-            .context > * {
-                margin: 0 0.25em;
-            }
             .buttons {
                 padding-right: 0.5em;
-            }
-            button {
-                padding: 0.5em;
             }
         }
         .info {
@@ -80,21 +74,54 @@ export default class Header extends LitElement {
         .year {
             color: var(--header-text-color, rgba(0, 0, 0, 0.6));
         }
-        .buttons {
-            padding-right: var(--header-buttons-padding-right, 1em);
-        }
         button {
-            padding: var(--button-padding, 0.75em);
+            padding: 0.4em 0.7em;
             margin: 0;
-            border-radius: var(--button-border-radius, 50%);
-            line-height: 0.5em;
-            border: 1px solid transparent;
+            border: none;
+            background: none;
+            font: inherit;
+            font-size: 0.85em;
+            color: var(--header-text-color, rgba(0, 0, 0, 0.6));
+            cursor: pointer;
+            border-radius: var(--border-radius-sm, 5px);
+            transition: background-color 0.15s ease, color 0.15s ease;
         }
+
+        button:hover {
+            background: var(--separator-light, rgba(0, 0, 0, 0.1));
+        }
+
         .context {
             display: flex;
+            align-items: center;
+            gap: 0;
+            background: var(--separator-light, rgba(0, 0, 0, 0.06));
+            border-radius: var(--border-radius-sm, 5px);
+            padding: 0.15em;
         }
-        .context > * {
-            margin: 0 0.5em;
+
+        .context button {
+            border-radius: calc(var(--border-radius-sm, 5px) - 1px);
+        }
+
+        .context button[data-active] {
+            background: var(--background-color, white);
+            color: var(--separator-dark, rgba(0, 0, 0, 0.7));
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        .buttons {
+            display: flex;
+            align-items: center;
+            padding-right: var(--header-buttons-padding-right, 1em);
+            gap: 0.15em;
+        }
+
+        .buttons .separator {
+            width: 1px;
+            height: 1.2em;
+            background: var(--separator-light, rgba(0, 0, 0, 0.15));
+            margin: 0 0.2em;
         }
     `;
 
@@ -170,10 +197,11 @@ export default class Header extends LitElement {
             </div>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
                 <button name="previous">«</button>
+                <button name="next">»</button>
+                <span class="separator"></span>
                 <button name="today" @click=${this._handleTodayClick}>
                     ${messages.today()}
                 </button>
-                <button name="next">»</button>
             </div>
         </div>`;
     }
