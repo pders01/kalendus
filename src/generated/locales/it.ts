@@ -13,6 +13,7 @@
 's15ba5784a11e0b88': `Mese corrente`,
 's22380c7fc798a44f': `Nessun contenuto`,
 's2bc4d1196bce49dc': `Esporta come ICS`,
+'s3c44e22d1af5693e': `Anno`,
 's48e186fb300e5464': `Ora`,
 's58ab939b42a026a6': `Tutto il giorno`,
 's5e8250fb85d64c23': `Chiudi`,

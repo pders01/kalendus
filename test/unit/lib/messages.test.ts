@@ -5,12 +5,12 @@ const ALL_KEYS: MessageKey[] = [
     'day', 'week', 'month', 'currentMonth', 'allDay',
     'today', 'noTitle', 'noContent', 'noTime',
     'eventDetails', 'exportAsICS', 'title', 'time',
-    'date', 'notes', 'close', 'calendarWeek',
+    'date', 'notes', 'close', 'calendarWeek', 'year',
 ];
 
 describe('getMessages', () => {
     describe('English fallbacks', () => {
-        it('should return English fallbacks for all 17 keys', () => {
+        it('should return English fallbacks for all 18 keys', () => {
             const msg = getMessages('en');
             expect(Object.keys(msg)).to.have.lengthOf(ALL_KEYS.length);
             for (const key of ALL_KEYS) {
@@ -27,6 +27,7 @@ describe('getMessages', () => {
             expect(msg.allDay).to.equal('All Day');
             expect(msg.today).to.equal('Today');
             expect(msg.calendarWeek).to.equal('CW');
+            expect(msg.year).to.equal('Year');
         });
     });
 
@@ -40,6 +41,7 @@ describe('getMessages', () => {
             expect(msg.allDay).to.equal('Ganztägig');
             expect(msg.today).to.equal('Heute');
             expect(msg.calendarWeek).to.equal('KW');
+            expect(msg.year).to.equal('Jahr');
         });
     });
 

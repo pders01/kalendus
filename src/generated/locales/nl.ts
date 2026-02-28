@@ -13,6 +13,7 @@
 's15ba5784a11e0b88': `Huidige maand`,
 's22380c7fc798a44f': `Geen inhoud`,
 's2bc4d1196bce49dc': `Exporteren als ICS`,
+'s3c44e22d1af5693e': `Jaar`,
 's48e186fb300e5464': `Tijd`,
 's58ab939b42a026a6': `Hele dag`,
 's5e8250fb85d64c23': `Sluiten`,

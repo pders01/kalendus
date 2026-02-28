@@ -13,6 +13,7 @@
 's15ba5784a11e0b88': `Bu Ay`,
 's22380c7fc798a44f': `İçerik Yok`,
 's2bc4d1196bce49dc': `ICS Olarak Dışa Aktar`,
+'s3c44e22d1af5693e': `Yıl`,
 's48e186fb300e5464': `Zaman`,
 's58ab939b42a026a6': `Tüm Gün`,
 's5e8250fb85d64c23': `Kapat`,

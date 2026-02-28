@@ -14,6 +14,7 @@
 's15ba5784a11e0b88': `Aktueller Monat`,
 's22380c7fc798a44f': `Kein Inhalt`,
 's2bc4d1196bce49dc': `Als ICS exportieren`,
+'s3c44e22d1af5693e': `Jahr`,
 's48e186fb300e5464': `Zeit`,
 's58ab939b42a026a6': `Ganztägig`,
 's5e8250fb85d64c23': `Schließen`,

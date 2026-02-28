@@ -193,6 +193,9 @@ export default class Header extends LitElement {
                     >
                     <span class="year">${date.year}</span>
                 </div>
+                <div class="view-detail${this.viewMode === 'year' ? ' active' : ''}">
+                    <span class="year">${date.year}</span>
+                </div>
             </div>
             <nav class="context" aria-label="Calendar view" @click=${this._dispatchSwitchView}>
                 <button
@@ -221,6 +224,15 @@ export default class Header extends LitElement {
                     class="btn-change-view"
                 >
                     ${msg.month}
+                </button>
+                <button
+                    type="button"
+                    ?data-active=${this.viewMode === 'year'}
+                    aria-pressed=${this.viewMode === 'year' ? 'true' : 'false'}
+                    data-context="year"
+                    class="btn-change-view"
+                >
+                    ${msg.year}
                 </button>
             </nav>
             <div class="buttons" @click=${this._dispatchSwitchDate}>

@@ -42,6 +42,16 @@ const meta: Meta<LMSCalendar> = {
             options: ['en', 'ar', 'bn', 'de', 'de-DE', 'es', 'fr', 'hi', 'id', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'ru', 'th', 'tr', 'uk', 'vi', 'zh-Hans'],
             description: 'Locale for UI strings and date formatting',
         },
+        yearDrillTarget: {
+            control: 'select',
+            options: ['day', 'month'],
+            description: 'Where day-click in year view navigates to',
+        },
+        yearDensityMode: {
+            control: 'select',
+            options: ['dot', 'heatmap', 'count'],
+            description: 'Event density visualization in year view',
+        },
     },
     args: {
         heading: 'My Calendar',
@@ -66,6 +76,8 @@ type Story = StoryObj<
         entries?: CalendarEntry[];
         firstDayOfWeek?: number;
         locale?: string;
+        yearDrillTarget?: 'day' | 'month';
+        yearDensityMode?: 'dot' | 'heatmap' | 'count';
     }
 >;
 
@@ -1422,6 +1434,198 @@ export const LocaleShowcase: Story = {
         docs: {
             description: {
                 story: 'Showcase of all 19 non-English locales in a 4-column grid. Each calendar uses its own locale for UI strings and date formatting, plus locale-appropriate firstDayOfWeek. All calendars render independently on the same page — no global locale switching.',
+            },
+        },
+    },
+};
+
+// --- Year view stories ---
+
+// Generate year-spanning entries for year view demos
+const generateYearEntries = (): CalendarEntry[] => {
+    const events: CalendarEntry[] = [];
+    const colors = ['#1976d2', '#2e7d32', '#ff9800', '#d32f2f', '#6a1b9a', '#00acc1'];
+
+    for (let month = 1; month <= 12; month++) {
+        const daysInMonth = new Date(currentYear, month, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dayOfWeek = new Date(currentYear, month - 1, day).getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) continue; // skip weekends
+
+            const eventsPerDay = Math.floor(Math.random() * 6);
+            for (let e = 0; e < eventsPerDay; e++) {
+                const startHour = 8 + Math.floor(Math.random() * 10);
+                events.push({
+                    heading: `Event ${e + 1}`,
+                    content: 'Year view event',
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    isContinuation: false,
+                    date: {
+                        start: { day, month, year: currentYear },
+                        end: { day, month, year: currentYear },
+                    },
+                    time: {
+                        start: { hour: startHour, minute: 0 },
+                        end: { hour: startHour + 1, minute: 0 },
+                    },
+                });
+            }
+        }
+    }
+    return events;
+};
+
+const yearEntries = generateYearEntries();
+
+export const YearView: Story = {
+    args: {
+        heading: 'Year Overview',
+        entries: yearEntries,
+        yearDensityMode: 'dot',
+        yearDrillTarget: 'day',
+    },
+    render: (args) => html`
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
+            .yearDrillTarget=${args.yearDrillTarget}
+            .yearDensityMode=${args.yearDensityMode}
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
+        await expect(calendar).toBeInTheDocument();
+
+        const shadowRoot = calendar.shadowRoot;
+        const header = shadowRoot?.querySelector('lms-calendar-header');
+        if (header) {
+            const headerShadow = header.shadowRoot;
+            const yearButton = headerShadow?.querySelector('[data-context="year"]') as HTMLElement;
+            if (yearButton) {
+                await userEvent.click(yearButton);
+                await new Promise((resolve) => setTimeout(resolve, 300));
+
+                const yearView = shadowRoot?.querySelector('lms-calendar-year');
+                await expect(yearView).toBeInTheDocument();
+            }
+        }
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Year view showing 12 mini-month calendars in a responsive grid. Each day shows a dot indicator for days with events. Click a day to drill down to month view, or click a month label to jump directly to that month.',
+            },
+        },
+    },
+};
+
+export const YearViewDensityModes: Story = {
+    args: {
+        entries: yearEntries,
+    },
+    render: (args) => html`
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; height: 720px;">
+            <lms-calendar
+                .heading=${'Dot Mode'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                .yearDensityMode=${'dot'}
+                style="height: 100%; display: block;"
+            ></lms-calendar>
+            <lms-calendar
+                .heading=${'Heatmap Mode'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                .yearDensityMode=${'heatmap'}
+                style="height: 100%; display: block;"
+            ></lms-calendar>
+            <lms-calendar
+                .heading=${'Count Mode'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                .yearDensityMode=${'count'}
+                style="height: 100%; display: block;"
+            ></lms-calendar>
+        </div>
+    `,
+    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+        const calendars = canvasElement.querySelectorAll('lms-calendar') as NodeListOf<LMSCalendar>;
+        for (const calendar of calendars) {
+            await expect(calendar).toBeInTheDocument();
+            const shadowRoot = calendar.shadowRoot;
+            const header = shadowRoot?.querySelector('lms-calendar-header');
+            if (header) {
+                const headerShadow = header.shadowRoot;
+                const yearButton = headerShadow?.querySelector('[data-context="year"]') as HTMLElement;
+                if (yearButton) {
+                    await userEvent.click(yearButton);
+                    await new Promise((resolve) => setTimeout(resolve, 200));
+                }
+            }
+        }
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Side-by-side comparison of all three density visualization modes in year view: dot (small colored dot), heatmap (opacity-based background), and count (numeric event count). All three calendars show the same event data.',
+            },
+        },
+    },
+};
+
+export const YearViewDrillDown: Story = {
+    args: {
+        heading: 'Year → Day Drill-Down',
+        entries: yearEntries,
+        yearDrillTarget: 'day',
+        yearDensityMode: 'heatmap',
+    },
+    render: (args) => html`
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
+            .yearDrillTarget=${args.yearDrillTarget}
+            .yearDensityMode=${args.yearDensityMode}
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
+        await expect(calendar).toBeInTheDocument();
+
+        const shadowRoot = calendar.shadowRoot;
+        const header = shadowRoot?.querySelector('lms-calendar-header');
+        if (header) {
+            const headerShadow = header.shadowRoot;
+            const yearButton = headerShadow?.querySelector('[data-context="year"]') as HTMLElement;
+            if (yearButton) {
+                await userEvent.click(yearButton);
+                await new Promise((resolve) => setTimeout(resolve, 500));
+            }
+        }
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Year view configured with yearDrillTarget="day" and heatmap density mode. Clicking any day will navigate directly to the day view instead of month view. The heatmap coloring makes it easy to spot the busiest days at a glance.',
             },
         },
     },
