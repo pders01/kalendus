@@ -300,6 +300,7 @@ export default class LMSCalendar extends LitElement {
             --year-heatmap-4: rgba(30, 144, 255, 0.75);
         }
         .calendar-container {
+            box-sizing: border-box;
             width: var(--width);
             height: var(--height);
             background-color: var(--background-color);
