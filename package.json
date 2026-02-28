@@ -1,6 +1,6 @@
 {
     "name": "@jpahd/kalendus",
-    "version": "0.4.0",
+    "version": "0.1.0",
     "description": "A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript.",
     "keywords": [
         "calendar",
