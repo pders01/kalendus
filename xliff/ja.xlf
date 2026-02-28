@@ -1,82 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-<file target-language="de-DE" source-language="en" original="lit-localize-inputs" datatype="plaintext">
+<file target-language="ja" source-language="en" original="lit-localize-inputs" datatype="plaintext">
 <body>
 <trans-unit id="se0955919920ee87d">
   <source>Day</source>
-  <target>Tag</target>
+  <target>日</target>
 </trans-unit>
 <trans-unit id="s680f01021b5e339d">
   <source>Week</source>
-  <target>Woche</target>
+  <target>週</target>
 </trans-unit>
 <trans-unit id="sb47daaf9e1c4a905">
   <source>Month</source>
-  <target>Monat</target>
+  <target>月</target>
 </trans-unit>
 <trans-unit id="s15ba5784a11e0b88">
   <source>Current Month</source>
-  <target>Aktueller Monat</target>
+  <target>今月</target>
 </trans-unit>
 <trans-unit id="s58ab939b42a026a6">
   <source>All Day</source>
-  <target>Ganztägig</target>
+  <target>終日</target>
 </trans-unit>
 <trans-unit id="s63d040e37887f17e">
   <source>Today</source>
-  <target>Heute</target>
+  <target>今日</target>
 </trans-unit>
 <trans-unit id="s98b32ef4a0856c08">
   <source>No Title</source>
-  <target>Kein Titel</target>
+  <target>タイトルなし</target>
 </trans-unit>
 <trans-unit id="s22380c7fc798a44f">
   <source>No Content</source>
-  <target>Kein Inhalt</target>
+  <target>内容なし</target>
 </trans-unit>
 <trans-unit id="sfce4bfbe0f911aa7">
   <source>No Time</source>
-  <target>Keine Zeit</target>
+  <target>時間なし</target>
 </trans-unit>
 <trans-unit id="sa0fd990c985f24bd">
   <source>Event Details</source>
-  <target>Termindetails</target>
+  <target>予定の詳細</target>
 </trans-unit>
 <trans-unit id="s2bc4d1196bce49dc">
   <source>Export as ICS</source>
-  <target>Als ICS exportieren</target>
+  <target>ICSとして書き出す</target>
 </trans-unit>
 <trans-unit id="s99f110d27e30b289">
   <source>Title</source>
-  <target>Titel</target>
+  <target>タイトル</target>
 </trans-unit>
 <trans-unit id="s48e186fb300e5464">
   <source>Time</source>
-  <target>Zeit</target>
+  <target>時間</target>
 </trans-unit>
 <trans-unit id="sac8252732f2edb19">
   <source>Date</source>
-  <target>Datum</target>
+  <target>日付</target>
 </trans-unit>
 <trans-unit id="s005053d82b712e0a">
   <source>Notes</source>
-  <target>Notizen</target>
+  <target>メモ</target>
 </trans-unit>
 <trans-unit id="s1c109a21525649fd">
   <source>Minimize</source>
-  <target>Minimieren</target>
+  <target>最小化</target>
 </trans-unit>
 <trans-unit id="s5e8250fb85d64c23">
   <source>Close</source>
-  <target>Schließen</target>
+  <target>閉じる</target>
 </trans-unit>
 <trans-unit id="s7264933e3c515250">
   <source>Drag to move menu</source>
-  <target>Ziehen zum Verschieben</target>
+  <target>ドラッグして移動</target>
 </trans-unit>
 <trans-unit id="s090f2107b5a69a7f">
   <source>CW</source>
-  <target>KW</target>
+  <target>週</target>
 </trans-unit>
 </body>
 </file>

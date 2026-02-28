@@ -1,0 +1,30 @@
+
+    // Do not modify this file by hand!
+    // Re-generate this file by running lit-localize
+
+    
+    
+
+    /* eslint-disable no-irregular-whitespace */
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+
+    export const templates = {
+      's005053d82b712e0a': `メモ`,
+'s090f2107b5a69a7f': `週`,
+'s15ba5784a11e0b88': `今月`,
+'s22380c7fc798a44f': `内容なし`,
+'s2bc4d1196bce49dc': `ICSとして書き出す`,
+'s48e186fb300e5464': `時間`,
+'s58ab939b42a026a6': `終日`,
+'s5e8250fb85d64c23': `閉じる`,
+'s63d040e37887f17e': `今日`,
+'s680f01021b5e339d': `週`,
+'s98b32ef4a0856c08': `タイトルなし`,
+'s99f110d27e30b289': `タイトル`,
+'sa0fd990c985f24bd': `予定の詳細`,
+'sac8252732f2edb19': `日付`,
+'sb47daaf9e1c4a905': `月`,
+'se0955919920ee87d': `日`,
+'sfce4bfbe0f911aa7': `時間なし`,
+    };
+  

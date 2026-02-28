@@ -1,28 +1,93 @@
 import { configureLocalization } from '@lit/localize';
 import { DateTime } from 'luxon';
 
-import { sourceLocale, targetLocales } from '../generated/locale-codes.js';
+import { allLocales, sourceLocale, targetLocales } from '../generated/locale-codes.js';
+
+// Explicit locale import map — static imports that Vite can analyze at build time.
+// The dynamic import(`../generated/locales/${locale}.js`) pattern breaks in Vite's
+// dev server because its dynamic-import-helper can't resolve .js → .ts mappings.
+const localeModules: Record<string, () => Promise<unknown>> = {
+    ar: () => import('../generated/locales/ar.js'),
+    de: () => import('../generated/locales/de.js'),
+    'de-DE': () => import('../generated/locales/de-DE.js'),
+    es: () => import('../generated/locales/es.js'),
+    fr: () => import('../generated/locales/fr.js'),
+    ja: () => import('../generated/locales/ja.js'),
+    pt: () => import('../generated/locales/pt.js'),
+    'zh-Hans': () => import('../generated/locales/zh-Hans.js'),
+};
 
 // Configure @lit/localize
 export const { getLocale, setLocale } = configureLocalization({
     sourceLocale,
     targetLocales,
-    loadLocale: (locale: string) => import(`../generated/locales/${locale}.js`),
+    loadLocale: (locale: string) => localeModules[locale](),
 });
 
 /**
- * Get the current locale, falling back to browser language or 'en'
+ * Resolve an arbitrary locale tag to the best matching supported locale.
+ *
+ * Resolution order:
+ * 1. Exact match (e.g., "de-DE")
+ * 2. Language-only fallback (e.g., "de" for "de-AT")
+ * 3. undefined if no match
  */
-export function getCurrentLocale(): string {
-    return getLocale() || document.documentElement.lang?.slice(0, 2) || 'en';
+function resolveLocale(locale: string): (typeof allLocales)[number] | undefined {
+    const all: readonly string[] = allLocales;
+
+    // Exact match
+    if (all.includes(locale)) {
+        return locale as (typeof allLocales)[number];
+    }
+
+    // Language-only fallback
+    const lang = locale.split('-')[0];
+    if (all.includes(lang)) {
+        return lang as (typeof allLocales)[number];
+    }
+
+    return undefined;
 }
 
 /**
- * Set locale for both @lit/localize and Luxon
+ * Map lit-localize locale codes to Intl/Luxon-compatible BCP47 tags.
+ * Some of our locale codes (e.g., `zh-Hans`) use Unicode script subtags
+ * that Luxon/Intl may not handle correctly — they need proper region tags.
+ */
+const LUXON_LOCALE_MAP: Record<string, string> = {
+    'zh-Hans': 'zh-CN',
+    'zh-Hant': 'zh-TW',
+};
+
+/**
+ * Internal Luxon-compatible locale. Updated synchronously alongside
+ * the async @lit/localize setLocale so Luxon formatting is always current.
+ */
+let _luxonLocale = 'en';
+
+/**
+ * Get the current locale for Luxon/Intl formatting.
+ */
+export function getCurrentLocale(): string {
+    return _luxonLocale;
+}
+
+/**
+ * Set locale for both @lit/localize and Luxon.
+ * Accepts any locale tag and resolves to the best available match.
  */
 export async function setAppLocale(locale: string): Promise<void> {
-    await setLocale(locale);
-    // Luxon will automatically use the locale when we call .setLocale() on DateTime instances
+    // Update Luxon locale immediately (synchronous) so formatting is correct
+    // even before the async @lit/localize module load completes.
+    _luxonLocale = LUXON_LOCALE_MAP[locale] || locale;
+
+    const resolved = resolveLocale(locale);
+    if (resolved) {
+        // Always call setLocale — including for the source locale — so that
+        // @lit/localize clears any previously loaded target-locale templates
+        // and fires the lit-localize-status event for @localized() components.
+        await setLocale(resolved as (typeof targetLocales)[number]);
+    }
 }
 
 /**

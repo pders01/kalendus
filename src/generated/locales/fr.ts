@@ -1,0 +1,30 @@
+
+    // Do not modify this file by hand!
+    // Re-generate this file by running lit-localize
+
+    
+    
+
+    /* eslint-disable no-irregular-whitespace */
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+
+    export const templates = {
+      's005053d82b712e0a': `Notes`,
+'s090f2107b5a69a7f': `S`,
+'s15ba5784a11e0b88': `Mois en cours`,
+'s22380c7fc798a44f': `Aucun contenu`,
+'s2bc4d1196bce49dc': `Exporter en ICS`,
+'s48e186fb300e5464': `Heure`,
+'s58ab939b42a026a6': `Toute la journée`,
+'s5e8250fb85d64c23': `Fermer`,
+'s63d040e37887f17e': `Aujourd'hui`,
+'s680f01021b5e339d': `Semaine`,
+'s98b32ef4a0856c08': `Sans titre`,
+'s99f110d27e30b289': `Titre`,
+'sa0fd990c985f24bd': `Détails de l'événement`,
+'sac8252732f2edb19': `Date`,
+'sb47daaf9e1c4a905': `Mois`,
+'se0955919920ee87d': `Jour`,
+'sfce4bfbe0f911aa7': `Aucune heure`,
+    };
+  
