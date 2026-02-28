@@ -12,14 +12,14 @@ describe('Day Component', () => {
         expect(el.shadowRoot).to.exist;
     });
 
-    it('should render 25 hours (0-24)', async () => {
+    it('should render 25 hour labels (0-24)', async () => {
         const el: Day = await fixture(html`
             <lms-calendar-day></lms-calendar-day>
         `);
 
         await el.updateComplete;
 
-        const hourElements = el.shadowRoot?.querySelectorAll('.hour');
+        const hourElements = el.shadowRoot?.querySelectorAll('.hour-label');
         expect(hourElements).to.have.length(25); // 0-24 hours
     });
 
@@ -30,7 +30,7 @@ describe('Day Component', () => {
 
         await el.updateComplete;
 
-        const indicators = el.shadowRoot?.querySelectorAll('.indicator');
+        const indicators = el.shadowRoot?.querySelectorAll('.hour-label .indicator');
         expect(indicators).to.have.length(25);
 
         // Check first hour (00:00)
@@ -50,15 +50,19 @@ describe('Day Component', () => {
         expect(lastHour?.textContent?.trim()).to.equal('24:00');
     });
 
-    it('should render hour separators correctly', async () => {
+    it('should render timed-content with gradient separators', async () => {
         const el: Day = await fixture(html`
             <lms-calendar-day></lms-calendar-day>
         `);
 
         await el.updateComplete;
 
+        const timedContent = el.shadowRoot?.querySelector('.timed-content');
+        expect(timedContent).to.exist;
+
+        // No longer has DOM separator elements — uses CSS gradient instead
         const separators = el.shadowRoot?.querySelectorAll('.separator');
-        expect(separators).to.have.length(24); // No separator for first hour (index 0)
+        expect(separators).to.have.length(0);
     });
 
     it('should render all-day slot', async () => {
@@ -73,20 +77,16 @@ describe('Day Component', () => {
         expect(allDaySlot?.id).to.equal('all-day');
     });
 
-    it('should render hour slots for each hour', async () => {
+    it('should render a single timed slot', async () => {
         const el: Day = await fixture(html`
             <lms-calendar-day></lms-calendar-day>
         `);
 
         await el.updateComplete;
 
-        // Check that we have slots for hours 0-24
-        for (let hour = 0; hour <= 24; hour++) {
-            const hourSlot = el.shadowRoot?.querySelector(
-                `slot[name="${hour}"]`,
-            );
-            expect(hourSlot).to.exist;
-        }
+        // Should have a single "timed" slot instead of per-hour slots
+        const timedSlot = el.shadowRoot?.querySelector('slot[name="timed"]');
+        expect(timedSlot).to.exist;
     });
 
     it('should start with sidebar hidden', async () => {
@@ -142,7 +142,7 @@ describe('Day Component', () => {
         expect(container.style.height).to.include('48px');
     });
 
-    it('should render grid with correct number of rows', async () => {
+    it('should use single-row grid with timed-content container', async () => {
         const el: Day = await fixture(html`
             <lms-calendar-day></lms-calendar-day>
         `);
@@ -150,52 +150,37 @@ describe('Day Component', () => {
         await el.updateComplete;
 
         const main = el.shadowRoot?.querySelector('.main');
-        const computedStyle = window.getComputedStyle(main as Element);
+        expect(main).to.exist;
 
-        // Should have 1440 grid rows (24 hours * 60 minutes)
-        // The computed style will show 'repeat(1440, 1fr)' as individual values
-        const rowCount = computedStyle.gridTemplateRows.split(' ').length;
-        expect(rowCount).to.equal(1440);
+        // Should have timed-content column
+        const timedContent = el.shadowRoot?.querySelector('.timed-content');
+        expect(timedContent).to.exist;
+
+        // Should have time-labels column
+        const timeLabels = el.shadowRoot?.querySelector('.time-labels');
+        expect(timeLabels).to.exist;
     });
 
-    it('should calculate correct grid positions for hour indicators', async () => {
+    it('should position hour labels with absolute top offsets', async () => {
         const el: Day = await fixture(html`
             <lms-calendar-day></lms-calendar-day>
         `);
 
         await el.updateComplete;
 
-        const hourElements = el.shadowRoot?.querySelectorAll('.hour');
+        const hourLabels = el.shadowRoot?.querySelectorAll('.hour-label');
 
-        // Check first hour (hour 0) - should span rows 1-60
-        const firstHour = hourElements?.[0] as HTMLElement;
-        expect(firstHour.style.gridRow.replace(/\s/g, '')).to.equal('1/60');
+        // Check first hour (hour 0) - should be at top: calc(0 * var(--hour-height))
+        const firstHour = hourLabels?.[0] as HTMLElement;
+        expect(firstHour.style.top).to.equal('calc(0 * var(--hour-height))');
 
-        // Check hour 1 - should span rows 61-120
-        const secondHour = hourElements?.[1] as HTMLElement;
-        expect(secondHour.style.gridRow.replace(/\s/g, '')).to.equal('61/120');
+        // Check hour 1 - should be at top: calc(1 * var(--hour-height))
+        const secondHour = hourLabels?.[1] as HTMLElement;
+        expect(secondHour.style.top).to.equal('calc(1 * var(--hour-height))');
 
-        // Check last hour (hour 24) - should be at row 1440
-        const lastHour = hourElements?.[24] as HTMLElement;
-        expect(lastHour.style.gridRow).to.equal('1440');
-    });
-
-    it('should position separators correctly', async () => {
-        const el: Day = await fixture(html`
-            <lms-calendar-day></lms-calendar-day>
-        `);
-
-        await el.updateComplete;
-
-        const separators = el.shadowRoot?.querySelectorAll('.separator');
-
-        // First separator (for hour 1) should be at row 60
-        const firstSeparator = separators?.[0] as HTMLElement;
-        expect(firstSeparator.style.gridRow).to.equal('60');
-
-        // Second separator (for hour 2) should be at row 120
-        const secondSeparator = separators?.[1] as HTMLElement;
-        expect(secondSeparator.style.gridRow).to.equal('120');
+        // Check last hour (hour 24) - should be at top: calc(24 * var(--hour-height))
+        const lastHour = hourLabels?.[24] as HTMLElement;
+        expect(lastHour.style.top).to.equal('calc(24 * var(--hour-height))');
     });
 
     it('should have correct CSS classes and structure', async () => {
@@ -230,9 +215,20 @@ describe('Day Component', () => {
 
         await el.updateComplete;
 
-        // All slots should exist even when empty (no all-day slot when allDayRowCount=0)
+        // Should have 1 timed slot when allDayRowCount=0 (no all-day slot)
         const allSlots = el.shadowRoot?.querySelectorAll('slot');
-        expect(allSlots).to.have.length(25); // 25 hour slots (all-day omitted when count=0)
+        expect(allSlots).to.have.length(1); // just slot[name="timed"]
+    });
+
+    it('should have 2 slots when allDayRowCount > 0', async () => {
+        const el: Day = await fixture(html`
+            <lms-calendar-day .allDayRowCount=${1}></lms-calendar-day>
+        `);
+
+        await el.updateComplete;
+
+        const allSlots = el.shadowRoot?.querySelectorAll('slot');
+        expect(allSlots).to.have.length(2); // slot[name="all-day"] + slot[name="timed"]
     });
 
     it('should support custom CSS properties', async () => {

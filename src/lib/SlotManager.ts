@@ -59,6 +59,7 @@ export interface SlotPosition {
     gridColumn?: number; // For direct grid positioning
     gridRow?: string; // For direct grid positioning
     useDirectGrid: boolean; // Whether to bypass slots entirely
+    useAbsolutePosition?: boolean; // Whether to use absolute positioning (replaces 1440-row grid)
     isAllDay?: boolean; // Whether this is an all-day event
     dayIndex?: number; // Which day column (0-6 for week view)
     isMultiDay?: boolean; // Whether this spans multiple days
@@ -97,6 +98,25 @@ export class SlotManager {
         layout: LayoutDimensions,
         time?: CalendarTimeInterval,
     ): string {
+        if (position.useAbsolutePosition && time) {
+            // Absolute positioning — replaces 1440-row grid
+            const startMinute = time.start.hour * 60 + time.start.minute;
+            const endMinute = time.end.hour * 60 + time.end.minute;
+            const duration = Math.max(endMinute - startMinute, 20);
+            return [
+                'position: absolute',
+                `top: calc(${startMinute} * var(--minute-height))`,
+                `height: calc(${duration} * var(--minute-height))`,
+                `width: ${layout.width}%`,
+                `left: ${layout.x}%`,
+                `z-index: ${layout.zIndex}`,
+                `opacity: ${layout.opacity}`,
+                'margin-left: 0',
+                'grid-column: unset',
+                'grid-row: unset',
+            ].join('; ');
+        }
+
         if (position.useDirectGrid) {
             // Direct grid positioning (bypasses slots)
             return `grid-column: ${position.gridColumn || 2}; grid-row: ${position.gridRow || '1'}; --entry-width: ${layout.width}%; --entry-margin-left: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
@@ -108,7 +128,7 @@ export class SlotManager {
     }
 
     /**
-     * Day view positioning: uses time-based slots
+     * Day view positioning: uses absolute positioning for timed entries
      */
     private _calculateDayPosition(
         _date: CalendarDate,
@@ -127,14 +147,14 @@ export class SlotManager {
         }
 
         return {
-            slotName: time.start.hour.toString(),
+            slotName: 'timed',
             useDirectGrid: false,
+            useAbsolutePosition: true,
         };
     }
 
     /**
-     * Week view positioning: calculates day column and uses direct grid positioning
-     * This bypasses the Week component's slot system to achieve identical rendering to day view
+     * Week view positioning: uses absolute positioning within per-day slot containers
      */
     private _calculateWeekPosition(
         date: CalendarDate,
@@ -167,10 +187,10 @@ export class SlotManager {
         }
 
         return {
-            slotName: '', // No slot - direct grid positioning
-            gridColumn,
-            gridRow: this._getGridSlotByTime(time),
-            useDirectGrid: true,
+            slotName: `timed-${date.year}-${date.month}-${date.day}`,
+            useDirectGrid: false,
+            useAbsolutePosition: true,
+            dayIndex: dayColumnIndex,
         };
     }
 
@@ -182,6 +202,19 @@ export class SlotManager {
             slotName: `${date.year}-${date.month}-${date.day}`,
             useDirectGrid: false,
         };
+    }
+
+    /**
+     * Convert a pixel offset within a time column to a time object.
+     * Reads --minute-height from the host element. For future drag/resize interactions.
+     */
+    public pxToTime(px: number, hostEl: Element): { hour: number; minute: number } {
+        const minuteHeight = parseFloat(
+            getComputedStyle(hostEl).getPropertyValue('--minute-height'),
+        ) || 0.8;
+        const totalMinutes = Math.round(px / minuteHeight);
+        const clamped = Math.max(0, Math.min(totalMinutes, 1439));
+        return { hour: Math.floor(clamped / 60), minute: clamped % 60 };
     }
 
     /**

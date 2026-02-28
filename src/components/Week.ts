@@ -113,13 +113,12 @@ export default class Week extends LitElement {
             font-weight: var(--indicator-font-weight, bold);
         }
 
-        .week-content {
+        .week-scroll {
             flex: 1;
             overflow-y: auto;
             display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
-            grid-template-rows: var(--calendar-grid-rows-time);
-            height: var(--main-content-height);
+            grid-template-rows: 1fr;
             gap: var(--day-gap, 1px);
             padding: var(--day-padding, 0.5em);
             min-height: 0;
@@ -127,43 +126,41 @@ export default class Week extends LitElement {
             contain: content;
         }
 
-        .time-slots {
+        .time-labels {
             grid-column: 1;
+            position: relative;
+            height: var(--day-total-height);
             border-right: var(--sidebar-border, 1px solid var(--separator-light));
             background: var(--background-color, white);
         }
 
-        .hour-indicator {
-            position: relative;
-            top: var(--indicator-top, -0.6em);
+        .hour-label {
+            position: absolute;
+            left: 0;
+            right: 0;
             text-align: var(--hour-text-align, center);
             font-size: var(--hour-indicator-font-size);
             color: var(--hour-indicator-color);
-        }
-
-        .week-days {
-            display: contents;
+            transform: translateY(var(--indicator-top, -0.55em));
+            pointer-events: none;
         }
 
         .day-column {
-            border-right: var(--sidebar-border, 1px solid var(--separator-light));
             position: relative;
+            height: var(--day-total-height);
+            border-right: var(--sidebar-border, 1px solid var(--separator-light));
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent 0,
+                transparent calc(var(--hour-height) - 1px),
+                var(--separator-light) calc(var(--hour-height) - 1px),
+                var(--separator-light) var(--hour-height)
+            );
+            background-size: 100% var(--hour-height);
         }
 
         .day-column:last-child {
             border-right: none;
-        }
-
-        .hour-separator {
-            grid-column: 2 / -1;
-            border-top: var(--separator-border, 1px solid var(--separator-light));
-            position: absolute;
-            width: 100%;
-            z-index: 0;
-        }
-
-        .hour-slot-container {
-            overflow: hidden;
         }
 
         /* All-day events section */
@@ -399,63 +396,28 @@ export default class Week extends LitElement {
                     </div>
                 </div>
                 ` : nothing}
-                <div class="week-content" style="height: ${weekContentHeight}">
-                    <!-- Hour indicators -->
-                    ${Array.from({ length: 25 }).map(
-                        (_, hour) => html`
-                            <div
-                                class="hour-indicator"
-                                style="grid-column: 1; grid-row: ${hour * 60 + 1};"
-                            >
-                                ${this._renderIndicatorValue(hour)}
+                <div class="week-scroll" style="height: ${weekContentHeight}">
+                    <div class="time-labels">
+                        ${Array.from({ length: 25 }).map(
+                            (_, hour) => html`
+                                <div
+                                    class="hour-label"
+                                    style="top: calc(${hour} * var(--hour-height))"
+                                >
+                                    ${this._renderIndicatorValue(hour)}
+                                </div>
+                            `,
+                        )}
+                    </div>
+                    ${datesToRender.map(
+                        (date) => html`
+                            <div class="day-column">
+                                <slot
+                                    name="timed-${date.year}-${date.month}-${date.day}"
+                                ></slot>
                             </div>
                         `,
                     )}
-
-                    <!-- Hour separators -->
-                    ${Array.from({ length: 25 }).map(
-                        (_, hour) => html`
-                            ${
-                                hour > 0
-                                    ? html`
-                                      <div
-                                          class="hour-separator"
-                                          style="grid-column: 2 / -1; grid-row: ${hour * 60};"
-                                      ></div>
-                                  `
-                                    : ''
-                            }
-                        `,
-                    )}
-
-                    <!-- Hour slots for each day -->
-                    ${datesToRender.map(
-                        (date, dayIndex) => html`
-                            ${Array.from({ length: 25 }).map(
-                                (_, hour) => html`
-                                    <div
-                                        class="hour-slot-container"
-                                        style="grid-column: ${dayIndex + 2}; grid-row: ${
-                                            hour * 60 + 1
-                                        } / ${(hour + 1) * 60 + 1}; position: relative;"
-                                    >
-                                        <slot
-                                            name="${date.year}-${date.month}-${date.day}-${hour}"
-                                            data-debug="Day ${
-                                                dayIndex + 1
-                                            } (${date.month}/${date.day}) Hour ${hour}"
-                                        ></slot>
-                                    </div>
-                                `,
-                            )}
-                        `,
-                    )}
-
-                    <!-- Fallback slot for direct grid positioned entries -->
-                    <slot
-                        name="week-direct-grid"
-                        style="display: contents;"
-                    ></slot>
                 </div>
             </div>
         `;

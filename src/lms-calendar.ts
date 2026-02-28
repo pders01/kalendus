@@ -223,9 +223,17 @@ export default class LMSCalendar extends LitElement {
 
             /* Core layout tokens */
             --time-column-width: 4em;
-            --grid-rows-per-day: 1440;
             --view-container-height-offset: 0px;
             --main-content-height-offset: 1em;
+
+            /* Time grid sizing — replaces 1440-row grid */
+            --minute-height: 0.8px;
+            --hour-height: calc(60 * var(--minute-height));
+            --day-total-height: calc(1440 * var(--minute-height));
+
+            /* Deprecated: kept for consumers who read them, no longer used internally */
+            --grid-rows-per-day: 1440;
+            --calendar-grid-rows-time: repeat(var(--grid-rows-per-day), 1fr);
 
             /* Week view condensed tokens */
             --week-day-count: 7;
@@ -236,7 +244,6 @@ export default class LMSCalendar extends LitElement {
             --calendar-grid-columns-day: var(--time-column-width) 1fr;
             --calendar-grid-columns-week: var(--time-column-width) repeat(7, 1fr);
             --calendar-grid-columns-month: repeat(7, 1fr);
-            --calendar-grid-rows-time: repeat(var(--grid-rows-per-day), 1fr);
 
             /* Calculated heights */
             --view-container-height: calc(100% - var(--view-container-height-offset));
@@ -1152,7 +1159,7 @@ export default class LMSCalendar extends LitElement {
 
             return this._composeEntry({
                 index: index + entriesByDate.length,
-                slot: position.slotName || 'week-direct-grid',
+                slot: position.slotName,
                 inlineStyle: `--entry-background-color: ${background}; --entry-color: ${text}; order: ${row}; ${positionCSS}`,
                 entry: {
                     ...entry,
@@ -1237,7 +1244,7 @@ export default class LMSCalendar extends LitElement {
 
             return this._composeEntry({
                 index: globalIndex,
-                slot: position.slotName || 'week-direct-grid', // Use fallback slot for direct grid positioning
+                slot: position.slotName,
                 inlineStyle: `--entry-background-color: rgba(250, 250, 250, 0.8); --entry-color: #333; --entry-border: 1px solid rgba(0, 0, 0, 0.15); --entry-handle-color: ${entry.color || '#1976d2'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
                 entry: {
                     ...entry,
