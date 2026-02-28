@@ -322,6 +322,8 @@ export default class LMSCalendar extends LitElement {
             flex: 1;
             min-height: 0;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Responsive entry scaling based on viewport width */

@@ -25,8 +25,14 @@ export default class Month extends LitElement {
     locale = 'en';
 
     static override styles = css`
+        :host {
+            display: block;
+            flex: 1;
+            min-height: 0;
+        }
+
         .month {
-            height: calc(100% - var(--context-height, 1.75em) - var(--context-padding, 0.25em) * 2);
+            height: 100%;
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             border-top: 1px solid var(--separator-light);

@@ -13,6 +13,11 @@ export default class Context extends LitElement {
     locale = 'en';
 
     static override styles = css`
+        :host {
+            display: block;
+            flex-shrink: 0;
+        }
+
         div {
             height: var(--context-height, 1.75em);
             display: grid;
