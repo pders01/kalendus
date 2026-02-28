@@ -5,7 +5,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { P, match } from 'ts-pattern';
 
 import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator.js';
-import { getLocalizedMonth } from '../lib/localization.js';
+import { getLocalizedDayMonth } from '../lib/localization.js';
 import { type FirstDayOfWeek, getFirstDayOffset } from '../lib/weekStartHelper.js';
 
 @customElement('lms-calendar-month')
@@ -150,16 +150,14 @@ export default class Month extends LitElement {
 
     private _renderIndicator({ year, month, day }: CalendarDate) {
         const isCurrentDate = this._isCurrentDate(`${year}/${month}/${day}`);
-        const isActiveMonth = month === this.activeDate.month && year === this.activeDate.year;
         return html` <div
             class="indicator ${classMap({
                 current: isCurrentDate,
             })}"
         >
-            ${match([day, isActiveMonth])
-                .with([1, true], () => html` ${day}. ${getLocalizedMonth(month)} `)
-                .with([1, false], () => html` ${day}. ${getLocalizedMonth(month)} `)
-                .otherwise(() => html` ${day} `)}
+            ${day === 1
+                ? getLocalizedDayMonth(day, month, year)
+                : day}
         </div>`;
     }
 
