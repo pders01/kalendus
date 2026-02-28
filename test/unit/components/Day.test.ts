@@ -45,9 +45,9 @@ describe('Day Component', () => {
         const eleventhHour = indicators?.[10];
         expect(eleventhHour?.textContent?.trim()).to.equal('10:00');
 
-        // Check last hour (24:00)
+        // Check last hour (24 wraps to 0:00 via Intl.DateTimeFormat)
         const lastHour = indicators?.[24];
-        expect(lastHour?.textContent?.trim()).to.equal('24:00');
+        expect(lastHour?.textContent?.trim()).to.equal('0:00');
     });
 
     it('should render timed-content with gradient separators', async () => {
