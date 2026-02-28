@@ -20,11 +20,18 @@ import './components/Month.js';
 import LMSCalendarWeek from './components/Week';
 import './components/Week.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
-import { LayoutCalculator } from './lib/LayoutCalculator.js';
+import { LayoutCalculator, type LayoutResult } from './lib/LayoutCalculator.js';
 import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
 import { slotManager, type LayoutDimensions, type PositionConfig, type FirstDayOfWeek } from './lib/SlotManager.js';
 import { ViewStateController } from './lib/ViewStateController.js';
 import { getWeekDates } from './lib/weekStartHelper.js';
+
+// ── Derived type for expanded (multi-day) entries ──────────────────────
+type ExpandedCalendarEntry = CalendarEntry & {
+    isContinuation: boolean;
+    continuation: Continuation;
+    originalStartDate?: CalendarDate;
+};
 
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
@@ -70,6 +77,32 @@ export default class LMSCalendar extends LitElement {
     private _menuTriggerEntry?: HTMLElement;
 
     private _processedEntries: CalendarEntry[] = [];
+
+    // ── Memoized derived data (recomputed only when `entries` changes) ──
+    // Think of these as `useMemo(() => …, [entries])` — willUpdate is the
+    // dependency check, and render methods are pure consumers.
+
+    /** All entries expanded across their date spans (shared by every view). */
+    private _expandedEntries: ExpandedCalendarEntry[] = [];
+
+    /** Original-index lookup by deterministic event ID. */
+    private _entryIdMap = new Map<string, number>();
+
+    /** Month view: sorted + color-annotated, ready for _renderEntries. */
+    private _monthViewSorted: Array<{
+        entry: ExpandedCalendarEntry;
+        background: string;
+        originalIndex: number;
+    }> = [];
+
+    /** Mobile badge view: per-day event counts, ready for _renderEntriesSumByDay. */
+    private _entrySumByDay: Record<string, number> = {};
+
+    /** Day/week view: expanded entries grouped by ISO date for O(1) lookup. */
+    private _expandedByISODate = new Map<string, ExpandedCalendarEntry[]>();
+
+    /** Day/week view: cached LayoutCalculator results keyed by ISO date. */
+    private _layoutCache = new Map<string, LayoutResult>();
 
     private _layoutCalculator = new LayoutCalculator({
         timeColumnWidth: 80,
@@ -378,6 +411,7 @@ export default class LMSCalendar extends LitElement {
 
         if (!this.entries.length) {
             this._processedEntries = [];
+            this._clearEntryCaches();
             return;
         }
 
@@ -396,6 +430,77 @@ export default class LMSCalendar extends LitElement {
                     a.time.start.minute - b.time.start.minute,
             ),
         );
+
+        this._computeEntryCaches();
+    }
+
+    // ── Memoization helpers (the "compute" side of the memo pattern) ────
+    // These run once per `entries` change — equivalent to the factory
+    // function inside useMemo(() => { … }, [entries]).
+
+    private _clearEntryCaches() {
+        this._expandedEntries = [];
+        this._entryIdMap.clear();
+        this._monthViewSorted = [];
+        this._entrySumByDay = {};
+        this._expandedByISODate.clear();
+        this._layoutCache.clear();
+    }
+
+    private _computeEntryCaches() {
+        // 1. Build original-index map (for consistent sorting across views)
+        this._entryIdMap.clear();
+        this._processedEntries.forEach((entry, index) => {
+            this._entryIdMap.set(this._createConsistentEventId(entry), index);
+        });
+
+        // 2. Expand all entries across their date spans (the expensive O(n × span) work)
+        this._expandedEntries = this._processedEntries.flatMap((entry) =>
+            this._expandEntryMaybe({
+                entry,
+                range: this._getDaysRange(entry.date),
+            }),
+        ) as ExpandedCalendarEntry[];
+
+        // 3. Group by ISO date for O(1) day/week lookups (no Luxon needed)
+        this._expandedByISODate.clear();
+        for (const entry of this._expandedEntries) {
+            const { year, month, day } = entry.date.start;
+            const key = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            let bucket = this._expandedByISODate.get(key);
+            if (!bucket) {
+                bucket = [];
+                this._expandedByISODate.set(key, bucket);
+            }
+            bucket.push(entry);
+        }
+
+        // 4. Month view: sort + compute colors once
+        this._monthViewSorted = R.pipe(
+            this._expandedEntries,
+            R.sortBy((entry) => {
+                const baseId = this._createConsistentEventId(entry as CalendarEntry);
+                const originalIndex = this._entryIdMap.get(baseId) ?? 0;
+                const isMultiDay = entry.continuation?.has || false;
+                return isMultiDay ? originalIndex - 1000 : originalIndex;
+            }),
+            R.map((entry) => {
+                const [background] = getColorTextWithContrast(entry.color);
+                const baseId = this._createConsistentEventId(entry as CalendarEntry);
+                const originalIndex = this._entryIdMap.get(baseId) ?? 0;
+                return { entry, background, originalIndex };
+            }),
+        );
+
+        // 5. Mobile badge: aggregate per-day counts once
+        this._entrySumByDay = {};
+        for (const entry of this._expandedEntries) {
+            const key = `${entry.date.start.day}-${entry.date.start.month}-${entry.date.start.year}`;
+            this._entrySumByDay[key] = (this._entrySumByDay[key] ?? 0) + 1;
+        }
+
+        // 6. Invalidate layout cache (entries changed, layouts are stale)
+        this._layoutCache.clear();
     }
 
     override render() {
@@ -709,77 +814,40 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _renderEntries() {
-        if (!this._processedEntries.length) {
+        if (!this._monthViewSorted.length) {
             return nothing;
         }
 
-        // First, create a mapping of original entries to their IDs for consistent sorting
-        const entryIdMap = new Map<string, number>();
-        this._processedEntries.forEach((entry, index) => {
-            entryIdMap.set(this._createConsistentEventId(entry), index);
-        });
+        // Pure map over pre-computed cache — no expansion, sorting, or color
+        // computation happens here. This is the "read" side of the memo.
+        return this._monthViewSorted.map(({ entry, background, originalIndex }) => {
+            const isMultiDay = entry.isContinuation || entry.continuation?.has || false;
+            const slotPrefix = isMultiDay ? 'all-day-' : '';
 
-        return R.pipe(
-            this._processedEntries,
-            R.flatMap((entry) => {
-                const expandedEntries = this._expandEntryMaybe({
-                    entry,
-                    range: this._getDaysRange(entry.date),
-                });
-                return expandedEntries;
-            }),
-            // Sort: multi-day events first, then by original entry order for consistency
-            R.sortBy((entry) => {
-                const baseId = this._createConsistentEventId(entry as CalendarEntry);
-                const originalIndex = entryIdMap.get(baseId) || 0;
-                const expandedEntry = entry as CalendarEntry & {
-                    continuation?: Continuation;
-                };
-                const isMultiDay = expandedEntry.continuation?.has || false;
-
-                // Multi-day events get priority (lower sort value), then original order
-                return isMultiDay ? originalIndex - 1000 : originalIndex;
-            }),
-            R.map(
-                (entry) =>
-                    [entry, ...getColorTextWithContrast(entry.color)] as [
-                        CalendarEntry & { continuation: Continuation },
-                        string,
-                        string,
-                    ],
-            ),
-            R.map(([entry, background, _text], index) => {
-                const baseId = this._createConsistentEventId(entry as CalendarEntry);
-                const originalIndex = entryIdMap.get(baseId) || index;
-
-                const isMultiDay = entry.isContinuation || entry.continuation?.has || false;
-                const slotPrefix = isMultiDay ? 'all-day-' : '';
-
-                return this._composeEntry({
-                    index: originalIndex, // Use original index for consistent CSS classes
-                    slot: `${slotPrefix}${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-                    inlineStyle: `--entry-color: ${background}; --entry-background-color: ${background}; z-index: ${100 + originalIndex}`,
-                    entry: {
+            return this._composeEntry({
+                index: originalIndex,
+                slot: `${slotPrefix}${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
+                inlineStyle: `--entry-color: ${background}; --entry-background-color: ${background}; z-index: ${100 + originalIndex}`,
+                entry: {
+                    time: entry.time,
+                    heading: entry.heading,
+                    content: entry.content,
+                    date: entry.date,
+                    isContinuation: entry.isContinuation || false,
+                    continuation: entry.continuation,
+                },
+                density: this._determineDensity(
+                    {
                         time: entry.time,
                         heading: entry.heading,
                         content: entry.content,
-                        date: entry.date,
-                        isContinuation: entry.isContinuation || false,
-                        continuation: entry.continuation,
                     },
-                    density: this._determineDensity(
-                        {
-                            time: entry.time,
-                            heading: entry.heading,
-                            content: entry.content,
-                        },
-                        undefined,
-                        undefined,
-                    ),
-                    displayMode: 'month-dot',
-                });
-            }),
-        );
+                    undefined,
+                    undefined,
+                ),
+                displayMode: 'month-dot',
+            });
+        });
     }
 
     private _renderEntriesByDate() {
@@ -790,34 +858,20 @@ export default class LMSCalendar extends LitElement {
             return { elements: nothing, allDayRowCount: 0 };
         }
 
-        // Get all entries for current day or week
-        const allEntriesForDate = R.pipe(
-            this._processedEntries,
-            R.flatMap((entry) =>
-                this._expandEntryMaybe({
-                    entry,
-                    range: this._getDaysRange(entry.date),
-                }),
-            ),
-            R.filter((entry) => {
-                if (viewMode === 'day') {
-                    return R.isDeepEqual(
-                        DateTime.fromObject(entry.date.start).toISODate(),
-                        DateTime.fromObject(currentActiveDate).toISODate(),
-                    );
-                } else {
-                    // Week view: filter for current week
-                    const weekStartDate = this._getWeekStartDate(currentActiveDate);
-                    const weekDates = Array.from({ length: 7 }, (_, i) => {
-                        const date = new Date(weekStartDate);
-                        date.setDate(weekStartDate.getDate() + i);
-                        return DateTime.fromJSDate(date).toISODate();
-                    });
-                    const entryDateStr = DateTime.fromObject(entry.date.start).toISODate();
-                    return weekDates.includes(entryDateStr);
-                }
-            }),
-        ) as Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>;
+        // O(1) map lookups instead of O(n) expansion + Luxon filtering
+        let allEntriesForDate: ExpandedCalendarEntry[];
+
+        if (viewMode === 'day') {
+            const key = `${currentActiveDate.year}-${String(currentActiveDate.month).padStart(2, '0')}-${String(currentActiveDate.day).padStart(2, '0')}`;
+            allEntriesForDate = this._expandedByISODate.get(key) ?? [];
+        } else {
+            // Week view: 7 map lookups, one per day
+            const weekDates = getWeekDates(currentActiveDate, this.firstDayOfWeek);
+            allEntriesForDate = weekDates.flatMap((wd) => {
+                const key = `${wd.year}-${String(wd.month).padStart(2, '0')}-${String(wd.day).padStart(2, '0')}`;
+                return this._expandedByISODate.get(key) ?? [];
+            });
+        }
 
         // Separate all-day and timed entries
         const allDayEntries = allEntriesForDate.filter(
@@ -852,8 +906,8 @@ export default class LMSCalendar extends LitElement {
     private _renderEntriesWithSlotManager(
         viewMode: 'day' | 'week',
         currentActiveDate: CalendarDate,
-        allDayEntries: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>,
-        entriesByDate: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>,
+        allDayEntries: ExpandedCalendarEntry[],
+        entriesByDate: ExpandedCalendarEntry[],
     ) {
         const allElements: ReturnType<typeof this._composeEntry>[] = [];
 
@@ -1000,28 +1054,34 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _renderDayEntriesWithSlotManager(
-        dayEntries: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>,
+        dayEntries: ExpandedCalendarEntry[],
         viewMode: 'day' | 'week',
         currentActiveDate: CalendarDate,
-        allEntriesByDate: Array<CalendarEntry & { continuation: { is: boolean; has: boolean } }>,
+        allEntriesByDate: ExpandedCalendarEntry[],
     ) {
-        // Convert to layout calculator format
-        const layoutEvents = dayEntries.map((entry, index) => ({
-            id: String(index),
-            heading: entry.heading || '',
-            startTime: {
-                hour: entry.time!.start.hour,
-                minute: entry.time!.start.minute,
-            },
-            endTime: {
-                hour: entry.time!.end.hour,
-                minute: entry.time!.end.minute,
-            },
-            color: entry.color || '#1976d2',
-        }));
+        // Cache key from the day being rendered (all entries share the same date)
+        const first = dayEntries[0];
+        const cacheKey = `${first.date.start.year}-${String(first.date.start.month).padStart(2, '0')}-${String(first.date.start.day).padStart(2, '0')}`;
 
-        // Calculate layout for this set of entries
-        const layout = this._layoutCalculator.calculateLayout(layoutEvents);
+        // Reuse cached layout when only resize/locale/menu changed (not entries)
+        let layout = this._layoutCache.get(cacheKey);
+        if (!layout) {
+            const layoutEvents = dayEntries.map((entry, index) => ({
+                id: String(index),
+                heading: entry.heading || '',
+                startTime: {
+                    hour: entry.time!.start.hour,
+                    minute: entry.time!.start.minute,
+                },
+                endTime: {
+                    hour: entry.time!.end.hour,
+                    minute: entry.time!.end.minute,
+                },
+                color: entry.color || '#1976d2',
+            }));
+            layout = this._layoutCalculator.calculateLayout(layoutEvents);
+            this._layoutCache.set(cacheKey, layout);
+        }
 
         // Render entries using SlotManager
         return dayEntries.map((entry, index) => {
@@ -1075,40 +1135,21 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _renderEntriesSumByDay() {
-        return R.pipe(
-            this._processedEntries,
-            R.flatMap((entry) =>
-                this._expandEntryMaybe({
-                    entry,
-                    range: this._getDaysRange(entry.date),
-                }),
-            ),
-            R.reduce(
-                (acc, entry) => {
-                    const key = `${entry.date.start.day}-${entry.date.start.month}-${entry.date.start.year}`;
-                    acc[key] = acc[key] ? acc[key] + 1 : 1;
-                    return acc;
-                },
-                {} as Record<string, number>,
-            ),
-            Object.entries,
-            R.map(([key, value], index) =>
-                this._composeEntry({
-                    index,
-                    slot: key.split('-').reverse().join('-'),
-                    inlineStyle: `--entry-color: var(--separator-mid); text-align: center`,
-                    entry: {
-                        heading: `${value} events`,
-                    },
-                    displayMode: 'month-dot',
-                }),
-            ),
-        );
-    }
+        // Pure read from pre-computed cache — no expansion or reduction.
+        const entries = Object.entries(this._entrySumByDay);
+        if (!entries.length) return nothing;
 
-    private _getWeekStartDate(date: CalendarDate): Date {
-        const first = getWeekDates(date, this.firstDayOfWeek)[0];
-        return new Date(first.year, first.month - 1, first.day);
+        return entries.map(([key, value], index) =>
+            this._composeEntry({
+                index,
+                slot: key.split('-').reverse().join('-'),
+                inlineStyle: `--entry-color: var(--separator-mid); text-align: center`,
+                entry: {
+                    heading: `${value} events`,
+                },
+                displayMode: 'month-dot',
+            }),
+        );
     }
 
     private _getSmartLayout(
