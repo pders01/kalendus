@@ -49,7 +49,7 @@ export default class LMSCalendar extends LitElement {
     firstDayOfWeek: FirstDayOfWeek = 1;
 
     @property({ type: String })
-    locale = document.documentElement.lang || 'en';
+    locale = (typeof document !== 'undefined' && document.documentElement.lang) || 'en';
 
     @property({ type: String, attribute: 'year-drill-target' })
     yearDrillTarget: DrillTarget = 'month';
@@ -77,7 +77,7 @@ export default class LMSCalendar extends LitElement {
         return this._viewState.expandedDate;
     }
 
-    @state() _calendarWidth: number = window.innerWidth;
+    @state() _calendarWidth: number = (typeof window !== 'undefined' && window.innerWidth) || 1024;
 
     @state() _menuOpen = false;
     @state() _menuEventDetails?: {
@@ -423,10 +423,7 @@ export default class LMSCalendar extends LitElement {
 
     private _returnFocusToTrigger() {
         if (this._menuTriggerEntry) {
-            // Focus the interactive element inside the entry's shadow root
-            const focusable =
-                this._menuTriggerEntry.shadowRoot?.querySelector('[role="button"]') as HTMLElement;
-            (focusable ?? this._menuTriggerEntry).focus();
+            this._menuTriggerEntry.focus();
             this._menuTriggerEntry = undefined;
         }
     }
