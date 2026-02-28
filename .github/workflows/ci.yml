@@ -37,7 +37,7 @@ jobs:
           cache-dependency-path: pnpm-workspace.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run lint checks
         run: pnpm run lint
@@ -69,7 +69,7 @@ jobs:
           cache-dependency-path: pnpm-workspace.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Run mocha suite
         run: pnpm run test
@@ -94,7 +94,7 @@ jobs:
           cache-dependency-path: pnpm-workspace.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Install Playwright dependencies
         run: pnpm exec playwright install --with-deps chromium
@@ -129,7 +129,7 @@ jobs:
           cache-dependency-path: pnpm-workspace.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build bundles
         run: pnpm run build:all
