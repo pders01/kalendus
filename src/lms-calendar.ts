@@ -104,6 +104,13 @@ export default class LMSCalendar extends LitElement {
     /** Day/week view: cached LayoutCalculator results keyed by ISO date. */
     private _layoutCache = new Map<string, LayoutResult>();
 
+    /** Day/week view: cached all-day row assignments keyed by week/day key. */
+    private _allDayLayoutCache = new Map<string, {
+        rowAssignments: Map<string, number>;
+        mergedEvents: Map<string, AllDayEvent>;
+        totalRows: number;
+    }>();
+
     private _layoutCalculator = new LayoutCalculator({
         timeColumnWidth: 80,
         minuteHeight: 1,
@@ -445,6 +452,7 @@ export default class LMSCalendar extends LitElement {
         this._entrySumByDay = {};
         this._expandedByISODate.clear();
         this._layoutCache.clear();
+        this._allDayLayoutCache.clear();
     }
 
     private _computeEntryCaches() {
@@ -499,8 +507,9 @@ export default class LMSCalendar extends LitElement {
             this._entrySumByDay[key] = (this._entrySumByDay[key] ?? 0) + 1;
         }
 
-        // 6. Invalidate layout cache (entries changed, layouts are stale)
+        // 6. Invalidate layout caches (entries changed, layouts are stale)
         this._layoutCache.clear();
+        this._allDayLayoutCache.clear();
     }
 
     override render() {
@@ -913,6 +922,9 @@ export default class LMSCalendar extends LitElement {
 
         // Process timed entries
         if (entriesByDate.length > 0) {
+            // Build O(1) global-index lookup (replaces O(n) indexOf per entry)
+            const globalIndexMap = new Map(entriesByDate.map((entry, i) => [entry, i]));
+
             if (viewMode === 'week') {
                 // Group timed entries by day for week view
                 const entriesByDay = R.groupBy(
@@ -948,7 +960,7 @@ export default class LMSCalendar extends LitElement {
                         dayEntries,
                         viewMode,
                         currentActiveDate,
-                        entriesByDate,
+                        globalIndexMap,
                     );
                     allElements.push(...dayElements);
                 });
@@ -958,39 +970,50 @@ export default class LMSCalendar extends LitElement {
                     entriesByDate,
                     viewMode,
                     currentActiveDate,
-                    entriesByDate,
+                    globalIndexMap,
                 );
                 allElements.push(...dayElements);
             }
         }
 
-        // Compute all-day layout declaratively
-        const allDayLayoutEvents: AllDayEvent[] = allDayEntries.map((entry) => {
-            const eventId = this._createConsistentEventId(entry);
-            const dayIndex = viewMode === 'week'
-                ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek)
-                : 0;
-            return {
-                id: eventId,
-                days: [dayIndex],
-                isMultiDay: entry.continuation?.is || entry.continuation?.has || false,
-            };
-        });
+        // Compute all-day layout declaratively (cached — only recomputes when entries change)
+        const allDayKey = viewMode === 'week'
+            ? `${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}-${this.firstDayOfWeek}`
+            : `day-${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}`;
 
-        // Merge days for multi-day events with the same id
-        const mergedEvents = new Map<string, AllDayEvent>();
-        allDayLayoutEvents.forEach((event) => {
-            const existing = mergedEvents.get(event.id);
-            if (existing) {
-                existing.days.push(...event.days);
-            } else {
-                mergedEvents.set(event.id, { ...event, days: [...event.days] });
-            }
-        });
+        let allDayLayout = this._allDayLayoutCache.get(allDayKey);
+        if (!allDayLayout) {
+            const allDayLayoutEvents: AllDayEvent[] = allDayEntries.map((entry) => {
+                const eventId = this._createConsistentEventId(entry);
+                const dayIndex = viewMode === 'week'
+                    ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek)
+                    : 0;
+                return {
+                    id: eventId,
+                    days: [dayIndex],
+                    isMultiDay: entry.continuation?.is || entry.continuation?.has || false,
+                };
+            });
 
-        const { rowAssignments, totalRows } = allocateAllDayRows(
-            Array.from(mergedEvents.values()),
-        );
+            const mergedEvents = new Map<string, AllDayEvent>();
+            allDayLayoutEvents.forEach((event) => {
+                const existing = mergedEvents.get(event.id);
+                if (existing) {
+                    existing.days.push(...event.days);
+                } else {
+                    mergedEvents.set(event.id, { ...event, days: [...event.days] });
+                }
+            });
+
+            const { rowAssignments, totalRows } = allocateAllDayRows(
+                Array.from(mergedEvents.values()),
+            );
+
+            allDayLayout = { rowAssignments, mergedEvents, totalRows };
+            this._allDayLayoutCache.set(allDayKey, allDayLayout);
+        }
+
+        const { rowAssignments, mergedEvents, totalRows } = allDayLayout;
 
         // Process all-day entries with layout info
         const allDayElements = allDayEntries.map((entry, index) => {
@@ -1057,7 +1080,7 @@ export default class LMSCalendar extends LitElement {
         dayEntries: ExpandedCalendarEntry[],
         viewMode: 'day' | 'week',
         currentActiveDate: CalendarDate,
-        allEntriesByDate: ExpandedCalendarEntry[],
+        globalIndexMap: Map<ExpandedCalendarEntry, number>,
     ) {
         // Cache key from the day being rendered (all entries share the same date)
         const first = dayEntries[0];
@@ -1086,7 +1109,7 @@ export default class LMSCalendar extends LitElement {
         // Render entries using SlotManager
         return dayEntries.map((entry, index) => {
             const layoutBox = layout.boxes[index];
-            const globalIndex = allEntriesByDate.indexOf(entry);
+            const globalIndex = globalIndexMap.get(entry) ?? index;
 
             // Use SlotManager to determine positioning and accessibility
             const positionConfig: PositionConfig = {

@@ -64,6 +64,12 @@ export interface SlotPosition {
 }
 
 export class SlotManager {
+    /** Cached week-date→index map, keyed by (activeDate + firstDayOfWeek). */
+    private _weekIndexCache: {
+        key: string;
+        map: Map<string, number>;
+    } | null = null;
+
     /**
      * Calculate the slot name and positioning for an entry
      */
@@ -174,24 +180,27 @@ export class SlotManager {
     }
 
     /**
-     * Calculate which day of the week an entry belongs to (0-6, where 0 is the first day)
+     * Calculate which day of the week an entry belongs to (0-6, where 0 is the first day).
+     * Internally caches the week-date→index map so repeated calls for the same
+     * (activeDate, firstDayOfWeek) avoid re-allocating 7 Date objects and scanning.
      */
     public getWeekDayIndex(
         entryDate: CalendarDate,
         activeDate: CalendarDate,
         firstDayOfWeek: FirstDayOfWeek = 1,
     ): number {
-        const weekDates = getWeekDates(activeDate, firstDayOfWeek);
-
-        const dayIndex = weekDates.findIndex(
-            (date) =>
-                date.day === entryDate.day &&
-                date.month === entryDate.month &&
-                date.year === entryDate.year,
+        const cacheKey = `${activeDate.year}-${activeDate.month}-${activeDate.day}-${firstDayOfWeek}`;
+        if (!this._weekIndexCache || this._weekIndexCache.key !== cacheKey) {
+            const weekDates = getWeekDates(activeDate, firstDayOfWeek);
+            const map = new Map<string, number>();
+            weekDates.forEach((d, i) => map.set(`${d.year}-${d.month}-${d.day}`, i));
+            this._weekIndexCache = { key: cacheKey, map };
+        }
+        const idx = this._weekIndexCache.map.get(
+            `${entryDate.year}-${entryDate.month}-${entryDate.day}`,
         );
-
-        // Return 0 if not found, to prevent -1 from breaking sorting
-        return dayIndex >= 0 ? dayIndex : 0;
+        // Return 0 if not found, to prevent undefined from breaking sorting
+        return idx ?? 0;
     }
 
     /**
