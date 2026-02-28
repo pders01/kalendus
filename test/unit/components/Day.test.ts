@@ -63,7 +63,7 @@ describe('Day Component', () => {
 
     it('should render all-day slot', async () => {
         const el: Day = await fixture(html`
-            <lms-calendar-day></lms-calendar-day>
+            <lms-calendar-day .allDayRowCount=${1}></lms-calendar-day>
         `);
 
         await el.updateComplete;
@@ -124,7 +124,7 @@ describe('Day Component', () => {
 
     it('should handle slot changes for all-day events', async () => {
         const el: Day = await fixture(html`
-            <lms-calendar-day>
+            <lms-calendar-day .allDayRowCount=${2}>
                 <div slot="all-day">All day event 1</div>
                 <div slot="all-day">All day event 2</div>
             </lms-calendar-day>
@@ -200,7 +200,7 @@ describe('Day Component', () => {
 
     it('should have correct CSS classes and structure', async () => {
         const el: Day = await fixture(html`
-            <lms-calendar-day></lms-calendar-day>
+            <lms-calendar-day .allDayRowCount=${1}></lms-calendar-day>
         `);
 
         await el.updateComplete;
@@ -230,9 +230,9 @@ describe('Day Component', () => {
 
         await el.updateComplete;
 
-        // All slots should exist even when empty
+        // All slots should exist even when empty (no all-day slot when allDayRowCount=0)
         const allSlots = el.shadowRoot?.querySelectorAll('slot');
-        expect(allSlots).to.have.length(26); // 1 all-day + 25 hour slots
+        expect(allSlots).to.have.length(25); // 25 hour slots (all-day omitted when count=0)
     });
 
     it('should support custom CSS properties', async () => {

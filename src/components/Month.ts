@@ -74,8 +74,8 @@ export default class Month extends LitElement {
             left: 0.25em;
             z-index: 500;
             background: transparent;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: var(--indicator-backdrop-filter, blur(10px));
+            -webkit-backdrop-filter: var(--indicator-backdrop-filter, blur(10px));
             text-align: left;
             min-height: 2em;
             line-height: 2em;

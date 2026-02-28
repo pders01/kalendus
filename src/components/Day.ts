@@ -45,6 +45,7 @@ export default class Day extends LitElement {
             text-align: var(--day-text-align, center);
             padding: var(--day-padding, 0.5em);
             position: relative;
+            contain: content;
         }
 
         .hour {
@@ -91,18 +92,7 @@ export default class Day extends LitElement {
         .all-day-wrapper {
             display: grid;
             grid-template-rows: 1fr;
-            transition: grid-template-rows 0.2s ease;
             border-bottom: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));
-        }
-
-        .all-day-wrapper.collapsed {
-            grid-template-rows: 0fr;
-            overflow: hidden;
-            border-bottom: none;
-        }
-
-        .all-day-wrapper.collapsed .all-day {
-            padding: 0;
         }
 
         .all-day {
@@ -129,11 +119,13 @@ export default class Day extends LitElement {
             : '100%';
 
         return html` <div class="wrapper">
-            <div class="all-day-wrapper ${classMap({ collapsed: !hasAllDay })}">
+            ${hasAllDay ? html`
+            <div class="all-day-wrapper">
                 <div class="all-day">
                     <slot name="all-day" id="all-day" class="entry"></slot>
                 </div>
             </div>
+            ` : nothing}
             <div class="container" style="height: ${containerHeight}">
                 <div
                     class="main ${classMap({

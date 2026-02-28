@@ -134,6 +134,9 @@ export default class LMSCalendar extends LitElement {
     static override styles = css`
         :host {
             display: block;
+            contain: layout style paint;
+            content-visibility: auto;
+            contain-intrinsic-size: auto 600px 800px;
 
             --shadow-sm: rgba(0, 0, 0, 0.18) 0px 2px 4px;
             --shadow-md: rgba(0, 0, 0, 0.15) 0px 3px 3px 0px;
@@ -282,7 +285,8 @@ export default class LMSCalendar extends LitElement {
             border: 1px solid var(--separator-light);
             font-family: var(--system-ui);
             color: var(--separator-dark);
-            box-shadow: var(--shadow-md);
+            box-shadow: var(--calendar-shadow, var(--shadow-md));
+            contain: layout style;
             position: relative;
             overflow: hidden;
             display: flex;
