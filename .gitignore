@@ -8,3 +8,6 @@ pnpm-lock.yaml
 test.html
 
 coverage/
+
+# Profiling trace output
+trace-*.json
