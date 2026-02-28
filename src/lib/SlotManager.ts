@@ -10,8 +10,6 @@
  * and grid positioning complexities.
  */
 
-import { CSSResult, unsafeCSS } from 'lit';
-
 import type { ViewMode } from './ViewStateController.js';
 import { type FirstDayOfWeek, getWeekDates } from './weekStartHelper.js';
 
@@ -91,41 +89,14 @@ export class SlotManager {
         position: SlotPosition,
         layout: LayoutDimensions,
         time?: CalendarTimeInterval,
-    ): CSSResult {
+    ): string {
         if (position.useDirectGrid) {
             // Direct grid positioning (bypasses slots)
-            const gridColumn = String(position.gridColumn || 2);
-            const gridRow = position.gridRow || '1';
-            const width = String(layout.width);
-            const marginLeft = String(layout.x);
-            const zIndex = String(layout.zIndex);
-            const opacity = String(layout.opacity);
-
-            const cssString = `
-                grid-column: ${gridColumn};
-                grid-row: ${gridRow};
-                --entry-width: ${width}%;
-                --entry-margin-left: ${marginLeft}%;
-                --entry-z-index: ${zIndex};
-                --entry-opacity: ${opacity};
-            `;
-            return unsafeCSS(cssString) as CSSResult;
+            return `grid-column: ${position.gridColumn || 2}; grid-row: ${position.gridRow || '1'}; --entry-width: ${layout.width}%; --entry-margin-left: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
         } else {
             // Slot-based positioning with CSS variables
             const startSlot = time ? this._getGridSlotByTime(time) : '1';
-            const width = String(layout.width);
-            const marginLeft = String(layout.x);
-            const zIndex = String(layout.zIndex);
-            const opacity = String(layout.opacity);
-
-            const cssString = `
-                --start-slot: ${startSlot};
-                --entry-width: ${width}%;
-                --entry-margin-left: ${marginLeft}%;
-                --entry-z-index: ${zIndex};
-                --entry-opacity: ${opacity};
-            `;
-            return unsafeCSS(cssString) as CSSResult;
+            return `--start-slot: ${startSlot}; --entry-width: ${layout.width}%; --entry-margin-left: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
         }
     }
 

@@ -1,5 +1,5 @@
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
-import { CSSResult, LitElement, PropertyValueMap, css, html, nothing, unsafeCSS } from 'lit';
+import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { DateTime, Interval } from 'luxon';
 import * as R from 'remeda';
@@ -68,6 +68,8 @@ export default class LMSCalendar extends LitElement {
         anchorRect?: DOMRect;
     };
     private _menuTriggerEntry?: HTMLElement;
+
+    private _processedEntries: CalendarEntry[] = [];
 
     private _layoutCalculator = new LayoutCalculator({
         timeColumnWidth: 80,
@@ -283,16 +285,25 @@ export default class LMSCalendar extends LitElement {
         }
     `;
 
-    override connectedCallback() {
-        super.connectedCallback();
-        document.addEventListener('click', this._handleClickOutside, true);
-        document.addEventListener('keydown', this._handleEscape);
-    }
-
     override disconnectedCallback() {
         super.disconnectedCallback();
+        // Safety net: clean up listeners if component is removed while menu is open
         document.removeEventListener('click', this._handleClickOutside, true);
         document.removeEventListener('keydown', this._handleEscape);
+    }
+
+    protected override updated(
+        changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
+    ): void {
+        if (changedProperties.has('_menuOpen' as never)) {
+            if (this._menuOpen) {
+                document.addEventListener('click', this._handleClickOutside, true);
+                document.addEventListener('keydown', this._handleEscape);
+            } else {
+                document.removeEventListener('click', this._handleClickOutside, true);
+                document.removeEventListener('keydown', this._handleEscape);
+            }
+        }
     }
 
     private _handleClickOutside = (e: MouseEvent) => {
@@ -357,13 +368,18 @@ export default class LMSCalendar extends LitElement {
      *  We then sort the entries inplace.
      */
     protected override willUpdate(
-        _changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
+        changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
     ): void {
-        if (!this.entries.length) {
+        if (!changedProperties.has('entries' as never)) {
             return;
         }
 
-        this.entries = R.pipe(
+        if (!this.entries.length) {
+            this._processedEntries = [];
+            return;
+        }
+
+        this._processedEntries = R.pipe(
             this.entries,
             R.filter(
                 (entry) =>
@@ -549,7 +565,7 @@ export default class LMSCalendar extends LitElement {
     private _composeEntry({
         index,
         slot,
-        styles,
+        inlineStyle,
         entry,
         isContinuation = false,
         density,
@@ -559,7 +575,7 @@ export default class LMSCalendar extends LitElement {
     }: {
         index: number;
         slot: string;
-        styles: CSSResult | typeof nothing;
+        inlineStyle: string;
         entry: Partial<CalendarEntry> & {
             accessibility?: {
                 tabIndex: number;
@@ -575,15 +591,13 @@ export default class LMSCalendar extends LitElement {
     }) {
         // Determine density based on event duration and context if not explicitly set
         const determinedDensity =
-            density || this._determineDensity(entry, undefined, undefined, undefined);
+            density || this._determineDensity(entry, undefined, undefined);
 
         return html`
-            <style>
-                ${styles}
-            </style>
             <lms-calendar-entry
                 class=${`_${index}${spanClass ? ` ${spanClass}` : ''}`}
                 slot=${slot}
+                style=${inlineStyle}
                 .time=${entry.time}
                 .heading=${entry.heading ?? ''}
                 .content=${entry.content}
@@ -599,20 +613,8 @@ export default class LMSCalendar extends LitElement {
         `;
     }
 
-    private _getEntriesCountForDay(date: CalendarDate): number {
-        return this.entries.filter((entry) => {
-            // Check if entry overlaps with the given day
-            const entryStart = DateTime.fromObject(entry.date.start);
-            const entryEnd = DateTime.fromObject(entry.date.end);
-            const targetDay = DateTime.fromObject(date);
-
-            return targetDay >= entryStart && targetDay <= entryEnd;
-        }).length;
-    }
-
     private _determineDensity(
         entry: Partial<CalendarEntry>,
-        _overlappingCount?: number,
         grading?: Grading[],
         index?: number,
     ): 'compact' | 'standard' | 'full' {
@@ -705,18 +707,18 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _renderEntries() {
-        if (!this.entries.length) {
+        if (!this._processedEntries.length) {
             return nothing;
         }
 
         // First, create a mapping of original entries to their IDs for consistent sorting
         const entryIdMap = new Map<string, number>();
-        this.entries.forEach((entry, index) => {
+        this._processedEntries.forEach((entry, index) => {
             entryIdMap.set(this._createConsistentEventId(entry), index);
         });
 
         return R.pipe(
-            this.entries,
+            this._processedEntries,
             R.flatMap((entry) => {
                 const expandedEntries = this._expandEntryMaybe({
                     entry,
@@ -754,14 +756,7 @@ export default class LMSCalendar extends LitElement {
                 return this._composeEntry({
                     index: originalIndex, // Use original index for consistent CSS classes
                     slot: `${slotPrefix}${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-                    styles: css`
-                        lms-calendar-entry._${originalIndex} {
-                            --entry-color: ${unsafeCSS(background)};
-                            --entry-background-color: ${unsafeCSS(background)};
-                            /* Add z-index based on original order for consistent layering */
-                            z-index: ${100 + originalIndex};
-                        }
-                    `,
+                    inlineStyle: `--entry-color: ${background}; --entry-background-color: ${background}; z-index: ${100 + originalIndex}`,
                     entry: {
                         time: entry.time,
                         heading: entry.heading,
@@ -776,7 +771,6 @@ export default class LMSCalendar extends LitElement {
                             heading: entry.heading,
                             content: entry.content,
                         },
-                        this._getEntriesCountForDay(entry.date.start),
                         undefined,
                         undefined,
                     ),
@@ -796,7 +790,7 @@ export default class LMSCalendar extends LitElement {
 
         // Get all entries for current day or week
         const allEntriesForDate = R.pipe(
-            this.entries,
+            this._processedEntries,
             R.flatMap((entry) =>
                 this._expandEntryMaybe({
                     entry,
@@ -989,14 +983,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: index + entriesByDate.length,
                 slot: position.slotName || 'week-direct-grid',
-                styles: css`
-                    lms-calendar-entry._${index + entriesByDate.length} {
-                        --entry-background-color: ${unsafeCSS(background)};
-                        --entry-color: ${unsafeCSS(text)};
-                        order: ${row};
-                        ${positionCSS};
-                    }
-                `,
+                inlineStyle: `--entry-background-color: ${background}; --entry-color: ${text}; order: ${row}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     accessibility: accessibility,
@@ -1065,27 +1052,15 @@ export default class LMSCalendar extends LitElement {
                 entry.time,
             );
 
+            const smartLayout = this._getSmartLayout(entry, layoutBox.height, layoutBox.width, {
+                depth: layoutBox.depth,
+                opacity: layoutBox.opacity,
+            });
+
             return this._composeEntry({
                 index: globalIndex,
                 slot: position.slotName || 'week-direct-grid', // Use fallback slot for direct grid positioning
-                styles: css`
-                    lms-calendar-entry._${globalIndex} {
-                        --entry-background-color: rgba(250, 250, 250, 0.8);
-                        --entry-color: #333;
-                        --entry-border: 1px solid rgba(0, 0, 0, 0.15);
-                        --entry-handle-color: ${unsafeCSS(entry.color || '#1976d2')};
-                        --entry-handle-width: 4px;
-                        --entry-handle-display: block;
-                        --entry-padding-left: calc(4px + 0.35em);
-                        --entry-layout: ${unsafeCSS(
-                            this._getSmartLayout(entry, layoutBox.height, layoutBox.width, {
-                                depth: layoutBox.depth,
-                                opacity: layoutBox.opacity,
-                            }),
-                        )};
-                        ${positionCSS};
-                    }
-                `,
+                inlineStyle: `--entry-background-color: rgba(250, 250, 250, 0.8); --entry-color: #333; --entry-border: 1px solid rgba(0, 0, 0, 0.15); --entry-handle-color: ${entry.color || '#1976d2'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     // Add accessibility data to entry
@@ -1099,7 +1074,7 @@ export default class LMSCalendar extends LitElement {
 
     private _renderEntriesSumByDay() {
         return R.pipe(
-            this.entries,
+            this._processedEntries,
             R.flatMap((entry) =>
                 this._expandEntryMaybe({
                     entry,
@@ -1119,12 +1094,7 @@ export default class LMSCalendar extends LitElement {
                 this._composeEntry({
                     index,
                     slot: key.split('-').reverse().join('-'),
-                    styles: css`
-                        lms-calendar-entry._${index} {
-                            --entry-color: var(--separator-mid);
-                            text-align: center;
-                        }
-                    `,
+                    inlineStyle: `--entry-color: var(--separator-mid); text-align: center`,
                     entry: {
                         heading: `${value} events`,
                     },
