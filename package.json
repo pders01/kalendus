@@ -62,7 +62,8 @@
         "build-storybook": "storybook build",
         "test-storybook": "vitest --project=storybook --run",
         "i18n:extract": "lit-localize extract",
-        "i18n:build": "lit-localize build"
+        "i18n:build": "lit-localize build",
+        "demo:gif": "node scripts/record-demo-gif.mjs"
     },
     "devDependencies": {
         "@11ty/eleventy": "^3.1.2",
