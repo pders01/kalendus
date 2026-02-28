@@ -1,44 +1,45 @@
 # kalendus
 
-A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Designed for Library Management Systems and other applications requiring advanced calendar functionality with support for overlapping events, multiple view modes, and extensive customization.
+A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Designed for Library Management Systems and other applications requiring advanced calendar functionality with support for overlapping events, multiple view modes, per-instance localization, and extensive customization.
 
-## ✨ Features
+## Features
 
-### 📅 Multiple View Modes
+### Multiple View Modes
 
 - **Month View**: Traditional monthly calendar with color-coded event indicators
 - **Week View**: 7-day view with hourly time slots and pixel-perfect alignment
 - **Day View**: Single-day view with detailed hourly scheduling
 
-### 🎯 Advanced Event Handling
+### Advanced Event Handling
 
-- **Smart Overlapping**: Transparent overlapping system preserves event visibility
-- **Duration-Based Positioning**: Events positioned precisely by start time and duration
-- **Multi-Day Events**: Seamless spanning across multiple days
-- **All-Day Events**: Special handling for full-day activities
+- **Smart Overlapping**: Cascading layout with progressive transparency preserves event visibility
+- **Duration-Based Positioning**: Events positioned precisely by start time and duration via `LayoutCalculator`
+- **Multi-Day Events**: Seamless spanning across multiple days with first/middle/last-day visual styling
+- **All-Day Events**: Dedicated all-day section with row allocation via `allDayLayout`
 - **Responsive Density**: Automatic layout optimization based on event count and viewport size
 
-### 🎨 Modern Design
+### Modern Design
 
-- **Glassmorphism Effects**: Blur effects and transparency for modern aesthetics
-- **Responsive Design**: Mobile-first approach with adaptive layouts
+- **Responsive Design**: Mobile-first approach with adaptive layouts and container queries
 - **Color Dot Indicators**: Scalable month view with color-coded event dots
-- **Accessibility**: Full keyboard navigation and screen reader support
-- **Dark Mode Ready**: CSS custom properties for easy theming
+- **Accessibility**: Full keyboard navigation, ARIA labels, focus trapping, and screen reader support
+- **CSS Custom Properties**: 80+ design tokens for comprehensive theming
 
-### 🌐 Internationalization
+### Per-Instance Localization
 
-- **Localized Dates**: Multi-language support using `@lit/localize`
-- **Calendar Weeks**: ISO 8601 week numbering with localization
-- **RTL Support**: Right-to-left language compatibility
+- **Independent Locale Per Instance**: Multiple calendars on the same page can each display a different locale
+- **9 Built-in Locales**: English, German, German (DE), Spanish, French, Japanese, Portuguese, Arabic, Chinese (Simplified)
+- **Localized UI Strings**: All buttons, labels, and messages translated per instance
+- **Localized Date Formatting**: Weekday names, month names, and date formats use the instance's locale
+- **Configurable Week Start**: `firstDayOfWeek` property supports Monday (ISO), Sunday (US/JP), Saturday (AR), or any day
 
-## 🚀 Installation
+## Installation
 
 ```bash
-npm install lms-calendar
+pnpm add @lmscloud/lms-calendar
 ```
 
-## 📖 Usage
+## Usage
 
 ### Basic Usage
 
@@ -49,6 +50,26 @@ npm install lms-calendar
   .entries=${myEvents}
   .color="#1976d2"
 ></lms-calendar>
+```
+
+### Per-Instance Locale
+
+Each calendar instance independently controls its own locale:
+
+```html
+<!-- English calendar (default) -->
+<lms-calendar .entries=${events}></lms-calendar>
+
+<!-- German calendar -->
+<lms-calendar .entries=${events} locale="de" .firstDayOfWeek=${1}></lms-calendar>
+
+<!-- Japanese calendar with Sunday-first weeks -->
+<lms-calendar .entries=${events} locale="ja" .firstDayOfWeek=${0}></lms-calendar>
+
+<!-- Multiple locales on the same page - each fully independent -->
+<lms-calendar locale="es"></lms-calendar>
+<lms-calendar locale="fr"></lms-calendar>
+<lms-calendar locale="zh-Hans"></lms-calendar>
 ```
 
 ### Event Structure
@@ -105,16 +126,32 @@ const events = [
 ];
 ```
 
-## 🎛️ Properties
+## Properties
 
-| Property     | Type              | Default      | Description                        |
-| ------------ | ----------------- | ------------ | ---------------------------------- |
-| `heading`    | `string`          | `''`         | Calendar title displayed in header |
-| `activeDate` | `CalendarDate`    | Current date | Initially displayed date           |
-| `entries`    | `CalendarEntry[]` | `[]`         | Array of calendar events           |
-| `color`      | `string`          | `'#1976d2'`  | Primary theme color                |
+| Property         | Type              | Default      | Description                                              |
+| ---------------- | ----------------- | ------------ | -------------------------------------------------------- |
+| `heading`        | `string`          | `undefined`  | Calendar title displayed in header                       |
+| `activeDate`     | `CalendarDate`    | Current date | Initially displayed date                                 |
+| `entries`        | `CalendarEntry[]` | `[]`         | Array of calendar events                                 |
+| `color`          | `string`          | `'#000000'`  | Primary theme color                                      |
+| `locale`         | `string`          | `'en'`       | Locale for UI strings and date formatting (per-instance) |
+| `firstDayOfWeek` | `0-6`             | `1`          | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)         |
 
-## 🎨 Styling & Theming
+### Supported Locales
+
+| Code      | Language             | Default Week Start |
+| --------- | -------------------- | ------------------ |
+| `en`      | English              | Sunday             |
+| `de`      | German               | Monday             |
+| `de-DE`   | German (Germany)     | Monday             |
+| `es`      | Spanish              | Monday             |
+| `fr`      | French               | Monday             |
+| `ja`      | Japanese             | Sunday             |
+| `pt`      | Portuguese           | Sunday             |
+| `ar`      | Arabic               | Saturday           |
+| `zh-Hans` | Chinese (Simplified) | Sunday             |
+
+## Styling & Theming
 
 The calendar uses CSS custom properties for comprehensive theming:
 
@@ -124,8 +161,8 @@ The calendar uses CSS custom properties for comprehensive theming:
 lms-calendar {
     --primary-color: #1976d2;
     --background-color: #ffffff;
-    --text-color: #333333;
     --separator-light: rgba(0, 0, 0, 0.1);
+    --separator-dark: rgba(0, 0, 0, 0.7);
 }
 ```
 
@@ -147,244 +184,127 @@ lms-calendar {
     --header-height: 4em;
     --day-padding: 0.5em;
     --day-gap: 1px;
-    --calendar-grid-columns-day: 80px 1fr;
-    --calendar-grid-columns-week: 80px repeat(7, 1fr);
+    --time-column-width: 4em;
 }
 ```
 
-### Responsive Breakpoints
-
-```css
-/* Mobile optimization */
-@media (max-width: 768px) {
-    lms-calendar {
-        --entry-font-size: 0.7rem;
-        --day-padding: 0.25em;
-    }
-}
-```
-
-## 🔧 Advanced Features
-
-### Overlapping Events
-
-The calendar intelligently handles overlapping events using a sophisticated algorithm:
-
-- **Side-by-side positioning** for space efficiency
-- **Progressive transparency** for visual depth
-- **Automatic width calculation** based on overlap count
-- **Z-index management** for proper stacking
-
-### Responsive Density
-
-Events automatically adapt their display based on:
-
-- Available space
-- Number of overlapping events
-- Viewport size
-- Event duration
-
-### Performance Optimizations
-
-- **Virtual scrolling** for large datasets
-- **Efficient overlap detection** using interval partitioning
-- **Throttled scroll handling** with requestAnimationFrame
-- **Lazy rendering** of off-screen content
-
-## 📱 Mobile Support
-
-- Touch-friendly interface with proper hit targets
-- Swipe gestures for navigation
-- Responsive layout breakpoints
-- Optimized event density for small screens
-
-## ♿ Accessibility
-
-- Full keyboard navigation support
-- ARIA labels and descriptions
-- Screen reader compatibility
-- High contrast mode support
-- Focus management
-
-## 🔄 Events & Callbacks
-
-### Navigation Events
-
-```javascript
-calendar.addEventListener('navigate', (event) => {
-    console.log('Date changed:', event.detail.date);
-});
-```
-
-### View Change Events
-
-```javascript
-calendar.addEventListener('view-change', (event) => {
-    console.log('View changed to:', event.detail.view);
-});
-```
-
-### Entry Interaction Events
-
-```javascript
-calendar.addEventListener('entry-click', (event) => {
-    console.log('Entry clicked:', event.detail.entry);
-});
-```
-
-## 🧪 Testing
-
-The component includes comprehensive test coverage:
-
-```bash
-# Run unit tests
-npm run test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run Storybook tests
-npm run test-storybook
-```
-
-### Test Categories
-
-- **Unit tests** for utility functions
-- **Component tests** for individual components
-- **Integration tests** for view switching
-- **Performance tests** with heavy event loads
-- **Accessibility tests** for WCAG compliance
-
-## 📚 Storybook
-
-Explore all features and variations in Storybook:
-
-```bash
-npm run storybook
-```
-
-### Available Stories
-
-- **Default**: Basic calendar with sample events
-- **Heavy Event Load**: Stress testing with 200+ events
-- **Mobile View**: Responsive mobile experience
-- **Custom Theming**: Theme variations and customization
-- **Extreme Edge Cases**: Boundary condition testing
-
-## 🏗️ Architecture
+## Architecture
 
 ### Component Structure
 
 ```
 src/
-├── lms-calendar.ts          # Main calendar component
+├── lms-calendar.ts              # Main calendar component & global types
 ├── components/
-│   ├── Header.ts           # Navigation and view controls
-│   ├── Month.ts            # Monthly calendar grid
-│   ├── Week.ts             # Weekly time-based view
-│   ├── Day.ts              # Daily detailed view
-│   ├── Entry.ts            # Individual event component
-│   ├── Context.ts          # Current view context
-│   └── Menu.ts             # Action menu component
+│   ├── Header.ts                # Navigation and view controls
+│   ├── Month.ts                 # Monthly calendar grid
+│   ├── Week.ts                  # Weekly time-based view
+│   ├── Day.ts                   # Daily detailed view
+│   ├── Entry.ts                 # Individual event component
+│   ├── Context.ts               # Weekday header row (month view)
+│   └── Menu.ts                  # Event detail popover with ICS export
 ├── lib/
-│   ├── messages.ts         # Internationalization
-│   ├── localization.ts     # Date/time formatting
+│   ├── messages.ts              # Per-instance i18n via direct template lookup
+│   ├── localization.ts          # Locale-parameterized date/time formatting
+│   ├── ViewStateController.ts   # Per-instance view mode & date state
+│   ├── LayoutCalculator.ts      # Overlap detection & box layout
+│   ├── SlotManager.ts           # Slot naming & CSS position generation
+│   ├── allDayLayout.ts          # All-day event row allocation
+│   ├── weekStartHelper.ts       # Week start offset & locale mapping
 │   ├── DirectionalCalendarDateCalculator.ts
 │   ├── getOverlappingEntitiesIndices.ts
 │   ├── getSortedGradingsByIndex.ts
-│   └── partitionOverlappingIntervals.ts
-└── styles/
-    └── tokens.ts           # Design system tokens
+│   ├── partitionOverlappingIntervals.ts
+│   └── getColorTextWithContrast.ts
+└── generated/
+    ├── locale-codes.ts          # Source & target locale definitions
+    └── locales/                 # Generated translation templates (hash ID → string)
+        ├── ar.ts
+        ├── de.ts
+        ├── de-DE.ts
+        ├── es.ts
+        ├── fr.ts
+        ├── ja.ts
+        ├── pt.ts
+        └── zh-Hans.ts
 ```
 
 ### Key Technologies
 
-- **Lit 3.x**: Modern web components with reactive properties
+- **Lit 3.x**: Modern web components with reactive properties and decorators
 - **TypeScript**: Type-safe development with strict mode
-- **Luxon**: Robust date/time manipulation
-- **Remeda**: Functional programming utilities
-- **@lit/localize**: Internationalization framework
+- **Luxon**: Robust date/time manipulation and locale-aware formatting
+- **Remeda**: Functional programming utilities for data transformations
+- **ts-pattern**: Pattern matching for cleaner conditional logic
+- **ts-ics**: ICS calendar file generation for event export
+- **@lit/localize** (build-time only): Template extraction and generation via `lit-localize` CLI
 
 ### Design Patterns
 
-- **State management** using `@lit-labs/signals`
-- **Event bubbling** for component communication
-- **CSS custom properties** for theming
-- **Slot-based composition** for flexibility
-- **Responsive design** with container queries
+- **Per-instance state** via `ViewStateController` (Lit `ReactiveController`)
+- **Per-instance localization** via direct template hash lookups (bypasses `@lit/localize` singleton)
+- **Event bubbling** for component communication (`switchdate`, `switchview`, `expand`, `open-menu`)
+- **CSS custom properties** for theming (80+ tokens)
+- **Slot-based composition** for entry placement in view grids
+- **Container queries** for responsive header layout
 
-## 🚀 Performance
-
-### Optimization Techniques
-
-- Efficient overlap detection algorithms
-- Virtual scrolling for large datasets
-- Debounced scroll handling
-- Lazy rendering of off-screen content
-- CSS containment for paint optimization
-
-### Benchmarks
-
-- **Rendering**: Handles 500+ events smoothly
-- **Memory**: Minimal memory footprint
-- **Bundle size**: Optimized for production
-- **Load time**: Fast initial render
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-### Development Setup
+## Testing
 
 ```bash
-git clone <repository-url>
-cd lms-calendar
-npm install
-npm run dev
+# Run unit tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run Storybook tests
+pnpm test-storybook
 ```
 
-### Code Quality
+### Test Categories
 
-- ESLint for code linting
-- Prettier for code formatting
-- TypeScript for type checking
-- Lit analyzer for component validation
+- **Unit tests** (`test/unit/lib/`): Pure function tests with Mocha + Chai
+- **Component tests** (`test/unit/components/`): Lit component tests with @open-wc/testing
+- **Visual tests**: Storybook stories for all views, locales, and edge cases
 
-## 📄 License
+## Storybook
+
+Explore all features and variations in Storybook:
+
+```bash
+pnpm storybook
+```
+
+### Available Stories
+
+- **Default**: Basic calendar with sample events
+- **Locale stories**: Individual stories for each supported locale (German, French, Spanish, Japanese, etc.)
+- **LocaleShowcase**: 6 calendars on one page, each with a different locale
+- **WeekStartComparison**: Side-by-side Monday-first vs Sunday-first
+- **Heavy Event Load**: Stress testing with 200+ events
+- **Overlapping Events**: Extreme overlap scenarios
+- **Mobile View**: Responsive mobile experience
+- **Custom Theming**: Theme variations and customization
+
+## Development
+
+```bash
+pnpm install
+pnpm storybook     # Start Storybook dev server
+pnpm build          # Build with Vite
+pnpm test           # Run tests
+pnpm lint           # Run lit-analyzer + oxlint
+pnpm format         # Format with Prettier
+```
+
+### Adding a New Locale
+
+1. Add the locale code to `lit-localize.json` target locales
+2. Run `pnpm exec lit-localize extract` to generate the template file
+3. Translate strings in `src/generated/locales/<locale>.ts`
+4. Add the import and entry in `src/lib/messages.ts` (`allTemplates` map)
+5. Optionally add a `LUXON_LOCALE_MAP` entry in `localization.ts` if the locale code differs from Intl/Luxon conventions
+
+## License
 
 MIT License - see LICENSE file for details.
-
-## 🔗 Links
-
-- [Documentation](https://docs.example.com)
-- [Storybook](https://storybook.example.com)
-- [NPM Package](https://npmjs.com/package/lms-calendar)
-- [GitHub Repository](https://github.com/example/lms-calendar)
-
-## 🆕 Changelog
-
-### v2.0.0
-
-- ✨ Added transparent overlapping system
-- 🎨 Redesigned month view with color dots
-- 📱 Improved mobile responsiveness
-- ♿ Enhanced accessibility support
-- 🌐 Added comprehensive internationalization
-
-### v1.5.0
-
-- 🔧 Added week view with pixel-perfect alignment
-- 🎯 Improved event positioning algorithms
-- 🎨 Added glassmorphism design effects
-- 📊 Performance optimizations
-
-### v1.0.0
-
-- 🎉 Initial release
-- 📅 Month and day views
-- 🎨 Customizable theming
-- 📱 Responsive design
