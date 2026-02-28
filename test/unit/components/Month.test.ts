@@ -197,8 +197,10 @@ describe('Month Component', () => {
         const indicator = sept1?.querySelector('.indicator');
         expect(indicator).to.exist;
 
-        // Should contain "1. September" or localized equivalent
-        expect(indicator?.textContent?.trim()).to.include('1.');
+        // Should contain "Sep" and "1" in locale-specific format (e.g., "Sep 1" for en, "1. Sep." for de)
+        const text = indicator?.textContent?.trim() ?? '';
+        expect(text).to.include('Sep');
+        expect(text).to.include('1');
     });
 
     it('should mark current date correctly', async () => {

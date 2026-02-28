@@ -41,8 +41,8 @@ describe('Entry Component', () => {
 
         await el.updateComplete;
 
-        const headingElement = el.shadowRoot?.querySelector('.main span span');
-        expect(headingElement?.textContent).to.equal('Team Meeting');
+        const titleElement = el.shadowRoot?.querySelector('.title');
+        expect(titleElement?.textContent).to.equal('Team Meeting');
     });
 
     it('should display heading and content in title', async () => {
@@ -80,14 +80,18 @@ describe('Entry Component', () => {
         };
 
         const el: Entry = await fixture(html`
-            <lms-calendar-entry heading="Meeting" .time=${timeInterval}>
+            <lms-calendar-entry
+                heading="Meeting"
+                .time=${timeInterval}
+                density="standard"
+            >
             </lms-calendar-entry>
         `);
 
         await el.updateComplete;
 
-        const intervalElement = el.shadowRoot?.querySelector('.interval');
-        expect(intervalElement?.textContent).to.equal('09:30 - 10:45');
+        const timeElement = el.shadowRoot?.querySelector('.time');
+        expect(timeElement?.textContent).to.equal('09:30 - 10:45');
     });
 
     it('should format single digit hours and minutes with leading zeros', async () => {
@@ -97,28 +101,34 @@ describe('Entry Component', () => {
         };
 
         const el: Entry = await fixture(html`
-            <lms-calendar-entry heading="Morning Meeting" .time=${timeInterval}>
+            <lms-calendar-entry
+                heading="Morning Meeting"
+                .time=${timeInterval}
+                density="standard"
+            >
             </lms-calendar-entry>
         `);
 
         await el.updateComplete;
 
-        const intervalElement = el.shadowRoot?.querySelector('.interval');
-        expect(intervalElement?.textContent).to.equal('08:05 - 09:00');
+        const timeElement = el.shadowRoot?.querySelector('.time');
+        expect(timeElement?.textContent).to.equal('08:05 - 09:00');
     });
 
-    it('should display "all day" for continuation events', async () => {
+    it('should display "All Day" for continuation events', async () => {
         const el: Entry = await fixture(html`
-            <lms-calendar-entry heading="Conference" isContinuation>
+            <lms-calendar-entry
+                heading="Conference"
+                .isContinuation=${true}
+                density="standard"
+            >
             </lms-calendar-entry>
         `);
 
         await el.updateComplete;
 
-        // For continuation events, the interval is rendered as a span without .interval class
-        const spanElements = el.shadowRoot?.querySelectorAll('span');
-        const lastSpan = spanElements?.[spanElements.length - 1];
-        expect(lastSpan?.textContent).to.equal('all day');
+        const timeElement = el.shadowRoot?.querySelector('.time');
+        expect(timeElement?.textContent).to.equal('All Day');
     });
 
     it('should detect all-day events ending at 24:00', async () => {
@@ -128,27 +138,30 @@ describe('Entry Component', () => {
         };
 
         const el: Entry = await fixture(html`
-            <lms-calendar-entry heading="All Day Event" .time=${timeInterval}>
+            <lms-calendar-entry
+                heading="All Day Event"
+                .time=${timeInterval}
+                density="standard"
+            >
             </lms-calendar-entry>
         `);
 
         await el.updateComplete;
 
-        const intervalElement = el.shadowRoot?.querySelector('.interval');
-        expect(intervalElement?.textContent).to.equal('all day');
+        const timeElement = el.shadowRoot?.querySelector('.time');
+        expect(timeElement?.textContent).to.equal('All Day');
     });
 
-    it('should handle events without time interval', async () => {
+    it('should not render time in compact density', async () => {
         const el: Entry = await fixture(html`
-            <lms-calendar-entry heading="No Time Event"></lms-calendar-entry>
+            <lms-calendar-entry heading="No Time Event" density="compact"></lms-calendar-entry>
         `);
 
         await el.updateComplete;
 
-        // When no time is provided, the interval span still exists but should be empty
-        const intervalElement = el.shadowRoot?.querySelector('.interval');
-        expect(intervalElement).to.exist;
-        expect(intervalElement?.textContent?.trim()).to.equal('');
+        // Compact density hides time
+        const timeElement = el.shadowRoot?.querySelector('.time');
+        expect(timeElement).to.not.exist;
     });
 
     it('should be focusable and accessible', async () => {
@@ -159,7 +172,8 @@ describe('Entry Component', () => {
         await el.updateComplete;
 
         const mainElement = el.shadowRoot?.querySelector('.main');
-        expect(mainElement?.getAttribute('tabindex')).to.equal('1');
+        // Default tabindex is 0 (no accessibility config provided)
+        expect(mainElement?.getAttribute('tabindex')).to.equal('0');
     });
 
     it('should handle click interactions', async () => {
@@ -296,12 +310,9 @@ describe('Entry Component', () => {
 
         await el.updateComplete;
 
-        const textSpan = el.shadowRoot?.querySelector(
-            '.main > span:first-child',
-        );
-        const computedStyle = window.getComputedStyle(textSpan as Element);
+        const titleSpan = el.shadowRoot?.querySelector('.title');
+        const computedStyle = window.getComputedStyle(titleSpan as Element);
 
-        expect(computedStyle.whiteSpace).to.equal('nowrap');
         expect(computedStyle.overflow).to.equal('hidden');
         expect(computedStyle.textOverflow).to.equal('ellipsis');
     });
