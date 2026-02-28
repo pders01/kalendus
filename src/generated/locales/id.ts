@@ -26,4 +26,7 @@
 'sb47daaf9e1c4a905': `Bulan`,
 'se0955919920ee87d': `Hari`,
 'sfce4bfbe0f911aa7': `Tanpa Waktu`,
+'sa1b2c3d4e5f60001': `Sebelumnya`,
+'sa1b2c3d4e5f60002': `Berikutnya`,
+'sa1b2c3d4e5f60003': `acara`,
     };

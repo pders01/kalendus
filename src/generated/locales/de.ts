@@ -27,5 +27,8 @@
 'sb47daaf9e1c4a905': `Monat`,
 'se0955919920ee87d': `Tag`,
 'sfce4bfbe0f911aa7': `Keine Zeit`,
+'sa1b2c3d4e5f60001': `Zurück`,
+'sa1b2c3d4e5f60002': `Weiter`,
+'sa1b2c3d4e5f60003': `Termine`,
     };
   
