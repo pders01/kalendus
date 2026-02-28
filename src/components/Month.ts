@@ -1,4 +1,3 @@
-import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
@@ -9,7 +8,6 @@ import { getLocalizedDayMonth } from '../lib/localization.js';
 import { type FirstDayOfWeek, getFirstDayOffset } from '../lib/weekStartHelper.js';
 
 @customElement('lms-calendar-month')
-@(localized() as ClassDecorator)
 export default class Month extends LitElement {
     private currentDate = new Date();
 
@@ -22,6 +20,9 @@ export default class Month extends LitElement {
 
     @property({ type: Number })
     firstDayOfWeek: FirstDayOfWeek = 1;
+
+    @property({ type: String })
+    locale = 'en';
 
     static override styles = css`
         .month {
@@ -156,7 +157,7 @@ export default class Month extends LitElement {
             })}"
         >
             ${day === 1
-                ? getLocalizedDayMonth(day, month, year)
+                ? getLocalizedDayMonth(day, month, year, this.locale)
                 : day}
         </div>`;
     }

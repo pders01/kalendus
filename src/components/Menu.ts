@@ -1,4 +1,3 @@
-import { localized } from '@lit/localize';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
@@ -14,7 +13,6 @@ interface EventDetails {
 }
 
 @customElement('lms-menu')
-@(localized() as ClassDecorator)
 export class Menu extends LitElement {
     @property({ type: Boolean, reflect: true }) open = false;
     @property({ type: Object }) eventDetails: EventDetails = {
@@ -23,6 +21,7 @@ export class Menu extends LitElement {
         time: '',
     };
     @property({ attribute: false }) anchorRect?: DOMRect;
+    @property({ type: String }) locale = 'en';
 
     @state() private _cardTop = 0;
     @state() private _cardLeft = 0;
@@ -286,36 +285,37 @@ export class Menu extends LitElement {
     }
 
     override render() {
+        const l = this.locale;
         const cardClasses = `card${this._positioned ? ' visible' : ''}`;
         const hasNotes =
             this.eventDetails.content &&
-            this.eventDetails.content !== messages.noContent();
+            this.eventDetails.content !== messages.noContent(l);
 
         return html`
             <div
                 class=${cardClasses}
                 role="dialog"
                 aria-modal="true"
-                aria-label=${messages.eventDetails()}
+                aria-label=${messages.eventDetails(l)}
                 style="top: ${this._cardTop}px; left: ${this._cardLeft}px;"
                 @keydown=${this._handleKeydown}
             >
                 <div class="header">
                     <span class="title"
-                        >${this.eventDetails.heading || messages.noTitle()}</span
+                        >${this.eventDetails.heading || messages.noTitle(l)}</span
                     >
                     <button
                         type="button"
                         class="close-btn"
                         @click=${this._handleClose}
-                        title=${messages.close()}
-                        aria-label=${messages.close()}
+                        title=${messages.close(l)}
+                        aria-label=${messages.close(l)}
                     >
                         &times;
                     </button>
                 </div>
                 <div class="meta">
-                    ${this.eventDetails.time || messages.noTime()}
+                    ${this.eventDetails.time || messages.noTime(l)}
                 </div>
                 ${
                     this.eventDetails.date
@@ -334,9 +334,9 @@ export class Menu extends LitElement {
                         type="button"
                         class="export-btn"
                         @click=${this._handleExport}
-                        title=${messages.exportAsICS()}
+                        title=${messages.exportAsICS(l)}
                     >
-                        ${messages.exportAsICS()}
+                        ${messages.exportAsICS(l)}
                     </button>
                 </div>
             </div>

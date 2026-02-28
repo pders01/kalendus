@@ -1,4 +1,3 @@
-import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { DateTime } from 'luxon';
@@ -8,7 +7,6 @@ import { messages } from '../lib/messages.js';
 import type { ViewMode } from '../lib/ViewStateController.js';
 
 @customElement('lms-calendar-header')
-@(localized() as ClassDecorator)
 export default class Header extends LitElement {
     @property({ type: String })
     heading?: string;
@@ -21,6 +19,9 @@ export default class Header extends LitElement {
 
     @property({ type: Object })
     expandedDate?: CalendarDate;
+
+    @property({ type: String })
+    locale = 'en';
 
     static override styles = css`
         :host {
@@ -150,26 +151,27 @@ export default class Header extends LitElement {
 
     override render() {
         const date = this.activeDate!;
+        const l = this.locale;
 
         return html`<div class="controls">
             <div class="info">
                 <span>
-                    <strong>${this.heading || messages.currentMonth()}</strong>
+                    <strong>${this.heading || messages.currentMonth(l)}</strong>
                 </span>
                 <div class="view-detail${this.viewMode === 'day' ? ' active' : ''}">
                     <span class="day">${date.day}</span>
                     <span class="month"
-                        >${getLocalizedMonth(date.month)}</span
+                        >${getLocalizedMonth(date.month, l)}</span
                     >
                     <span class="year">${date.year}</span>
                 </div>
                 <div class="view-detail${this.viewMode === 'week' ? ' active' : ''}">
                     <span class="week"
-                        >${messages.calendarWeek()}
+                        >${messages.calendarWeek(l)}
                         ${this._getWeekInfo(date).weekNumber}</span
                     >
                     <span class="month"
-                        >${getLocalizedMonth(date.month)}</span
+                        >${getLocalizedMonth(date.month, l)}</span
                     >
                     <span class="year"
                         >${this._getWeekInfo(date).weekYear}</span
@@ -177,7 +179,7 @@ export default class Header extends LitElement {
                 </div>
                 <div class="view-detail${this.viewMode === 'month' ? ' active' : ''}">
                     <span class="month"
-                        >${getLocalizedMonth(date.month)}</span
+                        >${getLocalizedMonth(date.month, l)}</span
                     >
                     <span class="year">${date.year}</span>
                 </div>
@@ -190,7 +192,7 @@ export default class Header extends LitElement {
                     data-context="day"
                     class="btn-change-view"
                 >
-                    ${messages.day()}
+                    ${messages.day(l)}
                 </button>
                 <button
                     type="button"
@@ -199,7 +201,7 @@ export default class Header extends LitElement {
                     data-context="week"
                     class="btn-change-view"
                 >
-                    ${messages.week()}
+                    ${messages.week(l)}
                 </button>
                 <button
                     type="button"
@@ -208,7 +210,7 @@ export default class Header extends LitElement {
                     data-context="month"
                     class="btn-change-view"
                 >
-                    ${messages.month()}
+                    ${messages.month(l)}
                 </button>
             </nav>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
@@ -216,7 +218,7 @@ export default class Header extends LitElement {
                 <button type="button" name="next" aria-label="Next">»</button>
                 <span class="separator"></span>
                 <button type="button" name="today" @click=${this._handleTodayClick}>
-                    ${messages.today()}
+                    ${messages.today(l)}
                 </button>
             </div>
         </div>`;

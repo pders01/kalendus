@@ -1,14 +1,13 @@
-import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
 import { getLocalizedWeekdayShort } from '../lib/localization.js';
+import { messages } from '../lib/messages.js';
 import { type FirstDayOfWeek, getWeekDates, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import './Day.js';
 
 @customElement('lms-calendar-week')
-@(localized() as ClassDecorator)
 export default class Week extends LitElement {
     @property({ attribute: false })
     activeDate: CalendarDate = {
@@ -22,6 +21,9 @@ export default class Week extends LitElement {
 
     @property({ type: Number })
     firstDayOfWeek: FirstDayOfWeek = 1;
+
+    @property({ type: String })
+    locale = 'en';
 
     static override styles = css`
         :host {
@@ -280,12 +282,13 @@ export default class Week extends LitElement {
                                 role="button"
                                 aria-label="Switch to day view for ${getLocalizedWeekdayShort(
                                     weekdayOrder[index],
+                                    this.locale,
                                 )}, ${date.day}"
                                 @click=${() => this._handleDayLabelClick(date)}
                                 @keydown=${(e: KeyboardEvent) =>
                                     this._handleDayLabelKeydown(e, date)}
                             >
-                                <span class="day-name">${getLocalizedWeekdayShort(weekdayOrder[index])}</span>
+                                <span class="day-name">${getLocalizedWeekdayShort(weekdayOrder[index], this.locale)}</span>
                                 <span class="day-number">${date.day}</span>
                             </div>
                         `,
@@ -299,7 +302,7 @@ export default class Week extends LitElement {
                     })}"
                 >
                     <div class="all-day-container">
-                        <div class="all-day-time-header">All Day</div>
+                        <div class="all-day-time-header">${messages.allDay(this.locale)}</div>
                         ${weekDates.map(
                             (date) => html`
                                 <div class="all-day-day-column">

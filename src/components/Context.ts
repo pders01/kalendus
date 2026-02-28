@@ -1,4 +1,3 @@
-import { localized } from '@lit/localize';
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
@@ -6,10 +5,12 @@ import { getLocalizedWeekdayShort } from '../lib/localization.js';
 import { type FirstDayOfWeek, getWeekdayOrder } from '../lib/weekStartHelper.js';
 
 @customElement('lms-calendar-context')
-@(localized() as ClassDecorator)
 export default class Context extends LitElement {
     @property({ type: Number })
     firstDayOfWeek: FirstDayOfWeek = 1;
+
+    @property({ type: String })
+    locale = 'en';
 
     static override styles = css`
         div {
@@ -27,7 +28,7 @@ export default class Context extends LitElement {
     override render() {
         const order = getWeekdayOrder(this.firstDayOfWeek);
         return html` <div>
-            ${order.map((luxonDay) => html`<span>${getLocalizedWeekdayShort(luxonDay)}</span>`)}
+            ${order.map((luxonDay) => html`<span>${getLocalizedWeekdayShort(luxonDay, this.locale)}</span>`)}
         </div>`;
     }
 }

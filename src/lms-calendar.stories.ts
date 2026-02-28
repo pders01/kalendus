@@ -5,7 +5,6 @@ import { expect, userEvent } from 'storybook/test';
 import './lms-calendar.js';
 import type LMSCalendar from './lms-calendar.js';
 import type { CalendarEntry } from './lms-calendar.js';
-import { setAppLocale } from './lib/localization.js';
 import type { FirstDayOfWeek } from './lib/weekStartHelper.js';
 import { getFirstDayForLocale } from './lib/weekStartHelper.js';
 
@@ -38,11 +37,17 @@ const meta: Meta<LMSCalendar> = {
             options: [0, 1, 2, 3, 4, 5, 6],
             description: 'First day of the week (0=Sun, 1=Mon, 6=Sat)',
         },
+        locale: {
+            control: 'select',
+            options: ['en', 'ar', 'de', 'de-DE', 'es', 'fr', 'ja', 'pt', 'zh-Hans'],
+            description: 'Locale for UI strings and date formatting',
+        },
     },
     args: {
         heading: 'My Calendar',
         color: '#1976d2',
         firstDayOfWeek: 1,
+        locale: 'en',
         activeDate: {
             day: new Date().getDate(),
             month: new Date().getMonth() + 1,
@@ -60,6 +65,7 @@ type Story = StoryObj<
         activeDate?: { day: number; month: number; year: number };
         entries?: CalendarEntry[];
         firstDayOfWeek?: number;
+        locale?: string;
     }
 >;
 
@@ -164,6 +170,7 @@ export const Default: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -181,6 +188,7 @@ export const MonthView: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -198,6 +206,7 @@ export const EmptyCalendar: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -214,8 +223,9 @@ export const CustomTheming: Story = {
             .activeDate=${args.activeDate}
             .entries=${args.entries}
             .color=${args.color}
+            .locale=${args.locale}
             style="
-        height: 720px; 
+        height: 720px;
         display: block;
         --primary-color: #9c27b0;
         --background-color: #f5f5f5;
@@ -243,6 +253,7 @@ export const MobileView: Story = {
                 .entries=${args.entries}
                 .color=${args.color}
                 .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
                 style="height: 100%; display: block;"
             ></lms-calendar>
         </div>
@@ -261,6 +272,7 @@ export const WithInteractions: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -322,6 +334,7 @@ export const SeptemberView: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -339,6 +352,7 @@ export const NavigateMonths: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -757,6 +771,7 @@ export const HeavyEventLoad: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -782,6 +797,7 @@ export const StressTestAllViews: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -897,6 +913,7 @@ export const OverlappingEventsStressTest: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -1118,6 +1135,7 @@ export const ExtremeEdgeCases: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -1143,6 +1161,7 @@ export const SundayFirstWeek: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -1168,6 +1187,7 @@ export const SaturdayFirstWeek: Story = {
             .entries=${args.entries}
             .color=${args.color}
             .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
@@ -1191,6 +1211,7 @@ export const WeekStartComparison: Story = {
                 .activeDate=${args.activeDate}
                 .entries=${args.entries}
                 .color=${args.color}
+                .locale=${args.locale}
                 .firstDayOfWeek=${1}
                 style="height: 100%; display: block;"
             ></lms-calendar>
@@ -1199,6 +1220,7 @@ export const WeekStartComparison: Story = {
                 .activeDate=${args.activeDate}
                 .entries=${args.entries}
                 .color=${args.color}
+                .locale=${args.locale}
                 .firstDayOfWeek=${0}
                 style="height: 100%; display: block;"
             ></lms-calendar>
@@ -1214,10 +1236,7 @@ export const WeekStartComparison: Story = {
 };
 
 // --- Locale stories ---
-// Helper to create a locale story with proper lang attribute and firstDayOfWeek.
-// Uses Storybook `loaders` so the @lit/localize locale module is fully loaded
-// BEFORE render() — this avoids a race where the lit-localize-status event
-// fires before components mount their @localized() listeners.
+// Helper to create a locale story with proper firstDayOfWeek and per-instance locale.
 const createLocaleStory = (
     locale: string,
     label: string,
@@ -1225,22 +1244,17 @@ const createLocaleStory = (
 ): Story => ({
     args: {
         heading: label,
+        locale,
         firstDayOfWeek: getFirstDayForLocale(locale) as number,
         entries: sampleEntries,
     },
-    loaders: [
-        async () => {
-            document.documentElement.lang = locale;
-            await setAppLocale(locale);
-            return {};
-        },
-    ],
     render: (args) => html`
         <lms-calendar
             .heading=${args.heading}
             .activeDate=${args.activeDate}
             .entries=${args.entries}
             .color=${args.color}
+            .locale=${args.locale}
             .firstDayOfWeek=${args.firstDayOfWeek as FirstDayOfWeek}
             style="height: 720px; display: block;"
         ></lms-calendar>
@@ -1304,9 +1318,8 @@ export const LocaleShowcase: Story = {
     },
     render: (args) => html`
         <p style="margin: 0.5em 1em; color: #666; font-size: 0.85em;">
-            Each calendar shows its locale-appropriate first day of week.
-            Translations and date formatting use the page-level locale (German below).
-            See individual locale stories for full per-locale translations.
+            Each calendar independently renders its own locale — UI strings, weekday names,
+            and date formatting are all per-instance. No global locale switching needed.
         </p>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5em; height: 900px;">
             ${(['de', 'fr', 'es', 'ja', 'zh-Hans', 'ar'] as const).map((locale) => {
@@ -1320,6 +1333,7 @@ export const LocaleShowcase: Story = {
                         .activeDate=${args.activeDate}
                         .entries=${args.entries}
                         .color=${args.color}
+                        .locale=${locale}
                         .firstDayOfWeek=${getFirstDayForLocale(locale) as FirstDayOfWeek}
                         style="height: 100%; display: block;"
                     ></lms-calendar>
@@ -1327,20 +1341,10 @@ export const LocaleShowcase: Story = {
             })}
         </div>
     `,
-    loaders: [
-        async () => {
-            // Load one representative locale for msg() translations and Luxon formatting.
-            // Only one @lit/localize locale can be active per page, so the showcase
-            // demonstrates firstDayOfWeek differences while sharing a single translation set.
-            document.documentElement.lang = 'de';
-            await setAppLocale('de');
-            return {};
-        },
-    ],
     parameters: {
         docs: {
             description: {
-                story: 'Showcase of all 6 non-English locales in a 3x2 grid. Each calendar uses its locale-appropriate firstDayOfWeek (Mon/Sun/Sat shown in heading). Note: @lit/localize only supports one active locale per page, so all calendars share the same UI translations (German). See individual locale stories for full per-locale rendering.',
+                story: 'Showcase of all 6 non-English locales in a 3x2 grid. Each calendar uses its own locale for UI strings and date formatting, plus locale-appropriate firstDayOfWeek. All 6 calendars render independently on the same page — no global locale switching.',
             },
         },
     },
