@@ -37,6 +37,7 @@ type ExpandedCalendarEntry = CalendarEntry & {
     isContinuation: boolean;
     continuation: Continuation;
     originalStartDate?: CalendarDate;
+    originalIndex: number;
 };
 
 @customElement('lms-calendar')
@@ -96,9 +97,6 @@ export default class LMSCalendar extends LitElement {
 
     /** All entries expanded across their date spans (shared by every view). */
     private _expandedEntries: ExpandedCalendarEntry[] = [];
-
-    /** Original-index lookup by deterministic event ID. */
-    private _entryIdMap = new Map<string, number>();
 
     /** Month view: sorted + color-annotated, ready for _renderEntries. */
     private _monthViewSorted: Array<{
@@ -494,7 +492,6 @@ export default class LMSCalendar extends LitElement {
 
     private _clearEntryCaches() {
         this._expandedEntries = [];
-        this._entryIdMap.clear();
         this._monthViewSorted = [];
         this._entrySumByDay = {};
         this._expandedByISODate.clear();
@@ -503,21 +500,18 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _computeEntryCaches() {
-        // 1. Build original-index map (for consistent sorting across views)
-        this._entryIdMap.clear();
-        this._processedEntries.forEach((entry, index) => {
-            this._entryIdMap.set(this._createConsistentEventId(entry), index);
-        });
-
-        // 2. Expand all entries across their date spans (the expensive O(n × span) work)
-        this._expandedEntries = this._processedEntries.flatMap((entry) =>
+        // 1. Expand all entries across their date spans (the expensive O(n × span) work)
+        //    Each expanded entry carries its originalIndex directly, avoiding
+        //    repeated string-ID hashing and map lookups.
+        this._expandedEntries = this._processedEntries.flatMap((entry, index) =>
             this._expandEntryMaybe({
                 entry,
                 range: this._getDaysRange(entry.date),
+                originalIndex: index,
             }),
         ) as ExpandedCalendarEntry[];
 
-        // 3. Group by ISO date for O(1) day/week lookups (no Luxon needed)
+        // 2. Group by ISO date for O(1) day/week lookups (no Luxon needed)
         this._expandedByISODate.clear();
         for (const entry of this._expandedEntries) {
             const { year, month, day } = entry.date.start;
@@ -530,20 +524,16 @@ export default class LMSCalendar extends LitElement {
             bucket.push(entry);
         }
 
-        // 4. Month view: sort + compute colors once
+        // 3. Month view: sort + compute colors once
         this._monthViewSorted = R.pipe(
             this._expandedEntries,
             R.sortBy((entry) => {
-                const baseId = this._createConsistentEventId(entry as CalendarEntry);
-                const originalIndex = this._entryIdMap.get(baseId) ?? 0;
                 const isMultiDay = entry.continuation?.has || false;
-                return isMultiDay ? originalIndex - 1000 : originalIndex;
+                return isMultiDay ? entry.originalIndex - 1000 : entry.originalIndex;
             }),
             R.map((entry) => {
                 const [background] = getColorTextWithContrast(entry.color);
-                const baseId = this._createConsistentEventId(entry as CalendarEntry);
-                const originalIndex = this._entryIdMap.get(baseId) ?? 0;
-                return { entry, background, originalIndex };
+                return { entry, background, originalIndex: entry.originalIndex };
             }),
         );
 
@@ -853,9 +843,11 @@ export default class LMSCalendar extends LitElement {
     private _expandEntryMaybe({
         entry,
         range,
+        originalIndex,
     }: {
         entry: Partial<CalendarEntry>;
         range: [Date, Date, number];
+        originalIndex: number;
     }) {
         return Array.from({ length: range[2] }, (_, index) => {
             const currentStartDate = DateTime.fromJSDate(range[0]).plus({
@@ -877,6 +869,7 @@ export default class LMSCalendar extends LitElement {
                 },
                 // Preserve original start date for consistent sorting
                 originalStartDate: entry.date?.start,
+                originalIndex,
             };
 
             return currentEntry;
