@@ -106,6 +106,15 @@ export function getLocalizedMonth(month: number): string {
 }
 
 /**
+ * Format day + abbreviated month using the locale's natural ordering.
+ * e.g., "1. Feb." (de), "1 feb" (es), "2月1日" (zh/ja)
+ */
+export function getLocalizedDayMonth(day: number, month: number, year: number): string {
+    const date = new Date(year, month - 1, day);
+    return new Intl.DateTimeFormat(getCurrentLocale(), { day: 'numeric', month: 'short' }).format(date);
+}
+
+/**
  * Get localized weekday name (short)
  */
 export function getLocalizedWeekday(weekday: number): string {
