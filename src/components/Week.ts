@@ -171,6 +171,8 @@ export default class Week extends LitElement {
             background: var(--background-color);
             z-index: 2;
             position: relative;
+            /* Isolate repaint from the hour-grid scroller beneath */
+            contain: paint;
         }
 
         .all-day-container {

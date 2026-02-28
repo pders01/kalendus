@@ -108,6 +108,8 @@ export default class Day extends LitElement {
             display: grid;
             grid-template-rows: 1fr;
             border-bottom: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));
+            /* Isolate repaint from the hour-grid scroller beneath */
+            contain: paint;
         }
 
         .all-day {
