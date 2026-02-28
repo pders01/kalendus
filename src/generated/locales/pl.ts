@@ -13,6 +13,7 @@
 's15ba5784a11e0b88': `Bieżący miesiąc`,
 's22380c7fc798a44f': `Brak treści`,
 's2bc4d1196bce49dc': `Eksportuj jako ICS`,
+'s3c44e22d1af5693e': `Rok`,
 's48e186fb300e5464': `Czas`,
 's58ab939b42a026a6': `Cały dzień`,
 's5e8250fb85d64c23': `Zamknij`,

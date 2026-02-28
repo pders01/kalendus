@@ -14,6 +14,7 @@
 's15ba5784a11e0b88': `Mois en cours`,
 's22380c7fc798a44f': `Aucun contenu`,
 's2bc4d1196bce49dc': `Exporter en ICS`,
+'s3c44e22d1af5693e': `Année`,
 's48e186fb300e5464': `Heure`,
 's58ab939b42a026a6': `Toute la journée`,
 's5e8250fb85d64c23': `Fermer`,

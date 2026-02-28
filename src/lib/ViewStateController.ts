@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
-export type ViewMode = 'month' | 'week' | 'day';
+export type ViewMode = 'month' | 'week' | 'day' | 'year';
 
 export class ViewStateController implements ReactiveController {
     private _host: ReactiveControllerHost;
@@ -68,6 +68,18 @@ export class ViewStateController implements ReactiveController {
                 month: nextDay.getMonth() + 1,
                 year: nextDay.getFullYear(),
             });
+        } else if (this._viewMode === 'year') {
+            const nextYear = new Date(current.year + 1, current.month - 1, 1);
+            const clamped = new Date(nextYear.getFullYear(), current.month - 1, current.day);
+            // Clamp day if it overflows (e.g. Feb 29 → Feb 28 in non-leap year)
+            if (clamped.getMonth() !== current.month - 1) {
+                clamped.setDate(0); // last day of previous month
+            }
+            this.setActiveDate({
+                day: clamped.getDate(),
+                month: clamped.getMonth() + 1,
+                year: clamped.getFullYear(),
+            });
         }
     }
 
@@ -96,6 +108,18 @@ export class ViewStateController implements ReactiveController {
                 month: prevDay.getMonth() + 1,
                 year: prevDay.getFullYear(),
             });
+        } else if (this._viewMode === 'year') {
+            const prevYear = new Date(current.year - 1, current.month - 1, 1);
+            const clamped = new Date(prevYear.getFullYear(), current.month - 1, current.day);
+            // Clamp day if it overflows (e.g. Feb 29 → Feb 28 in non-leap year)
+            if (clamped.getMonth() !== current.month - 1) {
+                clamped.setDate(0);
+            }
+            this.setActiveDate({
+                day: clamped.getDate(),
+                month: clamped.getMonth() + 1,
+                year: clamped.getFullYear(),
+            });
         }
     }
 
@@ -118,5 +142,9 @@ export class ViewStateController implements ReactiveController {
 
     switchToDayView(): void {
         this.setViewMode('day');
+    }
+
+    switchToYearView(): void {
+        this.setViewMode('year');
     }
 }

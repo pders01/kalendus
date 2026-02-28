@@ -61,7 +61,8 @@ export type MessageKey =
     | 'date'
     | 'notes'
     | 'close'
-    | 'calendarWeek';
+    | 'calendarWeek'
+    | 'year';
 
 export type ResolvedMessages = Readonly<Record<MessageKey, string>>;
 
@@ -84,6 +85,7 @@ const MESSAGE_DEFS: ReadonlyArray<readonly [MessageKey, string, string]> = [
     ['notes', 's005053d82b712e0a', 'Notes'],
     ['close', 's5e8250fb85d64c23', 'Close'],
     ['calendarWeek', 's090f2107b5a69a7f', 'CW'],
+    ['year', 's3c44e22d1af5693e', 'Year'],
 ] as const;
 
 const _bundleCache = new Map<string, ResolvedMessages>();

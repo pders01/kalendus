@@ -19,6 +19,9 @@ import LMSCalendarMonth from './components/Month';
 import './components/Month.js';
 import LMSCalendarWeek from './components/Week';
 import './components/Week.js';
+import LMSCalendarYear from './components/Year';
+import './components/Year.js';
+import type { DensityMode, DrillTarget } from './components/Year.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator, type LayoutResult } from './lib/LayoutCalculator.js';
 import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
@@ -43,6 +46,12 @@ export default class LMSCalendar extends LitElement {
 
     @property({ type: String })
     locale = document.documentElement.lang || 'en';
+
+    @property({ type: String, attribute: 'year-drill-target' })
+    yearDrillTarget: DrillTarget = 'month';
+
+    @property({ type: String, attribute: 'year-density-mode' })
+    yearDensityMode: DensityMode = 'dot';
 
     private _viewState = new ViewStateController(this);
 
@@ -276,6 +285,19 @@ export default class LMSCalendar extends LitElement {
             --menu-detail-label-min-width: 4em;
             --menu-detail-label-font-size: 0.8125em;
             --menu-detail-gap: 0.5em;
+
+            /* Year view tokens */
+            --year-grid-columns: 3;
+            --year-grid-columns-tablet: 2;
+            --year-grid-columns-mobile: 1;
+            --year-month-label-font-size: 0.875em;
+            --year-day-font-size: 0.7em;
+            --year-cell-size: 1.8em;
+            --year-dot-color: var(--indicator-color, var(--primary-color));
+            --year-heatmap-1: rgba(30, 144, 255, 0.15);
+            --year-heatmap-2: rgba(30, 144, 255, 0.35);
+            --year-heatmap-3: rgba(30, 144, 255, 0.55);
+            --year-heatmap-4: rgba(30, 144, 255, 0.75);
         }
         .calendar-container {
             width: var(--width);
@@ -536,7 +558,7 @@ export default class LMSCalendar extends LitElement {
                     </lms-calendar-header>
                 </header>
 
-                <main role="region" aria-live="polite" aria-label="${viewMode} view">
+                <main role="region" aria-live="polite" aria-label="${viewMode} view" style=${viewMode === 'year' ? 'overflow-y: auto' : nothing}>
                     ${
                         viewMode === 'month'
                             ? html`
@@ -598,6 +620,21 @@ export default class LMSCalendar extends LitElement {
                               })()
                             : nothing
                     }
+                    ${
+                        viewMode === 'year'
+                            ? html`
+                              <lms-calendar-year
+                                  @expand=${this._handleExpand}
+                                  .activeDate=${currentActiveDate}
+                                  .firstDayOfWeek=${this.firstDayOfWeek}
+                                  .locale=${this.locale}
+                                  .entrySumByDay=${this._entrySumByDay}
+                                  .drillTarget=${this.yearDrillTarget}
+                                  .densityMode=${this.yearDensityMode}
+                              ></lms-calendar-year>
+                          `
+                            : nothing
+                    }
                 </main>
 
                 <lms-menu
@@ -630,6 +667,7 @@ export default class LMSCalendar extends LitElement {
             .with('day', () => this._viewState.switchToDayView())
             .with('week', () => this._viewState.switchToWeekView())
             .with('month', () => this._viewState.switchToMonthView())
+            .with('year', () => this._viewState.switchToYearView())
             .otherwise(() => {});
     }
 
@@ -639,7 +677,12 @@ export default class LMSCalendar extends LitElement {
 
     private _handleExpand(e: CustomEvent) {
         this._viewState.setActiveDate(e.detail.date);
-        this._viewState.switchToDayView();
+        const target = e.detail.drillTarget || 'day';
+        if (target === 'month') {
+            this._viewState.switchToMonthView();
+        } else {
+            this._viewState.switchToDayView();
+        }
     }
 
     private _handleOpenMenu(e: CustomEvent) {
@@ -1231,6 +1274,7 @@ declare global {
         'lms-calendar-context': LMSCalendarContext;
         'lms-calendar-entry': LMSCalendarEntry;
         'lms-calendar-menu': LMSCalendarMenu;
+        'lms-calendar-year': LMSCalendarYear;
     }
 
     type CalendarTime = {

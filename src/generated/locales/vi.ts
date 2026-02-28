@@ -13,6 +13,7 @@
 's15ba5784a11e0b88': `Tháng hiện tại`,
 's22380c7fc798a44f': `Không có nội dung`,
 's2bc4d1196bce49dc': `Xuất dưới dạng ICS`,
+'s3c44e22d1af5693e': `Năm`,
 's48e186fb300e5464': `Thời gian`,
 's58ab939b42a026a6': `Cả ngày`,
 's5e8250fb85d64c23': `Đóng`,
