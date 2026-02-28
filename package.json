@@ -57,6 +57,7 @@
         "test:watch": "NODE_OPTIONS=--experimental-vm-modules mocha --watch",
         "test:components": "web-test-runner",
         "test:components:watch": "web-test-runner --watch",
+        "test:components:coverage": "web-test-runner --coverage",
         "storybook": "storybook dev -p 6006",
         "build-storybook": "storybook build",
         "test-storybook": "storybook test",
