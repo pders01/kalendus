@@ -258,7 +258,7 @@ export default class Year extends LitElement {
                             day === this.activeDate.day &&
                             month === this.activeDate.month &&
                             year === this.activeDate.year;
-                        const eventCount = this.entrySumByDay[`${day}-${month}-${year}`] ?? 0;
+                        const eventCount = this.entrySumByDay[`${year}-${month}-${day}`] ?? 0;
 
                         return this._renderDayCell(year, month, day, isCurrent, isSelected, eventCount);
                     })}
