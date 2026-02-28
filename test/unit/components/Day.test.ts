@@ -25,7 +25,7 @@ describe('Day Component', () => {
 
     it('should render hour indicators correctly', async () => {
         const el: Day = await fixture(html`
-            <lms-calendar-day></lms-calendar-day>
+            <lms-calendar-day locale="de"></lms-calendar-day>
         `);
 
         await el.updateComplete;
