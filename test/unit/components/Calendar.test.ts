@@ -108,16 +108,16 @@ describe('Calendar Component', () => {
         expect(month?.hasAttribute('hidden')).to.be.false;
     });
 
-    it('should render day component as hidden by default', async () => {
+    it('should not render day component when in month view', async () => {
         const el: LMSCalendar = await fixture(html`
             <lms-calendar></lms-calendar>
         `);
 
         await el.updateComplete;
 
+        // Day component is conditionally rendered (not hidden), so it should not be in the DOM
         const day = el.shadowRoot?.querySelector('lms-calendar-day');
-        expect(day).to.exist;
-        expect(day?.hasAttribute('hidden')).to.be.true;
+        expect(day).to.not.exist;
     });
 
     it('should display custom heading', async () => {
@@ -189,7 +189,7 @@ describe('Calendar Component', () => {
 
         await el.updateComplete;
 
-        // Initially no expanded date
+        // Initially no expanded date (month view)
         expect((el as any)._expandedDate).to.be.undefined;
 
         // Simulate expand event
@@ -203,29 +203,40 @@ describe('Calendar Component', () => {
 
         await el.updateComplete;
 
-        // Should have expanded date set
+        // Should have expanded date set (now in day view)
         expect((el as any)._expandedDate).to.exist;
         expect((el as any)._expandedDate.day).to.equal(15);
     });
 
-    it('should toggle view when expanded', async () => {
+    it('should switch to day view when expanding a date', async () => {
         const el: LMSCalendar = await fixture(html`
             <lms-calendar></lms-calendar>
         `);
 
         await el.updateComplete;
 
-        // Simulate expand to show day view
-        (el as any)._expandedDate = { day: 15, month: 9, year: 2023 };
-        await el.updateComplete;
+        // Simulate expand event to switch to day view
+        const expandEvent = new CustomEvent('expand', {
+            detail: { date: { day: 15, month: 9, year: 2023 } },
+            bubbles: true,
+        });
 
         const month = el.shadowRoot?.querySelector('lms-calendar-month');
-        const day = el.shadowRoot?.querySelector('lms-calendar-day');
-        const context = el.shadowRoot?.querySelector('lms-calendar-context');
+        month?.dispatchEvent(expandEvent);
 
-        expect(month?.hasAttribute('hidden')).to.be.true;
-        expect(day?.hasAttribute('hidden')).to.be.false;
-        expect(context?.hasAttribute('hidden')).to.be.true;
+        await el.updateComplete;
+
+        // Month should no longer be rendered
+        const monthAfter = el.shadowRoot?.querySelector('lms-calendar-month');
+        expect(monthAfter).to.not.exist;
+
+        // Day should now be rendered
+        const day = el.shadowRoot?.querySelector('lms-calendar-day');
+        expect(day).to.exist;
+
+        // Context should not be rendered in day view
+        const context = el.shadowRoot?.querySelector('lms-calendar-context');
+        expect(context).to.not.exist;
     });
 
     it('should handle switch view events', async () => {
@@ -235,11 +246,19 @@ describe('Calendar Component', () => {
 
         await el.updateComplete;
 
-        // Set expanded date first
-        (el as any)._expandedDate = { day: 15, month: 9, year: 2023 };
+        // First expand to day view
+        const expandEvent = new CustomEvent('expand', {
+            detail: { date: { day: 15, month: 9, year: 2023 } },
+            bubbles: true,
+        });
+        const month = el.shadowRoot?.querySelector('lms-calendar-month');
+        month?.dispatchEvent(expandEvent);
         await el.updateComplete;
 
-        // Simulate switch view event to collapse
+        // Should be in day view now
+        expect(el.shadowRoot?.querySelector('lms-calendar-day')).to.exist;
+
+        // Simulate switch view event back to month
         const switchViewEvent = new CustomEvent('switchview', {
             detail: { view: 'month' },
             bubbles: true,
@@ -250,8 +269,9 @@ describe('Calendar Component', () => {
 
         await el.updateComplete;
 
-        // Should have cleared expanded date
-        expect((el as any)._expandedDate).to.be.undefined;
+        // Should be back in month view
+        expect(el.shadowRoot?.querySelector('lms-calendar-month')).to.exist;
+        expect(el.shadowRoot?.querySelector('lms-calendar-day')).to.not.exist;
     });
 
     it('should set custom color', async () => {
@@ -323,8 +343,8 @@ describe('Calendar Component', () => {
         await el.updateComplete;
 
         // Should render entries (exact content depends on implementation)
-        const month = el.shadowRoot?.querySelector('lms-calendar-month');
-        expect(month).to.exist;
+        const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
+        expect(monthEl).to.exist;
     });
 
     it('should handle empty entries array', async () => {
@@ -337,8 +357,8 @@ describe('Calendar Component', () => {
         expect(el.entries).to.have.length(0);
 
         // Should still render normally
-        const month = el.shadowRoot?.querySelector('lms-calendar-month');
-        expect(month).to.exist;
+        const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
+        expect(monthEl).to.exist;
     });
 
     it('should provide CSS custom properties', async () => {
@@ -373,8 +393,8 @@ describe('Calendar Component', () => {
             await el.updateComplete;
 
             // Should handle different widths without errors
-            const month = el.shadowRoot?.querySelector('lms-calendar-month');
-            expect(month).to.exist;
+            const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
+            expect(monthEl).to.exist;
         }
     });
 
@@ -386,18 +406,22 @@ describe('Calendar Component', () => {
         await el.updateComplete;
 
         // Check main container
-        const container = el.shadowRoot?.querySelector('div');
+        const container = el.shadowRoot?.querySelector('.calendar-container');
         expect(container).to.exist;
 
-        // Check all required components are present
-        const header = container?.querySelector('lms-calendar-header');
-        const context = container?.querySelector('lms-calendar-context');
-        const month = container?.querySelector('lms-calendar-month');
-        const day = container?.querySelector('lms-calendar-day');
+        // Check required components for month view (default)
+        const header = el.shadowRoot?.querySelector('lms-calendar-header');
+        const context = el.shadowRoot?.querySelector('lms-calendar-context');
+        const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
 
         expect(header).to.exist;
         expect(context).to.exist;
-        expect(month).to.exist;
-        expect(day).to.exist;
+        expect(monthEl).to.exist;
+
+        // Day and week are conditionally rendered — not in DOM during month view
+        const day = el.shadowRoot?.querySelector('lms-calendar-day');
+        const week = el.shadowRoot?.querySelector('lms-calendar-week');
+        expect(day).to.not.exist;
+        expect(week).to.not.exist;
     });
 });
