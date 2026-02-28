@@ -13,6 +13,7 @@
 import { CSSResult, unsafeCSS } from 'lit';
 
 import type { ViewMode } from './ViewStateController.js';
+import { type FirstDayOfWeek, getWeekDates } from './weekStartHelper.js';
 
 // Import types - these should be available globally but let's be explicit
 declare global {
@@ -29,6 +30,7 @@ declare global {
 }
 
 export type { ViewMode };
+export type { FirstDayOfWeek };
 
 export interface PositionConfig {
     viewMode: ViewMode;
@@ -36,6 +38,7 @@ export interface PositionConfig {
     time?: CalendarTimeInterval;
     isAllDay?: boolean;
     activeDate?: CalendarDate; // For week view calculations
+    firstDayOfWeek?: FirstDayOfWeek; // 0=Sun, 1=Mon (default), 6=Sat
 }
 
 export interface LayoutDimensions {
@@ -73,7 +76,7 @@ export class SlotManager {
             case 'day':
                 return this._calculateDayPosition(date, time, isAllDay);
             case 'week':
-                return this._calculateWeekPosition(date, config.activeDate!, time, isAllDay);
+                return this._calculateWeekPosition(date, config.activeDate!, time, isAllDay, config.firstDayOfWeek);
             case 'month':
                 return this._calculateMonthPosition(date);
             default:
@@ -160,9 +163,10 @@ export class SlotManager {
         activeDate: CalendarDate,
         time?: CalendarTimeInterval,
         isAllDay?: boolean,
+        firstDayOfWeek?: FirstDayOfWeek,
     ): SlotPosition {
         // Calculate which day column this entry belongs to
-        const dayColumnIndex = this.getWeekDayIndex(date, activeDate);
+        const dayColumnIndex = this.getWeekDayIndex(date, activeDate, firstDayOfWeek ?? 1);
         const gridColumn = dayColumnIndex + 2; // +2 because column 1 is for time indicators
 
         if (isAllDay) {
@@ -199,29 +203,15 @@ export class SlotManager {
     }
 
     /**
-     * Calculate which day of the week an entry belongs to (0-6, where 0 is Monday)
+     * Calculate which day of the week an entry belongs to (0-6, where 0 is the first day)
      */
-    public getWeekDayIndex(entryDate: CalendarDate, activeDate: CalendarDate): number {
-        // Get the start of the week (Monday)
-        const currentDate = new Date(activeDate.year, activeDate.month - 1, activeDate.day);
-        const dayOfWeek = currentDate.getDay();
-        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    public getWeekDayIndex(
+        entryDate: CalendarDate,
+        activeDate: CalendarDate,
+        firstDayOfWeek: FirstDayOfWeek = 1,
+    ): number {
+        const weekDates = getWeekDates(activeDate, firstDayOfWeek);
 
-        const weekStart = new Date(currentDate);
-        weekStart.setDate(currentDate.getDate() + mondayOffset);
-
-        // Generate week dates
-        const weekDates = Array.from({ length: 7 }, (_, i) => {
-            const date = new Date(weekStart);
-            date.setDate(weekStart.getDate() + i);
-            return {
-                day: date.getDate(),
-                month: date.getMonth() + 1,
-                year: date.getFullYear(),
-            };
-        });
-
-        // Find which day this entry belongs to
         const dayIndex = weekDates.findIndex(
             (date) =>
                 date.day === entryDate.day &&
@@ -229,7 +219,7 @@ export class SlotManager {
                 date.year === entryDate.year,
         );
 
-        // Return 0 (Monday) if not found, to prevent -1 from breaking sorting
+        // Return 0 if not found, to prevent -1 from breaking sorting
         return dayIndex >= 0 ? dayIndex : 0;
     }
 
@@ -251,27 +241,21 @@ export class SlotManager {
      * Calculate accessibility information including logical tab order
      */
     public calculateAccessibility(config: PositionConfig): AccessibilityInfo {
-        const { viewMode, date, time, isAllDay } = config;
+        const { viewMode, date, time, isAllDay, firstDayOfWeek } = config;
 
         let tabIndex = 0;
 
         if (viewMode === 'week' && time && !isAllDay) {
-            // Week view: tab order by day first, then by time (vertical progression)
-            // Use very large gaps to ensure proper ordering regardless of DOM order
-            // Formula: 10000 + (dayOfWeek * 10000) + (hour * 100) + minute
-            // This ensures Mon 9:00 (10000+0+900+0=10900), Mon 10:00 (11000), Tue 9:00 (20900), etc.
-            const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!);
+            const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!, firstDayOfWeek ?? 1);
             tabIndex = 10000 + dayOfWeek * 10000 + time.start.hour * 100 + time.start.minute;
         } else if (viewMode === 'day' && time && !isAllDay) {
-            // Day view: tab order by time only
             tabIndex = time.start.hour * 60 + time.start.minute;
         } else if (isAllDay) {
-            // All-day events get lower tab indices (appear first in tab order)
             if (viewMode === 'week') {
-                const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!);
-                tabIndex = 1000 + dayOfWeek; // 1000-1006 for all-day events (before timed events)
+                const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!, firstDayOfWeek ?? 1);
+                tabIndex = 1000 + dayOfWeek;
             } else {
-                tabIndex = 0; // Single all-day event in day view
+                tabIndex = 0;
             }
         }
 

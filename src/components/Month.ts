@@ -6,6 +6,7 @@ import { P, match } from 'ts-pattern';
 
 import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator.js';
 import { getLocalizedMonth } from '../lib/localization.js';
+import { type FirstDayOfWeek, getFirstDayOffset } from '../lib/weekStartHelper.js';
 
 @customElement('lms-calendar-month')
 @(localized() as ClassDecorator)
@@ -18,6 +19,9 @@ export default class Month extends LitElement {
         month: this.currentDate.getMonth() + 1,
         year: this.currentDate.getFullYear(),
     };
+
+    @property({ type: Number })
+    firstDayOfWeek: FirstDayOfWeek = 1;
 
     static override styles = css`
         .month {
@@ -226,12 +230,7 @@ export default class Month extends LitElement {
     }
 
     private _getOffsetOfFirstDayInMonth(date: CalendarDate) {
-        return match(date)
-            .with({ year: P.number, month: P.number }, ({ year, month }) => {
-                const offset = new Date(`${year}/${month}/01`).getDay();
-                return offset === 0 ? 6 : offset - 1;
-            })
-            .otherwise(() => 0);
+        return getFirstDayOffset(date, this.firstDayOfWeek);
     }
 
     private _getDatesInMonthAsArray(date: CalendarDate, sliceArgs: number[]) {

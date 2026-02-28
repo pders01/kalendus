@@ -24,14 +24,18 @@ import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator } from './lib/LayoutCalculator.js';
 import { setAppLocale } from './lib/localization.js';
 import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
-import { slotManager, type LayoutDimensions, type PositionConfig } from './lib/SlotManager.js';
+import { slotManager, type LayoutDimensions, type PositionConfig, type FirstDayOfWeek } from './lib/SlotManager.js';
 import { ViewStateController } from './lib/ViewStateController.js';
+import { getWeekDates } from './lib/weekStartHelper.js';
 
 @customElement('lms-calendar')
 @(localized() as ClassDecorator)
 export default class LMSCalendar extends LitElement {
     @property({ type: String })
     heading?: string;
+
+    @property({ type: Number, attribute: 'first-day-of-week' })
+    firstDayOfWeek: FirstDayOfWeek = 1;
 
     private _viewState = new ViewStateController(this);
 
@@ -343,8 +347,8 @@ export default class LMSCalendar extends LitElement {
         this._resizeController.observe(firstElementChild);
 
         // Initialize locale from document language
-        const docLang = document.documentElement.lang?.slice(0, 2);
-        if (docLang && ['de', 'en'].includes(docLang)) {
+        const docLang = document.documentElement.lang;
+        if (docLang) {
             setAppLocale(docLang);
         }
     }
@@ -405,13 +409,16 @@ export default class LMSCalendar extends LitElement {
                     ${
                         viewMode === 'month'
                             ? html`
-                              <lms-calendar-context> </lms-calendar-context>
+                              <lms-calendar-context
+                                  .firstDayOfWeek=${this.firstDayOfWeek}
+                              > </lms-calendar-context>
 
                               <lms-calendar-month
                                   @expand=${this._handleExpand}
                                   @open-menu=${this._handleOpenMenu}
                                   @clear-other-selections=${this._handleClearOtherSelections}
                                   .activeDate=${currentActiveDate}
+                                  .firstDayOfWeek=${this.firstDayOfWeek}
                               >
                                   ${
                                       this._calendarWidth < 768
@@ -433,6 +440,7 @@ export default class LMSCalendar extends LitElement {
                                           @clear-other-selections=${this._handleClearOtherSelections}
                                           .activeDate=${currentActiveDate}
                                           .allDayRowCount=${result.allDayRowCount}
+                                          .firstDayOfWeek=${this.firstDayOfWeek}
                                       >
                                           ${result.elements}
                                       </lms-calendar-week>
@@ -875,10 +883,12 @@ export default class LMSCalendar extends LitElement {
                         const dayIndexA = slotManager.getWeekDayIndex(
                             dayA.date.start,
                             currentActiveDate,
+                            this.firstDayOfWeek,
                         );
                         const dayIndexB = slotManager.getWeekDayIndex(
                             dayB.date.start,
                             currentActiveDate,
+                            this.firstDayOfWeek,
                         );
                         return dayIndexA - dayIndexB;
                     });
@@ -908,7 +918,7 @@ export default class LMSCalendar extends LitElement {
         const allDayLayoutEvents: AllDayEvent[] = allDayEntries.map((entry) => {
             const eventId = this._createConsistentEventId(entry);
             const dayIndex = viewMode === 'week'
-                ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate)
+                ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek)
                 : 0;
             return {
                 id: eventId,
@@ -942,6 +952,7 @@ export default class LMSCalendar extends LitElement {
                 date: entry.date.start,
                 isAllDay: true,
                 activeDate: currentActiveDate,
+                firstDayOfWeek: this.firstDayOfWeek,
             };
 
             const position = slotManager.calculatePosition(positionConfig);
@@ -965,7 +976,7 @@ export default class LMSCalendar extends LitElement {
                 const visibleDays = mergedEvent?.days ?? [];
                 const sortedDays = [...visibleDays].sort((a, b) => a - b);
                 const dayIndex = viewMode === 'week'
-                    ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate)
+                    ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek)
                     : 0;
                 spanClass = computeSpanClass({
                     continuationIndex: dayIndex,
@@ -1034,7 +1045,8 @@ export default class LMSCalendar extends LitElement {
                 date: entry.date.start,
                 time: entry.time,
                 activeDate: currentActiveDate,
-                isAllDay: entry.isContinuation || this._isAllDayEvent(entry), // Add all-day detection
+                isAllDay: entry.isContinuation || this._isAllDayEvent(entry),
+                firstDayOfWeek: this.firstDayOfWeek,
             };
 
             const position = slotManager.calculatePosition(positionConfig);
@@ -1123,12 +1135,8 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _getWeekStartDate(date: CalendarDate): Date {
-        const currentDate = new Date(date.year, date.month - 1, date.day);
-        const dayOfWeek = currentDate.getDay();
-        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const weekStart = new Date(currentDate);
-        weekStart.setDate(currentDate.getDate() + mondayOffset);
-        return weekStart;
+        const first = getWeekDates(date, this.firstDayOfWeek)[0];
+        return new Date(first.year, first.month - 1, first.day);
     }
 
     private _getSmartLayout(

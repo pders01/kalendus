@@ -4,6 +4,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
 import { getLocalizedWeekdayShort } from '../lib/localization.js';
+import { type FirstDayOfWeek, getWeekDates, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import './Day.js';
 
 @customElement('lms-calendar-week')
@@ -18,6 +19,9 @@ export default class Week extends LitElement {
 
     @property({ type: Number })
     allDayRowCount = 0;
+
+    @property({ type: Number })
+    firstDayOfWeek: FirstDayOfWeek = 1;
 
     static override styles = css`
         :host {
@@ -239,26 +243,7 @@ export default class Week extends LitElement {
     }
 
     private _getWeekDates(): CalendarDate[] {
-        const currentDate = new Date(
-            this.activeDate.year,
-            this.activeDate.month - 1,
-            this.activeDate.day,
-        );
-        const dayOfWeek = currentDate.getDay();
-        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-
-        const weekStart = new Date(currentDate);
-        weekStart.setDate(currentDate.getDate() + mondayOffset);
-
-        return Array.from({ length: 7 }, (_, i) => {
-            const date = new Date(weekStart);
-            date.setDate(weekStart.getDate() + i);
-            return {
-                day: date.getDate(),
-                month: date.getMonth() + 1,
-                year: date.getFullYear(),
-            };
-        });
+        return getWeekDates(this.activeDate, this.firstDayOfWeek);
     }
 
     private _isCurrentDate(date: CalendarDate) {
@@ -272,6 +257,7 @@ export default class Week extends LitElement {
 
     override render() {
         const weekDates = this._getWeekDates();
+        const weekdayOrder = getWeekdayOrder(this.firstDayOfWeek);
         const hasAllDay = this.allDayRowCount > 0;
         const allDayHeight = hasAllDay
             ? Math.max(2.5, this.allDayRowCount * 2) + 1
@@ -293,13 +279,13 @@ export default class Week extends LitElement {
                                 tabindex="0"
                                 role="button"
                                 aria-label="Switch to day view for ${getLocalizedWeekdayShort(
-                                    index + 1,
+                                    weekdayOrder[index],
                                 )}, ${date.day}"
                                 @click=${() => this._handleDayLabelClick(date)}
                                 @keydown=${(e: KeyboardEvent) =>
                                     this._handleDayLabelKeydown(e, date)}
                             >
-                                <span class="day-name">${getLocalizedWeekdayShort(index + 1)}</span>
+                                <span class="day-name">${getLocalizedWeekdayShort(weekdayOrder[index])}</span>
                                 <span class="day-number">${date.day}</span>
                             </div>
                         `,
