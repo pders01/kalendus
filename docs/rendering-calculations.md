@@ -313,6 +313,19 @@ class DirectionalCalendarDateCalculator {
 }
 ```
 
+## Condensed Week Rendering
+
+`computeWeekDisplayContext` builds a deterministic description of the week grid before `lms-calendar.ts` renders `<lms-calendar-week>`.
+
+- Reads three CSS tokens from the host element:
+    - `--week-day-count` (default 7) – number of day columns at or above the breakpoint.
+    - `--week-mobile-day-count` (default 3) – number of columns when the calendar width is below `--week-mobile-breakpoint`.
+    - `--week-mobile-breakpoint` (default 768px) – pixel width threshold.
+- Uses `getWeekDates(activeDate, firstDayOfWeek)` to fetch the full 7-day sequence.
+- If the effective count is less than 7, centers a sliding window of `visibleLength` days around the active date (`visibleStartIndex = clamp(activeIndex - floor((count-1)/2))`) and exposes that subset via `visibleDates`.
+- Returns `gridColumns = "var(--time-column-width) repeat(visibleLength, 1fr)"`, so the week component can adjust its CSS grid without recomputing the layout each render.
+- The context is passed to the week view and the entry renderer, so timed/all-day entries only iterate the visible subset and peek navigation knows whether to slide left/right.
+
 ## Year View Rendering
 
 ### Mini-month grid layout
@@ -323,7 +336,7 @@ class DirectionalCalendarDateCalculator {
 
 ### Density visualization modes
 
-Counts come from `_entrySumByDay`, a map produced while expanding entries (`${day}-${month}-${year}` keys). The Year component translates counts into three visual styles:
+Counts come from `_entrySumByDay`, a map produced while expanding entries using canonical ISO keys (`${year}-${month}-${day}` with padded segments). The Year component translates counts into three visual styles:
 
 ```typescript
 if (densityMode === 'dot' && eventCount > 0) {
