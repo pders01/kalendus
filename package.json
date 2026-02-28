@@ -60,7 +60,7 @@
         "test:components:coverage": "web-test-runner --coverage",
         "storybook": "storybook dev -p 6006",
         "build-storybook": "storybook build",
-        "test-storybook": "storybook test",
+        "test-storybook": "test-storybook",
         "i18n:extract": "lit-localize extract",
         "i18n:build": "lit-localize build"
     },
