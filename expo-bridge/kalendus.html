@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Kalendus</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #cal {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<lms-calendar id="cal"></lms-calendar>
+
+<!--
+  Load the IIFE bundle. In production, either:
+  1. Inline this script's contents directly in the HTML string, or
+  2. Reference a bundled asset via the Expo asset system.
+-->
+<script src="kalendus.iife.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  var cal = document.getElementById('cal');
+
+  // ── Helpers ──────────────────────────────────────────────────────────
+
+  function postToRN(msg) {
+    try {
+      var json = JSON.stringify(msg);
+      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+        window.ReactNativeWebView.postMessage(json);
+      }
+    } catch (e) {
+      // Silently ignore serialization errors in production
+    }
+  }
+
+  // ── Inbound: RN → WebView ───────────────────────────────────────────
+
+  /** Map camelCase prop names to attribute names where needed */
+  var ATTR_PROPS = {
+    firstDayOfWeek: 'first-day-of-week',
+    yearDrillTarget: 'year-drill-target',
+    yearDensityMode: 'year-density-mode'
+  };
+
+  /** Props that must be set as JS properties (not attributes) */
+  var JS_PROPS = ['entries', 'locale', 'heading', 'color'];
+
+  function applyProps(props) {
+    if (!props || typeof props !== 'object') return;
+    var keys = Object.keys(props);
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var value = props[key];
+      if (ATTR_PROPS[key]) {
+        cal.setAttribute(ATTR_PROPS[key], String(value));
+      } else if (JS_PROPS.indexOf(key) !== -1) {
+        cal[key] = value;
+      }
+    }
+  }
+
+  function applyTheme(vars) {
+    if (!vars || typeof vars !== 'object') return;
+    var keys = Object.keys(vars);
+    for (var i = 0; i < keys.length; i++) {
+      cal.style.setProperty(keys[i], vars[keys[i]]);
+    }
+  }
+
+  function handleInbound(data) {
+    var msg;
+    try {
+      msg = typeof data === 'string' ? JSON.parse(data) : data;
+    } catch (e) {
+      return;
+    }
+    if (!msg || !msg.type) return;
+
+    switch (msg.type) {
+      case 'setProps':
+        applyProps(msg.props);
+        break;
+      case 'setTheme':
+        applyTheme(msg.vars);
+        break;
+    }
+  }
+
+  // Listen on both window and document for cross-platform compat
+  // (iOS fires on window, Android on document)
+  var lastMessageId = '';
+  function dedupeHandler(e) {
+    var raw = e.data;
+    if (typeof raw !== 'string') return;
+    // Simple dedup: skip if identical to the last message within this tick
+    if (raw === lastMessageId) return;
+    lastMessageId = raw;
+    setTimeout(function () { lastMessageId = ''; }, 0);
+    handleInbound(raw);
+  }
+
+  window.addEventListener('message', dedupeHandler);
+  document.addEventListener('message', dedupeHandler);
+
+  // ── Outbound: WebView → RN ─────────────────────────────────────────
+
+  var FORWARDED_EVENTS = [
+    'open-menu',
+    'expand',
+    'switchview',
+    'switchdate',
+    'jumptoday',
+    'menu-close'
+  ];
+
+  FORWARDED_EVENTS.forEach(function (eventName) {
+    cal.addEventListener(eventName, function (e) {
+      var detail = {};
+      if (e.detail) {
+        // Clone detail but strip anchorRect (non-serializable DOMRect)
+        var keys = Object.keys(e.detail);
+        for (var i = 0; i < keys.length; i++) {
+          if (keys[i] !== 'anchorRect') {
+            detail[keys[i]] = e.detail[keys[i]];
+          }
+        }
+      }
+      postToRN({ type: 'event', name: eventName, detail: detail });
+    });
+  });
+
+  // ── ICS export override ─────────────────────────────────────────────
+  // _handleExport is an arrow property on each Menu instance (not on the
+  // prototype), so we must patch it on every <lms-menu> element after
+  // it's created. We use a MutationObserver on the calendar's shadowRoot.
+
+  function patchMenuExport(menuEl) {
+    if (menuEl.__icsPatched) return;
+    menuEl.__icsPatched = true;
+
+    menuEl._handleExport = function () {
+      var details = menuEl.eventDetails;
+      if (!details) return;
+      postToRN({
+        type: 'event',
+        name: 'export-ics',
+        detail: {
+          heading: details.heading || '',
+          content: details.content || '',
+          time: details.time || '',
+          date: details.date
+        }
+      });
+    };
+  }
+
+  function observeForMenus() {
+    var shadowRoot = cal.shadowRoot;
+    if (!shadowRoot) return;
+
+    // Patch any menus already present
+    var existingMenus = shadowRoot.querySelectorAll('lms-menu');
+    existingMenus.forEach(patchMenuExport);
+
+    // Watch for new menus
+    var observer = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var added = mutations[i].addedNodes;
+        for (var j = 0; j < added.length; j++) {
+          var node = added[j];
+          if (node.nodeType === 1) {
+            if (node.tagName === 'LMS-MENU' || node.localName === 'lms-menu') {
+              patchMenuExport(node);
+            }
+            // Also check children (e.g. menu inside a wrapper)
+            if (node.querySelectorAll) {
+              var nested = node.querySelectorAll('lms-menu');
+              nested.forEach(patchMenuExport);
+            }
+          }
+        }
+      }
+    });
+
+    observer.observe(shadowRoot, { childList: true, subtree: true });
+  }
+
+  // Wait for the component to be defined, then set up the observer
+  customElements.whenDefined('lms-calendar').then(function () {
+    // The shadowRoot may be ready immediately or after first render
+    if (cal.shadowRoot) {
+      observeForMenus();
+    } else {
+      // Fallback: poll briefly for shadowRoot
+      var attempts = 0;
+      var poll = setInterval(function () {
+        if (cal.shadowRoot || attempts > 50) {
+          clearInterval(poll);
+          if (cal.shadowRoot) observeForMenus();
+        }
+        attempts++;
+      }, 50);
+    }
+  });
+
+  // ── Uncaught error forwarding ───────────────────────────────────────
+
+  window.onerror = function (message) {
+    postToRN({ type: 'error', message: String(message) });
+  };
+
+  window.addEventListener('unhandledrejection', function (e) {
+    postToRN({ type: 'error', message: String(e.reason) });
+  });
+
+  // ── Ready signal ────────────────────────────────────────────────────
+
+  postToRN({ type: 'ready' });
+})();
+</script>
+</body>
+</html>

@@ -40,6 +40,8 @@
     },
     "scripts": {
         "build": "vite build && tsc --project tsconfig.build.json",
+        "build:iife": "vite build --config vite.config.iife.ts",
+        "build:all": "pnpm run build && pnpm run build:iife",
         "build:watch": "vite build --watch",
         "clean": "rimraf dist",
         "lint": "npm run lint:lit-analyzer && npm run lint:oxlint",
