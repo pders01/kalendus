@@ -50,7 +50,7 @@
         "analyze": "cem analyze --litelement --globs \"src/**/*.ts\" --exclude \"src/**/*.stories.ts\" --exclude \"src/lib/debug/**\"",
         "analyze:watch": "cem analyze --litelement --globs \"src/**/*.ts\" --exclude \"src/**/*.stories.ts\" --exclude \"src/lib/debug/**\" --watch",
         "checksize": "cat ./dist/kalendus.js | gzip -9 | wc -c",
-        "prepublishOnly": "pnpm run clean && pnpm run build && pnpm run test && pnpm run lint && pnpm run analyze",
+        "prepublishOnly": "npm run clean && npm run build && npm run test && npm run lint && npm run analyze",
         "test": "NODE_OPTIONS=--experimental-vm-modules mocha",
         "test:watch": "NODE_OPTIONS=--experimental-vm-modules mocha --watch",
         "test:components": "web-test-runner",
