@@ -51,17 +51,30 @@ export default class Header extends LitElement {
             .controls {
                 font-size: small;
                 height: auto;
-                grid-template-columns: 1fr;
-                justify-items: center;
-                padding: 0.5em 0;
-                gap: 0.35em;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: center;
+                padding: 0.35em 0.5em;
+                gap: 0.25em 0.5em;
             }
             .info {
-                text-align: center;
+                flex-basis: 100%;
+                display: flex;
+                align-items: baseline;
+                justify-content: center;
+                gap: 0.4em;
                 padding-left: 0;
             }
+            .view-detail {
+                grid-row: unset;
+                grid-column: unset;
+                display: none;
+            }
+            .view-detail.active {
+                display: inline;
+            }
             .buttons {
-                justify-self: center;
                 padding-right: 0;
             }
         }
