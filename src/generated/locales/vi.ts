@@ -26,4 +26,7 @@
 'sb47daaf9e1c4a905': `Tháng`,
 'se0955919920ee87d': `Ngày`,
 'sfce4bfbe0f911aa7': `Không có thời gian`,
+'sa1b2c3d4e5f60001': `Trước`,
+'sa1b2c3d4e5f60002': `Sau`,
+'sa1b2c3d4e5f60003': `sự kiện`,
     };

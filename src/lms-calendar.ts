@@ -27,6 +27,7 @@ import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator, type LayoutResult } from './lib/LayoutCalculator.js';
 import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
 import { slotManager, type LayoutDimensions, type PositionConfig, type FirstDayOfWeek } from './lib/SlotManager.js';
+import { getMessages } from './lib/messages.js';
 import { ViewStateController } from './lib/ViewStateController.js';
 import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
 import { getWeekDates } from './lib/weekStartHelper.js';
@@ -460,18 +461,21 @@ export default class LMSCalendar extends LitElement {
 
         this._processedEntries = R.pipe(
             this.entries,
-            R.filter(
-                (entry) =>
-                    Interval.fromDateTimes(
-                        DateTime.fromObject(R.merge(entry.date.start, entry.time.start)),
-                        DateTime.fromObject(R.merge(entry.date.end, entry.time.end)),
-                    ).isValid,
-            ),
-            R.sort(
-                (a, b) =>
-                    a.time.start.hour - b.time.start.hour ||
-                    a.time.start.minute - b.time.start.minute,
-            ),
+            R.filter((entry) => {
+                // All-day entries without time are always valid
+                if (!entry.time) return true;
+                return Interval.fromDateTimes(
+                    DateTime.fromObject(R.merge(entry.date.start, entry.time.start)),
+                    DateTime.fromObject(R.merge(entry.date.end, entry.time.end)),
+                ).isValid;
+            }),
+            R.sort((a, b) => {
+                const aHour = a.time?.start.hour ?? 0;
+                const bHour = b.time?.start.hour ?? 0;
+                const aMin = a.time?.start.minute ?? 0;
+                const bMin = b.time?.start.minute ?? 0;
+                return aHour - bHour || aMin - bMin;
+            }),
         );
 
         this._computeEntryCaches();
@@ -1257,7 +1261,7 @@ export default class LMSCalendar extends LitElement {
                 slot: key.split('-').reverse().join('-'),
                 inlineStyle: `--entry-color: var(--separator-mid); text-align: center`,
                 entry: {
-                    heading: `${value} events`,
+                    heading: `${value} ${getMessages(this.locale).events}`,
                 },
                 displayMode: 'month-dot',
             }),

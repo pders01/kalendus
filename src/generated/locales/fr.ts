@@ -27,5 +27,8 @@
 'sb47daaf9e1c4a905': `Mois`,
 'se0955919920ee87d': `Jour`,
 'sfce4bfbe0f911aa7': `Aucune heure`,
+'sa1b2c3d4e5f60001': `Précédent`,
+'sa1b2c3d4e5f60002': `Suivant`,
+'sa1b2c3d4e5f60003': `événements`,
     };
   

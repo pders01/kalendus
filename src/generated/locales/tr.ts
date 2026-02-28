@@ -26,4 +26,7 @@
 'sb47daaf9e1c4a905': `Ay`,
 'se0955919920ee87d': `Gün`,
 'sfce4bfbe0f911aa7': `Zaman Yok`,
+'sa1b2c3d4e5f60001': `Önceki`,
+'sa1b2c3d4e5f60002': `Sonraki`,
+'sa1b2c3d4e5f60003': `etkinlik`,
     };

@@ -236,8 +236,8 @@ export default class Header extends LitElement {
                 </button>
             </nav>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
-                <button type="button" name="previous" aria-label="Previous">«</button>
-                <button type="button" name="next" aria-label="Next">»</button>
+                <button type="button" name="previous" aria-label="${msg.previous}">«</button>
+                <button type="button" name="next" aria-label="${msg.next}">»</button>
                 <span class="separator"></span>
                 <button type="button" name="today" @click=${this._handleTodayClick}>
                     ${msg.today}

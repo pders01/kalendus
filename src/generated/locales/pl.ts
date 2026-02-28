@@ -26,4 +26,7 @@
 'sb47daaf9e1c4a905': `Miesiąc`,
 'se0955919920ee87d': `Dzień`,
 'sfce4bfbe0f911aa7': `Brak czasu`,
+'sa1b2c3d4e5f60001': `Poprzedni`,
+'sa1b2c3d4e5f60002': `Następny`,
+'sa1b2c3d4e5f60003': `wydarzeń`,
     };

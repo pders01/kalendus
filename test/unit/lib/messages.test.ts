@@ -6,11 +6,12 @@ const ALL_KEYS: MessageKey[] = [
     'today', 'noTitle', 'noContent', 'noTime',
     'eventDetails', 'exportAsICS', 'title', 'time',
     'date', 'notes', 'close', 'calendarWeek', 'year',
+    'previous', 'next', 'events',
 ];
 
 describe('getMessages', () => {
     describe('English fallbacks', () => {
-        it('should return English fallbacks for all 18 keys', () => {
+        it('should return English fallbacks for all 21 keys', () => {
             const msg = getMessages('en');
             expect(Object.keys(msg)).to.have.lengthOf(ALL_KEYS.length);
             for (const key of ALL_KEYS) {

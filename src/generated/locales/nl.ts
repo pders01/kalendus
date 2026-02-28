@@ -26,4 +26,7 @@
 'sb47daaf9e1c4a905': `Maand`,
 'se0955919920ee87d': `Dag`,
 'sfce4bfbe0f911aa7': `Geen tijd`,
+'sa1b2c3d4e5f60001': `Vorige`,
+'sa1b2c3d4e5f60002': `Volgende`,
+'sa1b2c3d4e5f60003': `evenementen`,
     };

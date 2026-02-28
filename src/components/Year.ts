@@ -295,7 +295,7 @@ export default class Year extends LitElement {
                 data-density=${densityAttr || nothing}
                 data-date="${year}-${month}-${day}"
                 @click=${() => this._handleDayClick(year, month, day)}
-                aria-label="${day} ${getLocalizedMonth(month, this.locale)} ${year}${eventCount > 0 ? `, ${eventCount} events` : ''}"
+                aria-label="${day} ${getLocalizedMonth(month, this.locale)} ${year}${eventCount > 0 ? `, ${eventCount} ${getMessages(this.locale).events}` : ''}"
             >
                 ${day}
                 ${this.densityMode === 'count' && eventCount > 0
