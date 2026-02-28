@@ -42,6 +42,18 @@ pnpm add @jpahd/kalendus
 
 ## Usage
 
+See `docs/integration-guide.md` for end-to-end recipes covering vanilla HTML, React, Lit, theming tokens, and analytics hooks. A few quick snippets are included below.
+
+## Documentation Map
+
+| Audience | Document | Highlights |
+| --- | --- | --- |
+| Integrators | [Integration Guide](docs/integration-guide.md) | Framework recipes, theming tokens, analytics hooks |
+| Application Developers | [Library Usage](docs/library-usage.md) | API surface, data contracts, DOM events |
+| Component Contributors | [Developer Guide](docs/developer-guide.md) | Internal architecture, debugging tips |
+| Rendering Internals | [Rendering Calculations](docs/rendering-calculations.md) | Grid math, condensed weeks, density modes |
+| Design Systems | [Design Token Refactoring](docs/design-token-refactoring.md) | Token audit and proposed hierarchy |
+
 ### Basic Usage
 
 ```html
