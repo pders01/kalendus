@@ -30,5 +30,14 @@
 'sa1b2c3d4e5f60001': `Zurück`,
 'sa1b2c3d4e5f60002': `Weiter`,
 'sa1b2c3d4e5f60003': `Termine`,
+'sa1b2c3d4e5f60004': `Kalenderereignis`,
+'sa1b2c3d4e5f60005': `Enter oder Leertaste drücken für Details`,
+'sa1b2c3d4e5f60006': `bis`,
+'sa1b2c3d4e5f60007': `Zur Tagesansicht wechseln für`,
+'sa1b2c3d4e5f60008': `Frühere Tage anzeigen`,
+'sa1b2c3d4e5f60009': `Spätere Tage anzeigen`,
+'sa1b2c3d4e5f60010': `mehr`,
+'sa1b2c3d4e5f60011': `Kalenderansicht`,
+'sa1b2c3d4e5f60012': `Ansicht`,
     };
   

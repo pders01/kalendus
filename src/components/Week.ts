@@ -2,7 +2,7 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
-import { getLocalizedWeekdayShort } from '../lib/localization.js';
+import { formatLocalizedTime, getLocalizedWeekdayShort } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
 import { type FirstDayOfWeek, getWeekDates, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import './Day.js';
@@ -337,14 +337,16 @@ export default class Week extends LitElement {
                 <div class="week-header">
                     <div class="time-header"></div>
                     ${datesToRender.map(
-                        (date, index) => html`
+                        (date, index) => {
+                            const msg = getMessages(this.locale);
+                            return html`
                             <div
                                 class="day-label ${classMap({
                                     current: this._isCurrentDate(date),
                                 })}"
                                 tabindex="0"
                                 role="button"
-                                aria-label="Switch to day view for ${getLocalizedWeekdayShort(
+                                aria-label="${msg.switchToDayView} ${getLocalizedWeekdayShort(
                                     weekdayOrder[index],
                                     this.locale,
                                 )}, ${date.day}"
@@ -355,31 +357,33 @@ export default class Week extends LitElement {
                                 <span class="day-name">${getLocalizedWeekdayShort(weekdayOrder[index], this.locale)}</span>
                                 <span class="day-number">${date.day}</span>
                             </div>
-                        `,
+                        `;},
                     )}
                 </div>
 
                 <!-- Peek indicators for condensed view -->
-                ${this._isCondensed ? html`
+                ${this._isCondensed ? (() => {
+                    const msg = getMessages(this.locale);
+                    return html`
                 <div class="peek-indicators">
                     <span
                         class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showLeftPeek })}"
                         role="button"
                         tabindex=${showLeftPeek ? '0' : '-1'}
-                        aria-label="Show earlier days"
+                        aria-label="${msg.showEarlierDays}"
                         @click=${() => this._handlePeekNavigate('previous')}
                         @keydown=${(e: KeyboardEvent) => this._handlePeekKeydown(e, 'previous')}
-                    >\u2039 more</span>
+                    >\u2039 ${msg.more}</span>
                     <span
                         class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showRightPeek })}"
                         role="button"
                         tabindex=${showRightPeek ? '0' : '-1'}
-                        aria-label="Show later days"
+                        aria-label="${msg.showLaterDays}"
                         @click=${() => this._handlePeekNavigate('next')}
                         @keydown=${(e: KeyboardEvent) => this._handlePeekKeydown(e, 'next')}
-                    >more \u203A</span>
+                    >${msg.more} \u203A</span>
                 </div>
-                ` : nothing}
+                `;})() : nothing}
 
                 <!-- All-day events section -->
                 ${hasAllDay ? html`
@@ -426,7 +430,7 @@ export default class Week extends LitElement {
     }
 
     private _renderIndicatorValue(hour: number) {
-        return hour < 10 ? `0${hour}:00` : `${hour}:00`;
+        return formatLocalizedTime(hour, 0, this.locale);
     }
 
     private _handleDayLabelClick(date: CalendarDate) {

@@ -29,4 +29,13 @@
 'sa1b2c3d4e5f60001': `Precedente`,
 'sa1b2c3d4e5f60002': `Successivo`,
 'sa1b2c3d4e5f60003': `eventi`,
+'sa1b2c3d4e5f60004': `Evento del calendario`,
+'sa1b2c3d4e5f60005': `Premi Invio o Spazio per aprire i dettagli`,
+'sa1b2c3d4e5f60006': `a`,
+'sa1b2c3d4e5f60007': `Passa alla vista giornaliera per`,
+'sa1b2c3d4e5f60008': `Mostra giorni precedenti`,
+'sa1b2c3d4e5f60009': `Mostra giorni successivi`,
+'sa1b2c3d4e5f60010': `altro`,
+'sa1b2c3d4e5f60011': `Vista calendario`,
+'sa1b2c3d4e5f60012': `vista`,
     };

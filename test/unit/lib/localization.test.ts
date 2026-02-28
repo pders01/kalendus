@@ -3,6 +3,9 @@ import {
     getLocalizedMonth,
     getLocalizedWeekdayShort,
     getLocalizedDayMonth,
+    formatLocalizedTime,
+    formatLocalizedTimeRange,
+    formatLocalizedDate,
 } from '../../../src/lib/localization.js';
 
 describe('localization', () => {
@@ -61,6 +64,67 @@ describe('localization', () => {
             const first = getLocalizedWeekdayShort(5, 'fr');
             const second = getLocalizedWeekdayShort(5, 'fr');
             expect(first).to.equal(second);
+        });
+    });
+
+    describe('formatLocalizedTime', () => {
+        it('should format time for English locale (12h)', () => {
+            const result = formatLocalizedTime(15, 30, 'en');
+            expect(result).to.be.a('string').and.not.be.empty;
+            // English uses AM/PM notation
+            expect(result).to.match(/3:30\s*PM/i);
+        });
+
+        it('should format time for German locale (24h)', () => {
+            const result = formatLocalizedTime(15, 30, 'de');
+            expect(result).to.be.a('string').and.not.be.empty;
+            // German uses 24-hour notation
+            expect(result).to.include('15:30');
+        });
+
+        it('should format midnight (0:00)', () => {
+            const result = formatLocalizedTime(0, 0, 'en');
+            expect(result).to.be.a('string').and.not.be.empty;
+        });
+
+        it('should handle zh-Hans locale', () => {
+            const result = formatLocalizedTime(9, 0, 'zh-Hans');
+            expect(result).to.be.a('string').and.not.be.empty;
+        });
+    });
+
+    describe('formatLocalizedTimeRange', () => {
+        it('should produce a range with en-dash separator', () => {
+            const result = formatLocalizedTimeRange(9, 0, 17, 0, 'en');
+            expect(result).to.be.a('string');
+            expect(result).to.include('\u2013'); // en-dash
+        });
+
+        it('should include both start and end times', () => {
+            const result = formatLocalizedTimeRange(9, 30, 11, 45, 'de');
+            expect(result).to.include('9:30');
+            expect(result).to.include('11:45');
+        });
+    });
+
+    describe('formatLocalizedDate', () => {
+        it('should format date for English locale', () => {
+            const result = formatLocalizedDate(15, 6, 2026, 'en');
+            expect(result).to.be.a('string');
+            expect(result).to.include('15');
+            expect(result).to.include('2026');
+        });
+
+        it('should format date for German locale', () => {
+            const result = formatLocalizedDate(1, 2, 2026, 'de');
+            expect(result).to.be.a('string');
+            expect(result).to.include('1');
+            expect(result).to.include('2026');
+        });
+
+        it('should handle zh-Hans locale', () => {
+            const result = formatLocalizedDate(15, 6, 2026, 'zh-Hans');
+            expect(result).to.be.a('string').and.not.be.empty;
         });
     });
 

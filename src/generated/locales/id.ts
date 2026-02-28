@@ -29,4 +29,13 @@
 'sa1b2c3d4e5f60001': `Sebelumnya`,
 'sa1b2c3d4e5f60002': `Berikutnya`,
 'sa1b2c3d4e5f60003': `acara`,
+'sa1b2c3d4e5f60004': `Acara kalender`,
+'sa1b2c3d4e5f60005': `Tekan Enter atau Spasi untuk membuka detail`,
+'sa1b2c3d4e5f60006': `sampai`,
+'sa1b2c3d4e5f60007': `Beralih ke tampilan hari untuk`,
+'sa1b2c3d4e5f60008': `Tampilkan hari sebelumnya`,
+'sa1b2c3d4e5f60009': `Tampilkan hari berikutnya`,
+'sa1b2c3d4e5f60010': `lainnya`,
+'sa1b2c3d4e5f60011': `Tampilan kalender`,
+'sa1b2c3d4e5f60012': `tampilan`,
     };

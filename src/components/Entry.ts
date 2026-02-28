@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { P, match } from 'ts-pattern';
 
+import { formatLocalizedTime, formatLocalizedTimeRange } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
 import type { CalendarDateInterval } from '../lms-calendar';
 
@@ -389,18 +390,14 @@ export default class Entry extends LitElement {
     }
 
     private _getAriaLabel(): string {
+        const msg = getMessages(this.locale);
         const timeInfo = this.time
-            ? `${String(this.time.start.hour).padStart(2, '0')}:${String(
-                  this.time.start.minute,
-              ).padStart(2, '0')} to ${String(this.time.end.hour).padStart(
-                  2,
-                  '0',
-              )}:${String(this.time.end.minute).padStart(2, '0')}`
-            : 'All day';
+            ? `${formatLocalizedTime(this.time.start.hour, this.time.start.minute, this.locale)} ${msg.to} ${formatLocalizedTime(this.time.end.hour, this.time.end.minute, this.locale)}`
+            : msg.allDay;
 
         const contentInfo = this.content ? `, ${this.content}` : '';
 
-        return `Calendar event: ${this.heading}${contentInfo}, ${timeInfo}. Press Enter or Space to open details.`;
+        return `${msg.calendarEvent}: ${this.heading}${contentInfo}, ${timeInfo}. ${msg.pressToOpen}`;
     }
 
     override updated() {
@@ -486,11 +483,13 @@ export default class Entry extends LitElement {
             return getMessages(this.locale).allDay;
         }
 
-        const [startHours, startMinutes, endHours, endMinutes] = components.map((component) =>
-            component < 10 ? `0${component}` : component,
+        return formatLocalizedTimeRange(
+            time.start.hour,
+            time.start.minute,
+            time.end.hour,
+            time.end.minute,
+            this.locale,
         );
-
-        return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
     }
 
     constructor() {
@@ -537,13 +536,9 @@ export default class Entry extends LitElement {
             const eventDetails = {
                 heading: this.heading || msg.noTitle,
                 content: this.content || msg.noContent,
-                time: this.time
-                    ? `${String(this.time.start.hour).padStart(2, '0')}:${String(
-                          this.time.start.minute,
-                      ).padStart(2, '0')} - ${String(this.time.end.hour).padStart(
-                          2,
-                          '0',
-                      )}:${String(this.time.end.minute).padStart(2, '0')}`
+                time: this.time,
+                displayTime: this.time
+                    ? (this._displayInterval(this.time) as string)
                     : msg.noTime,
                 date: this.date?.start,
                 anchorRect: this.getBoundingClientRect(),

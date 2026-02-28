@@ -99,3 +99,60 @@ export function getLocalizedDayMonth(day: number, month: number, year: number, l
 export function getLocalizedWeekdayShort(weekday: number, locale = 'en'): string {
     return getWeekdayNames(locale)[weekday - 1];
 }
+
+// ── Cached Intl.DateTimeFormat for time (hour+minute) ───────────────
+const _timeFmtCache = new Map<string, Intl.DateTimeFormat>();
+
+function getTimeFormatter(locale: string): Intl.DateTimeFormat {
+    const key = resolveLuxonLocale(locale);
+    let fmt = _timeFmtCache.get(key);
+    if (!fmt) {
+        fmt = new Intl.DateTimeFormat(key, { hour: 'numeric', minute: '2-digit' });
+        _timeFmtCache.set(key, fmt);
+    }
+    return fmt;
+}
+
+/**
+ * Format a time (hour + minute) using the locale's preferred notation.
+ * e.g., "3:30 PM" (en), "15:30" (de), "下午3:30" (zh-CN)
+ */
+export function formatLocalizedTime(hour: number, minute: number, locale = 'en'): string {
+    const d = new Date(2000, 0, 1, hour, minute);
+    return getTimeFormatter(locale).format(d);
+}
+
+/**
+ * Format a time range with an en-dash separator.
+ * e.g., "9:00 AM – 5:00 PM" (en), "09:00 – 17:00" (de)
+ */
+export function formatLocalizedTimeRange(
+    startHour: number,
+    startMinute: number,
+    endHour: number,
+    endMinute: number,
+    locale = 'en',
+): string {
+    const start = formatLocalizedTime(startHour, startMinute, locale);
+    const end = formatLocalizedTime(endHour, endMinute, locale);
+    return `${start} \u2013 ${end}`;
+}
+
+/**
+ * Format a full date (day + month + year) using the locale's natural ordering.
+ * e.g., "Feb 1, 2026" (en), "1. Feb. 2026" (de), "2026年2月1日" (ja)
+ */
+export function formatLocalizedDate(
+    day: number,
+    month: number,
+    year: number,
+    locale = 'en',
+): string {
+    const key = resolveLuxonLocale(locale);
+    const d = new Date(year, month - 1, day);
+    return new Intl.DateTimeFormat(key, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    }).format(d);
+}

@@ -7,11 +7,13 @@ const ALL_KEYS: MessageKey[] = [
     'eventDetails', 'exportAsICS', 'title', 'time',
     'date', 'notes', 'close', 'calendarWeek', 'year',
     'previous', 'next', 'events',
+    'calendarEvent', 'pressToOpen', 'to', 'switchToDayView',
+    'showEarlierDays', 'showLaterDays', 'more', 'calendarView', 'viewLabel',
 ];
 
 describe('getMessages', () => {
     describe('English fallbacks', () => {
-        it('should return English fallbacks for all 21 keys', () => {
+        it('should return English fallbacks for all 30 keys', () => {
             const msg = getMessages('en');
             expect(Object.keys(msg)).to.have.lengthOf(ALL_KEYS.length);
             for (const key of ALL_KEYS) {
@@ -30,6 +32,19 @@ describe('getMessages', () => {
             expect(msg.calendarWeek).to.equal('CW');
             expect(msg.year).to.equal('Year');
         });
+
+        it('should return known English values for new keys', () => {
+            const msg = getMessages('en');
+            expect(msg.calendarEvent).to.equal('Calendar event');
+            expect(msg.pressToOpen).to.equal('Press Enter or Space to open details');
+            expect(msg.to).to.equal('to');
+            expect(msg.switchToDayView).to.equal('Switch to day view for');
+            expect(msg.showEarlierDays).to.equal('Show earlier days');
+            expect(msg.showLaterDays).to.equal('Show later days');
+            expect(msg.more).to.equal('more');
+            expect(msg.calendarView).to.equal('Calendar view');
+            expect(msg.viewLabel).to.equal('view');
+        });
     });
 
     describe('German translations', () => {
@@ -43,6 +58,15 @@ describe('getMessages', () => {
             expect(msg.today).to.equal('Heute');
             expect(msg.calendarWeek).to.equal('KW');
             expect(msg.year).to.equal('Jahr');
+        });
+
+        it('should return German translations for new keys', () => {
+            const msg = getMessages('de');
+            expect(msg.calendarEvent).to.equal('Kalenderereignis');
+            expect(msg.to).to.equal('bis');
+            expect(msg.more).to.equal('mehr');
+            expect(msg.calendarView).to.equal('Kalenderansicht');
+            expect(msg.viewLabel).to.equal('Ansicht');
         });
     });
 

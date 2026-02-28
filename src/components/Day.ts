@@ -2,6 +2,8 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
+import { formatLocalizedTime } from '../lib/localization.js';
+
 @customElement('lms-calendar-day')
 export default class Day extends LitElement {
     @state()
@@ -12,6 +14,9 @@ export default class Day extends LitElement {
 
     @property({ type: Number })
     allDayRowCount = 0;
+
+    @property({ type: String })
+    locale = 'en';
 
     static override styles = css`
         :host {
@@ -122,7 +127,7 @@ export default class Day extends LitElement {
     `;
 
     private _renderIndicatorValue(hour: number) {
-        return hour < 10 ? `0${hour}:00` : `${hour}:00`;
+        return formatLocalizedTime(hour, 0, this.locale);
     }
 
     override render() {

@@ -30,5 +30,14 @@
 'sa1b2c3d4e5f60001': `Anterior`,
 'sa1b2c3d4e5f60002': `Siguiente`,
 'sa1b2c3d4e5f60003': `eventos`,
+'sa1b2c3d4e5f60004': `Evento del calendario`,
+'sa1b2c3d4e5f60005': `Pulsa Enter o Espacio para abrir detalles`,
+'sa1b2c3d4e5f60006': `a`,
+'sa1b2c3d4e5f60007': `Cambiar a vista diaria para`,
+'sa1b2c3d4e5f60008': `Mostrar días anteriores`,
+'sa1b2c3d4e5f60009': `Mostrar días posteriores`,
+'sa1b2c3d4e5f60010': `más`,
+'sa1b2c3d4e5f60011': `Vista del calendario`,
+'sa1b2c3d4e5f60012': `vista`,
     };
   

@@ -197,7 +197,7 @@ export default class Header extends LitElement {
                     <span class="year">${date.year}</span>
                 </div>
             </div>
-            <nav class="context" aria-label="Calendar view" @click=${this._dispatchSwitchView}>
+            <nav class="context" aria-label="${msg.calendarView}" @click=${this._dispatchSwitchView}>
                 <button
                     type="button"
                     ?data-active=${this.viewMode === 'day'}
