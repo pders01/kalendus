@@ -171,7 +171,212 @@ const sampleEntries: CalendarEntry[] = [
     },
 ];
 
+const STORY_GROUPS = {
+    OVERVIEW: 'Overview',
+    LAYOUT: 'Layout',
+    STRESS: 'Stress Tests',
+    LOCALIZATION: 'Localization',
+    YEAR: 'Year View',
+} as const;
+
+type StoryGroup = (typeof STORY_GROUPS)[keyof typeof STORY_GROUPS];
+
+// Provides consistent hierarchical Storybook names like "Overview/Default"
+const storyName = (group: StoryGroup, title: string): string => `${group}/${title}`;
+
+type LocaleEntryText = {
+    heading: string;
+    content: string;
+};
+
+const localeEntryCopy: Record<string, LocaleEntryText[]> = {
+    de: [
+        { heading: 'Morgenabstimmung', content: 'Tägliches Team-Stand-up' },
+        { heading: 'Design-Workshop', content: 'UX/UI-Überprüfung' },
+        { heading: 'Lunch & Learn', content: 'Tech-Talk zu Webkomponenten' },
+        { heading: 'Team-Offsite', content: 'Tagesausflug zum Teambuilding' },
+        { heading: 'Produkt-Sprint', content: 'Mehrere Tage Fokus auf Features' },
+        { heading: 'Code-Review', content: 'Wöchentliches Review der Pull Requests' },
+    ],
+    fr: [
+        { heading: 'Point du matin', content: 'Synchronisation quotidienne de l’équipe' },
+        { heading: 'Atelier design', content: 'Revue UX/UI' },
+        { heading: 'Déjeuner & apprentissage', content: 'Présentation sur les web components' },
+        { heading: 'Offsite équipe', content: 'Journée de cohésion hors bureau' },
+        { heading: 'Sprint produit', content: 'Itération intense sur les fonctionnalités' },
+        { heading: 'Revue de code', content: 'Lecture hebdo des pull requests' },
+    ],
+    es: [
+        { heading: 'Reunión matutina', content: 'Sincronización diaria del equipo' },
+        { heading: 'Taller de diseño', content: 'Revisión de UX/UI' },
+        { heading: 'Almuerzo y aprendizaje', content: 'Charla sobre componentes web' },
+        { heading: 'Retiro del equipo', content: 'Día completo de team building' },
+        { heading: 'Sprint de producto', content: 'Bloque de desarrollo de varios días' },
+        { heading: 'Revisión de código', content: 'Sesión semanal de PR' },
+    ],
+    'zh-Hans': [
+        { heading: '晨会', content: '每日团队同步' },
+        { heading: '设计工作坊', content: 'UX/UI 评审' },
+        { heading: '午餐学习', content: 'Web Components 分享' },
+        { heading: '团队外出', content: '全天团队建设活动' },
+        { heading: '产品冲刺', content: '多日开发冲刺' },
+        { heading: '代码评审', content: '每周拉取请求审查' },
+    ],
+    ja: [
+        { heading: '朝会', content: 'チームの毎日同期' },
+        { heading: 'デザインワークショップ', content: 'UX/UI レビュー' },
+        { heading: 'ランチ＆ラーニング', content: 'Webコンポーネント勉強会' },
+        { heading: 'チーム合宿', content: '終日チームビルディング' },
+        { heading: 'プロダクトスプリント', content: '数日間の開発スプリント' },
+        { heading: 'コードレビュー', content: '週次の PR レビュー' },
+    ],
+    pt: [
+        { heading: 'Reunião matinal', content: 'Alinhamento diário da equipe' },
+        { heading: 'Oficina de design', content: 'Revisão de UX/UI' },
+        { heading: 'Almoço & aprendizado', content: 'Sessão sobre web components' },
+        { heading: 'Offsite da equipe', content: 'Dia inteiro de integração' },
+        { heading: 'Sprint de produto', content: 'Foco de vários dias em features' },
+        { heading: 'Code review', content: 'Revisão semanal dos PRs' },
+    ],
+    ar: [
+        { heading: 'اجتماع الصباح', content: 'مزامنة يومية للفريق' },
+        { heading: 'ورشة التصميم', content: 'مراجعة UX/UI' },
+        { heading: 'غداء وتعلم', content: 'جلسة عن مكوّنات الويب' },
+        { heading: 'خروج الفريق', content: 'يوم كامل لبناء الفريق' },
+        { heading: 'اندفاعة المنتج', content: 'عدة أيام من التطوير المركز' },
+        { heading: 'مراجعة الشفرة', content: 'جلسة أسبوعية لمراجعة PR' },
+    ],
+    hi: [
+        { heading: 'सुबह की बैठक', content: 'दैनिक टीम सिंक' },
+        { heading: 'डिज़ाइन कार्यशाला', content: 'यूएक्स/यूआई समीक्षा' },
+        { heading: 'लंच और सीख', content: 'वेब कॉम्पोनेंट सत्र' },
+        { heading: 'टीम ऑफसाइट', content: 'पूरे दिन का टीम-बिल्डिंग' },
+        { heading: 'प्रोडक्ट स्प्रिंट', content: 'कई दिनों का विकास चरण' },
+        { heading: 'कोड समीक्षा', content: 'साप्ताहिक पीआर रिव्यू' },
+    ],
+    bn: [
+        { heading: 'সকালের মিটিং', content: 'দৈনিক দলীয় সমন্বয়' },
+        { heading: 'ডিজাইন কর্মশালা', content: 'ইউএক্স/ইউআই পর্যালোচনা' },
+        { heading: 'লাঞ্চ ও শেখা', content: 'ওয়েব কম্পোনেন্ট সেশন' },
+        { heading: 'টিম অফসাইট', content: 'পুরো দিনের টিম বিল্ডিং' },
+        { heading: 'প্রোডাক্ট স্প্রিন্ট', content: 'কয়েক দিনের ডেভেলপমেন্ট' },
+        { heading: 'কোড রিভিউ', content: 'সাপ্তাহিক পিআর পর্যালোচনা' },
+    ],
+    ru: [
+        { heading: 'Утренний митинг', content: 'Ежедневная синхронизация команды' },
+        { heading: 'Дизайн-воркшоп', content: 'Обзор UX/UI' },
+        { heading: 'Ланч и обучение', content: 'Доклад о веб-компонентах' },
+        { heading: 'Тимбилдинг', content: 'Выездной день команды' },
+        { heading: 'Продуктовый спринт', content: 'Несколько дней плотной разработки' },
+        { heading: 'Ревью кода', content: 'Еженедельный разбор pull request' },
+    ],
+    id: [
+        { heading: 'Rapat pagi', content: 'Sinkronisasi harian tim' },
+        { heading: 'Lokakarya desain', content: 'Tinjauan UX/UI' },
+        { heading: 'Makan siang & belajar', content: 'Sesi web components' },
+        { heading: 'Offsite tim', content: 'Sehari penuh membangun tim' },
+        { heading: 'Sprint produk', content: 'Fokus pengembangan beberapa hari' },
+        { heading: 'Tinjauan kode', content: 'Sesi PR mingguan' },
+    ],
+    ko: [
+        { heading: '아침 스탠드업', content: '매일 팀 동기화' },
+        { heading: '디자인 워크숍', content: 'UX/UI 리뷰' },
+        { heading: '런치 & 런', content: '웹 컴포넌트 세션' },
+        { heading: '팀 오프사이트', content: '하루 종일 팀빌딩' },
+        { heading: '프로덕트 스프린트', content: '수일간 집중 개발' },
+        { heading: '코드 리뷰', content: '주간 PR 검토' },
+    ],
+    tr: [
+        { heading: 'Sabah toplantısı', content: 'Günlük ekip senkronu' },
+        { heading: 'Tasarım atölyesi', content: 'UX/UI değerlendirmesi' },
+        { heading: 'Öğle ve öğren', content: 'Web bileşenleri oturumu' },
+        { heading: 'Takım gezisi', content: 'Tüm gün takım etkinliği' },
+        { heading: 'Ürün sprinti', content: 'Birkaç günlük geliştirme' },
+        { heading: 'Kod incelemesi', content: 'Haftalık PR değerlendirmesi' },
+    ],
+    vi: [
+        { heading: 'Họp buổi sáng', content: 'Đồng bộ nhóm hằng ngày' },
+        { heading: 'Xưởng thiết kế', content: 'Đánh giá UX/UI' },
+        { heading: 'Ăn trưa & học hỏi', content: 'Chia sẻ về web components' },
+        { heading: 'Offsite đội ngũ', content: 'Ngày xây dựng đội nhóm' },
+        { heading: 'Sprint sản phẩm', content: 'Nhiều ngày phát triển tập trung' },
+        { heading: 'Duyệt mã', content: 'Buổi xem PR hàng tuần' },
+    ],
+    it: [
+        { heading: 'Riunione mattutina', content: 'Allineamento quotidiano del team' },
+        { heading: 'Workshop di design', content: 'Revisione UX/UI' },
+        { heading: 'Pranzo formativo', content: 'Sessione sui web components' },
+        { heading: 'Offsite del team', content: 'Giornata di team building' },
+        { heading: 'Sprint di prodotto', content: 'Più giorni di sviluppo focalizzato' },
+        { heading: 'Revisione del codice', content: 'Review settimanale delle PR' },
+    ],
+    th: [
+        { heading: 'ประชุมเช้า', content: 'อัปเดตทีมประจำวัน' },
+        { heading: 'เวิร์กช็อปออกแบบ', content: 'ทบทวน UX/UI' },
+        { heading: 'มื้อกลางวันเรียนรู้', content: 'พูดคุยเรื่องเว็บคอมโพเนนต์' },
+        { heading: 'ทริปทีม', content: 'กิจกรรมสร้างทีมทั้งวัน' },
+        { heading: 'สปรินท์ผลิตภัณฑ์', content: 'พัฒนาหลายวันต่อเนื่อง' },
+        { heading: 'รีวิวโค้ด', content: 'ตรวจงาน PR ประจำสัปดาห์' },
+    ],
+    pl: [
+        { heading: 'Poranne spotkanie', content: 'Codzienna synchronizacja zespołu' },
+        { heading: 'Warsztat projektowy', content: 'Przegląd UX/UI' },
+        { heading: 'Lunch i nauka', content: 'Sesja o web components' },
+        { heading: 'Wyjazd integracyjny', content: 'Całodniowy team building' },
+        { heading: 'Sprint produktowy', content: 'Kilka dni intensywnej pracy' },
+        { heading: 'Przegląd kodu', content: 'Cotygodniowe review PR' },
+    ],
+    uk: [
+        { heading: 'Ранкова нарада', content: 'Щоденна синхронізація команди' },
+        { heading: 'Дизайн-воркшоп', content: 'Огляд UX/UI' },
+        { heading: 'Обід та навчання', content: 'Сесія про вебкомпоненти' },
+        { heading: 'Тімбілдинг', content: 'День поза офісом' },
+        { heading: 'Продуктовий спринт', content: 'Кілька днів розробки' },
+        { heading: 'Ревʼю коду', content: 'Щотижневий перегляд PR' },
+    ],
+    nl: [
+        { heading: 'Ochtendoverleg', content: 'Dagelijkse teamafstemming' },
+        { heading: 'Designworkshop', content: 'UX/UI-review' },
+        { heading: 'Lunch & leren', content: 'Sessie over webcomponents' },
+        { heading: 'Teamdag buiten', content: 'Hele dag teambuilding' },
+        { heading: 'Productsprint', content: 'Meerdaagse focus op features' },
+        { heading: 'Code review', content: 'Wekelijkse PR-sessie' },
+    ],
+};
+
+const localeEntryTemplates = sampleEntries;
+
+const cloneEntry = (entry: CalendarEntry): CalendarEntry => ({
+    ...entry,
+    date: {
+        start: { ...entry.date.start },
+        end: { ...entry.date.end },
+    },
+    time: entry.time
+        ? {
+              start: { ...entry.time.start },
+              end: { ...entry.time.end },
+          }
+        : undefined,
+});
+
+const getLocaleEntries = (locale: string): CalendarEntry[] => {
+    const localizedTexts = localeEntryCopy[locale];
+    if (!localizedTexts) {
+        return sampleEntries;
+    }
+    return localeEntryTemplates.map((template, index) => {
+        const { heading, content } = localizedTexts[index % localizedTexts.length];
+        return {
+            ...cloneEntry(template),
+            heading,
+            content,
+        };
+    });
+};
+
 export const Default: Story = {
+    name: storyName(STORY_GROUPS.OVERVIEW, 'Default'),
     args: {
         entries: sampleEntries,
     },
@@ -189,6 +394,7 @@ export const Default: Story = {
 };
 
 export const MonthView: Story = {
+    name: storyName(STORY_GROUPS.OVERVIEW, 'Month View'),
     args: {
         activeDate: { day: 1, month: currentMonth, year: currentYear },
         entries: sampleEntries,
@@ -207,6 +413,7 @@ export const MonthView: Story = {
 };
 
 export const EmptyCalendar: Story = {
+    name: storyName(STORY_GROUPS.OVERVIEW, 'Empty State'),
     args: {
         heading: 'Empty Calendar',
         entries: [],
@@ -225,6 +432,7 @@ export const EmptyCalendar: Story = {
 };
 
 export const CustomTheming: Story = {
+    name: storyName(STORY_GROUPS.OVERVIEW, 'Custom Theming'),
     args: {
         entries: sampleEntries,
         color: '#9c27b0',
@@ -249,6 +457,7 @@ export const CustomTheming: Story = {
 };
 
 export const MobileView: Story = {
+    name: storyName(STORY_GROUPS.OVERVIEW, 'Mobile View'),
     args: {
         entries: sampleEntries,
     },
@@ -273,6 +482,7 @@ export const MobileView: Story = {
 };
 
 export const WithInteractions: Story = {
+    name: storyName(STORY_GROUPS.OVERVIEW, 'Interaction Test'),
     args: {
         activeDate: { day: 15, month: currentMonth, year: currentYear },
         entries: sampleEntries,
@@ -319,6 +529,7 @@ export const WithInteractions: Story = {
 };
 
 export const SeptemberView: Story = {
+    name: storyName(STORY_GROUPS.OVERVIEW, 'Fixed Month Snapshot'),
     args: {
         heading: 'September Calendar',
         activeDate: { day: 1, month: 9, year: 2024 },
@@ -353,6 +564,7 @@ export const SeptemberView: Story = {
 };
 
 export const NavigateMonths: Story = {
+    name: storyName(STORY_GROUPS.OVERVIEW, 'Navigate Months'),
     args: {
         activeDate: { day: 1, month: currentMonth, year: currentYear },
         entries: sampleEntries,
@@ -771,6 +983,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
 };
 
 export const HeavyEventLoad: Story = {
+    name: storyName(STORY_GROUPS.STRESS, 'Heavy Event Load'),
     args: {
         heading: 'Heavy Event Load Test',
         activeDate: { day: 15, month: currentMonth, year: currentYear },
@@ -797,6 +1010,7 @@ export const HeavyEventLoad: Story = {
 };
 
 export const StressTestAllViews: Story = {
+    name: storyName(STORY_GROUPS.STRESS, 'Stress Test (All Views)'),
     args: {
         heading: 'Stress Test - All Views',
         activeDate: { day: 15, month: currentMonth, year: currentYear },
@@ -879,6 +1093,7 @@ export const StressTestAllViews: Story = {
 };
 
 export const OverlappingEventsStressTest: Story = {
+    name: storyName(STORY_GROUPS.STRESS, 'Overlapping Events'),
     args: {
         heading: 'Overlapping Events Stress Test',
         activeDate: { day: 15, month: currentMonth, year: currentYear },
@@ -939,6 +1154,7 @@ export const OverlappingEventsStressTest: Story = {
 };
 
 export const ExtremeEdgeCases: Story = {
+    name: storyName(STORY_GROUPS.STRESS, 'Extreme Edge Cases'),
     args: {
         heading: 'Extreme Edge Cases Test',
         activeDate: { day: 15, month: currentMonth, year: currentYear },
@@ -1161,6 +1377,7 @@ export const ExtremeEdgeCases: Story = {
 };
 
 export const SundayFirstWeek: Story = {
+    name: storyName(STORY_GROUPS.LAYOUT, 'Sunday-First Week'),
     args: {
         heading: 'Sunday-First Calendar (US)',
         firstDayOfWeek: 0,
@@ -1187,6 +1404,7 @@ export const SundayFirstWeek: Story = {
 };
 
 export const SaturdayFirstWeek: Story = {
+    name: storyName(STORY_GROUPS.LAYOUT, 'Saturday-First Week'),
     args: {
         heading: 'Saturday-First Calendar',
         firstDayOfWeek: 6,
@@ -1213,6 +1431,7 @@ export const SaturdayFirstWeek: Story = {
 };
 
 export const WeekStartComparison: Story = {
+    name: storyName(STORY_GROUPS.LAYOUT, 'Week Start Comparison'),
     args: {
         entries: sampleEntries,
     },
@@ -1250,6 +1469,7 @@ export const WeekStartComparison: Story = {
 // --- Condensed week view stories ---
 
 export const CondensedWeekView: Story = {
+    name: storyName(STORY_GROUPS.LAYOUT, 'Condensed Week (3-Day)'),
     args: {
         heading: 'Condensed Week (3-Day)',
         entries: sampleEntries,
@@ -1296,6 +1516,7 @@ export const CondensedWeekView: Story = {
 };
 
 export const CondensedWeekModes: Story = {
+    name: storyName(STORY_GROUPS.LAYOUT, 'Condensed Week Modes'),
     args: {
         entries: sampleEntries,
     },
@@ -1371,11 +1592,12 @@ const createLocaleStory = (
     label: string,
     description: string,
 ): Story => ({
+    name: storyName(STORY_GROUPS.LOCALIZATION, label),
     args: {
         heading: label,
         locale,
         firstDayOfWeek: getFirstDayForLocale(locale) as number,
-        entries: sampleEntries,
+        entries: getLocaleEntries(locale),
     },
     render: (args) => html`
         <lms-calendar
@@ -1514,6 +1736,7 @@ export const LocaleDutch: Story = createLocaleStory(
 );
 
 export const LocaleShowcase: Story = {
+    name: storyName(STORY_GROUPS.LOCALIZATION, 'Locale Showcase'),
     args: {
         entries: sampleEntries,
     },
@@ -1537,7 +1760,7 @@ export const LocaleShowcase: Story = {
                     <lms-calendar
                         .heading=${labels[locale]}
                         .activeDate=${args.activeDate}
-                        .entries=${args.entries}
+                        .entries=${getLocaleEntries(locale)}
                         .color=${args.color}
                         .locale=${locale}
                         .firstDayOfWeek=${getFirstDayForLocale(locale) as FirstDayOfWeek}
@@ -1595,6 +1818,7 @@ const generateYearEntries = (): CalendarEntry[] => {
 const yearEntries = generateYearEntries();
 
 export const YearView: Story = {
+    name: storyName(STORY_GROUPS.YEAR, 'Year Overview'),
     args: {
         heading: 'Year Overview',
         entries: yearEntries,
@@ -1642,6 +1866,7 @@ export const YearView: Story = {
 };
 
 export const YearViewDensityModes: Story = {
+    name: storyName(STORY_GROUPS.YEAR, 'Year Density Modes'),
     args: {
         entries: yearEntries,
     },
@@ -1705,6 +1930,7 @@ export const YearViewDensityModes: Story = {
 };
 
 export const YearViewDrillDown: Story = {
+    name: storyName(STORY_GROUPS.YEAR, 'Year Drill-Down'),
     args: {
         heading: 'Year → Day Drill-Down',
         entries: yearEntries,
