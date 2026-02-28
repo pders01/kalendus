@@ -53,6 +53,7 @@ See `docs/integration-guide.md` for end-to-end recipes covering vanilla HTML, Re
 | Component Contributors | [Developer Guide](docs/developer-guide.md) | Internal architecture, debugging tips |
 | Rendering Internals | [Rendering Calculations](docs/rendering-calculations.md) | Grid math, condensed weeks, density modes |
 | Design Systems | [Design Token Refactoring](docs/design-token-refactoring.md) | Token audit and proposed hierarchy |
+| Backend/API | [API Server Guide](docs/api-server.md) | REST + SSE backend, database + adapters |
 
 ### Basic Usage
 
@@ -378,6 +379,19 @@ pnpm format         # Format with oxfmt
 ```
 
 See `docs/developer-guide.md` for internal architecture notes, troubleshooting checklists, and tips on extending condensed week layouts or localization.
+
+### API Server (optional)
+
+The repository includes `@jpahd/kalendus-server`, a Hono + SQLite backend with REST/SSE endpoints.
+
+```bash
+# From repo root
+pnpm --filter @jpahd/kalendus-server db:migrate
+pnpm --filter @jpahd/kalendus-server db:seed
+pnpm --filter @jpahd/kalendus-server dev
+```
+
+Configuration, endpoint overview, and adapter usage live in `docs/api-server.md`.
 
 ### Adding a New Locale
 

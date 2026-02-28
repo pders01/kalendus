@@ -128,6 +128,58 @@ calendar.addEventListener('switchview', (event) => {
 });
 ```
 
+## Connecting to the Kalendus API server
+
+The server package (`@jpahd/kalendus-server`) exposes REST + SSE endpoints under `/api/calendars`. Use the shipped client wrappers to hydrate `<lms-calendar>` instances.
+
+### Vanilla client
+
+```ts
+import { KalendusApiClient } from '@jpahd/kalendus-server/src/adapters/kalendus-api-client';
+
+const client = new KalendusApiClient({
+  baseUrl: 'https://api.example.com',
+  calendarId: 'demo',
+});
+
+// Fetch a range and push into the component
+client.fetchEvents('2026-03-01', '2026-03-31').then((entries) => {
+  document.querySelector('lms-calendar').entries = entries;
+});
+
+// Subscribe to real-time changes
+client.onSync((msg) => {
+  console.log('SSE update', msg.type, msg.data);
+});
+client.connect();
+```
+
+### Lit adapter
+
+```ts
+import { KalendusLitAdapter } from '@jpahd/kalendus-server/src/adapters/kalendus-lit-adapter';
+
+class RemoteCalendar extends LitElement {
+  adapter = new KalendusLitAdapter(this, {
+    baseUrl: 'https://api.example.com',
+    calendarId: 'demo',
+    enableSync: true,
+    enableTelemetry: true,
+  });
+
+  render() {
+    return html`
+      <lms-calendar
+        .entries=${this.adapter.entries}
+        .heading="Synced Calendar"
+      ></lms-calendar>
+    `;
+  }
+}
+```
+
+The adapter listens to `switchview`/`switchdate`, computes the appropriate date window, fetches data, and (optionally) sends telemetry events back to the API.
+
 ## Common Recipes
 
 ### 1. Toggle condensed weeks on phones
