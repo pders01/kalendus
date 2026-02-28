@@ -365,6 +365,8 @@ pnpm lint           # Run lit-analyzer + oxlint
 pnpm format         # Format with oxfmt
 ```
 
+See `docs/developer-guide.md` for internal architecture notes, troubleshooting checklists, and tips on extending condensed week layouts or localization.
+
 ### Adding a New Locale
 
 1. Add the locale code to `lit-localize.json` target locales
