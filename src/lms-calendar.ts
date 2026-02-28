@@ -1,6 +1,7 @@
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
 import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { styleMap } from 'lit/directives/style-map.js';
 import { DateTime, Interval } from 'luxon';
 import * as R from 'remeda';
 import { match } from 'ts-pattern';
@@ -27,6 +28,7 @@ import { LayoutCalculator, type LayoutResult } from './lib/LayoutCalculator.js';
 import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
 import { slotManager, type LayoutDimensions, type PositionConfig, type FirstDayOfWeek } from './lib/SlotManager.js';
 import { ViewStateController } from './lib/ViewStateController.js';
+import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
 import { getWeekDates } from './lib/weekStartHelper.js';
 
 // ── Derived type for expanded (multi-day) entries ──────────────────────
@@ -223,6 +225,11 @@ export default class LMSCalendar extends LitElement {
             --grid-rows-per-day: 1440;
             --view-container-height-offset: 0px;
             --main-content-height-offset: 1em;
+
+            /* Week view condensed tokens */
+            --week-day-count: 7;
+            --week-mobile-day-count: 3;
+            --week-mobile-breakpoint: 768px;
 
             /* Grid template tokens */
             --calendar-grid-columns-day: var(--time-column-width) 1fr;
@@ -590,16 +597,29 @@ export default class LMSCalendar extends LitElement {
                     ${
                         viewMode === 'week'
                             ? (() => {
-                                  const result = this._renderEntriesByDate();
+                                  const ctx = computeWeekDisplayContext(
+                                      currentActiveDate,
+                                      this.firstDayOfWeek,
+                                      this._calendarWidth,
+                                      this,
+                                  );
+                                  const result = this._renderEntriesByDate(ctx);
                                   return html`
                                       <lms-calendar-week
                                           @expand=${this._handleExpand}
+                                          @peek-navigate=${this._handlePeekNavigate}
                                           @open-menu=${this._handleOpenMenu}
                                           @clear-other-selections=${this._handleClearOtherSelections}
                                           .activeDate=${currentActiveDate}
                                           .allDayRowCount=${result.allDayRowCount}
                                           .firstDayOfWeek=${this.firstDayOfWeek}
                                           .locale=${this.locale}
+                                          .visibleDates=${ctx.visibleDates}
+                                          .visibleStartIndex=${ctx.visibleStartIndex}
+                                          .visibleLength=${ctx.visibleLength}
+                                          style=${styleMap({
+                                              '--calendar-grid-columns-week': ctx.gridColumns,
+                                          })}
                                       >
                                           ${result.elements}
                                       </lms-calendar-week>
@@ -676,6 +696,11 @@ export default class LMSCalendar extends LitElement {
 
     private _handleJumpToday(_e: CustomEvent) {
         this._viewState.jumpToToday();
+    }
+
+    private _handlePeekNavigate(e: CustomEvent) {
+        // Shift active date to the target day, staying in week view
+        this._viewState.setActiveDate(e.detail.date);
     }
 
     private _handleExpand(e: CustomEvent) {
@@ -909,7 +934,7 @@ export default class LMSCalendar extends LitElement {
         });
     }
 
-    private _renderEntriesByDate() {
+    private _renderEntriesByDate(weekCtx?: WeekDisplayContext) {
         const currentActiveDate = this._viewState.activeDate;
         const viewMode = this._viewState.viewMode;
 
@@ -924,9 +949,9 @@ export default class LMSCalendar extends LitElement {
             const key = `${currentActiveDate.year}-${String(currentActiveDate.month).padStart(2, '0')}-${String(currentActiveDate.day).padStart(2, '0')}`;
             allEntriesForDate = this._expandedByISODate.get(key) ?? [];
         } else {
-            // Week view: 7 map lookups, one per day
-            const weekDates = getWeekDates(currentActiveDate, this.firstDayOfWeek);
-            allEntriesForDate = weekDates.flatMap((wd) => {
+            // Week view: use visible dates from context (condensed or full)
+            const datesToRender = weekCtx?.visibleDates ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
+            allEntriesForDate = datesToRender.flatMap((wd) => {
                 const key = `${wd.year}-${String(wd.month).padStart(2, '0')}-${String(wd.day).padStart(2, '0')}`;
                 return this._expandedByISODate.get(key) ?? [];
             });
@@ -959,6 +984,7 @@ export default class LMSCalendar extends LitElement {
             currentActiveDate,
             allDayEntries,
             entriesByDate,
+            weekCtx,
         );
     }
 
@@ -967,6 +993,7 @@ export default class LMSCalendar extends LitElement {
         currentActiveDate: CalendarDate,
         allDayEntries: ExpandedCalendarEntry[],
         entriesByDate: ExpandedCalendarEntry[],
+        weekCtx?: WeekDisplayContext,
     ) {
         const allElements: ReturnType<typeof this._composeEntry>[] = [];
 
@@ -982,6 +1009,9 @@ export default class LMSCalendar extends LitElement {
                     (entry) =>
                         `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
                 );
+
+                // Use condensed visible dates for sorting when available
+                const condensedDates = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
 
                 // Process each day's entries separately with LayoutCalculator in proper day order
                 const sortedDayEntries = Object.entries(entriesByDay)
@@ -1011,6 +1041,7 @@ export default class LMSCalendar extends LitElement {
                         viewMode,
                         currentActiveDate,
                         globalIndexMap,
+                        condensedDates,
                     );
                     allElements.push(...dayElements);
                 });
@@ -1027,8 +1058,9 @@ export default class LMSCalendar extends LitElement {
         }
 
         // Compute all-day layout declaratively (cached — only recomputes when entries change)
+        const condensedDatesForAllDay = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
         const allDayKey = viewMode === 'week'
-            ? `${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}-${this.firstDayOfWeek}`
+            ? `${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}-${this.firstDayOfWeek}-${weekCtx?.visibleStartIndex ?? 0}-${weekCtx?.visibleLength ?? 7}`
             : `day-${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}`;
 
         let allDayLayout = this._allDayLayoutCache.get(allDayKey);
@@ -1036,7 +1068,9 @@ export default class LMSCalendar extends LitElement {
             const allDayLayoutEvents: AllDayEvent[] = allDayEntries.map((entry) => {
                 const eventId = this._createConsistentEventId(entry);
                 const dayIndex = viewMode === 'week'
-                    ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek)
+                    ? (condensedDatesForAllDay
+                        ? slotManager.getIndexInDates(entry.date.start, condensedDatesForAllDay)
+                        : slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek))
                     : 0;
                 return {
                     id: eventId,
@@ -1076,6 +1110,7 @@ export default class LMSCalendar extends LitElement {
                 isAllDay: true,
                 activeDate: currentActiveDate,
                 firstDayOfWeek: this.firstDayOfWeek,
+                weekDates: condensedDatesForAllDay,
             };
 
             const position = slotManager.calculatePosition(positionConfig);
@@ -1099,7 +1134,9 @@ export default class LMSCalendar extends LitElement {
                 const visibleDays = mergedEvent?.days ?? [];
                 const sortedDays = [...visibleDays].sort((a, b) => a - b);
                 const dayIndex = viewMode === 'week'
-                    ? slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek)
+                    ? (condensedDatesForAllDay
+                        ? slotManager.getIndexInDates(entry.date.start, condensedDatesForAllDay)
+                        : slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek))
                     : 0;
                 spanClass = computeSpanClass({
                     continuationIndex: dayIndex,
@@ -1131,6 +1168,7 @@ export default class LMSCalendar extends LitElement {
         viewMode: 'day' | 'week',
         currentActiveDate: CalendarDate,
         globalIndexMap: Map<ExpandedCalendarEntry, number>,
+        condensedDates?: CalendarDate[],
     ) {
         // Cache key from the day being rendered (all entries share the same date)
         const first = dayEntries[0];
@@ -1169,6 +1207,7 @@ export default class LMSCalendar extends LitElement {
                 activeDate: currentActiveDate,
                 isAllDay: entry.isContinuation || this._isAllDayEvent(entry),
                 firstDayOfWeek: this.firstDayOfWeek,
+                weekDates: condensedDates,
             };
 
             const position = slotManager.calculatePosition(positionConfig);

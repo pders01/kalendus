@@ -37,6 +37,7 @@ export interface PositionConfig {
     isAllDay?: boolean;
     activeDate?: CalendarDate; // For week view calculations
     firstDayOfWeek?: FirstDayOfWeek; // 0=Sun, 1=Mon (default), 6=Sat
+    weekDates?: CalendarDate[]; // Optional visible subset for condensed week view
 }
 
 export interface LayoutDimensions {
@@ -80,7 +81,7 @@ export class SlotManager {
             case 'day':
                 return this._calculateDayPosition(date, time, isAllDay);
             case 'week':
-                return this._calculateWeekPosition(date, config.activeDate!, time, isAllDay, config.firstDayOfWeek);
+                return this._calculateWeekPosition(date, config.activeDate!, time, isAllDay, config.firstDayOfWeek, config.weekDates);
             case 'month':
                 return this._calculateMonthPosition(date);
             default:
@@ -141,9 +142,13 @@ export class SlotManager {
         time?: CalendarTimeInterval,
         isAllDay?: boolean,
         firstDayOfWeek?: FirstDayOfWeek,
+        weekDates?: CalendarDate[],
     ): SlotPosition {
         // Calculate which day column this entry belongs to
-        const dayColumnIndex = this.getWeekDayIndex(date, activeDate, firstDayOfWeek ?? 1);
+        // When weekDates is provided (condensed view), use it for 0-based column indexing
+        const dayColumnIndex = weekDates
+            ? this.getIndexInDates(date, weekDates)
+            : this.getWeekDayIndex(date, activeDate, firstDayOfWeek ?? 1);
         const gridColumn = dayColumnIndex + 2; // +2 because column 1 is for time indicators
 
         if (isAllDay) {
@@ -201,6 +206,16 @@ export class SlotManager {
         );
         // Return 0 if not found, to prevent undefined from breaking sorting
         return idx ?? 0;
+    }
+
+    /**
+     * Look up a date's index within a provided date array (for condensed views).
+     */
+    public getIndexInDates(date: CalendarDate, dates: CalendarDate[]): number {
+        const idx = dates.findIndex(
+            (d) => d.year === date.year && d.month === date.month && d.day === date.day,
+        );
+        return idx >= 0 ? idx : 0;
     }
 
     /**

@@ -235,6 +235,18 @@ lms-calendar {
 
 Adjust these tokens to align the overview grid with your design system (e.g., forcing a single-column mobile layout or brand-specific heatmap shades).
 
+### Week View Tokens
+
+```css
+lms-calendar {
+    --week-day-count: 7;              /* columns at full width (1-7) */
+    --week-mobile-day-count: 3;       /* columns below breakpoint (1-7) */
+    --week-mobile-breakpoint: 768px;  /* width threshold */
+}
+```
+
+On narrow viewports the week view automatically condenses to show fewer day columns centered on the active date, with subtle peek indicators at the edges. Values are clamped to the 1-7 range.
+
 ## Architecture
 
 ### Component Structure
