@@ -312,6 +312,11 @@ export default class LMSCalendar extends LitElement {
             --year-heatmap-2: rgba(30, 144, 255, 0.35);
             --year-heatmap-3: rgba(30, 144, 255, 0.55);
             --year-heatmap-4: rgba(30, 144, 255, 0.75);
+
+            /* Year view — calendar week column */
+            --year-cw-width: 1.8em;
+            --year-cw-font-size: 0.55em;
+            --year-cw-color: var(--header-text-color, rgba(0, 0, 0, 0.45));
         }
         .calendar-container {
             box-sizing: border-box;
@@ -708,6 +713,8 @@ export default class LMSCalendar extends LitElement {
         const target = e.detail.drillTarget || 'day';
         if (target === 'month') {
             this._viewState.switchToMonthView();
+        } else if (target === 'week') {
+            this._viewState.switchToWeekView();
         } else {
             this._viewState.switchToDayView();
         }

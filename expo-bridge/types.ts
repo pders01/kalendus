@@ -43,7 +43,7 @@ export type CalendarEntry = {
 
 export type FirstDayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type ViewMode = 'month' | 'week' | 'day' | 'year';
-export type DrillTarget = 'day' | 'month';
+export type DrillTarget = 'day' | 'week' | 'month';
 export type DensityMode = 'dot' | 'heatmap' | 'count';
 
 // ── Component props (the 7 input properties of <lms-calendar>) ─────────
