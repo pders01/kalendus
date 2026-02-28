@@ -18,7 +18,8 @@ export default class Context extends LitElement {
             grid-template-columns: repeat(7, 1fr);
         }
         span {
-            padding: var(--context-padding, 0.25em);
+            /* Match the month indicator's margin (0.25em) + padding (0.25em) */
+            padding: var(--context-padding, 0.25em) var(--context-padding-inline, 0.5em);
             text-align: var(--context-text-align, left);
         }
     `;
