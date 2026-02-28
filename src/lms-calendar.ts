@@ -35,7 +35,7 @@ export default class LMSCalendar extends LitElement {
     firstDayOfWeek: FirstDayOfWeek = 1;
 
     @property({ type: String })
-    locale = 'en';
+    locale = document.documentElement.lang || 'en';
 
     private _viewState = new ViewStateController(this);
 
