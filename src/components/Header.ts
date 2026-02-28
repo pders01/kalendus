@@ -24,6 +24,7 @@ export default class Header extends LitElement {
 
     static override styles = css`
         :host {
+            display: block;
             container-type: inline-size;
         }
 
@@ -39,28 +40,33 @@ export default class Header extends LitElement {
             border-bottom: 1px solid var(--separator-light);
         }
 
+        .info {
+            padding-left: var(--header-info-padding-left, 1em);
+            text-align: right;
+            display: grid;
+        }
+
         @container (max-width: 600px) {
             .controls {
                 font-size: small;
                 height: auto;
-                min-height: var(--header-height-mobile, 4.5em);
                 flex-wrap: wrap;
-                padding: 0.25em 0;
-                gap: 0.25em;
+                justify-content: center;
+                padding: 0.5em 0;
+                gap: 0.35em;
             }
             .info {
                 width: 100%;
                 text-align: center;
                 padding-left: 0;
             }
+            .context,
             .buttons {
-                padding-right: 0.5em;
+                flex-shrink: 0;
             }
-        }
-        .info {
-            padding-left: var(--header-info-padding-left, 1em);
-            text-align: right;
-            display: grid;
+            .buttons {
+                padding-right: 0;
+            }
         }
 
         .view-detail {
