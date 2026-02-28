@@ -32,11 +32,8 @@ export default class Header extends LitElement {
         .controls {
             height: var(--header-height, 3.5em);
             width: 100%;
-            display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            align-content: center;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
             align-items: center;
             border-bottom: 1px solid var(--separator-light);
         }
@@ -45,27 +42,26 @@ export default class Header extends LitElement {
             padding-left: var(--header-info-padding-left, 1em);
             text-align: right;
             display: grid;
+            justify-self: start;
+            min-width: 0;
+            overflow: hidden;
         }
 
         @container (max-width: 600px) {
             .controls {
                 font-size: small;
                 height: auto;
-                flex-wrap: wrap;
-                justify-content: center;
+                grid-template-columns: 1fr;
+                justify-items: center;
                 padding: 0.5em 0;
                 gap: 0.35em;
             }
             .info {
-                width: 100%;
                 text-align: center;
                 padding-left: 0;
             }
-            .context,
             .buttons {
-                flex-shrink: 0;
-            }
-            .buttons {
+                justify-self: center;
                 padding-right: 0;
             }
         }
@@ -126,6 +122,7 @@ export default class Header extends LitElement {
             align-items: center;
             padding-right: var(--header-buttons-padding-right, 1em);
             gap: 0.15em;
+            justify-self: end;
         }
 
         .buttons .separator {
