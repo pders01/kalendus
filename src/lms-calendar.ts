@@ -192,7 +192,7 @@ export default class LMSCalendar extends LitElement {
             --entry-gap: 0.25em;
 
             /* Month view dot indicator tokens */
-            --entry-dot-size: 0.5em;
+            --entry-dot-size: 6px;
             --entry-dot-margin: 0.25em;
             --entry-month-background: transparent;
             --entry-month-padding: 0.1em 0.3em 0.1em 0;
