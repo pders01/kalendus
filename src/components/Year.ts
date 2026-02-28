@@ -1,5 +1,6 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { DateTime } from 'luxon';
 
 import { getLocalizedMonth, getLocalizedWeekdayShort } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
@@ -7,7 +8,7 @@ import { getFirstDayOffset, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import type { FirstDayOfWeek } from '../lib/weekStartHelper.js';
 
 export type DensityMode = 'dot' | 'heatmap' | 'count';
-export type DrillTarget = 'day' | 'month';
+export type DrillTarget = 'day' | 'week' | 'month';
 
 @customElement('lms-calendar-year')
 export default class Year extends LitElement {
@@ -90,7 +91,7 @@ export default class Year extends LitElement {
 
         .weekday-header {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: var(--year-cw-width, 1.8em) repeat(7, 1fr);
             text-align: center;
         }
 
@@ -104,10 +105,30 @@ export default class Year extends LitElement {
 
         .day-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: var(--year-cw-width, 1.8em) repeat(7, 1fr);
             grid-auto-rows: calc(var(--year-cell-size, 1.8em) + 0.6em);
             justify-items: center;
             align-items: start;
+        }
+
+        .cw-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--year-cw-font-size, 0.55em);
+            color: var(--year-cw-color, var(--header-text-color, rgba(0, 0, 0, 0.45)));
+            cursor: pointer;
+            border: none;
+            background: none;
+            border-radius: var(--border-radius-sm, 4px);
+            font-family: inherit;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .cw-label:hover {
+            color: var(--primary-color, dodgerblue);
+            background: var(--separator-light, rgba(0, 0, 0, 0.06));
         }
 
         .day-cell {
@@ -234,6 +255,22 @@ export default class Year extends LitElement {
     ) {
         const daysInMonth = new Date(year, month, 0).getDate();
         const firstDayOffset = getFirstDayOffset({ year, month, day: 1 }, this.firstDayOfWeek);
+        const msg = getMessages(this.locale);
+
+        // Build explicit week rows: each row is a 7-slot array (null = empty cell)
+        const weeks: (number | null)[][] = [];
+        let currentWeek: (number | null)[] = Array.from({ length: firstDayOffset }, () => null);
+        for (let day = 1; day <= daysInMonth; day++) {
+            currentWeek.push(day);
+            if (currentWeek.length === 7) {
+                weeks.push(currentWeek);
+                currentWeek = [];
+            }
+        }
+        if (currentWeek.length > 0) {
+            while (currentWeek.length < 7) currentWeek.push(null);
+            weeks.push(currentWeek);
+        }
 
         return html`
             <div class="mini-month">
@@ -245,22 +282,41 @@ export default class Year extends LitElement {
                     ${getLocalizedMonth(month, this.locale)}
                 </button>
                 <div class="weekday-header">
+                    <span></span>
                     ${weekdayOrder.map(
                         (wd) => html`<span>${getLocalizedWeekdayShort(wd, this.locale).charAt(0)}</span>`,
                     )}
                 </div>
                 <div class="day-grid">
-                    ${Array.from({ length: firstDayOffset }, () => html`<span class="empty-cell"></span>`)}
-                    ${Array.from({ length: daysInMonth }, (_, i) => {
-                        const day = i + 1;
-                        const isCurrent = day === todayDay && month === todayMonth && year === todayYear;
-                        const isSelected =
-                            day === this.activeDate.day &&
-                            month === this.activeDate.month &&
-                            year === this.activeDate.year;
-                        const eventCount = this.entrySumByDay[`${year}-${month}-${day}`] ?? 0;
-
-                        return this._renderDayCell(year, month, day, isCurrent, isSelected, eventCount);
+                    ${weeks.map((week) => {
+                        const firstDay = week.find((d) => d !== null);
+                        const weekNum = firstDay
+                            ? DateTime.fromObject({ year, month, day: firstDay }).weekNumber
+                            : null;
+                        return html`
+                            ${weekNum !== null
+                                ? html`<button
+                                      type="button"
+                                      class="cw-label"
+                                      aria-label="${msg.calendarWeek} ${weekNum}"
+                                      @click=${() => this._handleWeekClick(year, month, firstDay!)}
+                                  >${weekNum}</button>`
+                                : html`<span class="empty-cell"></span>`}
+                            ${week.map((day) =>
+                                day !== null
+                                    ? this._renderDayCell(
+                                          year,
+                                          month,
+                                          day,
+                                          day === todayDay && month === todayMonth && year === todayYear,
+                                          day === this.activeDate.day &&
+                                              month === this.activeDate.month &&
+                                              year === this.activeDate.year,
+                                          this.entrySumByDay[`${year}-${month}-${day}`] ?? 0,
+                                      )
+                                    : html`<span class="empty-cell"></span>`,
+                            )}
+                        `;
                     })}
                 </div>
             </div>
@@ -311,6 +367,19 @@ export default class Year extends LitElement {
                 detail: {
                     date: { year, month, day },
                     drillTarget: this.drillTarget,
+                },
+                bubbles: true,
+                composed: true,
+            }),
+        );
+    }
+
+    private _handleWeekClick(year: number, month: number, day: number) {
+        this.dispatchEvent(
+            new CustomEvent('expand', {
+                detail: {
+                    date: { year, month, day },
+                    drillTarget: 'week',
                 },
                 bubbles: true,
                 composed: true,
