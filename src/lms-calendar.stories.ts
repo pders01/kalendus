@@ -9,7 +9,7 @@ import type { FirstDayOfWeek } from './lib/weekStartHelper.js';
 import { getFirstDayForLocale } from './lib/weekStartHelper.js';
 
 const meta: Meta<LMSCalendar> = {
-    title: 'Components/LMSCalendar',
+    title: 'Components/Kalendus',
     component: 'lms-calendar',
     tags: ['autodocs'],
     parameters: {
