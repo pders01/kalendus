@@ -100,7 +100,7 @@ You can stop propagation to replace built-in behavior. For example, intercept `o
 
 ## Year view integration
 
-- The `<lms-calendar-year>` child receives a pre-computed `entrySumByDay` map (keys such as `21-4-2026`) so density indicators remain O(1) per cell, even with thousands of entries.
+- The `<lms-calendar-year>` child receives a pre-computed `entrySumByDay` map (keys such as `2026-04-21`) so density indicators remain O(1) per cell, even with thousands of entries.
 - `year-density-mode` toggles how that count is rendered (dot, heatmap buckets, or explicit counts). Pair this with the CSS tokens described in `README.md` if you need brand-specific palettes.
 - `year-drill-target` switches the default navigation when a user clicks any day: `day` jumps straight to the 24-hour view, `month` zooms into the grid of that month. Month headers in the year view always set `drillTarget: 'month'`.
 - Listen for the `expand` event to synchronize external routers or analytics: `event.detail.drillTarget` mirrors the target you configured, so you can differentiate day-level vs. month-level navigation in your host app.
