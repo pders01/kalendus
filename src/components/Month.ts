@@ -60,6 +60,9 @@ export default class Month extends LitElement {
             overflow-y: auto;
             gap: var(--month-day-gap, 1px);
             min-width: 0;
+            /* Let Blink skip layout/paint for off-screen day cells */
+            content-visibility: auto;
+            contain-intrinsic-size: auto 6em;
         }
 
         /* Ensure consistent multi-day event layering */

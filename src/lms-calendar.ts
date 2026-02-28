@@ -317,14 +317,14 @@ export default class LMSCalendar extends LitElement {
             width: var(--width);
             height: var(--height);
             background-color: var(--background-color);
-            border-radius: var(--border-radius-lg);
+            border-radius: var(--calendar-border-radius, var(--border-radius-lg));
             border: 1px solid var(--separator-light);
             font-family: var(--system-ui);
             color: var(--separator-dark);
             box-shadow: var(--calendar-shadow, none);
             contain: layout style;
             position: relative;
-            overflow: hidden;
+            overflow: var(--calendar-overflow, hidden);
             display: flex;
             flex-direction: column;
         }
