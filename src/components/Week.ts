@@ -185,6 +185,7 @@ export default class Week extends LitElement {
             position: relative;
             min-height: 2em;
             padding: 0.25em 0;
+            overflow: hidden;
         }
 
         /* Stack all-day events vertically with consistent positioning */
