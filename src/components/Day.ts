@@ -1,7 +1,6 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
-import { map } from 'lit/directives/map.js';
 
 @customElement('lms-calendar-day')
 export default class Day extends LitElement {
@@ -38,7 +37,7 @@ export default class Day extends LitElement {
         .main {
             display: grid;
             grid-template-columns: var(--day-grid-columns, var(--calendar-grid-columns-day));
-            grid-template-rows: var(--calendar-grid-rows-time);
+            grid-template-rows: 1fr;
             height: var(--main-content-height);
             gap: var(--day-gap, 1px);
             overflow-y: scroll;
@@ -48,24 +47,40 @@ export default class Day extends LitElement {
             contain: content;
         }
 
-        .hour {
+        .time-labels {
+            grid-column: 1;
+            position: relative;
+            height: var(--day-total-height);
             display: var(--day-show-time-column, block);
+            border-right: var(--sidebar-border, 1px solid var(--separator-light));
+        }
+
+        .hour-label {
+            position: absolute;
+            left: 0;
+            right: 0;
             text-align: var(--hour-text-align, center);
             font-size: var(--hour-indicator-font-size);
             color: var(--hour-indicator-color);
         }
 
-        .indicator {
+        .hour-label .indicator {
             position: relative;
             top: var(--indicator-top, -0.6em);
         }
 
-        .separator {
-            grid-column: 2 / 3;
-            border-top: var(--separator-border, 1px solid var(--separator-light));
-            position: absolute;
-            width: 100%;
-            z-index: 0;
+        .timed-content {
+            grid-column: 2;
+            position: relative;
+            height: var(--day-total-height);
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent 0,
+                transparent calc(var(--hour-height) - 1px),
+                var(--separator-light) calc(var(--hour-height) - 1px),
+                var(--separator-light) var(--hour-height)
+            );
+            background-size: 100% var(--hour-height);
         }
 
         .sidebar {
@@ -104,10 +119,6 @@ export default class Day extends LitElement {
         }
     `;
 
-    private _renderSeparatorMaybe(index: number, hour: number) {
-        return index ? html`<div class="separator" style="grid-row: ${hour * 60}"></div>` : nothing;
-    }
-
     private _renderIndicatorValue(hour: number) {
         return hour < 10 ? `0${hour}:00` : `${hour}:00`;
     }
@@ -133,21 +144,23 @@ export default class Day extends LitElement {
                         'w-70': this._hasActiveSidebar,
                     })}"
                 >
-                    ${map(
-                        this._hours,
-                        (hour, index) => html`
-                            <div
-                                class="hour"
-                                style=${this._getHourIndicator(hour)}
-                            >
-                                <span class="indicator">
-                                    ${this._renderIndicatorValue(hour)}
-                                </span>
-                            </div>
-                            ${this._renderSeparatorMaybe(index, hour)}
-                            <slot name="${hour}" class="entry"></slot>
-                        `,
-                    )}
+                    <div class="time-labels">
+                        ${this._hours.map(
+                            (hour) => html`
+                                <div
+                                    class="hour-label"
+                                    style="top: calc(${hour} * var(--hour-height))"
+                                >
+                                    <span class="indicator">
+                                        ${this._renderIndicatorValue(hour)}
+                                    </span>
+                                </div>
+                            `,
+                        )}
+                    </div>
+                    <div class="timed-content">
+                        <slot name="timed"></slot>
+                    </div>
                 </div>
                 <div
                     class="sidebar w-30"
@@ -155,11 +168,5 @@ export default class Day extends LitElement {
                 ></div>
             </div>
         </div>`;
-    }
-
-    private _getHourIndicator(hour: number) {
-        return hour !== 24
-            ? `grid-row: ${(hour + 1) * 60 - 59}/${(hour + 1) * 60}`
-            : 'grid-row: 1440';
     }
 }

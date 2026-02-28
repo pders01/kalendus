@@ -1,70 +1,76 @@
 import { expect } from 'chai';
 
 describe('Week View Rendering Calculations', () => {
-    describe('Grid row calculations', () => {
-        it('should calculate correct grid row for hour indicators', () => {
-            // Each hour should start at (hour * 60) + 1
-            // Hour 0 (midnight) -> row 1
-            // Hour 1 (1am) -> row 61
-            // Hour 12 (noon) -> row 721
-            // Hour 23 (11pm) -> row 1381
-            // Hour 24 (midnight next day) -> row 1441
+    describe('Minute-to-pixel offset calculations', () => {
+        const defaultMinuteHeight = 0.8; // matches --minute-height default
 
-            function getHourIndicatorRow(hour: number): number {
-                return hour * 60 + 1;
+        it('should calculate correct pixel offset for hour labels', () => {
+            // Each hour label is at hour * hourHeight pixels from top
+            // hourHeight = 60 * minuteHeight
+            const hourHeight = 60 * defaultMinuteHeight;
+
+            function getHourLabelTop(hour: number): number {
+                return hour * hourHeight;
             }
 
-            expect(getHourIndicatorRow(0)).to.equal(1);
-            expect(getHourIndicatorRow(1)).to.equal(61);
-            expect(getHourIndicatorRow(12)).to.equal(721);
-            expect(getHourIndicatorRow(23)).to.equal(1381);
-            expect(getHourIndicatorRow(24)).to.equal(1441);
+            expect(getHourLabelTop(0)).to.equal(0);
+            expect(getHourLabelTop(1)).to.equal(48);
+            expect(getHourLabelTop(12)).to.equal(576);
+            expect(getHourLabelTop(23)).to.equal(1104);
+            expect(getHourLabelTop(24)).to.equal(1152);
         });
 
-        it('should calculate correct grid row for hour separators', () => {
-            // Hour separators should be at (hour * 60)
-            // Between hour 0 and 1 -> row 60
-            // Between hour 1 and 2 -> row 120
-            // Between hour 12 and 13 -> row 720
-
-            function getHourSeparatorRow(hour: number): number {
-                return hour * 60;
+        it('should calculate correct pixel offset for timed entries', () => {
+            // Entries use top: startMinute * minuteHeight
+            function getEntryTop(hour: number, minute: number): number {
+                return (hour * 60 + minute) * defaultMinuteHeight;
             }
 
-            expect(getHourSeparatorRow(1)).to.equal(60);
-            expect(getHourSeparatorRow(2)).to.equal(120);
-            expect(getHourSeparatorRow(12)).to.equal(720);
+            // Midnight
+            expect(getEntryTop(0, 0)).to.equal(0);
+            // 1:00 AM
+            expect(getEntryTop(1, 0)).to.equal(48);
+            // 9:30 AM
+            expect(getEntryTop(9, 30)).to.equal(456);
+            // 12:00 PM (noon)
+            expect(getEntryTop(12, 0)).to.equal(576);
+            // 11:59 PM
+            expect(getEntryTop(23, 59)).to.closeTo(1151.2, 0.01);
         });
 
-        it('should calculate correct grid row span for hour slots', () => {
-            // Each hour slot should span 60 rows (60 minutes)
-            // Hour 0: rows 1-60
-            // Hour 1: rows 61-120
-            // Hour 23: rows 1381-1440
-            // Hour 24: rows 1441-1500 (extends beyond 1440 for day boundary)
-
-            function getHourSlotSpan(hour: number): string {
-                const start = hour * 60 + 1;
-                const end = (hour + 1) * 60 + 1;
-                return `${start} / ${end}`;
+        it('should calculate correct pixel height for entry duration', () => {
+            function getEntryHeight(
+                startHour: number, startMinute: number,
+                endHour: number, endMinute: number,
+            ): number {
+                const startMinutes = startHour * 60 + startMinute;
+                const endMinutes = endHour * 60 + endMinute;
+                const duration = Math.max(endMinutes - startMinutes, 20);
+                return duration * defaultMinuteHeight;
             }
 
-            expect(getHourSlotSpan(0)).to.equal('1 / 61');
-            expect(getHourSlotSpan(1)).to.equal('61 / 121');
-            expect(getHourSlotSpan(23)).to.equal('1381 / 1441');
-            expect(getHourSlotSpan(24)).to.equal('1441 / 1501');
+            // 1 hour event
+            expect(getEntryHeight(9, 0, 10, 0)).to.equal(48);
+            // 30 minute event
+            expect(getEntryHeight(14, 0, 14, 30)).to.equal(24);
+            // Short event (< 20 min) clamped to 20 min minimum
+            expect(getEntryHeight(10, 0, 10, 10)).to.equal(16); // 20 * 0.8
+            // All-day-ish event (23 hours)
+            expect(getEntryHeight(0, 0, 23, 0)).to.equal(1104);
         });
 
-        it('should have exactly 1440 total grid rows for 24 hours', () => {
-            // 24 hours * 60 minutes = 1440 rows
-            const totalRows = 24 * 60;
-            expect(totalRows).to.equal(1440);
+        it('should have total day height of 1152px at default minute height', () => {
+            const totalDayHeight = 1440 * defaultMinuteHeight;
+            expect(totalDayHeight).to.equal(1152);
+        });
 
-            // Last row should be 1440
-            const lastHourStart = 23 * 60 + 1; // 1381
-            const lastHourEnd = 24 * 60; // 1440
-            expect(lastHourStart).to.equal(1381);
-            expect(lastHourEnd).to.equal(1440);
+        it('should scale total day height with minute height', () => {
+            // Double zoom
+            expect(1440 * 1.6).to.equal(2304);
+            // Half zoom
+            expect(1440 * 0.4).to.equal(576);
+            // Default
+            expect(1440 * 0.8).to.equal(1152);
         });
     });
 
@@ -80,12 +86,6 @@ describe('Week View Rendering Calculations', () => {
             expect(getDayColumn(0)).to.equal(2); // Monday
             expect(getDayColumn(1)).to.equal(3); // Tuesday
             expect(getDayColumn(6)).to.equal(8); // Sunday
-        });
-
-        it('should span all day columns for separators', () => {
-            // Hour separators should span columns 2-8 (all day columns)
-            const separatorSpan = '2 / -1';
-            expect(separatorSpan).to.equal('2 / -1');
         });
     });
 
