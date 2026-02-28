@@ -3,104 +3,121 @@ import '../../../src/components/Month.ts';
 import type Month from '../../../src/components/Month.ts';
 
 describe('Month Component', () => {
-    it('should render month view correctly', async () => {
-        const el: Month = await fixture(html`
-            <lms-calendar-month></lms-calendar-month>
-        `);
+    describe('September 2024 (day 1)', () => {
+        let el: Month;
 
-        expect(el).to.exist;
-        expect(el.shadowRoot).to.exist;
+        before(async () => {
+            el = await fixture(html`
+                <lms-calendar-month
+                    .activeDate=${{ day: 1, month: 9, year: 2024 }}
+                ></lms-calendar-month>
+            `);
+        });
+
+        it('should render month view correctly', () => {
+            expect(el).to.exist;
+            expect(el.shadowRoot).to.exist;
+        });
+
+        it('should render September 2024 correctly', () => {
+            const monthDiv = el.shadowRoot?.querySelector('.month');
+            expect(monthDiv).to.exist;
+
+            // September 2024 should have 30 days
+            const dayElements = el.shadowRoot?.querySelectorAll('.day');
+            expect(dayElements).to.have.length(42); // 6 weeks * 7 days
+
+            // Check for September 1st (should be visible)
+            const sept1 = el.shadowRoot?.querySelector(
+                '[data-date="2024-9-1"]',
+            );
+            expect(sept1).to.exist;
+
+            // Check for September 30th (should be visible)
+            const sept30 = el.shadowRoot?.querySelector(
+                '[data-date="2024-9-30"]',
+            );
+            expect(sept30).to.exist;
+        });
+
+        it('should calculate first day offset correctly for September 2024', () => {
+            // September 1, 2024 is a Sunday (day 0)
+            // In European format (Monday=0), Sunday should be index 6
+            // So the first day should appear in the 7th column (index 6)
+            const sept1 = el.shadowRoot?.querySelector(
+                '[data-date="2024-9-1"]',
+            );
+            expect(sept1).to.exist;
+
+            // Check that the calendar grid is populated correctly
+            const dayElements = el.shadowRoot?.querySelectorAll('.day');
+            const sept1Index = dayElements
+                ? Array.from(dayElements).findIndex(
+                      (el) => el.getAttribute('data-date') === '2024-9-1',
+                  )
+                : -1;
+
+            // September 1, 2024 is a Sunday, which in European week (Mon=0) is index 6
+            // But we also have previous month days, so let's check the actual structure
+            expect(sept1Index).to.be.greaterThan(-1);
+        });
+
+        it('should show month name on first day', () => {
+            const sept1 = el.shadowRoot?.querySelector(
+                '[data-date="2024-9-1"]',
+            );
+            expect(sept1).to.exist;
+
+            const indicator = sept1?.querySelector('.indicator');
+            expect(indicator).to.exist;
+
+            // Should contain "Sep" and "1" in locale-specific format (e.g., "Sep 1" for en, "1. Sep." for de)
+            const text = indicator?.textContent?.trim() ?? '';
+            expect(text).to.include('Sep');
+            expect(text).to.include('1');
+        });
     });
 
-    it('should render September 2024 correctly', async () => {
-        const el: Month = await fixture(html`
-            <lms-calendar-month
-                .activeDate=${{ day: 1, month: 9, year: 2024 }}
-            ></lms-calendar-month>
-        `);
+    describe('September 2024 (day 15)', () => {
+        let el: Month;
 
-        await el.updateComplete;
+        before(async () => {
+            el = await fixture(html`
+                <lms-calendar-month
+                    .activeDate=${{ day: 15, month: 9, year: 2024 }}
+                ></lms-calendar-month>
+            `);
+        });
 
-        const monthDiv = el.shadowRoot?.querySelector('.month');
-        expect(monthDiv).to.exist;
+        it('should render month with previous and next month days', () => {
+            // Should have exactly 42 days (6 weeks)
+            const dayElements = el.shadowRoot?.querySelectorAll('.day');
+            expect(dayElements).to.have.length(42);
 
-        // September 2024 should have 30 days
-        const dayElements = el.shadowRoot?.querySelectorAll('.day');
-        expect(dayElements).to.have.length(42); // 6 weeks * 7 days
+            // Should have some August days at the beginning
+            const augustDays = dayElements
+                ? Array.from(dayElements).filter((el) =>
+                      el.getAttribute('data-date')?.includes('2024-8-'),
+                  )
+                : [];
+            expect(augustDays.length).to.be.greaterThan(0);
 
-        // Check for September 1st (should be visible)
-        const sept1 = el.shadowRoot?.querySelector('[data-date="2024-9-1"]');
-        expect(sept1).to.exist;
+            // Should have September days (30 days in September)
+            const septemberDays = dayElements
+                ? Array.from(dayElements).filter((el) =>
+                      el.getAttribute('data-date')?.includes('2024-9-'),
+                  )
+                : [];
+            expect(septemberDays).to.have.length(30); // September has exactly 30 days
 
-        // Check for September 30th (should be visible)
-        const sept30 = el.shadowRoot?.querySelector('[data-date="2024-9-30"]');
-        expect(sept30).to.exist;
-    });
-
-    it('should calculate first day offset correctly for September 2024', async () => {
-        const el: Month = await fixture(html`
-            <lms-calendar-month
-                .activeDate=${{ day: 1, month: 9, year: 2024 }}
-            ></lms-calendar-month>
-        `);
-
-        await el.updateComplete;
-
-        // September 1, 2024 is a Sunday (day 0)
-        // In European format (Monday=0), Sunday should be index 6
-        // So the first day should appear in the 7th column (index 6)
-        const sept1 = el.shadowRoot?.querySelector('[data-date="2024-9-1"]');
-        expect(sept1).to.exist;
-
-        // Check that the calendar grid is populated correctly
-        const dayElements = el.shadowRoot?.querySelectorAll('.day');
-        const sept1Index = dayElements
-            ? Array.from(dayElements).findIndex(
-                  (el) => el.getAttribute('data-date') === '2024-9-1',
-              )
-            : -1;
-
-        // September 1, 2024 is a Sunday, which in European week (Mon=0) is index 6
-        // But we also have previous month days, so let's check the actual structure
-        expect(sept1Index).to.be.greaterThan(-1);
-    });
-
-    it('should render month with previous and next month days', async () => {
-        const el: Month = await fixture(html`
-            <lms-calendar-month
-                .activeDate=${{ day: 15, month: 9, year: 2024 }}
-            ></lms-calendar-month>
-        `);
-
-        await el.updateComplete;
-
-        // Should have exactly 42 days (6 weeks)
-        const dayElements = el.shadowRoot?.querySelectorAll('.day');
-        expect(dayElements).to.have.length(42);
-
-        // Should have some August days at the beginning
-        const augustDays = dayElements
-            ? Array.from(dayElements).filter((el) =>
-                  el.getAttribute('data-date')?.includes('2024-8-'),
-              )
-            : [];
-        expect(augustDays.length).to.be.greaterThan(0);
-
-        // Should have September days (30 days in September)
-        const septemberDays = dayElements
-            ? Array.from(dayElements).filter((el) =>
-                  el.getAttribute('data-date')?.includes('2024-9-'),
-              )
-            : [];
-        expect(septemberDays).to.have.length(30); // September has exactly 30 days
-
-        // Should have some October days at the end
-        const octoberDays = dayElements
-            ? Array.from(dayElements).filter((el) =>
-                  el.getAttribute('data-date')?.includes('2024-10-'),
-              )
-            : [];
-        expect(octoberDays.length).to.be.greaterThan(0);
+            // Should have some October days at the end
+            const octoberDays = dayElements
+                ? Array.from(dayElements).filter((el) =>
+                      el.getAttribute('data-date')?.includes('2024-10-'),
+                  )
+                : [];
+            expect(octoberDays.length).to.be.greaterThan(0);
+        });
     });
 
     it('should handle month navigation correctly', async () => {
@@ -182,27 +199,6 @@ describe('Month Component', () => {
         });
     });
 
-    it('should show month name on first day', async () => {
-        const el: Month = await fixture(html`
-            <lms-calendar-month
-                .activeDate=${{ day: 1, month: 9, year: 2024 }}
-            ></lms-calendar-month>
-        `);
-
-        await el.updateComplete;
-
-        const sept1 = el.shadowRoot?.querySelector('[data-date="2024-9-1"]');
-        expect(sept1).to.exist;
-
-        const indicator = sept1?.querySelector('.indicator');
-        expect(indicator).to.exist;
-
-        // Should contain "Sep" and "1" in locale-specific format (e.g., "Sep 1" for en, "1. Sep." for de)
-        const text = indicator?.textContent?.trim() ?? '';
-        expect(text).to.include('Sep');
-        expect(text).to.include('1');
-    });
-
     it('should mark current date correctly', async () => {
         const today = new Date();
         const el: Month = await fixture(html`
@@ -255,7 +251,9 @@ describe('Month Component', () => {
         console.log('August days:', augustDays);
         console.log('August days count:', augustDays.length);
 
-        const septemberDays = dates.filter((date) => date?.includes('2024-9-'));
+        const septemberDays = dates.filter((date) =>
+            date?.includes('2024-9-'),
+        );
         console.log('September days:', septemberDays);
 
         // Should have exactly 42 days total

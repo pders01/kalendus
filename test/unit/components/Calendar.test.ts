@@ -34,26 +34,71 @@ type CalendarEntry = {
 };
 
 describe('Calendar Component', () => {
-    it('should render calendar correctly', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
+    describe('default calendar', () => {
+        let el: LMSCalendar;
 
-        expect(el).to.exist;
-        expect(el.shadowRoot).to.exist;
-    });
+        before(async () => {
+            el = await fixture(html`<lms-calendar></lms-calendar>`);
+        });
 
-    it('should initialize with current date', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
+        it('should render calendar correctly', () => {
+            expect(el).to.exist;
+            expect(el.shadowRoot).to.exist;
+        });
 
-        await el.updateComplete;
+        it('should initialize with current date', () => {
+            const currentDate = new Date();
+            expect(el.activeDate.day).to.equal(currentDate.getDate());
+            expect(el.activeDate.month).to.equal(currentDate.getMonth() + 1);
+            expect(el.activeDate.year).to.equal(currentDate.getFullYear());
+        });
 
-        const currentDate = new Date();
-        expect(el.activeDate.day).to.equal(currentDate.getDate());
-        expect(el.activeDate.month).to.equal(currentDate.getMonth() + 1);
-        expect(el.activeDate.year).to.equal(currentDate.getFullYear());
+        it('should render header component', () => {
+            const header = el.shadowRoot?.querySelector('lms-calendar-header');
+            expect(header).to.exist;
+        });
+
+        it('should render context component', () => {
+            const context = el.shadowRoot?.querySelector('lms-calendar-context');
+            expect(context).to.exist;
+        });
+
+        it('should render month component by default', () => {
+            const month = el.shadowRoot?.querySelector('lms-calendar-month');
+            expect(month).to.exist;
+            expect(month?.hasAttribute('hidden')).to.be.false;
+        });
+
+        it('should not render day component when in month view', () => {
+            // Day component is conditionally rendered (not hidden), so it should not be in the DOM
+            const day = el.shadowRoot?.querySelector('lms-calendar-day');
+            expect(day).to.not.exist;
+        });
+
+        it('should default to black color', () => {
+            expect(el.color).to.equal('#000000');
+        });
+
+        it('should have proper structure and hierarchy', () => {
+            // Check main container
+            const container = el.shadowRoot?.querySelector('.calendar-container');
+            expect(container).to.exist;
+
+            // Check required components for month view (default)
+            const header = el.shadowRoot?.querySelector('lms-calendar-header');
+            const context = el.shadowRoot?.querySelector('lms-calendar-context');
+            const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
+
+            expect(header).to.exist;
+            expect(context).to.exist;
+            expect(monthEl).to.exist;
+
+            // Day and week are conditionally rendered — not in DOM during month view
+            const day = el.shadowRoot?.querySelector('lms-calendar-day');
+            const week = el.shadowRoot?.querySelector('lms-calendar-week');
+            expect(day).to.not.exist;
+            expect(week).to.not.exist;
+        });
     });
 
     it('should accept custom active date', async () => {
@@ -72,52 +117,6 @@ describe('Calendar Component', () => {
         expect(el.activeDate.day).to.equal(15);
         expect(el.activeDate.month).to.equal(6);
         expect(el.activeDate.year).to.equal(2023);
-    });
-
-    it('should render header component', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        const header = el.shadowRoot?.querySelector('lms-calendar-header');
-        expect(header).to.exist;
-    });
-
-    it('should render context component', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        const context = el.shadowRoot?.querySelector('lms-calendar-context');
-        expect(context).to.exist;
-    });
-
-    it('should render month component by default', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        const month = el.shadowRoot?.querySelector('lms-calendar-month');
-        expect(month).to.exist;
-        expect(month?.hasAttribute('hidden')).to.be.false;
-    });
-
-    it('should not render day component when in month view', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        // Day component is conditionally rendered (not hidden), so it should not be in the DOM
-        const day = el.shadowRoot?.querySelector('lms-calendar-day');
-        expect(day).to.not.exist;
     });
 
     it('should display custom heading', async () => {
@@ -284,16 +283,6 @@ describe('Calendar Component', () => {
         expect(el.color).to.equal('#ff0000');
     });
 
-    it('should default to black color', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        expect(el.color).to.equal('#000000');
-    });
-
     it('should handle resize events', async () => {
         const el: LMSCalendar = await fixture(html`
             <lms-calendar></lms-calendar>
@@ -396,32 +385,5 @@ describe('Calendar Component', () => {
             const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
             expect(monthEl).to.exist;
         }
-    });
-
-    it('should have proper structure and hierarchy', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        // Check main container
-        const container = el.shadowRoot?.querySelector('.calendar-container');
-        expect(container).to.exist;
-
-        // Check required components for month view (default)
-        const header = el.shadowRoot?.querySelector('lms-calendar-header');
-        const context = el.shadowRoot?.querySelector('lms-calendar-context');
-        const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
-
-        expect(header).to.exist;
-        expect(context).to.exist;
-        expect(monthEl).to.exist;
-
-        // Day and week are conditionally rendered — not in DOM during month view
-        const day = el.shadowRoot?.querySelector('lms-calendar-day');
-        const week = el.shadowRoot?.querySelector('lms-calendar-week');
-        expect(day).to.not.exist;
-        expect(week).to.not.exist;
     });
 });

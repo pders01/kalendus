@@ -4,7 +4,7 @@ import { playwrightLauncher } from '@web/test-runner-playwright';
 export default {
     files: 'test/unit/components/**/*.test.ts',
     browsers: [playwrightLauncher({ product: 'chromium' })],
-    testsFinishTimeout: 300000,
+    testsFinishTimeout: 60000,
     plugins: [
         vitePlugin({
             viteConfig: {
@@ -14,7 +14,6 @@ export default {
             },
         }),
     ],
-    coverage: true,
     coverageConfig: {
         exclude: ['**/node_modules/**', '**/test/**'],
     },

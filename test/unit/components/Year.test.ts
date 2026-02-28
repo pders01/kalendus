@@ -3,56 +3,40 @@ import '../../../src/components/Year.ts';
 import type Year from '../../../src/components/Year.ts';
 
 describe('Year Component', () => {
-    it('should render year view correctly', async () => {
-        const el: Year = await fixture(html`
-            <lms-calendar-year></lms-calendar-year>
-        `);
+    describe('read-only (shared fixture, activeDate 2024-01-01)', () => {
+        let el: Year;
 
-        expect(el).to.exist;
-        expect(el.shadowRoot).to.exist;
-    });
+        before(async () => {
+            el = await fixture(html`
+                <lms-calendar-year
+                    .activeDate=${{ day: 1, month: 1, year: 2024 }}
+                ></lms-calendar-year>
+            `);
+            await el.updateComplete;
+        });
 
-    it('should render 12 mini-months', async () => {
-        const el: Year = await fixture(html`
-            <lms-calendar-year
-                .activeDate=${{ day: 1, month: 1, year: 2024 }}
-            ></lms-calendar-year>
-        `);
+        it('should render year view correctly', function () {
+            expect(el).to.exist;
+            expect(el.shadowRoot).to.exist;
+        });
 
-        await el.updateComplete;
+        it('should render 12 mini-months', function () {
+            const miniMonths = el.shadowRoot?.querySelectorAll('.mini-month');
+            expect(miniMonths).to.have.length(12);
+        });
 
-        const miniMonths = el.shadowRoot?.querySelectorAll('.mini-month');
-        expect(miniMonths).to.have.length(12);
-    });
+        it('should show localized month labels', function () {
+            const labels = el.shadowRoot?.querySelectorAll('.month-label');
+            expect(labels).to.have.length(12);
+            // First month label should contain January abbreviation
+            expect(labels?.[0]?.textContent?.trim()).to.not.be.empty;
+        });
 
-    it('should show localized month labels', async () => {
-        const el: Year = await fixture(html`
-            <lms-calendar-year
-                .activeDate=${{ day: 1, month: 1, year: 2024 }}
-                .locale=${'en'}
-            ></lms-calendar-year>
-        `);
-
-        await el.updateComplete;
-
-        const labels = el.shadowRoot?.querySelectorAll('.month-label');
-        expect(labels).to.have.length(12);
-        // First month label should contain January abbreviation
-        expect(labels?.[0]?.textContent?.trim()).to.not.be.empty;
-    });
-
-    it('should render correct day numbers for January 2024', async () => {
-        const el: Year = await fixture(html`
-            <lms-calendar-year
-                .activeDate=${{ day: 1, month: 1, year: 2024 }}
-            ></lms-calendar-year>
-        `);
-
-        await el.updateComplete;
-
-        // January 2024 has 31 days
-        const janDayCells = el.shadowRoot?.querySelectorAll('[data-date^="2024-1-"]');
-        expect(janDayCells).to.have.length(31);
+        it('should render correct day numbers for January 2024', function () {
+            // January 2024 has 31 days
+            const janDayCells = el.shadowRoot?.querySelectorAll('[data-date^="2024-1-"]');
+            expect(janDayCells).to.have.length(31);
+        });
     });
 
     it('should highlight today', async () => {

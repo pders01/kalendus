@@ -16,6 +16,50 @@ interface EventDetails {
 }
 
 describe('Menu Component', () => {
+    describe('open menu', () => {
+        let el: Menu;
+
+        before(async () => {
+            el = await fixture(html`<lms-menu ?open=${true}></lms-menu>`);
+        });
+
+        it('should be visible when open is true', () => {
+            expect(el.hasAttribute('open')).to.be.true;
+        });
+
+        it('should have role="dialog" with aria-modal on the card', () => {
+            const card = el.shadowRoot?.querySelector('.card');
+            expect(card).to.exist;
+            expect(card?.getAttribute('role')).to.equal('dialog');
+            expect(card?.getAttribute('aria-modal')).to.equal('true');
+            expect(card?.getAttribute('aria-label')).to.equal('Event Details');
+        });
+
+        it('should display export button', () => {
+            const exportBtn = el.shadowRoot?.querySelector('.export-btn') as HTMLButtonElement;
+            expect(exportBtn).to.exist;
+            expect(exportBtn.textContent?.trim()).to.equal('Export as ICS');
+        });
+
+        it('should have proper card structure', () => {
+            const card = el.shadowRoot?.querySelector('.card');
+            expect(card).to.exist;
+
+            const header = card?.querySelector('.header');
+            expect(header).to.exist;
+
+            const title = header?.querySelector('.title');
+            expect(title).to.exist;
+
+            // Single close button
+            const buttons = header?.querySelectorAll('button');
+            expect(buttons).to.have.length(1);
+
+            const actions = card?.querySelector('.actions');
+            expect(actions).to.exist;
+        });
+    });
+
     it('should render menu correctly', async () => {
         const el: Menu = await fixture(html`<lms-menu></lms-menu>`);
 
@@ -34,28 +78,6 @@ describe('Menu Component', () => {
         // Host display should be none (via :host styles)
         const style = getComputedStyle(el);
         expect(style.display).to.equal('none');
-    });
-
-    it('should be visible when open is true', async () => {
-        const el: Menu = await fixture(html`
-            <lms-menu ?open=${true}></lms-menu>
-        `);
-        await el.updateComplete;
-
-        expect(el.hasAttribute('open')).to.be.true;
-    });
-
-    it('should have role="dialog" with aria-modal on the card', async () => {
-        const el: Menu = await fixture(html`
-            <lms-menu ?open=${true}></lms-menu>
-        `);
-        await el.updateComplete;
-
-        const card = el.shadowRoot?.querySelector('.card');
-        expect(card).to.exist;
-        expect(card?.getAttribute('role')).to.equal('dialog');
-        expect(card?.getAttribute('aria-modal')).to.equal('true');
-        expect(card?.getAttribute('aria-label')).to.equal('Event Details');
     });
 
     it('should display event details correctly', async () => {
@@ -125,40 +147,6 @@ describe('Menu Component', () => {
 
         expect(el.open).to.be.false;
         expect(eventFired).to.be.true;
-    });
-
-    it('should display export button', async () => {
-        const el: Menu = await fixture(html`
-            <lms-menu ?open=${true}></lms-menu>
-        `);
-        await el.updateComplete;
-
-        const exportBtn = el.shadowRoot?.querySelector('.export-btn') as HTMLButtonElement;
-        expect(exportBtn).to.exist;
-        expect(exportBtn.textContent?.trim()).to.equal('Export as ICS');
-    });
-
-    it('should have proper card structure', async () => {
-        const el: Menu = await fixture(html`
-            <lms-menu ?open=${true}></lms-menu>
-        `);
-        await el.updateComplete;
-
-        const card = el.shadowRoot?.querySelector('.card');
-        expect(card).to.exist;
-
-        const header = card?.querySelector('.header');
-        expect(header).to.exist;
-
-        const title = header?.querySelector('.title');
-        expect(title).to.exist;
-
-        // Single close button
-        const buttons = header?.querySelectorAll('button');
-        expect(buttons).to.have.length(1);
-
-        const actions = card?.querySelector('.actions');
-        expect(actions).to.exist;
     });
 
     it('should not show notes when content is empty', async () => {
