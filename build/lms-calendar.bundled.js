@@ -535,6 +535,10 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
                 </button>
             </div>
         </div>`}_handleTodayClick(e){e.stopPropagation();const t=/* @__PURE__ */new Date,n={day:t.getDate(),month:t.getMonth()+1,year:t.getFullYear()},r=new CustomEvent("jumptoday",{detail:{date:n},bubbles:!0,composed:!0});this.dispatchEvent(r)}_dispatchSwitchDate(e){const t=e.target;if(!(t instanceof HTMLButtonElement))return;const n=e.target===e.currentTarget?"container":t.name,r=new CustomEvent("switchdate",{detail:{direction:n},bubbles:!0,composed:!0});this.dispatchEvent(r)}_dispatchSwitchView(e){const t=e.target;if(!(t instanceof HTMLElement))return;const n=e.target===e.currentTarget?"container":t.dataset.context,r=new CustomEvent("switchview",{detail:{view:n},bubbles:!0,composed:!0});this.dispatchEvent(r)}};qa.styles=r`
+        :host {
+            container-type: inline-size;
+        }
+
         .controls {
             height: var(--header-height, 3.5em);
             width: 100%;
@@ -547,7 +551,7 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             border-bottom: 1px solid var(--separator-light);
         }
 
-        @media (max-width: 375px) {
+        @container (max-width: 600px) {
             .controls {
                 font-size: small;
                 height: auto;

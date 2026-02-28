@@ -23,6 +23,10 @@ export default class Header extends LitElement {
     expandedDate?: CalendarDate;
 
     static override styles = css`
+        :host {
+            container-type: inline-size;
+        }
+
         .controls {
             height: var(--header-height, 3.5em);
             width: 100%;
@@ -35,7 +39,7 @@ export default class Header extends LitElement {
             border-bottom: 1px solid var(--separator-light);
         }
 
-        @media (max-width: 375px) {
+        @container (max-width: 600px) {
             .controls {
                 font-size: small;
                 height: auto;
