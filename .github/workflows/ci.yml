@@ -154,14 +154,8 @@ jobs:
       - name: Run component tests
         run: pnpm run test:components
 
-      - name: Build Storybook
-        run: pnpm run build-storybook --quiet
-
-      - name: Serve Storybook and run tests
-        run: |
-          npx -y http-server storybook-static --port 6006 --silent &
-          until curl -s http://127.0.0.1:6006 > /dev/null; do sleep 1; done
-          pnpm run test-storybook
+      - name: Run Storybook tests
+        run: pnpm run test-storybook
 
   build:
     name: Build artifacts
