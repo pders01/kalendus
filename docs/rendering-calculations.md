@@ -11,8 +11,9 @@ This document describes all the rendering calculations used throughout the LMS C
 5. [Month View Rendering](#month-view-rendering)
 6. [Entry Positioning](#entry-positioning)
 7. [Date Calculations](#date-calculations)
-8. [CSS Custom Properties](#css-custom-properties)
-9. [Testing & Validation](#testing--validation)
+8. [Year View Rendering](#year-view-rendering)
+9. [CSS Custom Properties](#css-custom-properties)
+10. [Testing & Validation](#testing--validation)
 
 ## Core Grid System
 
@@ -311,6 +312,39 @@ class DirectionalCalendarDateCalculator {
     }
 }
 ```
+
+## Year View Rendering
+
+### Mini-month grid layout
+
+- `<lms-calendar-year>` renders 12 sub-grids inside `.year-grid`. Container queries reduce the column count from 3 → 2 → 1 using the `--year-grid-columns*` custom properties so the overview adapts to any width.
+- Each month calculates a `firstDayOffset` via `getFirstDayOffset({ year, month, day: 1 }, firstDayOfWeek)` to prepend empty cells until the desired weekday.
+- Weekday headers rely on `getWeekdayOrder(firstDayOfWeek)` and show locale-specific leading characters from `getLocalizedWeekdayShort`.
+
+### Density visualization modes
+
+Counts come from `_entrySumByDay`, a map produced while expanding entries (`${day}-${month}-${year}` keys). The Year component translates counts into three visual styles:
+
+```typescript
+if (densityMode === 'dot' && eventCount > 0) {
+    classes.push('has-events');
+} else if (densityMode === 'heatmap' && eventCount > 0) {
+    const bucket = eventCount <= 2 ? 1 : eventCount <= 5 ? 2 : eventCount <= 9 ? 3 : 4;
+    densityAttr = `${bucket}`;
+} else if (densityMode === 'count' && eventCount > 0) {
+    return html`<span class="event-count">${eventCount}</span>`;
+}
+```
+
+- **Dot**: Adds a pseudo-element using `--year-dot-color`.
+- **Heatmap**: Applies `data-density="1-4"` so CSS can map buckets to `--year-heatmap-{1-4}` tokens.
+- **Count**: Renders a numeric badge for explicit totals.
+
+### Drill behavior
+
+- Clicking any day emits `expand` with `{ date, drillTarget }`. `drillTarget` mirrors the `year-drill-target` property (`'day'` or `'month'`) so hosts can decide which downstream view to show.
+- Month labels always dispatch `{ drillTarget: 'month' }` to guarantee month navigation shortcuts even if `year-drill-target="day"`.
+- Host applications can listen for `expand` to update routers, lazy-load data, or log analytics distinct from the standard month/week/day interactions.
 
 ## CSS Custom Properties
 
