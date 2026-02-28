@@ -85,6 +85,8 @@ const LOCALE_WEEK_START: Record<string, FirstDayOfWeek> = {
     pt: 0, 'pt-BR': 0,
     he: 0, 'he-IL': 0,
     hi: 0, 'hi-IN': 0,
+    bn: 0, 'bn-BD': 0, 'bn-IN': 0,
+    id: 0, 'id-ID': 0,
     th: 0, 'th-TH': 0,
 
     // Monday-first (1) — ISO 8601 default for most of Europe, Africa, etc.
@@ -102,6 +104,7 @@ const LOCALE_WEEK_START: Record<string, FirstDayOfWeek> = {
     fi: 1, 'fi-FI': 1,
     cs: 1, 'cs-CZ': 1,
     tr: 1, 'tr-TR': 1,
+    vi: 1, 'vi-VN': 1,
     'pt-PT': 1, // Portugal uses Monday (unlike Brazil)
     'en-GB': 1, // UK uses Monday
 

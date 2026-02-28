@@ -1,0 +1,28 @@
+
+    // Do not modify this file by hand!
+    // Re-generate this file by running lit-localize
+
+
+
+    /* eslint-disable no-irregular-whitespace */
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+
+    export const templates = {
+      's005053d82b712e0a': `टिप्पणियाँ`,
+'s090f2107b5a69a7f': `स`,
+'s15ba5784a11e0b88': `वर्तमान महीना`,
+'s22380c7fc798a44f': `कोई सामग्री नहीं`,
+'s2bc4d1196bce49dc': `ICS के रूप में निर्यात करें`,
+'s48e186fb300e5464': `समय`,
+'s58ab939b42a026a6': `पूरा दिन`,
+'s5e8250fb85d64c23': `बंद करें`,
+'s63d040e37887f17e': `आज`,
+'s680f01021b5e339d': `सप्ताह`,
+'s98b32ef4a0856c08': `कोई शीर्षक नहीं`,
+'s99f110d27e30b289': `शीर्षक`,
+'sa0fd990c985f24bd': `कार्यक्रम विवरण`,
+'sac8252732f2edb19': `तारीख`,
+'sb47daaf9e1c4a905': `महीना`,
+'se0955919920ee87d': `दिन`,
+'sfce4bfbe0f911aa7': `कोई समय नहीं`,
+    };

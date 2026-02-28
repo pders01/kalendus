@@ -1,20 +1,44 @@
 import { templates as arTemplates } from '../generated/locales/ar.js';
+import { templates as bnTemplates } from '../generated/locales/bn.js';
 import { templates as deTemplates } from '../generated/locales/de.js';
 import { templates as deDETemplates } from '../generated/locales/de-DE.js';
 import { templates as esTemplates } from '../generated/locales/es.js';
 import { templates as frTemplates } from '../generated/locales/fr.js';
+import { templates as hiTemplates } from '../generated/locales/hi.js';
+import { templates as idTemplates } from '../generated/locales/id.js';
+import { templates as itTemplates } from '../generated/locales/it.js';
 import { templates as jaTemplates } from '../generated/locales/ja.js';
+import { templates as koTemplates } from '../generated/locales/ko.js';
+import { templates as nlTemplates } from '../generated/locales/nl.js';
+import { templates as plTemplates } from '../generated/locales/pl.js';
 import { templates as ptTemplates } from '../generated/locales/pt.js';
+import { templates as ruTemplates } from '../generated/locales/ru.js';
+import { templates as thTemplates } from '../generated/locales/th.js';
+import { templates as trTemplates } from '../generated/locales/tr.js';
+import { templates as ukTemplates } from '../generated/locales/uk.js';
+import { templates as viTemplates } from '../generated/locales/vi.js';
 import { templates as zhHansTemplates } from '../generated/locales/zh-Hans.js';
 
 const allTemplates: Record<string, Record<string, string>> = {
     ar: arTemplates,
+    bn: bnTemplates,
     de: deTemplates,
     'de-DE': deDETemplates,
     es: esTemplates,
     fr: frTemplates,
+    hi: hiTemplates,
+    id: idTemplates,
+    it: itTemplates,
     ja: jaTemplates,
+    ko: koTemplates,
+    nl: nlTemplates,
+    pl: plTemplates,
     pt: ptTemplates,
+    ru: ruTemplates,
+    th: thTemplates,
+    tr: trTemplates,
+    uk: ukTemplates,
+    vi: viTemplates,
     'zh-Hans': zhHansTemplates,
 };
 
