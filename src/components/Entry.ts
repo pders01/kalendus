@@ -297,10 +297,13 @@ export default class Entry extends LitElement {
         :host([data-display-mode='month-dot']) .time {
             font-family: var(--entry-time-font);
             text-align: var(--entry-time-align);
-            min-width: 3.5em;
+            min-width: 0;
             margin-left: auto;
             color: inherit;
             opacity: 0.8;
+            flex-shrink: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .color-dot {
