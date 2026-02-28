@@ -550,7 +550,7 @@ export default class LMSCalendar extends LitElement {
         // 5. Mobile badge: aggregate per-day counts once
         this._entrySumByDay = {};
         for (const entry of this._expandedEntries) {
-            const key = `${entry.date.start.day}-${entry.date.start.month}-${entry.date.start.year}`;
+            const key = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
             this._entrySumByDay[key] = (this._entrySumByDay[key] ?? 0) + 1;
         }
 
@@ -968,22 +968,12 @@ export default class LMSCalendar extends LitElement {
             });
         }
 
-        // Separate all-day and timed entries
-        const allDayEntries = allEntriesForDate.filter(
-            (entry) =>
-                !entry.time ||
-                (entry.time && Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) ||
-                entry.continuation?.is ||
-                entry.continuation?.has,
-        );
-
-        const entriesByDate = allEntriesForDate.filter(
-            (entry) =>
-                !!entry.time &&
-                !(Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) &&
-                !entry.continuation?.is &&
-                !entry.continuation?.has,
-        );
+        // Single-pass partition into all-day vs timed entries
+        const allDayEntries: ExpandedCalendarEntry[] = [];
+        const entriesByDate: ExpandedCalendarEntry[] = [];
+        for (const entry of allEntriesForDate) {
+            (this._isEffectivelyAllDay(entry) ? allDayEntries : entriesByDate).push(entry);
+        }
 
         if (!entriesByDate.length && !allDayEntries.length) {
             return { elements: nothing, allDayRowCount: 0 };
@@ -1021,32 +1011,16 @@ export default class LMSCalendar extends LitElement {
                         `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
                 );
 
-                // Use condensed visible dates for sorting when available
                 const condensedDates = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
 
-                // Process each day's entries separately with LayoutCalculator in proper day order
-                const sortedDayEntries = Object.entries(entriesByDay)
-                    .map(([dayKey, dayEntries]) => ({ dayKey, dayEntries }))
-                    .filter(({ dayEntries }) => dayEntries && dayEntries.length > 0) // Safety check
-                    .sort((a, b) => {
-                        // Sort by actual day order within the week
-                        const dayA = a.dayEntries[0];
-                        const dayB = b.dayEntries[0];
-                        if (!dayA || !dayB || !dayA.date || !dayB.date) return 0; // Safety check
-                        const dayIndexA = slotManager.getWeekDayIndex(
-                            dayA.date.start,
-                            currentActiveDate,
-                            this.firstDayOfWeek,
-                        );
-                        const dayIndexB = slotManager.getWeekDayIndex(
-                            dayB.date.start,
-                            currentActiveDate,
-                            this.firstDayOfWeek,
-                        );
-                        return dayIndexA - dayIndexB;
-                    });
+                // Iterate in known day order — no sort needed
+                const datesToRender = condensedDates
+                    ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
 
-                sortedDayEntries.forEach(({ dayEntries }) => {
+                for (const wd of datesToRender) {
+                    const dayEntries = entriesByDay[`${wd.year}-${wd.month}-${wd.day}`];
+                    if (!dayEntries?.length) continue;
+
                     const dayElements = this._renderDayEntriesWithSlotManager(
                         dayEntries,
                         viewMode,
@@ -1055,7 +1029,7 @@ export default class LMSCalendar extends LitElement {
                         condensedDates,
                     );
                     allElements.push(...dayElements);
-                });
+                }
             } else {
                 // Day view: process all entries together
                 const dayElements = this._renderDayEntriesWithSlotManager(
@@ -1265,7 +1239,7 @@ export default class LMSCalendar extends LitElement {
         return entries.map(([key, value], index) =>
             this._composeEntry({
                 index,
-                slot: key.split('-').reverse().join('-'),
+                slot: key,
                 inlineStyle: `--entry-color: var(--separator-mid); text-align: center`,
                 entry: {
                     heading: `${value} ${getMessages(this.locale).events}`,
@@ -1306,6 +1280,13 @@ export default class LMSCalendar extends LitElement {
             endDate,
             (endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24) + 1,
         ];
+    }
+
+    private _isEffectivelyAllDay(entry: ExpandedCalendarEntry): boolean {
+        if (!entry.time) return true;
+        if (Number(entry.time.end.hour) - Number(entry.time.start.hour) >= 23) return true;
+        if (entry.continuation?.is || entry.continuation?.has) return true;
+        return false;
     }
 
     private _isAllDayEvent(entry: Partial<CalendarEntry>): boolean {
