@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { DateTime } from 'luxon';
 
 import { getLocalizedMonth } from '../lib/localization.js';
-import { messages } from '../lib/messages.js';
+import { getMessages } from '../lib/messages.js';
 import type { ViewMode } from '../lib/ViewStateController.js';
 
 @customElement('lms-calendar-header')
@@ -151,27 +151,27 @@ export default class Header extends LitElement {
 
     override render() {
         const date = this.activeDate!;
-        const l = this.locale;
+        const msg = getMessages(this.locale);
 
         return html`<div class="controls">
             <div class="info">
                 <span>
-                    <strong>${this.heading || messages.currentMonth(l)}</strong>
+                    <strong>${this.heading || msg.currentMonth}</strong>
                 </span>
                 <div class="view-detail${this.viewMode === 'day' ? ' active' : ''}">
                     <span class="day">${date.day}</span>
                     <span class="month"
-                        >${getLocalizedMonth(date.month, l)}</span
+                        >${getLocalizedMonth(date.month, this.locale)}</span
                     >
                     <span class="year">${date.year}</span>
                 </div>
                 <div class="view-detail${this.viewMode === 'week' ? ' active' : ''}">
                     <span class="week"
-                        >${messages.calendarWeek(l)}
+                        >${msg.calendarWeek}
                         ${this._getWeekInfo(date).weekNumber}</span
                     >
                     <span class="month"
-                        >${getLocalizedMonth(date.month, l)}</span
+                        >${getLocalizedMonth(date.month, this.locale)}</span
                     >
                     <span class="year"
                         >${this._getWeekInfo(date).weekYear}</span
@@ -179,7 +179,7 @@ export default class Header extends LitElement {
                 </div>
                 <div class="view-detail${this.viewMode === 'month' ? ' active' : ''}">
                     <span class="month"
-                        >${getLocalizedMonth(date.month, l)}</span
+                        >${getLocalizedMonth(date.month, this.locale)}</span
                     >
                     <span class="year">${date.year}</span>
                 </div>
@@ -192,7 +192,7 @@ export default class Header extends LitElement {
                     data-context="day"
                     class="btn-change-view"
                 >
-                    ${messages.day(l)}
+                    ${msg.day}
                 </button>
                 <button
                     type="button"
@@ -201,7 +201,7 @@ export default class Header extends LitElement {
                     data-context="week"
                     class="btn-change-view"
                 >
-                    ${messages.week(l)}
+                    ${msg.week}
                 </button>
                 <button
                     type="button"
@@ -210,7 +210,7 @@ export default class Header extends LitElement {
                     data-context="month"
                     class="btn-change-view"
                 >
-                    ${messages.month(l)}
+                    ${msg.month}
                 </button>
             </nav>
             <div class="buttons" @click=${this._dispatchSwitchDate}>
@@ -218,7 +218,7 @@ export default class Header extends LitElement {
                 <button type="button" name="next" aria-label="Next">»</button>
                 <span class="separator"></span>
                 <button type="button" name="today" @click=${this._handleTodayClick}>
-                    ${messages.today(l)}
+                    ${msg.today}
                 </button>
             </div>
         </div>`;

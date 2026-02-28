@@ -2,7 +2,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
 
-import { messages } from '../lib/messages.js';
+import { getMessages } from '../lib/messages.js';
 import type { CalendarDate } from '../lms-calendar';
 
 interface EventDetails {
@@ -285,37 +285,37 @@ export class Menu extends LitElement {
     }
 
     override render() {
-        const l = this.locale;
+        const msg = getMessages(this.locale);
         const cardClasses = `card${this._positioned ? ' visible' : ''}`;
         const hasNotes =
             this.eventDetails.content &&
-            this.eventDetails.content !== messages.noContent(l);
+            this.eventDetails.content !== msg.noContent;
 
         return html`
             <div
                 class=${cardClasses}
                 role="dialog"
                 aria-modal="true"
-                aria-label=${messages.eventDetails(l)}
+                aria-label=${msg.eventDetails}
                 style="top: ${this._cardTop}px; left: ${this._cardLeft}px;"
                 @keydown=${this._handleKeydown}
             >
                 <div class="header">
                     <span class="title"
-                        >${this.eventDetails.heading || messages.noTitle(l)}</span
+                        >${this.eventDetails.heading || msg.noTitle}</span
                     >
                     <button
                         type="button"
                         class="close-btn"
                         @click=${this._handleClose}
-                        title=${messages.close(l)}
-                        aria-label=${messages.close(l)}
+                        title=${msg.close}
+                        aria-label=${msg.close}
                     >
                         &times;
                     </button>
                 </div>
                 <div class="meta">
-                    ${this.eventDetails.time || messages.noTime(l)}
+                    ${this.eventDetails.time || msg.noTime}
                 </div>
                 ${
                     this.eventDetails.date
@@ -334,9 +334,9 @@ export class Menu extends LitElement {
                         type="button"
                         class="export-btn"
                         @click=${this._handleExport}
-                        title=${messages.exportAsICS(l)}
+                        title=${msg.exportAsICS}
                     >
-                        ${messages.exportAsICS(l)}
+                        ${msg.exportAsICS}
                     </button>
                 </div>
             </div>
