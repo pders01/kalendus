@@ -13,3 +13,9 @@ coverage/
 
 # Profiling trace output
 trace-*.json
+
+# Server SQLite data
+server/data/
+
+# Screenshots
+screenshots/
