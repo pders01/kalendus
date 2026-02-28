@@ -93,6 +93,8 @@ export default class LMSCalendar extends LitElement {
 
     static override styles = css`
         :host {
+            display: block;
+
             --shadow-sm: rgba(0, 0, 0, 0.18) 0px 2px 4px;
             --shadow-md: rgba(0, 0, 0, 0.15) 0px 3px 3px 0px;
             --shadow-lg: rgba(0, 0, 0, 0.15) 0px 2px 8px;

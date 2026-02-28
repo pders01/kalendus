@@ -15,11 +15,18 @@ export default class Day extends LitElement {
     allDayRowCount = 0;
 
     static override styles = css`
+        :host {
+            display: block;
+            height: 100%;
+            width: 100%;
+        }
+
         .wrapper {
             display: flex;
             flex-direction: column;
             height: var(--view-container-height);
             width: 100%;
+            overflow: hidden;
         }
 
         .container {

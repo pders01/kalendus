@@ -1393,7 +1393,7 @@ export const LocaleShowcase: Story = {
             Each calendar independently renders its own locale — UI strings, weekday names,
             and date formatting are all per-instance. No global locale switching needed.
         </p>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5em; height: 1800px;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.5em; height: 1800px;">
             ${(['de', 'fr', 'es', 'it', 'nl', 'pl', 'ru', 'uk', 'tr', 'ar', 'hi', 'bn', 'th', 'ja', 'ko', 'zh-Hans', 'id', 'vi', 'pt'] as const).map((locale) => {
                 const labels: Record<string, string> = {
                     de: 'Deutsch', fr: 'Fran\u00e7ais', es: 'Espa\u00f1ol', it: 'Italiano',
