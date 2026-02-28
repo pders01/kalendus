@@ -171,9 +171,10 @@ describe('Entry Component', () => {
 
         await el.updateComplete;
 
-        const mainElement = el.shadowRoot?.querySelector('.main');
-        // Default tabindex is 0 (no accessibility config provided)
-        expect(mainElement?.getAttribute('tabindex')).to.equal('0');
+        // Interactive attributes are on the host element, not the inner .main
+        expect(el.tabIndex).to.equal(0);
+        expect(el.getAttribute('role')).to.equal('button');
+        expect(el.getAttribute('aria-label')).to.be.a('string').and.not.empty;
     });
 
     it('should handle click interactions', async () => {
