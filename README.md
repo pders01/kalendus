@@ -9,6 +9,7 @@ A sophisticated, responsive calendar web component built with Lit 3.x and TypeSc
 - **Month View**: Traditional monthly calendar with color-coded event indicators
 - **Week View**: 7-day view with hourly time slots and pixel-perfect alignment
 - **Day View**: Single-day view with detailed hourly scheduling
+- **Year View**: 12 mini-month grids with density indicators (dot, heatmap, or count) and configurable drill targets for instant navigation
 
 ### Advanced Event Handling
 
@@ -123,6 +124,21 @@ const events = [
 ];
 ```
 
+### Year View Controls
+
+The year overview makes it easy to hop between distant dates. Two properties tune how it behaves:
+
+```html
+<lms-calendar
+  year-drill-target="day"
+  year-density-mode="heatmap"
+  .entries=${events}
+></lms-calendar>
+```
+
+- `year-drill-target` (`day` \| `month`): picking a day can either open the specific day or simply focus its month.
+- `year-density-mode` (`dot` \| `heatmap` \| `count`): swap between subtle dots, tonal heatmaps, or explicit counts for per-day density.
+
 ## Properties
 
 | Property         | Type              | Default      | Description                                              |
@@ -133,6 +149,8 @@ const events = [
 | `color`          | `string`          | `'#000000'`  | Primary theme color                                      |
 | `locale`         | `string`          | `document.documentElement.lang \|\| 'en'` | Locale for UI strings and date formatting (auto-detected from page, overridable per-instance) |
 | `firstDayOfWeek` | `0-6`             | `1`          | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)         |
+| `yearDrillTarget` | `'day' \| 'month'` | `'month'` | Determines whether a year-view click opens day or month view |
+| `yearDensityMode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'` | Chooses how per-day entry density is visualized in year view |
 
 ### Supported Locales
 
@@ -197,6 +215,26 @@ lms-calendar {
 }
 ```
 
+### Year View Tokens
+
+```css
+lms-calendar {
+    --year-grid-columns: 3;
+    --year-grid-columns-tablet: 2;
+    --year-grid-columns-mobile: 1;
+    --year-month-label-font-size: 0.875em;
+    --year-day-font-size: 0.7em;
+    --year-cell-size: 1.8em;
+    --year-dot-color: var(--indicator-color, var(--primary-color));
+    --year-heatmap-1: rgba(30, 144, 255, 0.15);
+    --year-heatmap-2: rgba(30, 144, 255, 0.35);
+    --year-heatmap-3: rgba(30, 144, 255, 0.55);
+    --year-heatmap-4: rgba(30, 144, 255, 0.75);
+}
+```
+
+Adjust these tokens to align the overview grid with your design system (e.g., forcing a single-column mobile layout or brand-specific heatmap shades).
+
 ## Architecture
 
 ### Component Structure
@@ -209,6 +247,7 @@ src/
 │   ├── Month.ts                 # Monthly calendar grid
 │   ├── Week.ts                  # Weekly time-based view
 │   ├── Day.ts                   # Daily detailed view
+│   ├── Year.ts                  # Year overview with drill targets and density modes
 │   ├── Entry.ts                 # Individual event component
 │   ├── Context.ts               # Weekday header row (month view)
 │   └── Menu.ts                  # Event detail popover with ICS export
