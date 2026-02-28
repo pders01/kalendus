@@ -75,6 +75,14 @@ lms-calendar {
 - Week/day layout logic has dedicated tests in `test/unit/lib/allDayLayout.test.ts`, `test/unit/lib/ViewStateController.test.ts`, and `test/unit/week-rendering.test.ts`.
 - When modifying CSS token behavior or condensed-week logic, add/extend tests in `test/unit/lib/weekDisplayContext.test.ts` (create this file if missing) to ensure the context math stays stable.
 
+## Adding a New Locale
+
+1. Add the locale code to `lit-localize.json` target locales
+2. Run `pnpm exec lit-localize extract` to generate the template file
+3. Translate strings in `src/generated/locales/<locale>.ts`
+4. Add the import and entry in `src/lib/messages.ts` (`allTemplates` map)
+5. Optionally add a `LUXON_LOCALE_MAP` entry in `localization.ts` if the locale code differs from Intl/Luxon conventions
+
 ## Staying Consistent
 
 - Keep date keys canonical (`YYYY-MM-DD`) across caches and map lookups.

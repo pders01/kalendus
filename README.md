@@ -1,6 +1,33 @@
 # kalendus
 
-A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Designed for Library Management Systems and other applications requiring advanced calendar functionality with support for overlapping events, multiple view modes, per-instance localization, and extensive customization.
+A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and 80+ CSS design tokens.
+
+![demo](assets/demo.gif)
+
+## Installation
+
+```bash
+pnpm add @jpahd/kalendus
+```
+
+## Quick Usage
+
+```html
+<lms-calendar
+  .heading="My Calendar"
+  .activeDate=${{ day: 15, month: 3, year: 2024 }}
+  .entries=${myEvents}
+  .color="#1976d2"
+></lms-calendar>
+```
+
+Each instance auto-detects its locale from `<html lang="...">`. Override per-instance:
+
+```html
+<lms-calendar locale="ja" .firstDayOfWeek="${0}"></lms-calendar>
+<lms-calendar locale="es"></lms-calendar>
+<lms-calendar locale="zh-Hans"></lms-calendar>
+```
 
 ## Features
 
@@ -34,54 +61,18 @@ A sophisticated, responsive calendar web component built with Lit 3.x and TypeSc
 - **Localized Date Formatting**: Weekday names, month names, and date formats use the instance's locale
 - **Configurable Week Start**: `firstDayOfWeek` property supports Monday (ISO), Sunday (US/JP), Saturday (AR), or any day
 
-## Installation
+## Properties
 
-```bash
-pnpm add @jpahd/kalendus
-```
-
-## Usage
-
-See `docs/integration-guide.md` for end-to-end recipes covering vanilla HTML, React, Lit, theming tokens, and analytics hooks. A few quick snippets are included below.
-
-## Documentation Map
-
-| Audience               | Document                                                     | Highlights                                         |
-| ---------------------- | ------------------------------------------------------------ | -------------------------------------------------- |
-| Integrators            | [Integration Guide](docs/integration-guide.md)               | Framework recipes, theming tokens, analytics hooks |
-| Application Developers | [Library Usage](docs/library-usage.md)                       | API surface, data contracts, DOM events            |
-| Component Contributors | [Developer Guide](docs/developer-guide.md)                   | Internal architecture, debugging tips              |
-| Rendering Internals    | [Rendering Calculations](docs/rendering-calculations.md)     | Grid math, condensed weeks, density modes          |
-| Design Systems         | [Design Token Refactoring](docs/design-token-refactoring.md) | Token audit and proposed hierarchy                 |
-| Backend/API            | [API Server Guide](docs/api-server.md)                       | REST + SSE backend, database + adapters            |
-
-### Basic Usage
-
-```html
-<lms-calendar
-  .heading="My Calendar"
-  .activeDate=${{ day: 15, month: 3, year: 2024 }}
-  .entries=${myEvents}
-  .color="#1976d2"
-></lms-calendar>
-```
-
-### Per-Instance Locale
-
-By default, every calendar auto-detects its locale from the page's `<html lang="...">` attribute. You can override individual instances with the `locale` property:
-
-```html
-<!-- Auto-detects from <html lang="de"> — no config needed -->
-<lms-calendar .entries="${events}"></lms-calendar>
-
-<!-- Explicitly override to Japanese with Sunday-first weeks -->
-<lms-calendar .entries="${events}" locale="ja" .firstDayOfWeek="${0}"></lms-calendar>
-
-<!-- Multiple locales on the same page - each fully independent -->
-<lms-calendar locale="es"></lms-calendar>
-<lms-calendar locale="fr"></lms-calendar>
-<lms-calendar locale="zh-Hans"></lms-calendar>
-```
+| Property          | Type                            | Default                                   | Description                                                                                   |
+| ----------------- | ------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `heading`         | `string`                        | `undefined`                               | Calendar title displayed in header                                                            |
+| `activeDate`      | `CalendarDate`                  | Current date                              | Initially displayed date                                                                      |
+| `entries`         | `CalendarEntry[]`               | `[]`                                      | Array of calendar events                                                                      |
+| `color`           | `string`                        | `'#000000'`                               | Primary theme color                                                                           |
+| `locale`          | `string`                        | `document.documentElement.lang \|\| 'en'` | Locale for UI strings and date formatting (auto-detected from page, overridable per-instance) |
+| `firstDayOfWeek`  | `0-6`                           | `1`                                       | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)                                              |
+| `yearDrillTarget` | `'day' \| 'month'`              | `'month'`                                 | Determines whether a year-view click opens day or month view                                  |
+| `yearDensityMode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`                                   | Chooses how per-day entry density is visualized in year view                                  |
 
 ### Event Structure
 
@@ -102,44 +93,7 @@ interface CalendarEntry {
 }
 ```
 
-### Example Events
-
-```typescript
-const events = [
-    {
-        heading: 'Team Meeting',
-        content: 'Weekly team sync',
-        color: '#1976d2',
-        isContinuation: false,
-        date: {
-            start: { day: 15, month: 3, year: 2024 },
-            end: { day: 15, month: 3, year: 2024 },
-        },
-        time: {
-            start: { hour: 9, minute: 0 },
-            end: { hour: 10, minute: 30 },
-        },
-    },
-    {
-        heading: 'Project Sprint',
-        content: 'Development sprint',
-        color: '#2e7d32',
-        isContinuation: false,
-        date: {
-            start: { day: 20, month: 3, year: 2024 },
-            end: { day: 22, month: 3, year: 2024 },
-        },
-        time: {
-            start: { hour: 8, minute: 0 },
-            end: { hour: 17, minute: 0 },
-        },
-    },
-];
-```
-
 ### Year View Controls
-
-The year overview makes it easy to hop between distant dates. Two properties tune how it behaves:
 
 ```html
 <lms-calendar
@@ -151,19 +105,6 @@ The year overview makes it easy to hop between distant dates. Two properties tun
 
 - `year-drill-target` (`day` \| `month`): picking a day can either open the specific day or simply focus its month.
 - `year-density-mode` (`dot` \| `heatmap` \| `count`): swap between subtle dots, tonal heatmaps, or explicit counts for per-day density.
-
-## Properties
-
-| Property          | Type                            | Default                                   | Description                                                                                   |
-| ----------------- | ------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `heading`         | `string`                        | `undefined`                               | Calendar title displayed in header                                                            |
-| `activeDate`      | `CalendarDate`                  | Current date                              | Initially displayed date                                                                      |
-| `entries`         | `CalendarEntry[]`               | `[]`                                      | Array of calendar events                                                                      |
-| `color`           | `string`                        | `'#000000'`                               | Primary theme color                                                                           |
-| `locale`          | `string`                        | `document.documentElement.lang \|\| 'en'` | Locale for UI strings and date formatting (auto-detected from page, overridable per-instance) |
-| `firstDayOfWeek`  | `0-6`                           | `1`                                       | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)                                              |
-| `yearDrillTarget` | `'day' \| 'month'`              | `'month'`                                 | Determines whether a year-view click opens day or month view                                  |
-| `yearDensityMode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`                                   | Chooses how per-day entry density is visualized in year view                                  |
 
 ### Supported Locales
 
@@ -193,141 +134,31 @@ The year overview makes it easy to hop between distant dates. Two properties tun
 
 ## Styling & Theming
 
-The calendar uses CSS custom properties for comprehensive theming:
-
-### Primary Colors
+Override CSS custom properties to match your design system:
 
 ```css
 lms-calendar {
     --primary-color: #1976d2;
     --background-color: #ffffff;
-    --separator-light: rgba(0, 0, 0, 0.1);
-    --separator-dark: rgba(0, 0, 0, 0.7);
-}
-```
-
-### Entry Styling
-
-```css
-lms-calendar {
     --entry-border-radius: 6px;
-    --entry-font-size: 0.75rem;
-    --entry-padding: 0.15em 0.25em;
-    --entry-min-height: 1.2em;
-}
-```
-
-### Layout & Spacing
-
-```css
-lms-calendar {
     --header-height: 4em;
-    --day-padding: 0.5em;
-    --day-gap: 1px;
-    --time-column-width: 4em;
 }
 ```
 
-### Week Column Controls
+See [docs/theming.md](docs/theming.md) for the full token reference (primary colors, entry styling, layout & spacing, week column controls, year view tokens).
 
-```css
-lms-calendar {
-    --week-day-count: 7; /* full-width columns */
-    --week-mobile-day-count: 3; /* columns when condensed */
-    --week-mobile-breakpoint: 768px;
-}
-```
+## Documentation Map
 
-`computeWeekDisplayContext` reads these tokens at runtime to decide how many day columns to render. Below the breakpoint the component centers a smaller window (e.g., three days) around the active date and exposes peek navigation so users can slide through the full week without sacrificing readability on narrow screens.
-
-### Year View Tokens
-
-```css
-lms-calendar {
-    --year-grid-columns: 3;
-    --year-grid-columns-tablet: 2;
-    --year-grid-columns-mobile: 1;
-    --year-month-label-font-size: 0.875em;
-    --year-day-font-size: 0.7em;
-    --year-cell-size: 1.8em;
-    --year-dot-color: var(--indicator-color, var(--primary-color));
-    --year-heatmap-1: rgba(30, 144, 255, 0.15);
-    --year-heatmap-2: rgba(30, 144, 255, 0.35);
-    --year-heatmap-3: rgba(30, 144, 255, 0.55);
-    --year-heatmap-4: rgba(30, 144, 255, 0.75);
-}
-```
-
-Adjust these tokens to align the overview grid with your design system (e.g., forcing a single-column mobile layout or brand-specific heatmap shades).
-
-### Week View Tokens
-
-```css
-lms-calendar {
-    --week-day-count: 7; /* columns at full width (1-7) */
-    --week-mobile-day-count: 3; /* columns below breakpoint (1-7) */
-    --week-mobile-breakpoint: 768px; /* width threshold */
-}
-```
-
-On narrow viewports the week view automatically condenses to show fewer day columns centered on the active date, with subtle peek indicators at the edges. Values are clamped to the 1-7 range.
-
-## Architecture
-
-### Component Structure
-
-```
-src/
-├── lms-calendar.ts              # Main calendar component & global types
-├── components/
-│   ├── Header.ts                # Navigation and view controls
-│   ├── Month.ts                 # Monthly calendar grid
-│   ├── Week.ts                  # Weekly time-based view
-│   ├── Day.ts                   # Daily detailed view
-│   ├── Year.ts                  # Year overview with drill targets and density modes
-│   ├── Entry.ts                 # Individual event component
-│   ├── Context.ts               # Weekday header row (month view)
-│   └── Menu.ts                  # Event detail popover with ICS export
-├── lib/
-│   ├── messages.ts              # Per-instance i18n via direct template lookup
-│   ├── localization.ts          # Locale-parameterized date/time formatting
-│   ├── ViewStateController.ts   # Per-instance view mode & date state
-│   ├── LayoutCalculator.ts      # Overlap detection & box layout
-│   ├── SlotManager.ts           # Slot naming & CSS position generation
-│   ├── allDayLayout.ts          # All-day event row allocation
-│   ├── weekStartHelper.ts       # Week start offset & locale mapping
-│   ├── DirectionalCalendarDateCalculator.ts
-│   ├── getOverlappingEntitiesIndices.ts
-│   ├── getSortedGradingsByIndex.ts
-│   ├── partitionOverlappingIntervals.ts
-│   └── getColorTextWithContrast.ts
-└── generated/
-    ├── locale-codes.ts          # Source & target locale definitions
-    └── locales/                 # Generated translation templates (hash ID → string)
-        ├── ar.ts, bn.ts, de.ts, de-DE.ts, es.ts, fr.ts, hi.ts
-        ├── id.ts, it.ts, ja.ts, ko.ts, nl.ts, pl.ts, pt.ts
-        ├── ru.ts, th.ts, tr.ts, uk.ts, vi.ts
-        └── zh-Hans.ts
-```
-
-### Key Technologies
-
-- **Lit 3.x**: Modern web components with reactive properties and decorators
-- **TypeScript**: Type-safe development with strict mode
-- **Luxon**: Robust date/time manipulation and locale-aware formatting
-- **Remeda**: Functional programming utilities for data transformations
-- **ts-pattern**: Pattern matching for cleaner conditional logic
-- **ts-ics**: ICS calendar file generation for event export
-- **@lit/localize** (build-time only): Template extraction and generation via `lit-localize` CLI
-
-### Design Patterns
-
-- **Per-instance state** via `ViewStateController` (Lit `ReactiveController`)
-- **Per-instance localization** via direct template hash lookups (bypasses `@lit/localize` singleton)
-- **Event bubbling** for component communication (`switchdate`, `switchview`, `expand`, `open-menu`)
-- **CSS custom properties** for theming (80+ tokens)
-- **Slot-based composition** for entry placement in view grids
-- **Container queries** for responsive header layout
+| Audience               | Document                                                     | Highlights                                            |
+| ---------------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
+| Integrators            | [Integration Guide](docs/integration-guide.md)               | Framework recipes, theming tokens, analytics hooks    |
+| Application Developers | [Library Usage](docs/library-usage.md)                       | API surface, data contracts, DOM events               |
+| Component Contributors | [Developer Guide](docs/developer-guide.md)                   | Internal architecture, debugging tips, adding locales |
+| Rendering Internals    | [Rendering Calculations](docs/rendering-calculations.md)     | Grid math, condensed weeks, density modes             |
+| Design Systems         | [Theming Reference](docs/theming.md)                         | Full CSS custom property reference (80+ tokens)       |
+| Architecture           | [Architecture Overview](docs/architecture.md)                | Component tree, technologies, design patterns         |
+| Design Tokens          | [Design Token Refactoring](docs/design-token-refactoring.md) | Token audit and proposed hierarchy                    |
+| Backend/API            | [API Server Guide](docs/api-server.md)                       | REST + SSE backend, database + adapters               |
 
 ## Testing
 
@@ -338,7 +169,10 @@ pnpm test
 # Run tests in watch mode
 pnpm test:watch
 
-# Run Storybook tests
+# Run component tests (Web Test Runner + Playwright)
+pnpm test:components
+
+# Run Storybook interaction tests (Vitest)
 pnpm test-storybook
 ```
 
@@ -346,7 +180,7 @@ pnpm test-storybook
 
 - **Unit tests** (`test/unit/lib/`): Pure function tests with Mocha + Chai
 - **Component tests** (`test/unit/components/`): Lit component tests with @open-wc/testing
-- **Visual tests**: Storybook stories for all views, locales, and edge cases
+- **Interaction tests**: Storybook stories with `play` functions, run via `@storybook/addon-vitest`
 
 ## Storybook
 
@@ -376,6 +210,7 @@ pnpm build          # Build with Vite
 pnpm test           # Run tests
 pnpm lint           # Run lit-analyzer + oxlint
 pnpm format         # Format with oxfmt
+pnpm demo:gif       # Record demo GIF (requires ffmpeg)
 ```
 
 See `docs/developer-guide.md` for internal architecture notes, troubleshooting checklists, and tips on extending condensed week layouts or localization.
@@ -392,14 +227,6 @@ pnpm --filter @jpahd/kalendus-server dev
 ```
 
 Configuration, endpoint overview, and adapter usage live in `docs/api-server.md`.
-
-### Adding a New Locale
-
-1. Add the locale code to `lit-localize.json` target locales
-2. Run `pnpm exec lit-localize extract` to generate the template file
-3. Translate strings in `src/generated/locales/<locale>.ts`
-4. Add the import and entry in `src/lib/messages.ts` (`allTemplates` map)
-5. Optionally add a `LUXON_LOCALE_MAP` entry in `localization.ts` if the locale code differs from Intl/Luxon conventions
 
 ## License
 
