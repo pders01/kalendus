@@ -111,8 +111,7 @@ export default class Entry extends LitElement {
         }
 
         /* Keyboard-only focus styles — mouse clicks won't trigger the outline */
-        :host(:focus-visible),
-        :host(:has(:focus-visible)) {
+        :host(:focus-visible) {
             outline: 2px solid var(--entry-focus-color);
             outline-offset: 2px;
             position: relative;
@@ -404,6 +403,20 @@ export default class Entry extends LitElement {
         return `Calendar event: ${this.heading}${contentInfo}, ${timeInfo}. Press Enter or Space to open details.`;
     }
 
+    override updated() {
+        // Sync interactive attributes to :host so the focus outline wraps the
+        // full absolutely-positioned entry, not just the inner .main content.
+        if (!this.floatText) {
+            this.tabIndex = this.accessibility?.tabIndex ?? 0;
+            this.setAttribute('role', 'button');
+            this.setAttribute(
+                'aria-label',
+                this.accessibility?.ariaLabel ?? this._getAriaLabel(),
+            );
+            this.setAttribute('aria-selected', this._highlighted ? 'true' : 'false');
+        }
+    }
+
     override render() {
         const mainClass = `main ${this.density}`;
 
@@ -412,10 +425,6 @@ export default class Entry extends LitElement {
             return html`
                 <div
                     class=${mainClass}
-                    tabindex=${this.accessibility?.tabIndex ?? 0}
-                    role="button"
-                    aria-label="${this.accessibility?.ariaLabel ?? this._getAriaLabel()}"
-                    aria-selected=${this._highlighted ? 'true' : 'false'}
                     title=${this._renderTitle()}
                     data-full-content=${this.content || ''}
                     ?data-extended=${this._extended}
@@ -452,10 +461,6 @@ export default class Entry extends LitElement {
         return html`
             <div
                 class=${mainClass}
-                tabindex=${this.accessibility?.tabIndex ?? 0}
-                role="button"
-                aria-label="${this.accessibility?.ariaLabel ?? this._getAriaLabel()}"
-                aria-selected=${this._highlighted ? 'true' : 'false'}
                 title=${this._renderTitle()}
                 data-full-content=${this.content || ''}
                 ?data-extended=${this._extended}
@@ -500,7 +505,6 @@ export default class Entry extends LitElement {
      */
     public clearSelection() {
         this._highlighted = false;
-        this.setAttribute('aria-selected', 'false');
     }
 
     private _handleFocus(_e: FocusEvent) {
@@ -523,8 +527,6 @@ export default class Entry extends LitElement {
 
         if (!this._highlighted) {
             this._highlighted = true;
-            // Update ARIA attributes for screen readers
-            this.setAttribute('aria-selected', 'true');
 
             if (!this.date) {
                 return;
@@ -558,7 +560,6 @@ export default class Entry extends LitElement {
             // Listen for menu close to remove highlight
             const handleMenuClose = () => {
                 this._highlighted = false;
-                this.setAttribute('aria-selected', 'false');
                 this.removeEventListener('menu-close', handleMenuClose);
             };
             this.addEventListener('menu-close', handleMenuClose);
