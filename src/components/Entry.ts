@@ -58,6 +58,7 @@ export default class Entry extends LitElement {
             font-size: var(--entry-font-size);
             line-height: var(--entry-line-height);
             font-family: var(--system-ui);
+            contain: layout style;
 
             grid-column: 2;
             display: block;
@@ -110,7 +111,8 @@ export default class Entry extends LitElement {
         }
 
         /* Keyboard-only focus styles — mouse clicks won't trigger the outline */
-        :host(:focus-visible) {
+        :host(:focus-visible),
+        :host(:has(:focus-visible)) {
             outline: 2px solid var(--entry-focus-color);
             outline-offset: 2px;
             position: relative;
@@ -119,13 +121,6 @@ export default class Entry extends LitElement {
 
         :host([data-extended]) {
             background: var(--entry-extended-background-color, var(--background-color));
-        }
-
-        :host(:has(:focus-visible)) {
-            outline: 2px solid var(--entry-focus-color);
-            outline-offset: 2px;
-            position: relative;
-            z-index: 999 !important;
         }
 
         .main {

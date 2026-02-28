@@ -1,4 +1,4 @@
-import { LitElement, css, html } from 'lit';
+import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
@@ -110,6 +110,7 @@ export default class Week extends LitElement {
             padding: var(--day-padding, 0.5em);
             min-height: 0;
             position: relative;
+            contain: content;
         }
 
         .time-slots {
@@ -155,21 +156,10 @@ export default class Week extends LitElement {
         .all-day-wrapper {
             display: grid;
             grid-template-rows: 1fr;
-            transition: grid-template-rows 0.2s ease;
             border-bottom: var(--separator-border);
             background: var(--background-color);
             z-index: 2;
             position: relative;
-        }
-
-        .all-day-wrapper.collapsed {
-            grid-template-rows: 0fr;
-            overflow: hidden;
-            border-bottom: none;
-        }
-
-        .all-day-wrapper.collapsed .all-day-container {
-            padding: 0;
         }
 
         .all-day-container {
@@ -297,11 +287,8 @@ export default class Week extends LitElement {
                 </div>
 
                 <!-- All-day events section -->
-                <div
-                    class="all-day-wrapper ${classMap({
-                        collapsed: !hasAllDay,
-                    })}"
-                >
+                ${hasAllDay ? html`
+                <div class="all-day-wrapper">
                     <div class="all-day-container">
                         <div class="all-day-time-header">${getMessages(this.locale).allDay}</div>
                         ${weekDates.map(
@@ -315,6 +302,7 @@ export default class Week extends LitElement {
                         )}
                     </div>
                 </div>
+                ` : nothing}
                 <div class="week-content" style="height: ${weekContentHeight}">
                     <!-- Hour indicators -->
                     ${Array.from({ length: 25 }).map(
