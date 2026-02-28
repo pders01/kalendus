@@ -54,16 +54,13 @@ pnpm add @lmscloud/lms-calendar
 
 ### Per-Instance Locale
 
-Each calendar instance independently controls its own locale:
+By default, every calendar auto-detects its locale from the page's `<html lang="...">` attribute. You can override individual instances with the `locale` property:
 
 ```html
-<!-- English calendar (default) -->
+<!-- Auto-detects from <html lang="de"> — no config needed -->
 <lms-calendar .entries=${events}></lms-calendar>
 
-<!-- German calendar -->
-<lms-calendar .entries=${events} locale="de" .firstDayOfWeek=${1}></lms-calendar>
-
-<!-- Japanese calendar with Sunday-first weeks -->
+<!-- Explicitly override to Japanese with Sunday-first weeks -->
 <lms-calendar .entries=${events} locale="ja" .firstDayOfWeek=${0}></lms-calendar>
 
 <!-- Multiple locales on the same page - each fully independent -->
@@ -134,7 +131,7 @@ const events = [
 | `activeDate`     | `CalendarDate`    | Current date | Initially displayed date                                 |
 | `entries`        | `CalendarEntry[]` | `[]`         | Array of calendar events                                 |
 | `color`          | `string`          | `'#000000'`  | Primary theme color                                      |
-| `locale`         | `string`          | `'en'`       | Locale for UI strings and date formatting (per-instance) |
+| `locale`         | `string`          | `document.documentElement.lang \|\| 'en'` | Locale for UI strings and date formatting (auto-detected from page, overridable per-instance) |
 | `firstDayOfWeek` | `0-6`             | `1`          | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)         |
 
 ### Supported Locales
