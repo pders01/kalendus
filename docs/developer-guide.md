@@ -4,13 +4,13 @@ This guide documents the internal mechanisms of Kalendus so contributors can dia
 
 ## Architecture Snapshot
 
-| Layer | Responsibility | Key files |
-| --- | --- | --- |
-| Reactive controllers | Per-instance state (`viewMode`, `activeDate`) and navigation helpers | `src/lib/ViewStateController.ts` |
-| Entry processing | Validate, expand, and cache entries whenever `.entries` changes | `src/lms-calendar.ts` (`willUpdate`, `_computeEntryCaches`) |
-| Layout pipeline | Convert expanded entries into visual boxes for each view | `src/lib/LayoutCalculator.ts`, `src/lib/allDayLayout.ts`, `src/lib/SlotManager.ts` |
-| Rendering shells | View-specific components (Header, Week, Month, Day, Year) | `src/components/*.ts` |
-| Localization | Message bundle + generated locale templates | `src/lib/messages.ts`, `src/generated/locales/*.ts` |
+| Layer                | Responsibility                                                       | Key files                                                                          |
+| -------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Reactive controllers | Per-instance state (`viewMode`, `activeDate`) and navigation helpers | `src/lib/ViewStateController.ts`                                                   |
+| Entry processing     | Validate, expand, and cache entries whenever `.entries` changes      | `src/lms-calendar.ts` (`willUpdate`, `_computeEntryCaches`)                        |
+| Layout pipeline      | Convert expanded entries into visual boxes for each view             | `src/lib/LayoutCalculator.ts`, `src/lib/allDayLayout.ts`, `src/lib/SlotManager.ts` |
+| Rendering shells     | View-specific components (Header, Week, Month, Day, Year)            | `src/components/*.ts`                                                              |
+| Localization         | Message bundle + generated locale templates                          | `src/lib/messages.ts`, `src/generated/locales/*.ts`                                |
 
 ### Typical render flow
 
@@ -47,9 +47,9 @@ To customize behavior, override CSS tokens on the host component:
 
 ```css
 lms-calendar {
-  --week-day-count: 7;          /* desktop columns */
-  --week-mobile-day-count: 4;   /* columns below breakpoint */
-  --week-mobile-breakpoint: 640px;
+    --week-day-count: 7; /* desktop columns */
+    --week-mobile-day-count: 4; /* columns below breakpoint */
+    --week-mobile-breakpoint: 640px;
 }
 ```
 
@@ -61,13 +61,13 @@ lms-calendar {
 
 ### Common Use Cases / Troubleshooting
 
-| Scenario | Recommended steps |
-| --- | --- |
-| **Add a new locale** | 1) Append code to `lit-localize.json`. 2) Run `pnpm i18n:extract`. 3) Translate strings in `src/generated/locales/<code>.ts`. 4) Register the template map in `src/lib/messages.ts` and `lit-localize.json`. 5) Add sample Storybook locale if needed. |
-| **Different condensed-window sizes** | Override `--week-mobile-day-count` or `--week-day-count`. The controller automatically clamps between 1 and 7 days and re-centers around the active date. |
-| **All-day events overlap incorrectly** | Ensure entries without `time` remain all-day; avoid providing `time` ranges shorter than 24 hours for all-day blocks. Inspect `allocateAllDayRows` inputs by logging `allDayLayoutEvents`. |
-| **Performance spikes with huge entry sets** | Verify that layout caches are reused. When adding new derived data, store per-entry metadata during `_expandEntryMaybe` to avoid re-hashing in inner loops. |
-| **Custom analytics on view changes** | Listen for `switchview`, `switchdate`, `peek-navigate`, and `expand` events on `<lms-calendar>`. Drill targets (e.g., `'day'` vs `'month'`) are included in the `expand` detail payload. |
+| Scenario                                    | Recommended steps                                                                                                                                                                                                                                      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Add a new locale**                        | 1) Append code to `lit-localize.json`. 2) Run `pnpm i18n:extract`. 3) Translate strings in `src/generated/locales/<code>.ts`. 4) Register the template map in `src/lib/messages.ts` and `lit-localize.json`. 5) Add sample Storybook locale if needed. |
+| **Different condensed-window sizes**        | Override `--week-mobile-day-count` or `--week-day-count`. The controller automatically clamps between 1 and 7 days and re-centers around the active date.                                                                                              |
+| **All-day events overlap incorrectly**      | Ensure entries without `time` remain all-day; avoid providing `time` ranges shorter than 24 hours for all-day blocks. Inspect `allocateAllDayRows` inputs by logging `allDayLayoutEvents`.                                                             |
+| **Performance spikes with huge entry sets** | Verify that layout caches are reused. When adding new derived data, store per-entry metadata during `_expandEntryMaybe` to avoid re-hashing in inner loops.                                                                                            |
+| **Custom analytics on view changes**        | Listen for `switchview`, `switchdate`, `peek-navigate`, and `expand` events on `<lms-calendar>`. Drill targets (e.g., `'day'` vs `'month'`) are included in the `expand` detail payload.                                                               |
 
 ### Testing Tips
 

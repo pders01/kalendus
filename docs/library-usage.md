@@ -42,12 +42,12 @@ type CalendarTimeInterval = { start: CalendarTime; end: CalendarTime };
 type CalendarDateInterval = { start: CalendarDate; end: CalendarDate };
 
 type CalendarEntry = {
-  date: CalendarDateInterval;
-  time?: CalendarTimeInterval; // omit or span 00:00-23:59 for all-day blocks
-  heading: string;
-  content?: string;
-  color: string; // any valid CSS color
-  isContinuation?: boolean; // optional, the component recalculates this
+    date: CalendarDateInterval;
+    time?: CalendarTimeInterval; // omit or span 00:00-23:59 for all-day blocks
+    heading: string;
+    content?: string;
+    color: string; // any valid CSS color
+    isContinuation?: boolean; // optional, the component recalculates this
 };
 ```
 
@@ -61,16 +61,16 @@ Constraints enforced inside `willUpdate`:
 
 ### Public properties
 
-| Property | Attribute | Type | Default | Notes |
-| --- | --- | --- | --- | --- |
-| `heading` | `heading` | `string` | `undefined` | Optional text rendered in the header. |
-| `activeDate` | – | `CalendarDate` | today | Getter/setter proxying `ViewStateController`. Assigning triggers navigation.
-| `entries` | – | `CalendarEntry[]` | `[]` | Main data source. Provide a new array when mutating so Lit detects the change.
-| `color` | `color` | `string` | `'#000000'` | Primary accent used by header buttons and gradients.
-| `locale` | `locale` | `string` | `<html lang>` \\ `en` | Controls UI strings plus date formatting. All supported codes are listed under *Localization*.
-| `firstDayOfWeek` | `first-day-of-week` | `0`–`6` | `1` | Changes ISO week alignment; reflected attribute enables declarative authoring.
-| `yearDrillTarget` | `year-drill-target` | `'day' \| 'month'` | `'month'` | Determines which view opens after clicking a day in the year overview. |
-| `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'` | Selects the per-day density visualization in the year overview. |
+| Property          | Attribute           | Type                            | Default               | Notes                                                                                          |
+| ----------------- | ------------------- | ------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------- |
+| `heading`         | `heading`           | `string`                        | `undefined`           | Optional text rendered in the header.                                                          |
+| `activeDate`      | –                   | `CalendarDate`                  | today                 | Getter/setter proxying `ViewStateController`. Assigning triggers navigation.                   |
+| `entries`         | –                   | `CalendarEntry[]`               | `[]`                  | Main data source. Provide a new array when mutating so Lit detects the change.                 |
+| `color`           | `color`             | `string`                        | `'#000000'`           | Primary accent used by header buttons and gradients.                                           |
+| `locale`          | `locale`            | `string`                        | `<html lang>` \\ `en` | Controls UI strings plus date formatting. All supported codes are listed under _Localization_. |
+| `firstDayOfWeek`  | `first-day-of-week` | `0`–`6`                         | `1`                   | Changes ISO week alignment; reflected attribute enables declarative authoring.                 |
+| `yearDrillTarget` | `year-drill-target` | `'day' \| 'month'`              | `'month'`             | Determines which view opens after clicking a day in the year overview.                         |
+| `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`               | Selects the per-day density visualization in the year overview.                                |
 
 ### Methods
 
@@ -86,15 +86,15 @@ Constraints enforced inside `willUpdate`:
 
 All events bubble and are composed, so you can listen directly on `<lms-calendar>` in any framework.
 
-| Event | Detail payload | Fired by | Typical use |
-| --- | --- | --- | --- |
-| `switchdate` | `{ direction: 'next' \| 'previous' }` | Header nav buttons | Mirror navigation in your app bar or analytics.
-| `switchview` | `{ view: 'day' \| 'week' \| 'month' \| 'year' }` | Header context buttons | Track the active zoom level.
-| `jumptoday` | `{ date: CalendarDate }` | Header “Today” button | Reset external filters to today.
-| `expand` | `{ date: CalendarDate; drillTarget?: 'day' \| 'month' }` | Clicking a day label in month/week grid or any cell in the year overview | Switch your surrounding UI (e.g., load day-specific details) when the calendar drills down.
-| `open-menu` | `{ heading, content, time, date?, anchorRect }` | Entry cards | Intercept to show a custom panel or cancel the built-in one.
-| `menu-close` | none | Menu close button | Hide mirrored overlays when the built-in menu closes.
-| `clear-other-selections` | `{ exceptEntry: HTMLElement }` | Entry focus events | Keep multi-surface selections in sync.
+| Event                    | Detail payload                                           | Fired by                                                                 | Typical use                                                                                 |
+| ------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `switchdate`             | `{ direction: 'next' \| 'previous' }`                    | Header nav buttons                                                       | Mirror navigation in your app bar or analytics.                                             |
+| `switchview`             | `{ view: 'day' \| 'week' \| 'month' \| 'year' }`         | Header context buttons                                                   | Track the active zoom level.                                                                |
+| `jumptoday`              | `{ date: CalendarDate }`                                 | Header “Today” button                                                    | Reset external filters to today.                                                            |
+| `expand`                 | `{ date: CalendarDate; drillTarget?: 'day' \| 'month' }` | Clicking a day label in month/week grid or any cell in the year overview | Switch your surrounding UI (e.g., load day-specific details) when the calendar drills down. |
+| `open-menu`              | `{ heading, content, time, date?, anchorRect }`          | Entry cards                                                              | Intercept to show a custom panel or cancel the built-in one.                                |
+| `menu-close`             | none                                                     | Menu close button                                                        | Hide mirrored overlays when the built-in menu closes.                                       |
+| `clear-other-selections` | `{ exceptEntry: HTMLElement }`                           | Entry focus events                                                       | Keep multi-surface selections in sync.                                                      |
 
 You can stop propagation to replace built-in behavior. For example, intercept `open-menu`, call `event.preventDefault()`, and show your own drawer while leaving the rest of the component untouched.
 
@@ -117,25 +117,25 @@ You can stop propagation to replace built-in behavior. For example, intercept `o
 
 The element exposes 80+ CSS custom properties. Common entry points:
 
-| Token | Purpose |
-| --- | --- |
-| `--background-color` | Base surface color; default `white`.
-| `--primary-color` | Primary accent used in menu buttons and highlights.
-| `--header-height`, `--header-text-color` | Header sizing and typography.
-| `--border-radius-sm/md/lg` | Rounded corners applied across entries, menu, and context chips.
-| `--time-column-width` | Width of the schedule gutter in week/day view.
-| `--entry-font-size`, `--entry-line-height`, `--entry-padding` | Entry typography.
-| `--entry-handle-width/color` | Handle strip on timed entries in week/day view.
-| `--entry-dot-size` | Dot indicators in compact month rendering.
-| `--shadow-sm/md/lg/hv` | Box shadows for cards and overlays.
+| Token                                                         | Purpose                                                          |
+| ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `--background-color`                                          | Base surface color; default `white`.                             |
+| `--primary-color`                                             | Primary accent used in menu buttons and highlights.              |
+| `--header-height`, `--header-text-color`                      | Header sizing and typography.                                    |
+| `--border-radius-sm/md/lg`                                    | Rounded corners applied across entries, menu, and context chips. |
+| `--time-column-width`                                         | Width of the schedule gutter in week/day view.                   |
+| `--entry-font-size`, `--entry-line-height`, `--entry-padding` | Entry typography.                                                |
+| `--entry-handle-width/color`                                  | Handle strip on timed entries in week/day view.                  |
+| `--entry-dot-size`                                            | Dot indicators in compact month rendering.                       |
+| `--shadow-sm/md/lg/hv`                                        | Box shadows for cards and overlays.                              |
 
 Apply tokens on the host element:
 
 ```css
 lms-calendar {
-  --primary-color: #1976d2;
-  --background-color: #fefefe;
-  --entry-font-size: 0.85rem;
+    --primary-color: #1976d2;
+    --background-color: #fefefe;
+    --entry-font-size: 0.85rem;
 }
 ```
 
@@ -163,7 +163,7 @@ All styles live inside the component’s shadow root, so global CSS will not lea
 const calendar = document.querySelector('lms-calendar');
 calendar.entries = buildEntriesFromApi(data);
 calendar.addEventListener('switchview', (event) => {
-  console.log('View changed to', event.detail.view);
+    console.log('View changed to', event.detail.view);
 });
 ```
 
@@ -174,15 +174,15 @@ import { useEffect, useRef } from 'react';
 import '@jpahd/kalendus';
 
 export function Calendar({ entries }: { entries: CalendarEntry[] }) {
-  const ref = useRef<HTMLElement>(null);
+    const ref = useRef<HTMLElement>(null);
 
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.entries = entries;
-    }
-  }, [entries]);
+    useEffect(() => {
+        if (ref.current) {
+            ref.current.entries = entries;
+        }
+    }, [entries]);
 
-  return <lms-calendar ref={ref as React.RefObject<any>} heading="Schedule" />;
+    return <lms-calendar ref={ref as React.RefObject<any>} heading="Schedule" />;
 }
 ```
 
@@ -190,7 +190,7 @@ export function Calendar({ entries }: { entries: CalendarEntry[] }) {
 
 ```vue
 <template>
-  <lms-calendar ref="calendar" :heading="heading" />
+    <lms-calendar ref="calendar" :heading="heading" />
 </template>
 
 <script setup lang="ts">
@@ -201,13 +201,13 @@ const calendar = ref<HTMLElement | null>(null);
 const entries = ref<CalendarEntry[]>([]);
 
 watch(entries, (value) => {
-  if (calendar.value) calendar.value.entries = value;
+    if (calendar.value) calendar.value.entries = value;
 });
 
 onMounted(() => {
-  calendar.value?.addEventListener('open-menu', (event) => {
-    // sync with Vue state
-  });
+    calendar.value?.addEventListener('open-menu', (event) => {
+        // sync with Vue state
+    });
 });
 </script>
 ```

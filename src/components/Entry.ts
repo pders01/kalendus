@@ -409,10 +409,7 @@ export default class Entry extends LitElement {
         if (!this.floatText) {
             this.tabIndex = this.accessibility?.tabIndex ?? 0;
             this.setAttribute('role', 'button');
-            this.setAttribute(
-                'aria-label',
-                this.accessibility?.ariaLabel ?? this._getAriaLabel(),
-            );
+            this.setAttribute('aria-label', this.accessibility?.ariaLabel ?? this._getAriaLabel());
             this.setAttribute('aria-selected', this._highlighted ? 'true' : 'false');
         }
     }
@@ -540,9 +537,7 @@ export default class Entry extends LitElement {
                 heading: this.heading || msg.noTitle,
                 content: this.content || msg.noContent,
                 time: this.time,
-                displayTime: this.time
-                    ? (this._displayInterval(this.time) as string)
-                    : msg.noTime,
+                displayTime: this.time ? (this._displayInterval(this.time) as string) : msg.noTime,
                 date: this.date?.start,
                 anchorRect: this.getBoundingClientRect(),
             };

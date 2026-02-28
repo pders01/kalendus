@@ -11,10 +11,10 @@
 
 ### Current Problems
 
--   Floating labels positioning is non-deterministic
--   Layout calculations are scattered and inconsistent
--   No clear separation between layout logic and rendering
--   Text positioning fails in complex overlap scenarios
+- Floating labels positioning is non-deterministic
+- Layout calculations are scattered and inconsistent
+- No clear separation between layout logic and rendering
+- Text positioning fails in complex overlap scenarios
 
 ## Proposed Solution: Deterministic Layout Engine
 
@@ -84,32 +84,32 @@ Build the actual HTML/CSS renderer using the deterministic calculations.
 
 ### Step 1: Extract Current Logic
 
--   Document existing grading algorithms
--   Map current CSS positioning logic
--   Identify all hardcoded layout values
+- Document existing grading algorithms
+- Map current CSS positioning logic
+- Identify all hardcoded layout values
 
 ### Step 2: Build Calculation Engine
 
--   Pure functions for layout calculations
--   No DOM dependencies
--   Comprehensive test coverage
+- Pure functions for layout calculations
+- No DOM dependencies
+- Comprehensive test coverage
 
 ### Step 3: ASCII Renderer
 
--   Visual verification tool
--   Edge case testing
--   Layout debugging capabilities
+- Visual verification tool
+- Edge case testing
+- Layout debugging capabilities
 
 ### Step 4: Production Integration
 
--   Replace ad-hoc positioning with calculated values
--   Implement proper two-layer rendering
--   Maintain existing visual hierarchy
+- Replace ad-hoc positioning with calculated values
+- Implement proper two-layer rendering
+- Maintain existing visual hierarchy
 
 ## Success Criteria
 
--   [ ] Deterministic layout calculations for any event set
--   [ ] ASCII renderer can visualize complex overlaps
--   [ ] Text labels never overlap with grid or each other
--   [ ] All visual hierarchy preserved (opacity, depth, etc.)
--   [ ] Performance comparable to current implementation
+- [ ] Deterministic layout calculations for any event set
+- [ ] ASCII renderer can visualize complex overlaps
+- [ ] Text labels never overlap with grid or each other
+- [ ] All visual hierarchy preserved (opacity, depth, etc.)
+- [ ] Performance comparable to current implementation

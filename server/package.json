@@ -2,6 +2,20 @@
     "name": "@jpahd/kalendus-server",
     "version": "0.1.0",
     "description": "REST + SSE API server for Kalendus calendar — includes Hono app, SQLite persistence, and browser client adapters.",
+    "keywords": [
+        "calendar",
+        "calendar-api",
+        "hono",
+        "kalendus",
+        "lit",
+        "sqlite",
+        "sse",
+        "web-components"
+    ],
+    "homepage": "https://github.com/pders01/kalendus/tree/main/server",
+    "bugs": {
+        "url": "https://github.com/pders01/kalendus/issues"
+    },
     "license": "MIT",
     "author": "Paul Derscheid <paulderscheid@gmail.com>",
     "repository": {
@@ -9,19 +23,8 @@
         "url": "https://github.com/pders01/kalendus.git",
         "directory": "server"
     },
-    "homepage": "https://github.com/pders01/kalendus/tree/main/server",
-    "bugs": {
-        "url": "https://github.com/pders01/kalendus/issues"
-    },
-    "keywords": [
-        "kalendus",
-        "calendar",
-        "calendar-api",
-        "hono",
-        "sse",
-        "sqlite",
-        "lit",
-        "web-components"
+    "files": [
+        "dist"
     ],
     "type": "module",
     "main": "./dist/server.js",
@@ -45,9 +48,6 @@
         },
         "./package.json": "./package.json"
     },
-    "files": [
-        "dist"
-    ],
     "publishConfig": {
         "access": "public"
     },
@@ -67,11 +67,11 @@
         "prepublishOnly": "pnpm run clean && pnpm run build && pnpm test && pnpm lint"
     },
     "dependencies": {
+        "@hono/node-server": "^1.14.0",
+        "@hono/zod-validator": "^0.5.0",
         "better-sqlite3": "^11.8.1",
         "drizzle-orm": "^0.38.4",
         "hono": "^4.7.4",
-        "@hono/node-server": "^1.14.0",
-        "@hono/zod-validator": "^0.5.0",
         "nanoid": "^5.1.2",
         "zod": "^3.24.2"
     },

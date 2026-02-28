@@ -8,8 +8,8 @@ Kalendus ships with an optional Node.js server that exposes REST and Server-Sent
 - **Database**: SQLite (via `better-sqlite3`) with [Drizzle ORM](https://orm.drizzle.team/) schema/migrations. Dates are decomposed into `startYear/startMonth/...` columns for efficient range queries.
 - **Services**: `CalendarService`, `EventService`, `SyncService` (in-process event bus), and `TelemetryService` encapsulate business logic.
 - **Adapters**:
-  - `KalendusApiClient` – vanilla fetch + EventSource wrapper.
-  - `KalendusLitAdapter` – Lit `ReactiveController` that binds `<lms-calendar>` navigation events to API calls.
+    - `KalendusApiClient` – vanilla fetch + EventSource wrapper.
+    - `KalendusLitAdapter` – Lit `ReactiveController` that binds `<lms-calendar>` navigation events to API calls.
 
 ## Running locally
 
@@ -30,27 +30,27 @@ pnpm --filter @jpahd/kalendus-server dev
 
 Environment variables:
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `PORT` | `3000` | HTTP port |
+| Variable       | Default              | Description      |
+| -------------- | -------------------- | ---------------- |
+| `PORT`         | `3000`               | HTTP port        |
 | `DATABASE_URL` | `./data/kalendus.db` | SQLite file path |
 
 ## REST endpoints (all rooted at `/api/calendars`)
 
-| Method & path | Description |
-| --- | --- |
-| `GET /:calendarId` | Fetch calendar manifest (name, locale, theme tokens). |
-| `POST /` | Create calendar. |
-| `PATCH /:calendarId` | Update calendar metadata. |
-| `DELETE /:calendarId` | Remove calendar (cascades events). |
-| `GET /:calendarId/events?start=YYYY-MM-DD&end=YYYY-MM-DD` | List events in range. |
-| `GET /:calendarId/events/summary?start=...&end=...` | Per-day counts for mobile/month badges. |
-| `POST /:calendarId/events` | Create event (JSON body validated by Zod). |
-| `PATCH /:calendarId/events/:eventId` | Update event. |
-| `DELETE /:calendarId/events/:eventId` | Remove event. |
-| `GET /:calendarId/manifest` | Lightweight manifest for client bootstrapping. |
-| `POST /:calendarId/telemetry` | Fire-and-forget analytics events. |
-| `GET /:calendarId/stream` | SSE channel broadcasting `{type, event}` payloads on create/update/delete. |
+| Method & path                                             | Description                                                                |
+| --------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `GET /:calendarId`                                        | Fetch calendar manifest (name, locale, theme tokens).                      |
+| `POST /`                                                  | Create calendar.                                                           |
+| `PATCH /:calendarId`                                      | Update calendar metadata.                                                  |
+| `DELETE /:calendarId`                                     | Remove calendar (cascades events).                                         |
+| `GET /:calendarId/events?start=YYYY-MM-DD&end=YYYY-MM-DD` | List events in range.                                                      |
+| `GET /:calendarId/events/summary?start=...&end=...`       | Per-day counts for mobile/month badges.                                    |
+| `POST /:calendarId/events`                                | Create event (JSON body validated by Zod).                                 |
+| `PATCH /:calendarId/events/:eventId`                      | Update event.                                                              |
+| `DELETE /:calendarId/events/:eventId`                     | Remove event.                                                              |
+| `GET /:calendarId/manifest`                               | Lightweight manifest for client bootstrapping.                             |
+| `POST /:calendarId/telemetry`                             | Fire-and-forget analytics events.                                          |
+| `GET /:calendarId/stream`                                 | SSE channel broadcasting `{type, event}` payloads on create/update/delete. |
 
 Additional utility route: `GET /health` returns `{ status: 'ok' }`.
 
@@ -68,15 +68,15 @@ Telemetry posts (e.g., navigation actions) are accepted asynchronously and inten
 import { KalendusApiClient } from '@/server/src/adapters/kalendus-api-client';
 
 const client = new KalendusApiClient({
-  baseUrl: 'http://localhost:3000',
-  calendarId: 'demo',
+    baseUrl: 'http://localhost:3000',
+    calendarId: 'demo',
 });
 
 const entries = await client.fetchEvents('2026-03-01', '2026-03-31');
 calendar.entries = entries; // bind to <lms-calendar>
 
 client.onSync((msg) => {
-  console.log('SSE update', msg);
+    console.log('SSE update', msg);
 });
 client.connect();
 ```
@@ -87,17 +87,15 @@ client.connect();
 import { KalendusLitAdapter } from '@/server/src/adapters/kalendus-lit-adapter';
 
 class RemoteCalendar extends LitElement {
-  adapter = new KalendusLitAdapter(this, {
-    baseUrl: 'http://localhost:3000',
-    calendarId: 'demo',
-    enableSync: true,
-  });
+    adapter = new KalendusLitAdapter(this, {
+        baseUrl: 'http://localhost:3000',
+        calendarId: 'demo',
+        enableSync: true,
+    });
 
-  render() {
-    return html`
-      <lms-calendar .entries=${this.adapter.entries}></lms-calendar>
-    `;
-  }
+    render() {
+        return html` <lms-calendar .entries=${this.adapter.entries}></lms-calendar> `;
+    }
 }
 ```
 
