@@ -1,4 +1,3 @@
-import { localized } from '@lit/localize';
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { P, match } from 'ts-pattern';
@@ -12,7 +11,6 @@ import type { CalendarDateInterval } from '../lms-calendar';
  * @prop {Object} accessibility - Accessibility configuration for tab order and ARIA attributes
  */
 @customElement('lms-calendar-entry')
-@(localized() as ClassDecorator)
 export default class Entry extends LitElement {
     @property({ attribute: false })
     time?: CalendarTimeInterval;
@@ -39,6 +37,9 @@ export default class Entry extends LitElement {
 
     @property({ type: Object, attribute: false })
     accessibility?: { tabIndex: number; role: 'button'; ariaLabel: string };
+
+    @property({ type: String })
+    locale = 'en';
 
     @state()
     _highlighted?: boolean;
@@ -356,7 +357,7 @@ export default class Entry extends LitElement {
         if (this.displayMode === 'month-dot') {
             // In month view, always try to show time when possible
             if (this.isContinuation) {
-                return html`<span class="time">${messages.allDay()}</span>`;
+                return html`<span class="time">${messages.allDay(this.locale)}</span>`;
             }
             const timeString = this._displayInterval(this.time);
             return timeString ? html`<span class="time">${timeString}</span>` : nothing;
@@ -367,7 +368,7 @@ export default class Entry extends LitElement {
         }
 
         if (this.isContinuation) {
-            return html`<span class="time">${messages.allDay()}</span>`;
+            return html`<span class="time">${messages.allDay(this.locale)}</span>`;
         }
 
         const timeString = this._displayInterval(this.time);
@@ -476,7 +477,7 @@ export default class Entry extends LitElement {
         const lastsAllDay =
             components[END_HOURS] === 24 && components.reduce(this._sumReducer, 0) % 24 === 0;
         if (lastsAllDay) {
-            return messages.allDay();
+            return messages.allDay(this.locale);
         }
 
         const [startHours, startMinutes, endHours, endMinutes] = components.map((component) =>
@@ -530,8 +531,8 @@ export default class Entry extends LitElement {
 
             // Dispatch a custom event to communicate with the calendar
             const eventDetails = {
-                heading: this.heading || messages.noTitle(),
-                content: this.content || messages.noContent(),
+                heading: this.heading || messages.noTitle(this.locale),
+                content: this.content || messages.noContent(this.locale),
                 time: this.time
                     ? `${String(this.time.start.hour).padStart(2, '0')}:${String(
                           this.time.start.minute,
@@ -539,7 +540,7 @@ export default class Entry extends LitElement {
                           2,
                           '0',
                       )}:${String(this.time.end.minute).padStart(2, '0')}`
-                    : messages.noTime(),
+                    : messages.noTime(this.locale),
                 date: this.date?.start,
                 anchorRect: this.getBoundingClientRect(),
             };

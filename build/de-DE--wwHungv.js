@@ -1,2 +1,0 @@
-const e={s005053d82b712e0a:"Notizen",s090f2107b5a69a7f:"KW",s15ba5784a11e0b88:"Aktueller Monat",s22380c7fc798a44f:"Kein Inhalt",s2bc4d1196bce49dc:"Als ICS exportieren",s48e186fb300e5464:"Zeit",s58ab939b42a026a6:"Ganztägig",s5e8250fb85d64c23:"Schließen",s63d040e37887f17e:"Heute",s680f01021b5e339d:"Woche",s98b32ef4a0856c08:"Kein Titel",s99f110d27e30b289:"Titel",sa0fd990c985f24bd:"Termindetails",sac8252732f2edb19:"Datum",sb47daaf9e1c4a905:"Monat",se0955919920ee87d:"Tag",sfce4bfbe0f911aa7:"Keine Zeit"};export{e as templates};
-//# sourceMappingURL=de-DE--wwHungv.js.map

@@ -1,5 +1,4 @@
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
-import { localized } from '@lit/localize';
 import { CSSResult, LitElement, PropertyValueMap, css, html, nothing, unsafeCSS } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { DateTime, Interval } from 'luxon';
@@ -22,20 +21,21 @@ import LMSCalendarWeek from './components/Week';
 import './components/Week.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator } from './lib/LayoutCalculator.js';
-import { setAppLocale } from './lib/localization.js';
 import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
 import { slotManager, type LayoutDimensions, type PositionConfig, type FirstDayOfWeek } from './lib/SlotManager.js';
 import { ViewStateController } from './lib/ViewStateController.js';
 import { getWeekDates } from './lib/weekStartHelper.js';
 
 @customElement('lms-calendar')
-@(localized() as ClassDecorator)
 export default class LMSCalendar extends LitElement {
     @property({ type: String })
     heading?: string;
 
     @property({ type: Number, attribute: 'first-day-of-week' })
     firstDayOfWeek: FirstDayOfWeek = 1;
+
+    @property({ type: String })
+    locale = 'en';
 
     private _viewState = new ViewStateController(this);
 
@@ -345,12 +345,6 @@ export default class LMSCalendar extends LitElement {
         }
 
         this._resizeController.observe(firstElementChild);
-
-        // Initialize locale from document language
-        const docLang = document.documentElement.lang;
-        if (docLang) {
-            setAppLocale(docLang);
-        }
     }
 
     /** We filter invalid entries in the willUpdate hook, so be prepared:
@@ -401,6 +395,7 @@ export default class LMSCalendar extends LitElement {
                         .activeDate=${currentActiveDate}
                         .viewMode=${viewMode}
                         .expandedDate=${viewMode === 'day' ? currentActiveDate : undefined}
+                        .locale=${this.locale}
                     >
                     </lms-calendar-header>
                 </header>
@@ -411,6 +406,7 @@ export default class LMSCalendar extends LitElement {
                             ? html`
                               <lms-calendar-context
                                   .firstDayOfWeek=${this.firstDayOfWeek}
+                                  .locale=${this.locale}
                               > </lms-calendar-context>
 
                               <lms-calendar-month
@@ -419,6 +415,7 @@ export default class LMSCalendar extends LitElement {
                                   @clear-other-selections=${this._handleClearOtherSelections}
                                   .activeDate=${currentActiveDate}
                                   .firstDayOfWeek=${this.firstDayOfWeek}
+                                  .locale=${this.locale}
                               >
                                   ${
                                       this._calendarWidth < 768
@@ -441,6 +438,7 @@ export default class LMSCalendar extends LitElement {
                                           .activeDate=${currentActiveDate}
                                           .allDayRowCount=${result.allDayRowCount}
                                           .firstDayOfWeek=${this.firstDayOfWeek}
+                                          .locale=${this.locale}
                                       >
                                           ${result.elements}
                                       </lms-calendar-week>
@@ -476,6 +474,7 @@ export default class LMSCalendar extends LitElement {
                         }
                     }
                     .anchorRect=${this._menuEventDetails?.anchorRect}
+                    .locale=${this.locale}
                     @menu-close=${this._handleMenuClose}
                 ></lms-menu>
             </div>
@@ -594,6 +593,7 @@ export default class LMSCalendar extends LitElement {
                 .displayMode=${displayMode}
                 .floatText=${floatText}
                 .accessibility=${entry.accessibility}
+                .locale=${this.locale}
             >
             </lms-calendar-entry>
         `;
