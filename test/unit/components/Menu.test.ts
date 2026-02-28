@@ -11,7 +11,7 @@ type CalendarDate = {
 interface EventDetails {
     heading: string;
     content: string;
-    time: string;
+    displayTime: string;
     date?: CalendarDate;
 }
 
@@ -62,7 +62,7 @@ describe('Menu Component', () => {
         const eventDetails: EventDetails = {
             heading: 'Team Meeting',
             content: 'Discuss project status',
-            time: '09:00 - 10:00',
+            displayTime: '09:00 - 10:00',
             date: { day: 15, month: 9, year: 2023 },
         };
 
@@ -89,7 +89,7 @@ describe('Menu Component', () => {
         const eventDetails: EventDetails = {
             heading: 'No Date Event',
             content: 'Event without date',
-            time: '14:00 - 15:00',
+            displayTime: '14:00 - 15:00',
         };
 
         const el: Menu = await fixture(html`
@@ -165,7 +165,7 @@ describe('Menu Component', () => {
         const eventDetails: EventDetails = {
             heading: 'Quick Event',
             content: '',
-            time: '10:00 - 11:00',
+            displayTime: '10:00 - 11:00',
         };
 
         const el: Menu = await fixture(html`
@@ -204,7 +204,7 @@ describe('Menu Component', () => {
         const eventDetails: EventDetails = {
             heading: '',
             content: '',
-            time: '',
+            displayTime: '',
         };
 
         const el: Menu = await fixture(html`
