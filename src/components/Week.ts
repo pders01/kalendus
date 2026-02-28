@@ -264,7 +264,9 @@ export default class Week extends LitElement {
             user-select: none;
             padding: 0.1em 0.35em;
             border-radius: var(--border-radius-sm, 4px);
-            transition: background-color 0.15s ease, color 0.15s ease;
+            transition:
+                background-color 0.15s ease,
+                color 0.15s ease;
         }
 
         .peek-indicator:hover {
@@ -299,7 +301,10 @@ export default class Week extends LitElement {
     private _getVisibleWeekdayOrder(): number[] {
         const fullOrder = getWeekdayOrder(this.firstDayOfWeek);
         if (this.visibleDates && this.visibleLength < 7) {
-            return fullOrder.slice(this.visibleStartIndex, this.visibleStartIndex + this.visibleLength);
+            return fullOrder.slice(
+                this.visibleStartIndex,
+                this.visibleStartIndex + this.visibleLength,
+            );
         }
         return fullOrder;
     }
@@ -322,9 +327,7 @@ export default class Week extends LitElement {
         const datesToRender = this._getDatesToRender();
         const weekdayOrder = this._getVisibleWeekdayOrder();
         const hasAllDay = this.allDayRowCount > 0;
-        const allDayHeight = hasAllDay
-            ? Math.max(2.5, this.allDayRowCount * 2) + 1
-            : 0;
+        const allDayHeight = hasAllDay ? Math.max(2.5, this.allDayRowCount * 2) + 1 : 0;
         const weekContentHeight = hasAllDay
             ? `calc(var(--main-content-height) - ${allDayHeight}em)`
             : 'var(--main-content-height)';
@@ -336,10 +339,9 @@ export default class Week extends LitElement {
             <div class="week-container">
                 <div class="week-header">
                     <div class="time-header"></div>
-                    ${datesToRender.map(
-                        (date, index) => {
-                            const msg = getMessages(this.locale);
-                            return html`
+                    ${datesToRender.map((date, index) => {
+                        const msg = getMessages(this.locale);
+                        return html`
                             <div
                                 class="day-label ${classMap({
                                     current: this._isCurrentDate(date),
@@ -357,14 +359,16 @@ export default class Week extends LitElement {
                                 <span class="day-name">${getLocalizedWeekdayShort(weekdayOrder[index], this.locale)}</span>
                                 <span class="day-number">${date.day}</span>
                             </div>
-                        `;},
-                    )}
+                        `;
+                    })}
                 </div>
 
                 <!-- Peek indicators for condensed view -->
-                ${this._isCondensed ? (() => {
-                    const msg = getMessages(this.locale);
-                    return html`
+                ${
+                    this._isCondensed
+                        ? (() => {
+                              const msg = getMessages(this.locale);
+                              return html`
                 <div class="peek-indicators">
                     <span
                         class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showLeftPeek })}"
@@ -383,10 +387,15 @@ export default class Week extends LitElement {
                         @keydown=${(e: KeyboardEvent) => this._handlePeekKeydown(e, 'next')}
                     >${msg.more} \u203A</span>
                 </div>
-                `;})() : nothing}
+                `;
+                          })()
+                        : nothing
+                }
 
                 <!-- All-day events section -->
-                ${hasAllDay ? html`
+                ${
+                    hasAllDay
+                        ? html`
                 <div class="all-day-wrapper">
                     <div class="all-day-container">
                         <div class="all-day-time-header">${getMessages(this.locale).allDay}</div>
@@ -401,7 +410,9 @@ export default class Week extends LitElement {
                         )}
                     </div>
                 </div>
-                ` : nothing}
+                `
+                        : nothing
+                }
                 <div class="week-scroll" style="height: ${weekContentHeight}">
                     <div class="time-labels">
                         ${Array.from({ length: 25 }).map(
@@ -464,11 +475,13 @@ export default class Week extends LitElement {
         }
 
         if (targetDate) {
-            this.dispatchEvent(new CustomEvent('peek-navigate', {
-                detail: { date: targetDate, direction },
-                bubbles: true,
-                composed: true,
-            }));
+            this.dispatchEvent(
+                new CustomEvent('peek-navigate', {
+                    detail: { date: targetDate, direction },
+                    bubbles: true,
+                    composed: true,
+                }),
+            );
         }
     }
 

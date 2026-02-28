@@ -24,11 +24,16 @@ import './components/Week.js';
 import LMSCalendarYear from './components/Year';
 import './components/Year.js';
 import type { DensityMode, DrillTarget } from './components/Year.js';
+import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator, type LayoutResult } from './lib/LayoutCalculator.js';
-import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
-import { slotManager, type LayoutDimensions, type PositionConfig, type FirstDayOfWeek } from './lib/SlotManager.js';
 import { getMessages } from './lib/messages.js';
+import {
+    slotManager,
+    type LayoutDimensions,
+    type PositionConfig,
+    type FirstDayOfWeek,
+} from './lib/SlotManager.js';
 import { ViewStateController } from './lib/ViewStateController.js';
 import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
 import { getWeekDates } from './lib/weekStartHelper.js';
@@ -117,11 +122,14 @@ export default class LMSCalendar extends LitElement {
     private _layoutCache = new Map<string, LayoutResult>();
 
     /** Day/week view: cached all-day row assignments keyed by week/day key. */
-    private _allDayLayoutCache = new Map<string, {
-        rowAssignments: Map<string, number>;
-        mergedEvents: Map<string, AllDayEvent>;
-        totalRows: number;
-    }>();
+    private _allDayLayoutCache = new Map<
+        string,
+        {
+            rowAssignments: Map<string, number>;
+            mergedEvents: Map<string, AllDayEvent>;
+            totalRows: number;
+        }
+    >();
 
     private _layoutCalculator = new LayoutCalculator({
         timeColumnWidth: 80,
@@ -790,8 +798,7 @@ export default class LMSCalendar extends LitElement {
         spanClass?: string;
     }) {
         // Determine density based on event duration and context if not explicitly set
-        const determinedDensity =
-            density || this._determineDensity(entry, undefined, undefined);
+        const determinedDensity = density || this._determineDensity(entry, undefined, undefined);
 
         return html`
             <lms-calendar-entry
@@ -962,7 +969,8 @@ export default class LMSCalendar extends LitElement {
             allEntriesForDate = this._expandedByISODate.get(key) ?? [];
         } else {
             // Week view: use visible dates from context (condensed or full)
-            const datesToRender = weekCtx?.visibleDates ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
+            const datesToRender =
+                weekCtx?.visibleDates ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
             allEntriesForDate = datesToRender.flatMap((wd) => {
                 const key = `${wd.year}-${String(wd.month).padStart(2, '0')}-${String(wd.day).padStart(2, '0')}`;
                 return this._expandedByISODate.get(key) ?? [];
@@ -1015,8 +1023,8 @@ export default class LMSCalendar extends LitElement {
                 const condensedDates = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
 
                 // Iterate in known day order — no sort needed
-                const datesToRender = condensedDates
-                    ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
+                const datesToRender =
+                    condensedDates ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
 
                 for (const wd of datesToRender) {
                     const dayEntries = entriesByDay[`${wd.year}-${wd.month}-${wd.day}`];
@@ -1045,19 +1053,25 @@ export default class LMSCalendar extends LitElement {
 
         // Compute all-day layout declaratively (cached — only recomputes when entries change)
         const condensedDatesForAllDay = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
-        const allDayKey = viewMode === 'week'
-            ? `${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}-${this.firstDayOfWeek}-${weekCtx?.visibleStartIndex ?? 0}-${weekCtx?.visibleLength ?? 7}`
-            : `day-${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}`;
+        const allDayKey =
+            viewMode === 'week'
+                ? `${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}-${this.firstDayOfWeek}-${weekCtx?.visibleStartIndex ?? 0}-${weekCtx?.visibleLength ?? 7}`
+                : `day-${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}`;
 
         let allDayLayout = this._allDayLayoutCache.get(allDayKey);
         if (!allDayLayout) {
             const allDayLayoutEvents: AllDayEvent[] = allDayEntries.map((entry) => {
                 const eventId = this._createConsistentEventId(entry);
-                const dayIndex = viewMode === 'week'
-                    ? (condensedDatesForAllDay
-                        ? slotManager.getIndexInDates(entry.date.start, condensedDatesForAllDay)
-                        : slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek))
-                    : 0;
+                const dayIndex =
+                    viewMode === 'week'
+                        ? condensedDatesForAllDay
+                            ? slotManager.getIndexInDates(entry.date.start, condensedDatesForAllDay)
+                            : slotManager.getWeekDayIndex(
+                                  entry.date.start,
+                                  currentActiveDate,
+                                  this.firstDayOfWeek,
+                              )
+                        : 0;
                 return {
                     id: eventId,
                     days: [dayIndex],
@@ -1112,18 +1126,24 @@ export default class LMSCalendar extends LitElement {
             const positionCSS = slotManager.generatePositionCSS(position, layoutDimensions);
 
             // Compute span class for multi-day events
-            const continuation = (entry as CalendarEntry & { continuation?: Continuation }).continuation;
+            const continuation = (entry as CalendarEntry & { continuation?: Continuation })
+                .continuation;
             const isMultiDay = continuation?.has || continuation?.is || false;
             let spanClass = 'single-day';
             if (isMultiDay && continuation) {
                 const mergedEvent = mergedEvents.get(eventId);
                 const visibleDays = mergedEvent?.days ?? [];
                 const sortedDays = [...visibleDays].sort((a, b) => a - b);
-                const dayIndex = viewMode === 'week'
-                    ? (condensedDatesForAllDay
-                        ? slotManager.getIndexInDates(entry.date.start, condensedDatesForAllDay)
-                        : slotManager.getWeekDayIndex(entry.date.start, currentActiveDate, this.firstDayOfWeek))
-                    : 0;
+                const dayIndex =
+                    viewMode === 'week'
+                        ? condensedDatesForAllDay
+                            ? slotManager.getIndexInDates(entry.date.start, condensedDatesForAllDay)
+                            : slotManager.getWeekDayIndex(
+                                  entry.date.start,
+                                  currentActiveDate,
+                                  this.firstDayOfWeek,
+                              )
+                        : 0;
                 spanClass = computeSpanClass({
                     continuationIndex: dayIndex,
                     totalDays: continuation.total,

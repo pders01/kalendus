@@ -188,16 +188,16 @@ export default class Year extends LitElement {
         }
 
         /* ── Heatmap density mode ── */
-        .day-cell[data-density="1"] {
+        .day-cell[data-density='1'] {
             background: var(--year-heatmap-1, rgba(30, 144, 255, 0.15));
         }
-        .day-cell[data-density="2"] {
+        .day-cell[data-density='2'] {
             background: var(--year-heatmap-2, rgba(30, 144, 255, 0.35));
         }
-        .day-cell[data-density="3"] {
+        .day-cell[data-density='3'] {
             background: var(--year-heatmap-3, rgba(30, 144, 255, 0.55));
         }
-        .day-cell[data-density="4"] {
+        .day-cell[data-density='4'] {
             background: var(--year-heatmap-4, rgba(30, 144, 255, 0.75));
             color: white;
         }
@@ -239,7 +239,14 @@ export default class Year extends LitElement {
             <div class="year-grid" role="grid" aria-label="${getMessages(this.locale).year} ${year}">
                 ${Array.from({ length: 12 }, (_, i) => {
                     const month = i + 1;
-                    return this._renderMiniMonth(year, month, todayDay, todayMonth, todayYear, weekdayOrder);
+                    return this._renderMiniMonth(
+                        year,
+                        month,
+                        todayDay,
+                        todayMonth,
+                        todayYear,
+                        weekdayOrder,
+                    );
                 })}
             </div>
         `;
@@ -284,7 +291,8 @@ export default class Year extends LitElement {
                 <div class="weekday-header">
                     <span></span>
                     ${weekdayOrder.map(
-                        (wd) => html`<span>${getLocalizedWeekdayShort(wd, this.locale).charAt(0)}</span>`,
+                        (wd) =>
+                            html`<span>${getLocalizedWeekdayShort(wd, this.locale).charAt(0)}</span>`,
                     )}
                 </div>
                 <div class="day-grid">
@@ -294,27 +302,35 @@ export default class Year extends LitElement {
                             ? DateTime.fromObject({ year, month, day: firstDay }).weekNumber
                             : null;
                         return html`
-                            ${weekNum !== null
-                                ? html`<button
+                            ${
+                                weekNum !== null
+                                    ? html`<button
                                       type="button"
                                       class="cw-label"
                                       aria-label="${msg.calendarWeek} ${weekNum}"
                                       @click=${() => this._handleWeekClick(year, month, firstDay!)}
                                   >${weekNum}</button>`
-                                : html`<span class="empty-cell"></span>`}
+                                    : html`
+                                          <span class="empty-cell"></span>
+                                      `
+                            }
                             ${week.map((day) =>
                                 day !== null
                                     ? this._renderDayCell(
                                           year,
                                           month,
                                           day,
-                                          day === todayDay && month === todayMonth && year === todayYear,
+                                          day === todayDay &&
+                                              month === todayMonth &&
+                                              year === todayYear,
                                           day === this.activeDate.day &&
                                               month === this.activeDate.month &&
                                               year === this.activeDate.year,
                                           this.entrySumByDay[`${year}-${month}-${day}`] ?? 0,
                                       )
-                                    : html`<span class="empty-cell"></span>`,
+                                    : html`
+                                          <span class="empty-cell"></span>
+                                      `,
                             )}
                         `;
                     })}
@@ -354,9 +370,11 @@ export default class Year extends LitElement {
                 aria-label="${day} ${getLocalizedMonth(month, this.locale)} ${year}${eventCount > 0 ? `, ${eventCount} ${getMessages(this.locale).events}` : ''}"
             >
                 ${day}
-                ${this.densityMode === 'count' && eventCount > 0
-                    ? html`<span class="event-count">${eventCount}</span>`
-                    : nothing}
+                ${
+                    this.densityMode === 'count' && eventCount > 0
+                        ? html`<span class="event-count">${eventCount}</span>`
+                        : nothing
+                }
             </button>
         `;
     }

@@ -265,9 +265,7 @@ export class Menu extends LitElement {
     override render() {
         const msg = getMessages(this.locale);
         const cardClasses = `card${this._positioned ? ' visible' : ''}`;
-        const hasNotes =
-            this.eventDetails.content &&
-            this.eventDetails.content !== msg.noContent;
+        const hasNotes = this.eventDetails.content && this.eventDetails.content !== msg.noContent;
 
         return html`
             <div
@@ -302,11 +300,7 @@ export class Menu extends LitElement {
                           </div>`
                         : nothing
                 }
-                ${
-                    hasNotes
-                        ? html`<div class="notes">${this.eventDetails.content}</div>`
-                        : nothing
-                }
+                ${hasNotes ? html`<div class="notes">${this.eventDetails.content}</div>` : nothing}
                 <div class="actions">
                     <button
                         type="button"

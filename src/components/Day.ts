@@ -137,13 +137,17 @@ export default class Day extends LitElement {
             : '100%';
 
         return html` <div class="wrapper">
-            ${hasAllDay ? html`
-            <div class="all-day-wrapper">
-                <div class="all-day">
-                    <slot name="all-day" id="all-day" class="entry"></slot>
-                </div>
-            </div>
-            ` : nothing}
+            ${
+                hasAllDay
+                    ? html`
+                          <div class="all-day-wrapper">
+                              <div class="all-day">
+                                  <slot name="all-day" id="all-day" class="entry"></slot>
+                              </div>
+                          </div>
+                      `
+                    : nothing
+            }
             <div class="container" style="height: ${containerHeight}">
                 <div
                     class="main ${classMap({

@@ -104,7 +104,9 @@ export default class Header extends LitElement {
             color: var(--header-text-color, rgba(0, 0, 0, 0.6));
             cursor: pointer;
             border-radius: var(--border-radius-sm, 5px);
-            transition: background-color 0.15s ease, color 0.15s ease;
+            transition:
+                background-color 0.15s ease,
+                color 0.15s ease;
         }
 
         button:hover {

@@ -3,10 +3,10 @@ import { html } from 'lit';
 import { expect, userEvent } from 'storybook/test';
 
 import './lms-calendar.js';
-import type LMSCalendar from './lms-calendar.js';
-import type { CalendarEntry } from './lms-calendar.js';
 import type { FirstDayOfWeek } from './lib/weekStartHelper.js';
 import { getFirstDayForLocale } from './lib/weekStartHelper.js';
+import type LMSCalendar from './lms-calendar.js';
+import type { CalendarEntry } from './lms-calendar.js';
 
 const meta: Meta<LMSCalendar> = {
     title: 'Components/Kalendus',
@@ -39,7 +39,29 @@ const meta: Meta<LMSCalendar> = {
         },
         locale: {
             control: 'select',
-            options: ['en', 'ar', 'bn', 'de', 'de-DE', 'es', 'fr', 'hi', 'id', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'ru', 'th', 'tr', 'uk', 'vi', 'zh-Hans'],
+            options: [
+                'en',
+                'ar',
+                'bn',
+                'de',
+                'de-DE',
+                'es',
+                'fr',
+                'hi',
+                'id',
+                'it',
+                'ja',
+                'ko',
+                'nl',
+                'pl',
+                'pt',
+                'ru',
+                'th',
+                'tr',
+                'uk',
+                'vi',
+                'zh-Hans',
+            ],
             description: 'Locale for UI strings and date formatting',
         },
         yearDrillTarget: {
@@ -1568,7 +1590,9 @@ export const CondensedWeekModes: Story = {
             const header = shadowRoot?.querySelector('lms-calendar-header');
             if (header) {
                 const headerShadow = header.shadowRoot;
-                const weekButton = headerShadow?.querySelector('[data-context="week"]') as HTMLElement;
+                const weekButton = headerShadow?.querySelector(
+                    '[data-context="week"]',
+                ) as HTMLElement;
                 if (weekButton) {
                     await userEvent.click(weekButton);
                     await new Promise((resolve) => setTimeout(resolve, 200));
@@ -1587,11 +1611,7 @@ export const CondensedWeekModes: Story = {
 
 // --- Locale stories ---
 // Helper to create a locale story with proper firstDayOfWeek and per-instance locale.
-const createLocaleStory = (
-    locale: string,
-    label: string,
-    description: string,
-): Story => ({
+const createLocaleStory = (locale: string, label: string, description: string): Story => ({
     name: storyName(STORY_GROUPS.LOCALIZATION, label),
     args: {
         heading: label,
@@ -1618,7 +1638,7 @@ const createLocaleStory = (
 export const LocaleGerman: Story = createLocaleStory(
     'de',
     'Deutsch (German)',
-    'German locale with Monday-first week (ISO 8601). UI strings are fully translated. Weekday and month names come from Luxon\'s Intl formatting.',
+    "German locale with Monday-first week (ISO 8601). UI strings are fully translated. Weekday and month names come from Luxon's Intl formatting.",
 );
 
 export const LocaleFrench: Story = createLocaleStory(
@@ -1746,14 +1766,48 @@ export const LocaleShowcase: Story = {
             and date formatting are all per-instance. No global locale switching needed.
         </p>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.5em; height: 1800px;">
-            ${(['de', 'fr', 'es', 'it', 'nl', 'pl', 'ru', 'uk', 'tr', 'ar', 'hi', 'bn', 'th', 'ja', 'ko', 'zh-Hans', 'id', 'vi', 'pt'] as const).map((locale) => {
+            ${(
+                [
+                    'de',
+                    'fr',
+                    'es',
+                    'it',
+                    'nl',
+                    'pl',
+                    'ru',
+                    'uk',
+                    'tr',
+                    'ar',
+                    'hi',
+                    'bn',
+                    'th',
+                    'ja',
+                    'ko',
+                    'zh-Hans',
+                    'id',
+                    'vi',
+                    'pt',
+                ] as const
+            ).map((locale) => {
                 const labels: Record<string, string> = {
-                    de: 'Deutsch', fr: 'Fran\u00e7ais', es: 'Espa\u00f1ol', it: 'Italiano',
-                    nl: 'Nederlands', pl: 'Polski', ru: '\u0420\u0443\u0441\u0441\u043a\u0438\u0439', uk: '\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430',
-                    tr: 'T\u00fcrk\u00e7e', ar: '\u0627\u0644\u0639\u0631\u0628\u064A\u0629',
-                    hi: '\u0939\u093f\u0928\u094d\u0926\u0940', bn: '\u09ac\u09be\u0982\u09b2\u09be',
-                    th: '\u0e44\u0e17\u0e22', ja: '\u65E5\u672C\u8A9E', ko: '\ud55c\uad6d\uc5b4',
-                    'zh-Hans': '\u7B80\u4F53\u4E2D\u6587', id: 'Indonesia', vi: 'Ti\u1ebfng Vi\u1ec7t',
+                    de: 'Deutsch',
+                    fr: 'Fran\u00e7ais',
+                    es: 'Espa\u00f1ol',
+                    it: 'Italiano',
+                    nl: 'Nederlands',
+                    pl: 'Polski',
+                    ru: '\u0420\u0443\u0441\u0441\u043a\u0438\u0439',
+                    uk: '\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430',
+                    tr: 'T\u00fcrk\u00e7e',
+                    ar: '\u0627\u0644\u0639\u0631\u0628\u064A\u0629',
+                    hi: '\u0939\u093f\u0928\u094d\u0926\u0940',
+                    bn: '\u09ac\u09be\u0982\u09b2\u09be',
+                    th: '\u0e44\u0e17\u0e22',
+                    ja: '\u65E5\u672C\u8A9E',
+                    ko: '\ud55c\uad6d\uc5b4',
+                    'zh-Hans': '\u7B80\u4F53\u4E2D\u6587',
+                    id: 'Indonesia',
+                    vi: 'Ti\u1ebfng Vi\u1ec7t',
                     pt: 'Portugu\u00eas',
                 };
                 return html`
@@ -1912,7 +1966,9 @@ export const YearViewDensityModes: Story = {
             const header = shadowRoot?.querySelector('lms-calendar-header');
             if (header) {
                 const headerShadow = header.shadowRoot;
-                const yearButton = headerShadow?.querySelector('[data-context="year"]') as HTMLElement;
+                const yearButton = headerShadow?.querySelector(
+                    '[data-context="year"]',
+                ) as HTMLElement;
                 if (yearButton) {
                     await userEvent.click(yearButton);
                     await new Promise((resolve) => setTimeout(resolve, 200));

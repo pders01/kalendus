@@ -46,14 +46,14 @@ See `docs/integration-guide.md` for end-to-end recipes covering vanilla HTML, Re
 
 ## Documentation Map
 
-| Audience | Document | Highlights |
-| --- | --- | --- |
-| Integrators | [Integration Guide](docs/integration-guide.md) | Framework recipes, theming tokens, analytics hooks |
-| Application Developers | [Library Usage](docs/library-usage.md) | API surface, data contracts, DOM events |
-| Component Contributors | [Developer Guide](docs/developer-guide.md) | Internal architecture, debugging tips |
-| Rendering Internals | [Rendering Calculations](docs/rendering-calculations.md) | Grid math, condensed weeks, density modes |
-| Design Systems | [Design Token Refactoring](docs/design-token-refactoring.md) | Token audit and proposed hierarchy |
-| Backend/API | [API Server Guide](docs/api-server.md) | REST + SSE backend, database + adapters |
+| Audience               | Document                                                     | Highlights                                         |
+| ---------------------- | ------------------------------------------------------------ | -------------------------------------------------- |
+| Integrators            | [Integration Guide](docs/integration-guide.md)               | Framework recipes, theming tokens, analytics hooks |
+| Application Developers | [Library Usage](docs/library-usage.md)                       | API surface, data contracts, DOM events            |
+| Component Contributors | [Developer Guide](docs/developer-guide.md)                   | Internal architecture, debugging tips              |
+| Rendering Internals    | [Rendering Calculations](docs/rendering-calculations.md)     | Grid math, condensed weeks, density modes          |
+| Design Systems         | [Design Token Refactoring](docs/design-token-refactoring.md) | Token audit and proposed hierarchy                 |
+| Backend/API            | [API Server Guide](docs/api-server.md)                       | REST + SSE backend, database + adapters            |
 
 ### Basic Usage
 
@@ -72,10 +72,10 @@ By default, every calendar auto-detects its locale from the page's `<html lang="
 
 ```html
 <!-- Auto-detects from <html lang="de"> — no config needed -->
-<lms-calendar .entries=${events}></lms-calendar>
+<lms-calendar .entries="${events}"></lms-calendar>
 
 <!-- Explicitly override to Japanese with Sunday-first weeks -->
-<lms-calendar .entries=${events} locale="ja" .firstDayOfWeek=${0}></lms-calendar>
+<lms-calendar .entries="${events}" locale="ja" .firstDayOfWeek="${0}"></lms-calendar>
 
 <!-- Multiple locales on the same page - each fully independent -->
 <lms-calendar locale="es"></lms-calendar>
@@ -143,9 +143,9 @@ The year overview makes it easy to hop between distant dates. Two properties tun
 
 ```html
 <lms-calendar
-  year-drill-target="day"
-  year-density-mode="heatmap"
-  .entries=${events}
+    year-drill-target="day"
+    year-density-mode="heatmap"
+    .entries="${events}"
 ></lms-calendar>
 ```
 
@@ -154,16 +154,16 @@ The year overview makes it easy to hop between distant dates. Two properties tun
 
 ## Properties
 
-| Property         | Type              | Default      | Description                                              |
-| ---------------- | ----------------- | ------------ | -------------------------------------------------------- |
-| `heading`        | `string`          | `undefined`  | Calendar title displayed in header                       |
-| `activeDate`     | `CalendarDate`    | Current date | Initially displayed date                                 |
-| `entries`        | `CalendarEntry[]` | `[]`         | Array of calendar events                                 |
-| `color`          | `string`          | `'#000000'`  | Primary theme color                                      |
-| `locale`         | `string`          | `document.documentElement.lang \|\| 'en'` | Locale for UI strings and date formatting (auto-detected from page, overridable per-instance) |
-| `firstDayOfWeek` | `0-6`             | `1`          | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)         |
-| `yearDrillTarget` | `'day' \| 'month'` | `'month'` | Determines whether a year-view click opens day or month view |
-| `yearDensityMode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'` | Chooses how per-day entry density is visualized in year view |
+| Property          | Type                            | Default                                   | Description                                                                                   |
+| ----------------- | ------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `heading`         | `string`                        | `undefined`                               | Calendar title displayed in header                                                            |
+| `activeDate`      | `CalendarDate`                  | Current date                              | Initially displayed date                                                                      |
+| `entries`         | `CalendarEntry[]`               | `[]`                                      | Array of calendar events                                                                      |
+| `color`           | `string`                        | `'#000000'`                               | Primary theme color                                                                           |
+| `locale`          | `string`                        | `document.documentElement.lang \|\| 'en'` | Locale for UI strings and date formatting (auto-detected from page, overridable per-instance) |
+| `firstDayOfWeek`  | `0-6`                           | `1`                                       | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)                                              |
+| `yearDrillTarget` | `'day' \| 'month'`              | `'month'`                                 | Determines whether a year-view click opens day or month view                                  |
+| `yearDensityMode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`                                   | Chooses how per-day entry density is visualized in year view                                  |
 
 ### Supported Locales
 
@@ -232,8 +232,8 @@ lms-calendar {
 
 ```css
 lms-calendar {
-    --week-day-count: 7;          /* full-width columns */
-    --week-mobile-day-count: 3;   /* columns when condensed */
+    --week-day-count: 7; /* full-width columns */
+    --week-mobile-day-count: 3; /* columns when condensed */
     --week-mobile-breakpoint: 768px;
 }
 ```
@@ -264,9 +264,9 @@ Adjust these tokens to align the overview grid with your design system (e.g., fo
 
 ```css
 lms-calendar {
-    --week-day-count: 7;              /* columns at full width (1-7) */
-    --week-mobile-day-count: 3;       /* columns below breakpoint (1-7) */
-    --week-mobile-breakpoint: 768px;  /* width threshold */
+    --week-day-count: 7; /* columns at full width (1-7) */
+    --week-mobile-day-count: 3; /* columns below breakpoint (1-7) */
+    --week-mobile-breakpoint: 768px; /* width threshold */
 }
 ```
 

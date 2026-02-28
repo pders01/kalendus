@@ -165,9 +165,7 @@ export default class Month extends LitElement {
                 current: isCurrentDate,
             })}"
         >
-            ${day === 1
-                ? getLocalizedDayMonth(day, month, year, this.locale)
-                : day}
+            ${day === 1 ? getLocalizedDayMonth(day, month, year, this.locale) : day}
         </div>`;
     }
 

@@ -10,16 +10,20 @@
         "typescript",
         "web-components"
     ],
+    "homepage": "https://github.com/pders01/kalendus",
+    "bugs": {
+        "url": "https://github.com/pders01/kalendus/issues"
+    },
     "license": "MIT",
     "author": "Paul Derscheid <paul.derscheid@lmscloud.de>",
     "repository": {
         "type": "git",
         "url": "https://github.com/pders01/kalendus.git"
     },
-    "homepage": "https://github.com/pders01/kalendus",
-    "bugs": {
-        "url": "https://github.com/pders01/kalendus/issues"
-    },
+    "files": [
+        "dist",
+        "custom-elements.json"
+    ],
     "type": "module",
     "main": "./dist/kalendus.js",
     "module": "./dist/kalendus.js",
@@ -31,10 +35,6 @@
         },
         "./package.json": "./package.json"
     },
-    "files": [
-        "dist",
-        "custom-elements.json"
-    ],
     "publishConfig": {
         "access": "public"
     },
@@ -62,10 +62,6 @@
         "test-storybook": "storybook test",
         "i18n:extract": "lit-localize extract",
         "i18n:build": "lit-localize build"
-    },
-    "peerDependencies": {
-        "lit": "^3.0.0",
-        "luxon": "^3.0.0"
     },
     "devDependencies": {
         "@11ty/eleventy": "^3.1.2",
@@ -110,6 +106,10 @@
         "vite": "^7.3.1",
         "vite-plugin-minify": "^2.1.0",
         "vite-plugin-static-copy": "^3.2.0"
+    },
+    "peerDependencies": {
+        "lit": "^3.0.0",
+        "luxon": "^3.0.0"
     },
     "customElements": "custom-elements.json"
 }
