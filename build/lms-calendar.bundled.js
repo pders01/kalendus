@@ -7,7 +7,8 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             grid-template-columns: repeat(7, 1fr);
         }
         span {
-            padding: var(--context-padding, 0.25em);
+            /* Match the month indicator's margin (0.25em) + padding (0.25em) */
+            padding: var(--context-padding, 0.25em) var(--context-padding-inline, 0.5em);
             text-align: var(--context-text-align, left);
         }
     `,va([l({type:Number})],wa.prototype,"firstDayOfWeek",2),wa=va([u("lms-calendar-context"),D()],wa);var ba=Object.defineProperty,ka=Object.getOwnPropertyDescriptor,Da=(e,t,n,r)=>{for(var i,a=r>1?void 0:r?ka(t,n):t,s=e.length-1;s>=0;s--)(i=e[s])&&(a=(r?i(t,n,a):i(a))||a);return r&&a&&ba(t,n,a),a};let Sa=class extends i{constructor(){super(...arguments),this._hours=[...Array(25).keys()],this._hasActiveSidebar=!1,this.allDayRowCount=0}_renderSeparatorMaybe(e,t){return e?a`<div class="separator" style="grid-row: ${60*t}"></div>`:s}_renderIndicatorValue(e){return e<10?`0${e}:00`:`${e}:00`}render(){const e=this.allDayRowCount>0,t=e?`calc(100% - 3.5em - ${24*this.allDayRowCount}px)`:"100%";return a` <div class="wrapper">
@@ -837,8 +838,7 @@ import{AsyncDirective as e}from"lit-html/async-directive.js";import{directive as
             background: transparent;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
-            text-align: center;
-            min-width: 2em;
+            text-align: left;
             min-height: 2em;
             line-height: 2em;
             margin: 0.25em;
