@@ -196,7 +196,7 @@ async function run() {
             waitUntil: 'networkidle',
         });
         await page.waitForFunction(() => window.__calReady === true, {
-            timeout: 15000,
+            timeout: 10000,
         });
         await page.waitForTimeout(500);
 

@@ -37,7 +37,7 @@ async function main() {
     });
 
     await page.goto(LOCALE_SHOWCASE_URL, { waitUntil: 'networkidle' });
-    await page.waitForSelector('lms-calendar', { timeout: 15000 });
+    await page.waitForSelector('lms-calendar', { timeout: 10000 });
     await page.waitForTimeout(2000);
 
     const loadTrace = await stopTracing(cdp);
