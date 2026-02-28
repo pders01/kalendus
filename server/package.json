@@ -1,0 +1,41 @@
+{
+    "name": "@jpahd/kalendus-server",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "tsx watch src/index.ts",
+        "start": "node --import tsx src/index.ts",
+        "build": "tsc",
+        "test": "NODE_OPTIONS='--experimental-vm-modules --import=tsx' mocha",
+        "test:watch": "NODE_OPTIONS='--experimental-vm-modules --import=tsx' mocha --watch",
+        "db:generate": "drizzle-kit generate",
+        "db:migrate": "tsx src/db/migrate.ts",
+        "db:seed": "tsx src/db/seed.ts",
+        "lint": "oxlint src/",
+        "format": "oxfmt --write 'src/**/*.ts' '*.json'",
+        "format:check": "oxfmt --check 'src/**/*.ts' '*.json'"
+    },
+    "dependencies": {
+        "better-sqlite3": "^11.8.1",
+        "drizzle-orm": "^0.38.4",
+        "hono": "^4.7.4",
+        "@hono/node-server": "^1.14.0",
+        "@hono/zod-validator": "^0.5.0",
+        "nanoid": "^5.1.2",
+        "zod": "^3.24.2"
+    },
+    "devDependencies": {
+        "@types/better-sqlite3": "^7.6.13",
+        "@types/chai": "^5.2.3",
+        "@types/mocha": "^10.0.10",
+        "@types/node": "^22.13.4",
+        "chai": "^6.2.2",
+        "drizzle-kit": "^0.30.4",
+        "mocha": "^11.7.5",
+        "oxfmt": "0.35.0",
+        "oxlint": "1.50.0",
+        "tsx": "^4.19.3",
+        "typescript": "^5.9.3"
+    }
+}

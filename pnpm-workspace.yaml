@@ -1,3 +1,6 @@
+packages:
+  - '.'
+  - 'server'
 onlyBuiltDependencies:
   - ' '
   - '-'
@@ -5,6 +8,7 @@ onlyBuiltDependencies:
   - '@'
   - '@swc/core'
   - b
+  - better-sqlite3
   - c
   - core-js-bundle
   - d
