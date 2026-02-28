@@ -28,7 +28,7 @@ A sophisticated, responsive calendar web component built with Lit 3.x and TypeSc
 ### Per-Instance Localization
 
 - **Independent Locale Per Instance**: Multiple calendars on the same page can each display a different locale
-- **9 Built-in Locales**: English, German, German (DE), Spanish, French, Japanese, Portuguese, Arabic, Chinese (Simplified)
+- **21 Built-in Locales**: English, German, Spanish, French, Hindi, Bengali, Russian, Indonesian, Korean, Turkish, Vietnamese, Italian, Thai, Polish, Ukrainian, Dutch, Japanese, Portuguese, Arabic, Chinese (Simplified), and German (DE)
 - **Localized UI Strings**: All buttons, labels, and messages translated per instance
 - **Localized Date Formatting**: Weekday names, month names, and date formats use the instance's locale
 - **Configurable Week Start**: `firstDayOfWeek` property supports Monday (ISO), Sunday (US/JP), Saturday (AR), or any day
@@ -143,6 +143,18 @@ const events = [
 | `de-DE`   | German (Germany)     | Monday             |
 | `es`      | Spanish              | Monday             |
 | `fr`      | French               | Monday             |
+| `hi`      | Hindi                | Sunday             |
+| `bn`      | Bengali              | Sunday             |
+| `ru`      | Russian              | Monday             |
+| `id`      | Indonesian           | Sunday             |
+| `ko`      | Korean               | Sunday             |
+| `tr`      | Turkish              | Monday             |
+| `vi`      | Vietnamese           | Monday             |
+| `it`      | Italian              | Monday             |
+| `th`      | Thai                 | Sunday             |
+| `pl`      | Polish               | Monday             |
+| `uk`      | Ukrainian            | Monday             |
+| `nl`      | Dutch                | Monday             |
 | `ja`      | Japanese             | Sunday             |
 | `pt`      | Portuguese           | Sunday             |
 | `ar`      | Arabic               | Saturday           |
@@ -216,13 +228,9 @@ src/
 └── generated/
     ├── locale-codes.ts          # Source & target locale definitions
     └── locales/                 # Generated translation templates (hash ID → string)
-        ├── ar.ts
-        ├── de.ts
-        ├── de-DE.ts
-        ├── es.ts
-        ├── fr.ts
-        ├── ja.ts
-        ├── pt.ts
+        ├── ar.ts, bn.ts, de.ts, de-DE.ts, es.ts, fr.ts, hi.ts
+        ├── id.ts, it.ts, ja.ts, ko.ts, nl.ts, pl.ts, pt.ts
+        ├── ru.ts, th.ts, tr.ts, uk.ts, vi.ts
         └── zh-Hans.ts
 ```
 
@@ -276,7 +284,7 @@ pnpm storybook
 
 - **Default**: Basic calendar with sample events
 - **Locale stories**: Individual stories for each supported locale (German, French, Spanish, Japanese, etc.)
-- **LocaleShowcase**: 6 calendars on one page, each with a different locale
+- **LocaleShowcase**: 19 calendars on one page, each with a different locale
 - **WeekStartComparison**: Side-by-side Monday-first vs Sunday-first
 - **Heavy Event Load**: Stress testing with 200+ events
 - **Overlapping Events**: Extreme overlap scenarios

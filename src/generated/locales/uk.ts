@@ -1,0 +1,28 @@
+
+    // Do not modify this file by hand!
+    // Re-generate this file by running lit-localize
+
+
+
+    /* eslint-disable no-irregular-whitespace */
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+
+    export const templates = {
+      's005053d82b712e0a': `Нотатки`,
+'s090f2107b5a69a7f': `Т`,
+'s15ba5784a11e0b88': `Поточний місяць`,
+'s22380c7fc798a44f': `Без вмісту`,
+'s2bc4d1196bce49dc': `Експорт в ICS`,
+'s48e186fb300e5464': `Час`,
+'s58ab939b42a026a6': `Увесь день`,
+'s5e8250fb85d64c23': `Закрити`,
+'s63d040e37887f17e': `Сьогодні`,
+'s680f01021b5e339d': `Тиждень`,
+'s98b32ef4a0856c08': `Без назви`,
+'s99f110d27e30b289': `Назва`,
+'sa0fd990c985f24bd': `Деталі події`,
+'sac8252732f2edb19': `Дата`,
+'sb47daaf9e1c4a905': `Місяць`,
+'se0955919920ee87d': `День`,
+'sfce4bfbe0f911aa7': `Без часу`,
+    };

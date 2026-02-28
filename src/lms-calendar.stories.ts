@@ -39,7 +39,7 @@ const meta: Meta<LMSCalendar> = {
         },
         locale: {
             control: 'select',
-            options: ['en', 'ar', 'de', 'de-DE', 'es', 'fr', 'ja', 'pt', 'zh-Hans'],
+            options: ['en', 'ar', 'bn', 'de', 'de-DE', 'es', 'fr', 'hi', 'id', 'it', 'ja', 'ko', 'nl', 'pl', 'pt', 'ru', 'th', 'tr', 'uk', 'vi', 'zh-Hans'],
             description: 'Locale for UI strings and date formatting',
         },
     },
@@ -1312,6 +1312,78 @@ export const LocaleEnglishUS: Story = createLocaleStory(
     'English locale with Sunday-first week (US convention). Uses firstDayOfWeek=0 to match American expectations while keeping English source strings.',
 );
 
+export const LocaleHindi: Story = createLocaleStory(
+    'hi',
+    '\u0939\u093f\u0928\u094d\u0926\u0940 (Hindi)',
+    'Hindi locale with Sunday-first week (Indian convention). Demonstrates Devanagari script in UI labels.',
+);
+
+export const LocaleBengali: Story = createLocaleStory(
+    'bn',
+    '\u09ac\u09be\u0982\u09b2\u09be (Bengali)',
+    'Bengali locale with Sunday-first week. Demonstrates Bengali script in UI labels and date formatting.',
+);
+
+export const LocaleRussian: Story = createLocaleStory(
+    'ru',
+    '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 (Russian)',
+    'Russian locale with Monday-first week (ISO 8601). Demonstrates Cyrillic script in UI labels.',
+);
+
+export const LocaleIndonesian: Story = createLocaleStory(
+    'id',
+    'Indonesia (Indonesian)',
+    'Indonesian locale with Sunday-first week. Uses Latin script with Indonesian translations.',
+);
+
+export const LocaleKorean: Story = createLocaleStory(
+    'ko',
+    '\ud55c\uad6d\uc5b4 (Korean)',
+    'Korean locale with Sunday-first week. Demonstrates Hangul script in UI labels and date formatting.',
+);
+
+export const LocaleTurkish: Story = createLocaleStory(
+    'tr',
+    'T\u00fcrk\u00e7e (Turkish)',
+    'Turkish locale with Monday-first week. Demonstrates Turkish-specific characters (\u00e7, \u015f, \u0131, \u00f6, \u00fc) in UI labels.',
+);
+
+export const LocaleVietnamese: Story = createLocaleStory(
+    'vi',
+    'Ti\u1ebfng Vi\u1ec7t (Vietnamese)',
+    'Vietnamese locale with Monday-first week. Demonstrates Vietnamese diacritics in UI labels.',
+);
+
+export const LocaleItalian: Story = createLocaleStory(
+    'it',
+    'Italiano (Italian)',
+    'Italian locale with Monday-first week (European convention). All UI strings fully translated.',
+);
+
+export const LocaleThai: Story = createLocaleStory(
+    'th',
+    '\u0e44\u0e17\u0e22 (Thai)',
+    'Thai locale with Sunday-first week. Demonstrates Thai script in UI labels and date formatting.',
+);
+
+export const LocalePolish: Story = createLocaleStory(
+    'pl',
+    'Polski (Polish)',
+    'Polish locale with Monday-first week (European convention). Demonstrates Polish diacritics (\u0105, \u0107, \u0119, \u0142, \u00f3, \u015b, \u017a, \u017c).',
+);
+
+export const LocaleUkrainian: Story = createLocaleStory(
+    'uk',
+    '\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430 (Ukrainian)',
+    'Ukrainian locale with Monday-first week. Demonstrates Ukrainian Cyrillic script with unique characters (\u0456, \u0457, \u0454, \u0491).',
+);
+
+export const LocaleDutch: Story = createLocaleStory(
+    'nl',
+    'Nederlands (Dutch)',
+    'Dutch locale with Monday-first week (European convention). All UI strings fully translated.',
+);
+
 export const LocaleShowcase: Story = {
     args: {
         entries: sampleEntries,
@@ -1321,11 +1393,16 @@ export const LocaleShowcase: Story = {
             Each calendar independently renders its own locale — UI strings, weekday names,
             and date formatting are all per-instance. No global locale switching needed.
         </p>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5em; height: 900px;">
-            ${(['de', 'fr', 'es', 'ja', 'zh-Hans', 'ar'] as const).map((locale) => {
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5em; height: 1800px;">
+            ${(['de', 'fr', 'es', 'it', 'nl', 'pl', 'ru', 'uk', 'tr', 'ar', 'hi', 'bn', 'th', 'ja', 'ko', 'zh-Hans', 'id', 'vi', 'pt'] as const).map((locale) => {
                 const labels: Record<string, string> = {
-                    de: 'Deutsch (Mon)', fr: 'Fran\u00e7ais (Mon)', es: 'Espa\u00f1ol (Mon)',
-                    ja: '\u65E5\u672C\u8A9E (Sun)', 'zh-Hans': '\u7B80\u4F53\u4E2D\u6587 (Sun)', ar: '\u0627\u0644\u0639\u0631\u0628\u064A\u0629 (Sat)',
+                    de: 'Deutsch', fr: 'Fran\u00e7ais', es: 'Espa\u00f1ol', it: 'Italiano',
+                    nl: 'Nederlands', pl: 'Polski', ru: '\u0420\u0443\u0441\u0441\u043a\u0438\u0439', uk: '\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430',
+                    tr: 'T\u00fcrk\u00e7e', ar: '\u0627\u0644\u0639\u0631\u0628\u064A\u0629',
+                    hi: '\u0939\u093f\u0928\u094d\u0926\u0940', bn: '\u09ac\u09be\u0982\u09b2\u09be',
+                    th: '\u0e44\u0e17\u0e22', ja: '\u65E5\u672C\u8A9E', ko: '\ud55c\uad6d\uc5b4',
+                    'zh-Hans': '\u7B80\u4F53\u4E2D\u6587', id: 'Indonesia', vi: 'Ti\u1ebfng Vi\u1ec7t',
+                    pt: 'Portugu\u00eas',
                 };
                 return html`
                     <lms-calendar
@@ -1344,7 +1421,7 @@ export const LocaleShowcase: Story = {
     parameters: {
         docs: {
             description: {
-                story: 'Showcase of all 6 non-English locales in a 3x2 grid. Each calendar uses its own locale for UI strings and date formatting, plus locale-appropriate firstDayOfWeek. All 6 calendars render independently on the same page — no global locale switching.',
+                story: 'Showcase of all 19 non-English locales in a 4-column grid. Each calendar uses its own locale for UI strings and date formatting, plus locale-appropriate firstDayOfWeek. All calendars render independently on the same page — no global locale switching.',
             },
         },
     },
