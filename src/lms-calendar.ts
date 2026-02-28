@@ -308,7 +308,7 @@ export default class LMSCalendar extends LitElement {
             border: 1px solid var(--separator-light);
             font-family: var(--system-ui);
             color: var(--separator-dark);
-            box-shadow: var(--calendar-shadow, var(--shadow-md));
+            box-shadow: var(--calendar-shadow, none);
             contain: layout style;
             position: relative;
             overflow: hidden;
