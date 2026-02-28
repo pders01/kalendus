@@ -263,6 +263,9 @@ export default class Entry extends LitElement {
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
+            overflow: visible;
+            contain: style;
+            min-height: auto;
         }
 
         /* Multi-day events keep their background in month view */
@@ -278,7 +281,7 @@ export default class Entry extends LitElement {
             align-items: center;
             gap: var(--entry-dot-margin);
             flex-wrap: nowrap;
-            overflow: hidden;
+            overflow: visible;
             flex-direction: row !important;
         }
 
@@ -306,6 +309,7 @@ export default class Entry extends LitElement {
             border-radius: 50%;
             background-color: var(--entry-color);
             flex-shrink: 0;
+            aspect-ratio: 1;
         }
 
         .content {
