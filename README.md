@@ -7,7 +7,7 @@ A sophisticated, responsive calendar web component built with Lit 3.x and TypeSc
 ### Multiple View Modes
 
 - **Month View**: Traditional monthly calendar with color-coded event indicators
-- **Week View**: 7-day view with hourly time slots and pixel-perfect alignment
+- **Week View**: 7-day view with hourly time slots, condensed windows (e.g., 3-day peeks) driven by CSS tokens, and pixel-perfect alignment
 - **Day View**: Single-day view with detailed hourly scheduling
 - **Year View**: 12 mini-month grids with density indicators (dot, heatmap, or count) and configurable drill targets for instant navigation
 
@@ -214,6 +214,18 @@ lms-calendar {
     --time-column-width: 4em;
 }
 ```
+
+### Week Column Controls
+
+```css
+lms-calendar {
+    --week-day-count: 7;          /* full-width columns */
+    --week-mobile-day-count: 3;   /* columns when condensed */
+    --week-mobile-breakpoint: 768px;
+}
+```
+
+`computeWeekDisplayContext` reads these tokens at runtime to decide how many day columns to render. Below the breakpoint the component centers a smaller window (e.g., three days) around the active date and exposes peek navigation so users can slide through the full week without sacrificing readability on narrow screens.
 
 ### Year View Tokens
 
