@@ -791,7 +791,7 @@ export default class LMSCalendar extends LitElement {
         const viewMode = this._viewState.viewMode;
 
         if (viewMode !== 'day' && viewMode !== 'week') {
-            return nothing;
+            return { elements: nothing, allDayRowCount: 0 };
         }
 
         // Get all entries for current day or week

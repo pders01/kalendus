@@ -1,31 +1,56 @@
 {
-    "name": "@lmscloud/lms-calendar",
-    "version": "0.3.2",
-    "private": true,
-    "description": "A calendar component.",
+    "name": "@jpahd/kalendus",
+    "version": "0.4.0",
+    "description": "A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript.",
     "keywords": [
+        "calendar",
+        "calendar-component",
         "lit",
         "lit-element",
         "typescript",
         "web-components"
     ],
-    "license": "BSD-3-Clause",
+    "license": "MIT",
     "author": "Paul Derscheid <paul.derscheid@lmscloud.de>",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/pders01/kalendus.git"
+    },
+    "homepage": "https://github.com/pders01/kalendus",
+    "bugs": {
+        "url": "https://github.com/pders01/kalendus/issues"
+    },
     "type": "module",
-    "main": "lms-calendar.js",
-    "module": "lms-calendar.js",
+    "main": "./dist/kalendus.js",
+    "module": "./dist/kalendus.js",
+    "types": "./dist/lms-calendar.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/lms-calendar.d.ts",
+            "import": "./dist/kalendus.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "files": [
+        "dist",
+        "custom-elements.json"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
     "scripts": {
-        "build": "vite build",
+        "build": "vite build && tsc --project tsconfig.build.json",
         "build:watch": "vite build --watch",
-        "clean": "rimraf lms-calendar.{d.ts,d.ts.map,js,js.map} test/lms-calendar.{d.ts,d.ts.map,js,js.map} test/lms-calendar_test.{d.ts,d.ts.map,js,js.map}",
+        "clean": "rimraf dist",
         "lint": "npm run lint:lit-analyzer && npm run lint:oxlint",
         "lint:oxlint": "oxlint src/",
         "lint:lit-analyzer": "lit-analyzer",
         "format": "oxfmt --write 'src/**/*.{ts,js}' '*.json' '*.md' '.storybook/**/*.ts'",
         "format:check": "oxfmt --check 'src/**/*.{ts,js}' '*.json' '*.md' '.storybook/**/*.ts'",
-        "analyze": "cem analyze --litelement --globs \"src/**/*.ts\"",
-        "analyze:watch": "cem analyze --litelement --globs \"src/**/*.ts\" --watch",
-        "checksize": "cat ./build/lms-calendar.bundled.js | gzip -9 | wc -c",
+        "analyze": "cem analyze --litelement --globs \"src/**/*.ts\" --exclude \"src/**/*.stories.ts\" --exclude \"src/lib/debug/**\"",
+        "analyze:watch": "cem analyze --litelement --globs \"src/**/*.ts\" --exclude \"src/**/*.stories.ts\" --exclude \"src/lib/debug/**\" --watch",
+        "checksize": "cat ./dist/kalendus.js | gzip -9 | wc -c",
+        "prepublishOnly": "pnpm run clean && pnpm run build && pnpm run test && pnpm run lint && pnpm run analyze",
         "test": "NODE_OPTIONS=--experimental-vm-modules mocha",
         "test:watch": "NODE_OPTIONS=--experimental-vm-modules mocha --watch",
         "test:components": "web-test-runner",
@@ -36,19 +61,15 @@
         "i18n:extract": "lit-localize extract",
         "i18n:build": "lit-localize build"
     },
-    "dependencies": {
-        "@lit-labs/observers": "^2.1.0",
-        "@types/luxon": "^3.7.1",
-        "lit": "^3.3.2",
-        "luxon": "^3.7.2",
-        "remeda": "^2.33.6",
-        "ts-ics": "^2.4.1",
-        "ts-pattern": "^5.9.0"
+    "peerDependencies": {
+        "lit": "^3.0.0",
+        "luxon": "^3.0.0"
     },
     "devDependencies": {
         "@11ty/eleventy": "^3.1.2",
         "@11ty/eleventy-plugin-syntaxhighlight": "^5.0.2",
         "@custom-elements-manifest/analyzer": "^0.11.0",
+        "@lit-labs/observers": "^2.1.0",
         "@lit/localize": "^0.12.2",
         "@lit/localize-tools": "^0.8.1",
         "@open-wc/testing": "^4.0.0",
@@ -58,6 +79,7 @@
         "@storybook/web-components": "10.2.13",
         "@storybook/web-components-vite": "^10.2.13",
         "@types/chai": "^5.2.3",
+        "@types/luxon": "^3.7.1",
         "@types/mocha": "^10.0.10",
         "@web/dev-server": "^0.4.6",
         "@web/dev-server-esbuild": "^1.0.5",
@@ -67,15 +89,20 @@
         "@web/test-runner-playwright": "^0.11.1",
         "@webcomponents/webcomponentsjs": "^2.8.0",
         "chai": "^6.2.2",
+        "lit": "^3.3.2",
         "lit-analyzer": "^2.0.3",
+        "luxon": "^3.7.2",
         "mocha": "^11.7.5",
-        "oxfmt": "latest",
-        "oxlint": "latest",
+        "oxfmt": "0.35.0",
+        "oxlint": "1.50.0",
         "playwright": "^1.58.2",
+        "remeda": "^2.33.6",
         "rimraf": "^6.1.3",
         "rolldown": "1.0.0-rc.6",
         "storybook": "^10.2.13",
+        "ts-ics": "^2.4.1",
         "ts-node": "^10.9.2",
+        "ts-pattern": "^5.9.0",
         "tslib": "^2.8.1",
         "typescript": "^5.9.3",
         "vite": "^7.3.1",

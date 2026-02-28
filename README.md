@@ -36,7 +36,7 @@ A sophisticated, responsive calendar web component built with Lit 3.x and TypeSc
 ## Installation
 
 ```bash
-pnpm add @lmscloud/lms-calendar
+pnpm add @jpahd/kalendus
 ```
 
 ## Usage
@@ -299,7 +299,7 @@ pnpm storybook     # Start Storybook dev server
 pnpm build          # Build with Vite
 pnpm test           # Run tests
 pnpm lint           # Run lit-analyzer + oxlint
-pnpm format         # Format with Prettier
+pnpm format         # Format with oxfmt
 ```
 
 ### Adding a New Locale

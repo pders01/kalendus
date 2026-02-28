@@ -149,13 +149,14 @@ export class Menu extends LitElement {
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
 
+        const root = this.renderRoot as ShadowRoot;
         if (e.shiftKey) {
-            if (this.renderRoot.activeElement === first) {
+            if (root.activeElement === first) {
                 e.preventDefault();
                 last.focus();
             }
         } else {
-            if (this.renderRoot.activeElement === last) {
+            if (root.activeElement === last) {
                 e.preventDefault();
                 first.focus();
             }
