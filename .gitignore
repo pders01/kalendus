@@ -20,5 +20,8 @@ server/data/
 # Screenshots
 screenshots/
 
+# Generated custom elements manifest
+custom-elements.json
+
 # Demo recording temp files
 .demo-tmp/
