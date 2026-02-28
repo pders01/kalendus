@@ -25,6 +25,18 @@ export default class Week extends LitElement {
     @property({ type: String })
     locale = 'en';
 
+    /** Condensed subset of dates to render (defaults to full week). */
+    @property({ attribute: false })
+    visibleDates?: CalendarDate[];
+
+    /** Start offset into the full 7-day week. */
+    @property({ type: Number })
+    visibleStartIndex = 0;
+
+    /** Number of visible day columns. */
+    @property({ type: Number })
+    visibleLength = 7;
+
     static override styles = css`
         :host {
             display: block;
@@ -37,6 +49,7 @@ export default class Week extends LitElement {
             flex-direction: column;
             height: var(--view-container-height);
             overflow: hidden;
+            position: relative;
         }
 
         .week-header {
@@ -47,6 +60,7 @@ export default class Week extends LitElement {
             border-bottom: var(--separator-border);
             gap: var(--day-gap, 1px);
             padding: var(--day-padding, 0.5em);
+            position: relative;
         }
 
         .time-header {
@@ -141,7 +155,7 @@ export default class Week extends LitElement {
         }
 
         .hour-separator {
-            grid-column: 2 / 3;
+            grid-column: 2 / -1;
             border-top: var(--separator-border, 1px solid var(--separator-light));
             position: absolute;
             width: 100%;
@@ -229,6 +243,44 @@ export default class Week extends LitElement {
             font-weight: var(--day-label-font-weight);
             border-right: var(--separator-border);
         }
+
+        /* Peek indicators for condensed view */
+        .peek-indicators {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 0.25em;
+            height: 1.5em;
+            flex-shrink: 0;
+            border-bottom: var(--separator-border);
+        }
+
+        .peek-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.25em;
+            color: var(--hour-indicator-color, rgba(0, 0, 0, 0.5));
+            font-size: 0.75em;
+            cursor: pointer;
+            user-select: none;
+            padding: 0.1em 0.35em;
+            border-radius: var(--border-radius-sm, 4px);
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .peek-indicator:hover {
+            background-color: var(--separator-light, rgba(0, 0, 0, 0.06));
+            color: var(--separator-dark, rgba(0, 0, 0, 0.7));
+        }
+
+        .peek-indicator:active {
+            background-color: var(--separator-mid, rgba(0, 0, 0, 0.12));
+        }
+
+        .peek-indicator--hidden {
+            visibility: hidden;
+            pointer-events: none;
+        }
     `;
 
     override connectedCallback() {
@@ -237,6 +289,20 @@ export default class Week extends LitElement {
 
     private _getWeekDates(): CalendarDate[] {
         return getWeekDates(this.activeDate, this.firstDayOfWeek);
+    }
+
+    /** Return the dates to actually render (condensed subset or full week). */
+    private _getDatesToRender(): CalendarDate[] {
+        return this.visibleDates ?? this._getWeekDates();
+    }
+
+    /** Return the weekday order slice matching the visible dates. */
+    private _getVisibleWeekdayOrder(): number[] {
+        const fullOrder = getWeekdayOrder(this.firstDayOfWeek);
+        if (this.visibleDates && this.visibleLength < 7) {
+            return fullOrder.slice(this.visibleStartIndex, this.visibleStartIndex + this.visibleLength);
+        }
+        return fullOrder;
     }
 
     private _isCurrentDate(date: CalendarDate) {
@@ -248,9 +314,14 @@ export default class Week extends LitElement {
         );
     }
 
+    /** Whether the view is condensed (showing fewer than 7 days). */
+    private get _isCondensed(): boolean {
+        return this.visibleDates !== undefined && this.visibleLength < 7;
+    }
+
     override render() {
-        const weekDates = this._getWeekDates();
-        const weekdayOrder = getWeekdayOrder(this.firstDayOfWeek);
+        const datesToRender = this._getDatesToRender();
+        const weekdayOrder = this._getVisibleWeekdayOrder();
         const hasAllDay = this.allDayRowCount > 0;
         const allDayHeight = hasAllDay
             ? Math.max(2.5, this.allDayRowCount * 2) + 1
@@ -259,11 +330,14 @@ export default class Week extends LitElement {
             ? `calc(var(--main-content-height) - ${allDayHeight}em)`
             : 'var(--main-content-height)';
 
+        const showLeftPeek = this._isCondensed && this.visibleStartIndex > 0;
+        const showRightPeek = this._isCondensed && this.visibleStartIndex + this.visibleLength < 7;
+
         return html`
             <div class="week-container">
                 <div class="week-header">
                     <div class="time-header"></div>
-                    ${weekDates.map(
+                    ${datesToRender.map(
                         (date, index) => html`
                             <div
                                 class="day-label ${classMap({
@@ -286,12 +360,34 @@ export default class Week extends LitElement {
                     )}
                 </div>
 
+                <!-- Peek indicators for condensed view -->
+                ${this._isCondensed ? html`
+                <div class="peek-indicators">
+                    <span
+                        class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showLeftPeek })}"
+                        role="button"
+                        tabindex=${showLeftPeek ? '0' : '-1'}
+                        aria-label="Show earlier days"
+                        @click=${() => this._handlePeekNavigate('previous')}
+                        @keydown=${(e: KeyboardEvent) => this._handlePeekKeydown(e, 'previous')}
+                    >\u2039 more</span>
+                    <span
+                        class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showRightPeek })}"
+                        role="button"
+                        tabindex=${showRightPeek ? '0' : '-1'}
+                        aria-label="Show later days"
+                        @click=${() => this._handlePeekNavigate('next')}
+                        @keydown=${(e: KeyboardEvent) => this._handlePeekKeydown(e, 'next')}
+                    >more \u203A</span>
+                </div>
+                ` : nothing}
+
                 <!-- All-day events section -->
                 ${hasAllDay ? html`
                 <div class="all-day-wrapper">
                     <div class="all-day-container">
                         <div class="all-day-time-header">${getMessages(this.locale).allDay}</div>
-                        ${weekDates.map(
+                        ${datesToRender.map(
                             (date) => html`
                                 <div class="all-day-day-column">
                                     <slot
@@ -333,7 +429,7 @@ export default class Week extends LitElement {
                     )}
 
                     <!-- Hour slots for each day -->
-                    ${weekDates.map(
+                    ${datesToRender.map(
                         (date, dayIndex) => html`
                             ${Array.from({ length: 25 }).map(
                                 (_, hour) => html`
@@ -382,6 +478,36 @@ export default class Week extends LitElement {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             this._handleDayLabelClick(date);
+        }
+    }
+
+    /**
+     * Navigate the visible window by shifting the active date by 1 day.
+     * The parent's `computeWeekDisplayContext` re-centers the window around the new date.
+     */
+    private _handlePeekNavigate(direction: 'previous' | 'next') {
+        const weekDates = this._getWeekDates();
+        let targetDate: CalendarDate | undefined;
+
+        if (direction === 'previous' && this.visibleStartIndex > 0) {
+            targetDate = weekDates[this.visibleStartIndex - 1];
+        } else if (direction === 'next' && this.visibleStartIndex + this.visibleLength < 7) {
+            targetDate = weekDates[this.visibleStartIndex + this.visibleLength];
+        }
+
+        if (targetDate) {
+            this.dispatchEvent(new CustomEvent('peek-navigate', {
+                detail: { date: targetDate, direction },
+                bubbles: true,
+                composed: true,
+            }));
+        }
+    }
+
+    private _handlePeekKeydown(e: KeyboardEvent, direction: 'previous' | 'next') {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this._handlePeekNavigate(direction);
         }
     }
 }

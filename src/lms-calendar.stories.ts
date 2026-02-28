@@ -1247,6 +1247,123 @@ export const WeekStartComparison: Story = {
     },
 };
 
+// --- Condensed week view stories ---
+
+export const CondensedWeekView: Story = {
+    args: {
+        heading: 'Condensed Week (3-Day)',
+        entries: sampleEntries,
+    },
+    render: (args) => html`
+        <div style="width: 400px; height: 720px; margin: 0 auto; border: 1px dashed #ccc;">
+            <lms-calendar
+                .heading=${args.heading}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 100%; display: block; --week-mobile-day-count: 3;"
+            ></lms-calendar>
+        </div>
+    `,
+    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
+        await expect(calendar).toBeInTheDocument();
+
+        // Switch to week view
+        const shadowRoot = calendar.shadowRoot;
+        const header = shadowRoot?.querySelector('lms-calendar-header');
+        if (header) {
+            const headerShadow = header.shadowRoot;
+            const weekButton = headerShadow?.querySelector('[data-context="week"]') as HTMLElement;
+            if (weekButton) {
+                await userEvent.click(weekButton);
+                await new Promise((resolve) => setTimeout(resolve, 300));
+
+                const weekView = shadowRoot?.querySelector('lms-calendar-week');
+                await expect(weekView).toBeInTheDocument();
+            }
+        }
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Week view in a narrow container (400px) automatically condenses to show 3 day columns centered on the active date. Subtle peek indicators appear at the edges when there are hidden days. Navigating with arrows moves the active date and re-centers the visible window.',
+            },
+        },
+    },
+};
+
+export const CondensedWeekModes: Story = {
+    args: {
+        entries: sampleEntries,
+    },
+    render: (args) => html`
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr; gap: 1em; height: 720px;">
+            <lms-calendar
+                .heading=${'1-Day Peek'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 100%; display: block; --week-mobile-day-count: 1; --week-mobile-breakpoint: 9999px;"
+            ></lms-calendar>
+            <lms-calendar
+                .heading=${'2-Day Peek'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 100%; display: block; --week-mobile-day-count: 2; --week-mobile-breakpoint: 9999px;"
+            ></lms-calendar>
+            <lms-calendar
+                .heading=${'3-Day Peek'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 100%; display: block; --week-mobile-day-count: 3; --week-mobile-breakpoint: 9999px;"
+            ></lms-calendar>
+            <lms-calendar
+                .heading=${'5-Day Peek'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 100%; display: block; --week-mobile-day-count: 5; --week-mobile-breakpoint: 9999px;"
+            ></lms-calendar>
+        </div>
+    `,
+    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+        const calendars = canvasElement.querySelectorAll('lms-calendar') as NodeListOf<LMSCalendar>;
+        for (const calendar of calendars) {
+            await expect(calendar).toBeInTheDocument();
+            const shadowRoot = calendar.shadowRoot;
+            const header = shadowRoot?.querySelector('lms-calendar-header');
+            if (header) {
+                const headerShadow = header.shadowRoot;
+                const weekButton = headerShadow?.querySelector('[data-context="week"]') as HTMLElement;
+                if (weekButton) {
+                    await userEvent.click(weekButton);
+                    await new Promise((resolve) => setTimeout(resolve, 200));
+                }
+            }
+        }
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Side-by-side comparison of condensed week view modes: 1-day, 2-day, 3-day, and 5-day. Each calendar uses `--week-mobile-breakpoint: 9999px` to force condensed mode regardless of container width, showing different `--week-mobile-day-count` values.',
+            },
+        },
+    },
+};
+
 // --- Locale stories ---
 // Helper to create a locale story with proper firstDayOfWeek and per-instance locale.
 const createLocaleStory = (
