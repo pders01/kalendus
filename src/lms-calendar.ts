@@ -1,6 +1,7 @@
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
 import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { DateTime, Interval } from 'luxon';
 import * as R from 'remeda';
@@ -572,7 +573,7 @@ export default class LMSCalendar extends LitElement {
                     </lms-calendar-header>
                 </header>
 
-                <main role="region" aria-live="polite" aria-label="${getMessages(this.locale)[viewMode]} ${getMessages(this.locale).viewLabel}" style=${viewMode === 'year' ? 'overflow-y: auto' : nothing}>
+                <main role="region" aria-live="polite" aria-label="${getMessages(this.locale)[viewMode]} ${getMessages(this.locale).viewLabel}" style=${ifDefined(viewMode === 'year' ? 'overflow-y: auto' : undefined)}>
                     ${
                         viewMode === 'month'
                             ? html`
