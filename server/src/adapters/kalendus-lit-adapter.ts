@@ -1,6 +1,7 @@
-import { KalendusApiClient, toCalendarEntry } from './kalendus-api-client.js';
+/// <reference lib="dom" />
+
+import { KalendusApiClient } from './kalendus-api-client.js';
 import type {
-    ApiCalendarEntry,
     CalendarEntry,
     KalendusClientOptions,
     SyncMessage,
@@ -45,8 +46,8 @@ export class KalendusLitAdapter implements ReactiveController {
     private _enableTelemetry: boolean;
     private _unsubSync?: () => void;
     private _boundHandlers: {
-        switchdate?: EventListener;
-        switchview?: EventListener;
+        switchdate?: (e: Event) => void;
+        switchview?: (e: Event) => void;
     } = {};
 
     // Current visible range (for re-fetching on sync events)
@@ -83,13 +84,13 @@ export class KalendusLitAdapter implements ReactiveController {
     hostConnected(): void {
         const host = this._host as unknown as EventTarget;
 
-        this._boundHandlers.switchdate = ((e: CustomEvent) => {
-            this._handleNavigation(e.detail);
-        }) as EventListener;
+        this._boundHandlers.switchdate = (e: Event) => {
+            this._handleNavigation((e as CustomEvent).detail);
+        };
 
-        this._boundHandlers.switchview = ((e: CustomEvent) => {
-            this._handleNavigation(e.detail);
-        }) as EventListener;
+        this._boundHandlers.switchview = (e: Event) => {
+            this._handleNavigation((e as CustomEvent).detail);
+        };
 
         if (typeof host.addEventListener === 'function') {
             host.addEventListener('switchdate', this._boundHandlers.switchdate);
@@ -166,29 +167,10 @@ export class KalendusLitAdapter implements ReactiveController {
         }
     }
 
-    private _handleSync(msg: SyncMessage): void {
-        if (msg.type === 'deleted') {
-            // Optimistic: remove entry by ID
-            const deletedId = (msg.data as { id: string }).id;
-            const apiEntries = this._entries.filter(
-                (_, idx) => {
-                    // We don't have IDs on CalendarEntry, so re-fetch
-                    void idx;
-                    return true;
-                },
-            );
-            void apiEntries;
-            // Re-fetch the current range for accurate state
-            if (this._currentStart && this._currentEnd) {
-                this.fetchRange(this._currentStart, this._currentEnd);
-            }
-        } else {
-            // created or updated — re-fetch for simplicity
-            const entry = msg.data as ApiCalendarEntry;
-            void entry;
-            if (this._currentStart && this._currentEnd) {
-                this.fetchRange(this._currentStart, this._currentEnd);
-            }
+    private _handleSync(_msg: SyncMessage): void {
+        // Re-fetch the current range for accurate state on any sync event
+        if (this._currentStart && this._currentEnd) {
+            this.fetchRange(this._currentStart, this._currentEnd);
         }
     }
 

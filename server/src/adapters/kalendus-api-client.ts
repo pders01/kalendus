@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import type {
     ApiCalendarEntry,
     CalendarEntry,
@@ -53,7 +55,7 @@ export class KalendusApiClient {
         const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events?start=${start}&end=${end}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`fetchEvents failed: ${res.status}`);
-        const entries: ApiCalendarEntry[] = await res.json();
+        const entries = (await res.json()) as ApiCalendarEntry[];
         return entries.map(toCalendarEntry);
     }
 
@@ -65,7 +67,7 @@ export class KalendusApiClient {
         const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events?start=${start}&end=${end}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`fetchRawEvents failed: ${res.status}`);
-        return res.json();
+        return (await res.json()) as ApiCalendarEntry[];
     }
 
     /** Fetch per-day event counts */
@@ -76,7 +78,7 @@ export class KalendusApiClient {
         const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events/summary?start=${start}&end=${end}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`fetchSummary failed: ${res.status}`);
-        return res.json();
+        return (await res.json()) as EventSummary;
     }
 
     async createEvent(
@@ -89,7 +91,7 @@ export class KalendusApiClient {
             body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error(`createEvent failed: ${res.status}`);
-        return res.json();
+        return (await res.json()) as ApiCalendarEntry;
     }
 
     async updateEvent(
@@ -103,7 +105,7 @@ export class KalendusApiClient {
             body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error(`updateEvent failed: ${res.status}`);
-        return res.json();
+        return (await res.json()) as ApiCalendarEntry;
     }
 
     async deleteEvent(eventId: string): Promise<void> {
@@ -116,7 +118,7 @@ export class KalendusApiClient {
         const url = `${this._baseUrl}/api/calendars/${this._calendarId}/manifest`;
         const res = await fetch(url);
         if (!res.ok) throw new Error(`fetchManifest failed: ${res.status}`);
-        return res.json();
+        return (await res.json()) as CalendarManifest;
     }
 
     async sendTelemetry(
@@ -145,8 +147,8 @@ export class KalendusApiClient {
         const url = `${this._baseUrl}/api/calendars/${this._calendarId}/stream`;
         this._eventSource = new EventSource(url);
 
-        const handleEvent = (type: string) => (e: MessageEvent) => {
-            const data = JSON.parse(e.data);
+        const handleEvent = (type: string) => (e: Event) => {
+            const data = JSON.parse((e as MessageEvent).data);
             const msg: SyncMessage = {
                 type: type as SyncMessage['type'],
                 data,
