@@ -79,7 +79,7 @@ describe('Year Component', () => {
             <lms-calendar-year
                 .activeDate=${{ day: 1, month: 1, year: 2024 }}
                 .densityMode=${'dot'}
-                .entrySumByDay=${{ '15-1-2024': 3 }}
+                .entrySumByDay=${{ '2024-1-15': 3 }}
             ></lms-calendar-year>
         `);
 
@@ -95,7 +95,7 @@ describe('Year Component', () => {
             <lms-calendar-year
                 .activeDate=${{ day: 1, month: 1, year: 2024 }}
                 .densityMode=${'heatmap'}
-                .entrySumByDay=${{ '15-1-2024': 3, '16-1-2024': 10 }}
+                .entrySumByDay=${{ '2024-1-15': 3, '2024-1-16': 10 }}
             ></lms-calendar-year>
         `);
 
@@ -113,7 +113,7 @@ describe('Year Component', () => {
             <lms-calendar-year
                 .activeDate=${{ day: 1, month: 1, year: 2024 }}
                 .densityMode=${'count'}
-                .entrySumByDay=${{ '15-1-2024': 5 }}
+                .entrySumByDay=${{ '2024-1-15': 5 }}
             ></lms-calendar-year>
         `);
 
