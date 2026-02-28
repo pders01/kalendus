@@ -33,15 +33,15 @@ describe('Day Component', () => {
         const indicators = el.shadowRoot?.querySelectorAll('.hour-label .indicator');
         expect(indicators).to.have.length(25);
 
-        // Check first hour (00:00)
+        // Check first hour (0:00) — hour: 'numeric' omits leading zero
         const firstHour = indicators?.[0];
-        expect(firstHour?.textContent?.trim()).to.equal('00:00');
+        expect(firstHour?.textContent?.trim()).to.equal('0:00');
 
-        // Check 10th hour (09:00)
+        // Check 10th hour (9:00)
         const tenthHour = indicators?.[9];
-        expect(tenthHour?.textContent?.trim()).to.equal('09:00');
+        expect(tenthHour?.textContent?.trim()).to.equal('9:00');
 
-        // Check 11th hour (10:00) - no leading zero
+        // Check 11th hour (10:00)
         const eleventhHour = indicators?.[10];
         expect(eleventhHour?.textContent?.trim()).to.equal('10:00');
 
