@@ -17,6 +17,59 @@ function resolveLuxonLocale(locale: string): string {
     return LUXON_LOCALE_MAP[locale] || locale;
 }
 
+// ── Cached month names (12-element array per locale) ─────────────────
+const _monthCache = new Map<string, readonly string[]>();
+
+function getMonthNames(locale: string): readonly string[] {
+    const key = resolveLuxonLocale(locale);
+    let arr = _monthCache.get(key);
+    if (!arr) {
+        arr = Object.freeze(
+            Array.from({ length: 12 }, (_, i) =>
+                DateTime.local()
+                    .set({ month: (i + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 })
+                    .setLocale(key)
+                    .toFormat('MMM'),
+            ),
+        );
+        _monthCache.set(key, arr);
+    }
+    return arr;
+}
+
+// ── Cached weekday names (7-element array per locale) ────────────────
+const _weekdayCache = new Map<string, readonly string[]>();
+
+function getWeekdayNames(locale: string): readonly string[] {
+    const key = resolveLuxonLocale(locale);
+    let arr = _weekdayCache.get(key);
+    if (!arr) {
+        arr = Object.freeze(
+            Array.from({ length: 7 }, (_, i) =>
+                DateTime.local()
+                    .set({ weekday: (i + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 })
+                    .setLocale(key)
+                    .toFormat('ccc'),
+            ),
+        );
+        _weekdayCache.set(key, arr);
+    }
+    return arr;
+}
+
+// ── Cached Intl.DateTimeFormat for day+month ─────────────────────────
+const _dayMonthFmtCache = new Map<string, Intl.DateTimeFormat>();
+
+function getDayMonthFormatter(locale: string): Intl.DateTimeFormat {
+    const key = resolveLuxonLocale(locale);
+    let fmt = _dayMonthFmtCache.get(key);
+    if (!fmt) {
+        fmt = new Intl.DateTimeFormat(key, { day: 'numeric', month: 'short' });
+        _dayMonthFmtCache.set(key, fmt);
+    }
+    return fmt;
+}
+
 /**
  * Format a DateTime with the given locale
  */
@@ -25,11 +78,10 @@ export function formatDateTime(dateTime: DateTime, format: string, locale = 'en'
 }
 
 /**
- * Get localized month name
+ * Get localized month name (abbreviated)
  */
 export function getLocalizedMonth(month: number, locale = 'en'): string {
-    const date = DateTime.local().set({ month });
-    return formatDateTime(date, 'MMM', locale);
+    return getMonthNames(locale)[month - 1];
 }
 
 /**
@@ -38,26 +90,12 @@ export function getLocalizedMonth(month: number, locale = 'en'): string {
  */
 export function getLocalizedDayMonth(day: number, month: number, year: number, locale = 'en'): string {
     const date = new Date(year, month - 1, day);
-    return new Intl.DateTimeFormat(resolveLuxonLocale(locale), { day: 'numeric', month: 'short' }).format(date);
-}
-
-/**
- * Get localized weekday name (short)
- */
-export function getLocalizedWeekday(weekday: number, locale = 'en'): string {
-    // Luxon uses 1=Monday, 7=Sunday
-    const date = DateTime.local().set({
-        weekday: weekday as 1 | 2 | 3 | 4 | 5 | 6 | 7,
-    });
-    return formatDateTime(date, 'ccc', locale);
+    return getDayMonthFormatter(locale).format(date);
 }
 
 /**
  * Get localized weekday name (abbreviated for calendar headers)
  */
 export function getLocalizedWeekdayShort(weekday: number, locale = 'en'): string {
-    const date = DateTime.local().set({
-        weekday: weekday as 1 | 2 | 3 | 4 | 5 | 6 | 7,
-    });
-    return formatDateTime(date, 'ccc', locale);
+    return getWeekdayNames(locale)[weekday - 1];
 }

@@ -2,7 +2,7 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { P, match } from 'ts-pattern';
 
-import { messages } from '../lib/messages.js';
+import { getMessages } from '../lib/messages.js';
 import type { CalendarDateInterval } from '../lms-calendar';
 
 /**
@@ -354,10 +354,12 @@ export default class Entry extends LitElement {
     }
 
     private _renderTime() {
+        const msg = getMessages(this.locale);
+
         if (this.displayMode === 'month-dot') {
             // In month view, always try to show time when possible
             if (this.isContinuation) {
-                return html`<span class="time">${messages.allDay(this.locale)}</span>`;
+                return html`<span class="time">${msg.allDay}</span>`;
             }
             const timeString = this._displayInterval(this.time);
             return timeString ? html`<span class="time">${timeString}</span>` : nothing;
@@ -368,7 +370,7 @@ export default class Entry extends LitElement {
         }
 
         if (this.isContinuation) {
-            return html`<span class="time">${messages.allDay(this.locale)}</span>`;
+            return html`<span class="time">${msg.allDay}</span>`;
         }
 
         const timeString = this._displayInterval(this.time);
@@ -477,7 +479,7 @@ export default class Entry extends LitElement {
         const lastsAllDay =
             components[END_HOURS] === 24 && components.reduce(this._sumReducer, 0) % 24 === 0;
         if (lastsAllDay) {
-            return messages.allDay(this.locale);
+            return getMessages(this.locale).allDay;
         }
 
         const [startHours, startMinutes, endHours, endMinutes] = components.map((component) =>
@@ -530,9 +532,10 @@ export default class Entry extends LitElement {
             }
 
             // Dispatch a custom event to communicate with the calendar
+            const msg = getMessages(this.locale);
             const eventDetails = {
-                heading: this.heading || messages.noTitle(this.locale),
-                content: this.content || messages.noContent(this.locale),
+                heading: this.heading || msg.noTitle,
+                content: this.content || msg.noContent,
                 time: this.time
                     ? `${String(this.time.start.hour).padStart(2, '0')}:${String(
                           this.time.start.minute,
@@ -540,7 +543,7 @@ export default class Entry extends LitElement {
                           2,
                           '0',
                       )}:${String(this.time.end.minute).padStart(2, '0')}`
-                    : messages.noTime(this.locale),
+                    : msg.noTime,
                 date: this.date?.start,
                 anchorRect: this.getBoundingClientRect(),
             };

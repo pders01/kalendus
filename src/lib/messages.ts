@@ -1,3 +1,4 @@
+import { targetLocales } from '../generated/locale-codes.js';
 import { templates as arTemplates } from '../generated/locales/ar.js';
 import { templates as bnTemplates } from '../generated/locales/bn.js';
 import { templates as deTemplates } from '../generated/locales/de.js';
@@ -42,30 +43,75 @@ const allTemplates: Record<string, Record<string, string>> = {
     'zh-Hans': zhHansTemplates,
 };
 
-function resolveMsg(locale: string, hashId: string, fallback: string): string {
-    if (locale === 'en') return fallback;
-    // Try exact match, then language-only fallback
-    const templates = allTemplates[locale] ?? allTemplates[locale.split('-')[0]];
-    return templates?.[hashId] ?? fallback;
+// Typed message keys — compile-time safety for hash IDs
+export type MessageKey =
+    | 'day'
+    | 'week'
+    | 'month'
+    | 'currentMonth'
+    | 'allDay'
+    | 'today'
+    | 'noTitle'
+    | 'noContent'
+    | 'noTime'
+    | 'eventDetails'
+    | 'exportAsICS'
+    | 'title'
+    | 'time'
+    | 'date'
+    | 'notes'
+    | 'close'
+    | 'calendarWeek';
+
+export type ResolvedMessages = Readonly<Record<MessageKey, string>>;
+
+// Single source of truth: key ↔ hash ↔ fallback
+const MESSAGE_DEFS: ReadonlyArray<readonly [MessageKey, string, string]> = [
+    ['day', 'se0955919920ee87d', 'Day'],
+    ['week', 's680f01021b5e339d', 'Week'],
+    ['month', 'sb47daaf9e1c4a905', 'Month'],
+    ['currentMonth', 's15ba5784a11e0b88', 'Current Month'],
+    ['allDay', 's58ab939b42a026a6', 'All Day'],
+    ['today', 's63d040e37887f17e', 'Today'],
+    ['noTitle', 's98b32ef4a0856c08', 'No Title'],
+    ['noContent', 's22380c7fc798a44f', 'No Content'],
+    ['noTime', 'sfce4bfbe0f911aa7', 'No Time'],
+    ['eventDetails', 'sa0fd990c985f24bd', 'Event Details'],
+    ['exportAsICS', 's2bc4d1196bce49dc', 'Export as ICS'],
+    ['title', 's99f110d27e30b289', 'Title'],
+    ['time', 's48e186fb300e5464', 'Time'],
+    ['date', 'sac8252732f2edb19', 'Date'],
+    ['notes', 's005053d82b712e0a', 'Notes'],
+    ['close', 's5e8250fb85d64c23', 'Close'],
+    ['calendarWeek', 's090f2107b5a69a7f', 'CW'],
+] as const;
+
+const _bundleCache = new Map<string, ResolvedMessages>();
+
+function resolveTemplates(locale: string): Record<string, string> | undefined {
+    if (locale === 'en') return undefined;
+    return allTemplates[locale] ?? allTemplates[locale.split('-')[0]];
 }
 
-// UI strings that aren't date/time related
-export const messages = {
-    day: (locale = 'en') => resolveMsg(locale, 'se0955919920ee87d', 'Day'),
-    week: (locale = 'en') => resolveMsg(locale, 's680f01021b5e339d', 'Week'),
-    month: (locale = 'en') => resolveMsg(locale, 'sb47daaf9e1c4a905', 'Month'),
-    currentMonth: (locale = 'en') => resolveMsg(locale, 's15ba5784a11e0b88', 'Current Month'),
-    allDay: (locale = 'en') => resolveMsg(locale, 's58ab939b42a026a6', 'All Day'),
-    today: (locale = 'en') => resolveMsg(locale, 's63d040e37887f17e', 'Today'),
-    noTitle: (locale = 'en') => resolveMsg(locale, 's98b32ef4a0856c08', 'No Title'),
-    noContent: (locale = 'en') => resolveMsg(locale, 's22380c7fc798a44f', 'No Content'),
-    noTime: (locale = 'en') => resolveMsg(locale, 'sfce4bfbe0f911aa7', 'No Time'),
-    eventDetails: (locale = 'en') => resolveMsg(locale, 'sa0fd990c985f24bd', 'Event Details'),
-    exportAsICS: (locale = 'en') => resolveMsg(locale, 's2bc4d1196bce49dc', 'Export as ICS'),
-    title: (locale = 'en') => resolveMsg(locale, 's99f110d27e30b289', 'Title'),
-    time: (locale = 'en') => resolveMsg(locale, 's48e186fb300e5464', 'Time'),
-    date: (locale = 'en') => resolveMsg(locale, 'sac8252732f2edb19', 'Date'),
-    notes: (locale = 'en') => resolveMsg(locale, 's005053d82b712e0a', 'Notes'),
-    close: (locale = 'en') => resolveMsg(locale, 's5e8250fb85d64c23', 'Close'),
-    calendarWeek: (locale = 'en') => resolveMsg(locale, 's090f2107b5a69a7f', 'CW'),
-} as const;
+export function getMessages(locale: string): ResolvedMessages {
+    let bundle = _bundleCache.get(locale);
+    if (bundle) return bundle;
+
+    const templates = resolveTemplates(locale);
+    const resolved = {} as Record<MessageKey, string>;
+    for (const [key, hashId, fallback] of MESSAGE_DEFS) {
+        resolved[key] = templates?.[hashId] ?? fallback;
+    }
+    bundle = Object.freeze(resolved);
+    _bundleCache.set(locale, bundle);
+    return bundle;
+}
+
+// Dev-mode validation — tree-shaken in production builds
+if ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) {
+    for (const code of targetLocales) {
+        if (!(code in allTemplates)) {
+            console.warn(`[lms-calendar] Missing locale template registration for "${code}"`);
+        }
+    }
+}

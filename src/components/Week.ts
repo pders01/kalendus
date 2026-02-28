@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
 import { getLocalizedWeekdayShort } from '../lib/localization.js';
-import { messages } from '../lib/messages.js';
+import { getMessages } from '../lib/messages.js';
 import { type FirstDayOfWeek, getWeekDates, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import './Day.js';
 
@@ -302,7 +302,7 @@ export default class Week extends LitElement {
                     })}"
                 >
                     <div class="all-day-container">
-                        <div class="all-day-time-header">${messages.allDay(this.locale)}</div>
+                        <div class="all-day-time-header">${getMessages(this.locale).allDay}</div>
                         ${weekDates.map(
                             (date) => html`
                                 <div class="all-day-day-column">
