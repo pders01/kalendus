@@ -29,4 +29,13 @@
 'sa1b2c3d4e5f60001': `Önceki`,
 'sa1b2c3d4e5f60002': `Sonraki`,
 'sa1b2c3d4e5f60003': `etkinlik`,
+'sa1b2c3d4e5f60004': `Takvim etkinliği`,
+'sa1b2c3d4e5f60005': `Ayrıntıları açmak için Enter veya Boşluk tuşuna basın`,
+'sa1b2c3d4e5f60006': `ile`,
+'sa1b2c3d4e5f60007': `Gün görünümüne geç`,
+'sa1b2c3d4e5f60008': `Önceki günleri göster`,
+'sa1b2c3d4e5f60009': `Sonraki günleri göster`,
+'sa1b2c3d4e5f60010': `daha fazla`,
+'sa1b2c3d4e5f60011': `Takvim görünümü`,
+'sa1b2c3d4e5f60012': `görünüm`,
     };

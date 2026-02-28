@@ -2,13 +2,15 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { generateIcsEvent, type IcsEvent } from 'ts-ics';
 
+import { formatLocalizedDate } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
 import type { CalendarDate } from '../lms-calendar';
 
 interface EventDetails {
     heading: string;
     content: string;
-    time: string;
+    time?: CalendarTimeInterval;
+    displayTime: string;
     date?: CalendarDate;
 }
 
@@ -18,7 +20,7 @@ export class Menu extends LitElement {
     @property({ type: Object }) eventDetails: EventDetails = {
         heading: '',
         content: '',
-        time: '',
+        displayTime: '',
     };
     @property({ attribute: false }) anchorRect?: DOMRect;
     @property({ type: String }) locale = 'en';
@@ -209,45 +211,25 @@ export class Menu extends LitElement {
     };
 
     private _handleExport = () => {
-        const { heading, content, time, date } = this.eventDetails as {
-            heading: string;
-            content: string;
-            time: string;
-            date?: CalendarDate;
-        };
+        const { heading, content, time, date } = this.eventDetails;
         const eventYear = date?.year ?? 2025;
         const eventMonth = (date?.month ?? 4) - 1;
         const eventDay = date?.day ?? 18;
         let start, end;
-        if (typeof time === 'string') {
-            const match = time.match(/(\d{2}):(\d{2}) - (\d{2}):(\d{2})/);
-            if (match) {
-                start = {
-                    date: new Date(
-                        eventYear,
-                        eventMonth,
-                        eventDay,
-                        parseInt(match[1]),
-                        parseInt(match[2]),
-                    ),
-                };
-                end = {
-                    date: new Date(
-                        eventYear,
-                        eventMonth,
-                        eventDay,
-                        parseInt(match[3]),
-                        parseInt(match[4]),
-                    ),
-                };
-            }
+        if (time) {
+            start = {
+                date: new Date(eventYear, eventMonth, eventDay, time.start.hour, time.start.minute),
+            };
+            end = {
+                date: new Date(eventYear, eventMonth, eventDay, time.end.hour, time.end.minute),
+            };
         }
         const event: IcsEvent = {
             start: {
-                date: (start && start.date) || new Date(eventYear, eventMonth, eventDay, 12, 0),
+                date: (start && start.date) || new Date(eventYear, eventMonth, eventDay, 0, 0),
             },
             end: {
-                date: (end && end.date) || new Date(eventYear, eventMonth, eventDay, 13, 0),
+                date: (end && end.date) || new Date(eventYear, eventMonth, eventDay, 23, 59),
             },
             summary: heading,
             description: content,
@@ -277,12 +259,7 @@ export class Menu extends LitElement {
     };
 
     private _formatDate(date: CalendarDate): string {
-        const d = new Date(date.year, date.month - 1, date.day);
-        return d.toLocaleDateString(undefined, {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-        });
+        return formatLocalizedDate(date.day, date.month, date.year, this.locale);
     }
 
     override render() {
@@ -316,7 +293,7 @@ export class Menu extends LitElement {
                     </button>
                 </div>
                 <div class="meta">
-                    ${this.eventDetails.time || msg.noTime}
+                    ${this.eventDetails.displayTime || msg.noTime}
                 </div>
                 ${
                     this.eventDetails.date

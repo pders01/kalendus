@@ -30,5 +30,14 @@
 'sa1b2c3d4e5f60001': `Anterior`,
 'sa1b2c3d4e5f60002': `Próximo`,
 'sa1b2c3d4e5f60003': `eventos`,
+'sa1b2c3d4e5f60004': `Evento do calendário`,
+'sa1b2c3d4e5f60005': `Pressione Enter ou Espaço para abrir detalhes`,
+'sa1b2c3d4e5f60006': `até`,
+'sa1b2c3d4e5f60007': `Mudar para visualização diária de`,
+'sa1b2c3d4e5f60008': `Mostrar dias anteriores`,
+'sa1b2c3d4e5f60009': `Mostrar dias posteriores`,
+'sa1b2c3d4e5f60010': `mais`,
+'sa1b2c3d4e5f60011': `Visualização do calendário`,
+'sa1b2c3d4e5f60012': `visualização`,
     };
   

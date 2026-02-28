@@ -84,7 +84,8 @@ export type OpenMenuEvent = {
     detail: {
         heading: string;
         content: string;
-        time: string;
+        time?: CalendarTimeInterval;
+        displayTime: string;
         date?: CalendarDate;
     };
 };
@@ -134,7 +135,8 @@ export type ExportICSEvent = {
     detail: {
         heading: string;
         content: string;
-        time: string;
+        time?: CalendarTimeInterval;
+        displayTime: string;
         date?: CalendarDate;
     };
 };

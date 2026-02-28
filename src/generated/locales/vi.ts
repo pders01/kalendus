@@ -29,4 +29,13 @@
 'sa1b2c3d4e5f60001': `Trước`,
 'sa1b2c3d4e5f60002': `Sau`,
 'sa1b2c3d4e5f60003': `sự kiện`,
+'sa1b2c3d4e5f60004': `Sự kiện lịch`,
+'sa1b2c3d4e5f60005': `Nhấn Enter hoặc Space để mở chi tiết`,
+'sa1b2c3d4e5f60006': `đến`,
+'sa1b2c3d4e5f60007': `Chuyển sang xem theo ngày cho`,
+'sa1b2c3d4e5f60008': `Hiển thị ngày trước đó`,
+'sa1b2c3d4e5f60009': `Hiển thị ngày tiếp theo`,
+'sa1b2c3d4e5f60010': `thêm`,
+'sa1b2c3d4e5f60011': `Xem lịch`,
+'sa1b2c3d4e5f60012': `xem`,
     };

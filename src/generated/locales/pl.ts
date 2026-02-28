@@ -29,4 +29,13 @@
 'sa1b2c3d4e5f60001': `Poprzedni`,
 'sa1b2c3d4e5f60002': `Następny`,
 'sa1b2c3d4e5f60003': `wydarzeń`,
+'sa1b2c3d4e5f60004': `Wydarzenie kalendarza`,
+'sa1b2c3d4e5f60005': `Naciśnij Enter lub Spację, aby otworzyć szczegóły`,
+'sa1b2c3d4e5f60006': `do`,
+'sa1b2c3d4e5f60007': `Przełącz na widok dnia dla`,
+'sa1b2c3d4e5f60008': `Pokaż wcześniejsze dni`,
+'sa1b2c3d4e5f60009': `Pokaż późniejsze dni`,
+'sa1b2c3d4e5f60010': `więcej`,
+'sa1b2c3d4e5f60011': `Widok kalendarza`,
+'sa1b2c3d4e5f60012': `widok`,
     };

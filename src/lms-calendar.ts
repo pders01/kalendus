@@ -83,7 +83,8 @@ export default class LMSCalendar extends LitElement {
     @state() _menuEventDetails?: {
         heading: string;
         content: string;
-        time: string;
+        time?: CalendarTimeInterval;
+        displayTime: string;
         date?: CalendarDate;
         anchorRect?: DOMRect;
     };
@@ -566,7 +567,7 @@ export default class LMSCalendar extends LitElement {
                     </lms-calendar-header>
                 </header>
 
-                <main role="region" aria-live="polite" aria-label="${viewMode} view" style=${viewMode === 'year' ? 'overflow-y: auto' : nothing}>
+                <main role="region" aria-live="polite" aria-label="${getMessages(this.locale)[viewMode]} ${getMessages(this.locale).viewLabel}" style=${viewMode === 'year' ? 'overflow-y: auto' : nothing}>
                     ${
                         viewMode === 'month'
                             ? html`
@@ -634,6 +635,7 @@ export default class LMSCalendar extends LitElement {
                                           @open-menu=${this._handleOpenMenu}
                                           @clear-other-selections=${this._handleClearOtherSelections}
                                           .allDayRowCount=${result.allDayRowCount}
+                                          .locale=${this.locale}
                                       >
                                           ${result.elements}
                                       </lms-calendar-day>
@@ -664,7 +666,7 @@ export default class LMSCalendar extends LitElement {
                         this._menuEventDetails || {
                             heading: '',
                             content: '',
-                            time: '',
+                            displayTime: '',
                         }
                     }
                     .anchorRect=${this._menuEventDetails?.anchorRect}
@@ -743,7 +745,8 @@ export default class LMSCalendar extends LitElement {
     public openMenu(eventDetails: {
         heading: string;
         content: string;
-        time: string;
+        time?: CalendarTimeInterval;
+        displayTime: string;
         date?: CalendarDate;
         anchorRect?: DOMRect;
     }) {

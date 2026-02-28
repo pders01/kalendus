@@ -29,4 +29,13 @@
 'sa1b2c3d4e5f60001': `Vorige`,
 'sa1b2c3d4e5f60002': `Volgende`,
 'sa1b2c3d4e5f60003': `evenementen`,
+'sa1b2c3d4e5f60004': `Agendagebeurtenis`,
+'sa1b2c3d4e5f60005': `Druk op Enter of Spatie om details te openen`,
+'sa1b2c3d4e5f60006': `tot`,
+'sa1b2c3d4e5f60007': `Naar dagweergave voor`,
+'sa1b2c3d4e5f60008': `Eerdere dagen tonen`,
+'sa1b2c3d4e5f60009': `Latere dagen tonen`,
+'sa1b2c3d4e5f60010': `meer`,
+'sa1b2c3d4e5f60011': `Agendaweergave`,
+'sa1b2c3d4e5f60012': `weergave`,
     };

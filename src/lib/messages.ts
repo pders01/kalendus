@@ -65,7 +65,16 @@ export type MessageKey =
     | 'year'
     | 'previous'
     | 'next'
-    | 'events';
+    | 'events'
+    | 'calendarEvent'
+    | 'pressToOpen'
+    | 'to'
+    | 'switchToDayView'
+    | 'showEarlierDays'
+    | 'showLaterDays'
+    | 'more'
+    | 'calendarView'
+    | 'viewLabel';
 
 export type ResolvedMessages = Readonly<Record<MessageKey, string>>;
 
@@ -92,6 +101,15 @@ const MESSAGE_DEFS: ReadonlyArray<readonly [MessageKey, string, string]> = [
     ['previous', 'sa1b2c3d4e5f60001', 'Previous'],
     ['next', 'sa1b2c3d4e5f60002', 'Next'],
     ['events', 'sa1b2c3d4e5f60003', 'events'],
+    ['calendarEvent', 'sa1b2c3d4e5f60004', 'Calendar event'],
+    ['pressToOpen', 'sa1b2c3d4e5f60005', 'Press Enter or Space to open details'],
+    ['to', 'sa1b2c3d4e5f60006', 'to'],
+    ['switchToDayView', 'sa1b2c3d4e5f60007', 'Switch to day view for'],
+    ['showEarlierDays', 'sa1b2c3d4e5f60008', 'Show earlier days'],
+    ['showLaterDays', 'sa1b2c3d4e5f60009', 'Show later days'],
+    ['more', 'sa1b2c3d4e5f60010', 'more'],
+    ['calendarView', 'sa1b2c3d4e5f60011', 'Calendar view'],
+    ['viewLabel', 'sa1b2c3d4e5f60012', 'view'],
 ] as const;
 
 const _bundleCache = new Map<string, ResolvedMessages>();
