@@ -1,9 +1,12 @@
 /**
- * Record a demo GIF of the calendar cycling through view modes.
+ * Record a comprehensive demo GIF of the calendar.
  *
- * Spins up a Vite dev server, creates a temp HTML page with sample
- * entries, uses Playwright's recordVideo to capture ~8s of view
- * transitions, then converts WebM → GIF with ffmpeg (two-pass palette).
+ * Showcases all views, all themes, multiple locales, and configuration
+ * options across 15 scenes (~18s). Doubles as a manual e2e smoke test.
+ *
+ * Spins up a Vite dev server, creates a temp HTML page with diverse
+ * sample entries, uses Playwright's recordVideo to capture the sequence,
+ * then converts WebM → GIF with ffmpeg (two-pass palette).
  *
  * Prerequisites: ffmpeg must be installed (brew install ffmpeg).
  *
@@ -14,7 +17,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { writeFileSync, mkdirSync, unlinkSync, existsSync } from 'fs';
+import { writeFileSync, readFileSync, mkdirSync, rmSync } from 'fs';
 import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -35,16 +38,32 @@ try {
 
 mkdirSync(outDir, { recursive: true });
 
+// ── Read theme CSS from source (no stale copies) ────────────────────
+const readTheme = (name) =>
+    readFileSync(resolve(root, `src/themes/${name}.css`), 'utf-8').replace(
+        /^lms-calendar\s*\{/m,
+        `.theme-${name} lms-calendar {`,
+    );
+
+const themes = ['default', 'ink', 'soft', 'brutalist', 'midnight'];
+// Note: the demo starts *unstyled* (no theme class on the wrapper).
+// The 'default' theme is included so Act 2 can showcase it alongside the others.
+const allThemeCSS = themes.map(readTheme).join('\n\n');
+
 // ── Sample entries (spread across current month) ─────────────────────
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 const currentDay = new Date().getDate();
 
+/** Clamp day to stay within the month (safe for any month) */
+const d = (offset) => Math.max(1, Math.min(currentDay + offset, 28));
+
 const sampleEntries = JSON.stringify([
+    // ── Today: overlapping entries (overlap handling demo) ──────────
     {
         heading: 'Morning Standup',
-        content: 'Daily team sync meeting',
+        content: 'Daily team sync',
         color: '#1976d2',
         isContinuation: false,
         date: {
@@ -54,20 +73,37 @@ const sampleEntries = JSON.stringify([
         time: { start: { hour: 9, minute: 0 }, end: { hour: 9, minute: 30 } },
     },
     {
-        heading: 'Design Workshop',
-        content: 'UX/UI design review session',
-        color: '#2e7d32',
+        heading: 'Design Review',
+        content: 'UX/UI session',
+        color: 'steelblue',
         isContinuation: false,
         date: {
             start: { day: currentDay, month: currentMonth, year: currentYear },
             end: { day: currentDay, month: currentMonth, year: currentYear },
         },
-        time: { start: { hour: 10, minute: 0 }, end: { hour: 12, minute: 0 } },
+        time: {
+            start: { hour: 9, minute: 15 },
+            end: { hour: 10, minute: 45 },
+        },
+    },
+    {
+        heading: 'Code Review',
+        content: 'PR walkthrough',
+        color: 'hsl(160, 60%, 40%)',
+        isContinuation: false,
+        date: {
+            start: { day: currentDay, month: currentMonth, year: currentYear },
+            end: { day: currentDay, month: currentMonth, year: currentYear },
+        },
+        time: {
+            start: { hour: 10, minute: 0 },
+            end: { hour: 11, minute: 30 },
+        },
     },
     {
         heading: 'Lunch & Learn',
-        content: 'Tech talk on web components',
-        color: '#ff9800',
+        content: 'Web Components talk',
+        color: 'coral',
         isContinuation: false,
         date: {
             start: { day: currentDay, month: currentMonth, year: currentYear },
@@ -79,40 +115,95 @@ const sampleEntries = JSON.stringify([
         },
     },
     {
-        heading: 'Team Offsite',
-        content: 'All-day team building event',
-        color: '#d32f2f',
+        heading: 'Afternoon Focus',
+        content: 'Deep work block',
+        color: 'oklch(0.65 0.15 250)',
         isContinuation: false,
         date: {
-            start: {
-                day: Math.min(currentDay + 1, 28),
-                month: currentMonth,
-                year: currentYear,
-            },
-            end: {
-                day: Math.min(currentDay + 1, 28),
-                month: currentMonth,
-                year: currentYear,
-            },
+            start: { day: currentDay, month: currentMonth, year: currentYear },
+            end: { day: currentDay, month: currentMonth, year: currentYear },
+        },
+        time: {
+            start: { hour: 14, minute: 0 },
+            end: { hour: 16, minute: 0 },
+        },
+    },
+
+    // ── Multi-day spanning events (allDay bar demo) ────────────────
+    {
+        heading: 'Product Sprint',
+        content: 'Multi-day sprint',
+        color: '#6a1b9a',
+        isContinuation: false,
+        date: {
+            start: { day: d(-1), month: currentMonth, year: currentYear },
+            end: { day: d(2), month: currentMonth, year: currentYear },
         },
         time: { start: { hour: 0, minute: 0 }, end: { hour: 23, minute: 59 } },
     },
     {
-        heading: 'Code Review',
-        content: 'Weekly code review session',
+        heading: 'Conference',
+        content: 'Tech conference',
+        color: 'tomato',
+        isContinuation: false,
+        date: {
+            start: { day: d(3), month: currentMonth, year: currentYear },
+            end: { day: d(5), month: currentMonth, year: currentYear },
+        },
+        time: { start: { hour: 0, minute: 0 }, end: { hour: 23, minute: 59 } },
+    },
+
+    // ── Entries spread across the month (density for month/year) ───
+    {
+        heading: 'Team Retro',
+        content: 'Sprint retrospective',
+        color: 'rgb(46, 125, 50)',
+        isContinuation: false,
+        date: {
+            start: { day: d(-3), month: currentMonth, year: currentYear },
+            end: { day: d(-3), month: currentMonth, year: currentYear },
+        },
+        time: {
+            start: { hour: 15, minute: 0 },
+            end: { hour: 16, minute: 0 },
+        },
+    },
+    {
+        heading: '1:1 Meeting',
+        content: 'Manager sync',
+        color: '#ff9800',
+        isContinuation: false,
+        date: {
+            start: { day: d(-5), month: currentMonth, year: currentYear },
+            end: { day: d(-5), month: currentMonth, year: currentYear },
+        },
+        time: {
+            start: { hour: 11, minute: 0 },
+            end: { hour: 11, minute: 30 },
+        },
+    },
+    {
+        heading: 'Planning',
+        content: 'Sprint planning',
+        color: 'hsl(210, 70%, 50%)',
+        isContinuation: false,
+        date: {
+            start: { day: d(4), month: currentMonth, year: currentYear },
+            end: { day: d(4), month: currentMonth, year: currentYear },
+        },
+        time: {
+            start: { hour: 10, minute: 0 },
+            end: { hour: 12, minute: 0 },
+        },
+    },
+    {
+        heading: 'Demo Day',
+        content: 'Feature demos',
         color: '#00acc1',
         isContinuation: false,
         date: {
-            start: {
-                day: Math.min(currentDay + 3, 28),
-                month: currentMonth,
-                year: currentYear,
-            },
-            end: {
-                day: Math.min(currentDay + 3, 28),
-                month: currentMonth,
-                year: currentYear,
-            },
+            start: { day: d(6), month: currentMonth, year: currentYear },
+            end: { day: d(6), month: currentMonth, year: currentYear },
         },
         time: {
             start: { hour: 14, minute: 0 },
@@ -120,56 +211,114 @@ const sampleEntries = JSON.stringify([
         },
     },
     {
-        heading: 'Product Sprint',
-        content: 'Multi-day development sprint',
-        color: '#6a1b9a',
+        heading: 'Workshop',
+        content: 'Lit workshop',
+        color: 'oklch(0.6 0.2 30)',
         isContinuation: false,
         date: {
-            start: {
-                day: Math.min(currentDay + 5, 26),
-                month: currentMonth,
-                year: currentYear,
-            },
-            end: {
-                day: Math.min(currentDay + 7, 28),
-                month: currentMonth,
-                year: currentYear,
-            },
+            start: { day: d(8), month: currentMonth, year: currentYear },
+            end: { day: d(8), month: currentMonth, year: currentYear },
         },
-        time: { start: { hour: 8, minute: 0 }, end: { hour: 17, minute: 0 } },
+        time: {
+            start: { hour: 9, minute: 0 },
+            end: { hour: 12, minute: 0 },
+        },
+    },
+    {
+        heading: 'Hackathon',
+        content: 'Internal hackathon',
+        color: 'rgb(211, 47, 47)',
+        isContinuation: false,
+        date: {
+            start: { day: d(10), month: currentMonth, year: currentYear },
+            end: { day: d(11), month: currentMonth, year: currentYear },
+        },
+        time: { start: { hour: 0, minute: 0 }, end: { hour: 23, minute: 59 } },
+    },
+    {
+        heading: 'Release',
+        content: 'v2.0 release',
+        color: '#2e7d32',
+        isContinuation: false,
+        date: {
+            start: { day: d(7), month: currentMonth, year: currentYear },
+            end: { day: d(7), month: currentMonth, year: currentYear },
+        },
+        time: {
+            start: { hour: 16, minute: 0 },
+            end: { hour: 17, minute: 0 },
+        },
+    },
+    {
+        heading: 'Board Sync',
+        content: 'Quarterly review',
+        color: 'hsl(280, 50%, 45%)',
+        isContinuation: false,
+        date: {
+            start: { day: d(-7), month: currentMonth, year: currentYear },
+            end: { day: d(-7), month: currentMonth, year: currentYear },
+        },
+        time: {
+            start: { hour: 13, minute: 0 },
+            end: { hour: 14, minute: 30 },
+        },
     },
 ]);
 
 // ── HTML template ────────────────────────────────────────────────────
 
 const testHTML = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=960">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #f5f5f5; padding: 16px; }
+        body {
+            background: #f5f5f5;
+            padding: 16px;
+            transition: background-color 0.3s;
+        }
+        #wrapper { position: relative; }
         lms-calendar {
             display: block;
             height: 608px;
-            --primary-color: #1976d2;
         }
+        #label {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            font: 11px/1 monospace;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        ${allThemeCSS}
     </style>
 </head>
 <body>
-    <lms-calendar></lms-calendar>
+    <div id="wrapper">
+        <div id="label">Month</div>
+        <lms-calendar></lms-calendar>
+    </div>
     <script type="module">
         import './src/lms-calendar.ts';
 
         async function init() {
             await customElements.whenDefined('lms-calendar');
             const cal = document.querySelector('lms-calendar');
+            const wrapper = document.getElementById('wrapper');
+            const label = document.getElementById('label');
+
             cal.heading = 'My Calendar';
             cal.activeDate = { day: ${currentDay}, month: ${currentMonth}, year: ${currentYear} };
             cal.entries = ${sampleEntries};
             await cal.updateComplete;
 
+            // ── In-page helpers ──────────────────────────────────
             window.__switchView = async (view) => {
                 const header = cal.shadowRoot.querySelector('lms-calendar-header');
                 const btn = header.shadowRoot.querySelector('[data-context="' + view + '"]');
@@ -179,9 +328,39 @@ const testHTML = `<!DOCTYPE html>
 
             window.__navigateNext = async () => {
                 const header = cal.shadowRoot.querySelector('lms-calendar-header');
-                const nextBtn = header.shadowRoot.querySelector('[data-dir="next"]');
-                if (nextBtn) nextBtn.click();
+                const btn = header.shadowRoot.querySelector('[name="next"]');
+                if (btn) btn.click();
                 await new Promise(r => setTimeout(r, 600));
+            };
+
+            window.__navigatePrevious = async () => {
+                const header = cal.shadowRoot.querySelector('lms-calendar-header');
+                const btn = header.shadowRoot.querySelector('[name="previous"]');
+                if (btn) btn.click();
+                await new Promise(r => setTimeout(r, 600));
+            };
+
+            window.__switchTheme = (name) => {
+                wrapper.className = name ? 'theme-' + name : '';
+                document.body.style.backgroundColor =
+                    name === 'midnight' ? '#121220' : '#f5f5f5';
+            };
+
+            window.__setLocale = (locale) => {
+                cal.locale = locale;
+                document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+            };
+
+            window.__setFirstDayOfWeek = (n) => {
+                cal.firstDayOfWeek = n;
+            };
+
+            window.__setHeading = (text) => {
+                cal.heading = text;
+            };
+
+            window.__setLabel = (text) => {
+                label.textContent = text;
             };
 
             window.__calReady = true;
@@ -190,6 +369,114 @@ const testHTML = `<!DOCTYPE html>
     </script>
 </body>
 </html>`;
+
+// ── Scene definitions ────────────────────────────────────────────────
+
+const scenes = [
+    // Act 1 — Views (unstyled base, English)
+    { label: 'Month', action: null, dwell: 1500 },
+    {
+        label: 'Week',
+        action: () => window.__switchView('week'),
+        dwell: 1500,
+    },
+    {
+        label: 'Day',
+        action: () => window.__switchView('day'),
+        dwell: 1500,
+    },
+    {
+        label: 'Year',
+        action: () => window.__switchView('year'),
+        dwell: 1500,
+    },
+
+    // Act 2 — Themes (switch back to month first)
+    {
+        label: 'Default',
+        action: async () => {
+            await window.__switchView('month');
+            window.__switchTheme('default');
+        },
+        dwell: 1200,
+    },
+    {
+        label: 'Ink',
+        action: () => window.__switchTheme('ink'),
+        dwell: 1200,
+    },
+    {
+        label: 'Soft',
+        action: () => window.__switchTheme('soft'),
+        dwell: 1200,
+    },
+    {
+        label: 'Brutalist',
+        action: () => window.__switchTheme('brutalist'),
+        dwell: 1200,
+    },
+    {
+        label: 'Midnight',
+        action: () => window.__switchTheme('midnight'),
+        dwell: 1500,
+    },
+
+    // Act 3 — Locales (reset to unstyled base, month view)
+    {
+        label: 'Deutsch',
+        action: () => {
+            window.__switchTheme(null);
+            window.__setLocale('de');
+            window.__setHeading('Mein Kalender');
+        },
+        dwell: 1200,
+    },
+    {
+        label: '日本語',
+        action: () => {
+            window.__setLocale('ja');
+            window.__setHeading('カレンダー');
+        },
+        dwell: 1200,
+    },
+    {
+        label: 'العربية',
+        action: () => {
+            window.__setLocale('ar');
+            window.__setHeading('التقويم');
+        },
+        dwell: 1200,
+    },
+
+    // Act 4 — Configuration & Outro
+    {
+        label: 'Sunday Start',
+        action: () => {
+            window.__setLocale('en');
+            window.__setHeading('My Calendar');
+            window.__setFirstDayOfWeek(0);
+        },
+        dwell: 1200,
+    },
+    {
+        label: 'Navigate →',
+        action: () => window.__navigateNext(),
+        dwell: 1000,
+    },
+    {
+        label: 'Navigate ←',
+        action: () => window.__navigatePrevious(),
+        dwell: 800,
+    },
+    {
+        label: 'Kalendus',
+        action: () => {
+            window.__setFirstDayOfWeek(1);
+            window.__setHeading('Kalendus');
+        },
+        dwell: 1000,
+    },
+];
 
 // ── Main ─────────────────────────────────────────────────────────────
 
@@ -232,32 +519,24 @@ async function run() {
             timeout: 15000,
         });
 
-        console.log('Recording demo...');
+        console.log(`Recording demo (${scenes.length} scenes)...`);
 
-        // 1. Month view (already loaded)
-        await page.waitForTimeout(1500);
+        for (let i = 0; i < scenes.length; i++) {
+            const scene = scenes[i];
+            console.log(`  ${i + 1}/${scenes.length} ${scene.label}`);
 
-        // 2. Switch to week view
-        console.log('  → week view');
-        await page.evaluate(() => window.__switchView('week'));
-        await page.waitForTimeout(1500);
+            // Set the label first so it's visible during the scene
+            await page.evaluate((lbl) => window.__setLabel(lbl), scene.label);
 
-        // 3. Switch to day view
-        console.log('  → day view');
-        await page.evaluate(() => window.__switchView('day'));
-        await page.waitForTimeout(1500);
+            if (scene.action) {
+                // Serialize the action as a string and evaluate it in the page
+                await page.evaluate(scene.action);
+                // Small settle time for Lit re-render
+                await page.waitForTimeout(300);
+            }
 
-        // 4. Switch to year view
-        console.log('  → year view');
-        await page.evaluate(() => window.__switchView('year'));
-        await page.waitForTimeout(1500);
-
-        // 5. Back to month, navigate to next month
-        console.log('  → month view + next month');
-        await page.evaluate(() => window.__switchView('month'));
-        await page.waitForTimeout(500);
-        await page.evaluate(() => window.__navigateNext());
-        await page.waitForTimeout(1000);
+            await page.waitForTimeout(scene.dwell);
+        }
 
         console.log('Recording complete.');
     } finally {
@@ -275,34 +554,23 @@ async function run() {
 
     console.log('Converting to GIF...');
 
-    // Pass 1: generate optimal palette
+    // Pass 1: generate optimal palette (128 colors for file size)
     execSync(
-        `ffmpeg -y -i "${videoPath}" -vf "fps=10,scale=800:-1:flags=lanczos,palettegen" "${palettePath}"`,
+        `ffmpeg -y -i "${videoPath}" -vf "fps=12,scale=800:-1:flags=lanczos,palettegen=max_colors=128" "${palettePath}"`,
         { stdio: 'inherit' },
     );
 
-    // Pass 2: apply palette
+    // Pass 2: apply palette with bayer dithering (better gradients for midnight theme)
     execSync(
-        `ffmpeg -y -i "${videoPath}" -i "${palettePath}" -lavfi "fps=10,scale=800:-1:flags=lanczos[x];[x][1:v]paletteuse" "${gifPath}"`,
+        `ffmpeg -y -i "${videoPath}" -i "${palettePath}" -lavfi "fps=12,scale=800:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3" "${gifPath}"`,
         { stdio: 'inherit' },
     );
 
     console.log(`GIF saved to ${gifPath}`);
 
     // ── Cleanup ──────────────────────────────────────────────────────
-    try {
-        unlinkSync(htmlPath);
-    } catch {}
-    try {
-        unlinkSync(videoPath);
-    } catch {}
-    try {
-        unlinkSync(palettePath);
-    } catch {}
-    try {
-        const { rmdirSync } = await import('fs');
-        rmdirSync(videoDir);
-    } catch {}
+    rmSync(htmlPath, { force: true });
+    rmSync(videoDir, { recursive: true, force: true });
 
     await server.close();
     console.log('Done!');
