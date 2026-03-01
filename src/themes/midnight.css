@@ -9,6 +9,10 @@
  */
 
 lms-calendar {
+    /* ── Base text color — must be explicit for dark themes since
+       the unstyled base uses `color: inherit` from the page ──── */
+    color: rgba(255, 255, 255, 0.85);
+
     /* ── Colors ─────────────────────────────────── */
     --background-color: #1a1b2e;
     --primary-color: #818cf8;

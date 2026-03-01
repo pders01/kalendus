@@ -792,6 +792,7 @@ export const BrutalistTheme: Story = createThemeStory('Brutalist Theme', `
 
 export const MidnightTheme: Story = createThemeStory('Midnight Theme', `
     .theme-demo lms-calendar {
+        color: rgba(255, 255, 255, 0.85);
         --background-color: #1a1b2e;
         --primary-color: #818cf8;
         --separator-light: rgba(255, 255, 255, 0.08);
