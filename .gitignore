@@ -6,7 +6,6 @@ build/
 lib/
 
 package-lock.json
-pnpm-lock.yaml
 test.html
 
 coverage/
