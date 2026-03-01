@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Overlapping Events Design'
+order: 12
+tags: docs
+section: Reference
+---
+
 # Overlapping Events Rendering System Design
 
 > **Historical document.** This was a planning doc for the overlap layout system. The implementation lives in `src/lib/LayoutCalculator.ts` (box layout) and `src/lib/allDayLayout.ts` (all-day row allocation). See the [Layout & Positioning Guide](./layout-and-positioning.md) for consumer-facing documentation.

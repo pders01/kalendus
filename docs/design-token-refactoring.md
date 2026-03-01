@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Design Token Refactoring'
+order: 11
+tags: docs
+section: Reference
+---
+
 # Design Token Refactoring Analysis
 
 > **Historical document.** This was a planning doc written before the token refactoring was implemented. Most proposals here have been completed. For the current token surface, see the [CSS Token Reference](./css-tokens.md).

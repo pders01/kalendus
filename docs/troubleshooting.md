@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Troubleshooting'
+order: 7
+tags: docs
+section: Layout
+---
+
 # Troubleshooting
 
 Common issues and solutions when using `<lms-calendar>`.

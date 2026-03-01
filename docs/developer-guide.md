@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Developer Guide'
+order: 8
+tags: docs
+section: Internals
+---
+
 # Developer Guide
 
 This guide documents the internal mechanisms of Kalendus so contributors can diagnose issues, extend features, and keep behavior consistent across views.

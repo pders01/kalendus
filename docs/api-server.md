@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'API Server Guide'
+order: 13
+tags: docs
+section: Reference
+---
+
 # API Server Guide
 
 Kalendus ships with an optional Node.js server that exposes REST and Server-Sent Events (SSE) endpoints for calendars and events. It gives products a ready-made backend for persisting entries, broadcasting real-time updates, and collecting telemetry without building a bespoke API.

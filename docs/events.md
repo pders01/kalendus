@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Events Reference'
+order: 5
+tags: docs
+section: Usage
+---
+
 # Custom Events Reference
 
 All custom DOM events fired by `<lms-calendar>` and its child components. Every event uses `bubbles: true` and `composed: true`, so you can listen on the `<lms-calendar>` host element from any framework.

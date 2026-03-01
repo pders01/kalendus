@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Theming Reference'
+order: 4
+tags: docs
+section: Usage
+---
+
 # Theming & CSS Custom Properties
 
 Kalendus ships **unstyled by default** — it renders with a neutral base that respects OS light/dark mode via CSS system colors (`Canvas`, `CanvasText`, `AccentColor`). Import a built-in theme to apply an opinionated design, or override individual tokens to match your design system.

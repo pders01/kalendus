@@ -1,6 +1,15 @@
+---
+layout: base.njk
+title: 'Kalendus'
+order: 0
+tags: docs
+section: Getting Started
+permalink: /
+---
+
 # kalendus
 
-A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and 113 CSS design tokens.
+A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and 151 CSS design tokens.
 
 ![demo](assets/demo.gif)
 
@@ -51,7 +60,7 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 - **Responsive Design**: Mobile-first approach with adaptive layouts and container queries
 - **Color Dot Indicators**: Scalable month view with color-coded event dots
 - **Accessibility**: Full keyboard navigation, ARIA labels, focus trapping, and screen reader support
-- **CSS Custom Properties**: 113 design tokens for comprehensive theming
+- **CSS Custom Properties**: 151 design tokens for comprehensive theming
 
 ### Per-Instance Localization
 
@@ -162,7 +171,7 @@ See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format
 | ---------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
 | Integrators            | [Integration Guide](docs/integration-guide.md)               | Framework recipes, theming tokens, analytics hooks       |
 | Application Developers | [Library Usage](docs/library-usage.md)                       | API surface, data contracts, DOM events                  |
-| CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                    | Complete reference of all 113 CSS custom properties      |
+| CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                    | Complete reference of all 151 CSS custom properties      |
 | CSS / Design Systems   | [Theming Reference](docs/theming.md)                         | Built-in themes, color formats, quick-start examples     |
 | Events                 | [Events Reference](docs/events.md)                           | All 8 custom events with payloads and code examples      |
 | Layout                 | [Layout & Positioning](docs/layout-and-positioning.md)       | Height requirements, responsive behavior, all-day events |
