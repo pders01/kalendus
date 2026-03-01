@@ -1,12 +1,14 @@
 ---
 layout: base.njk
-title: 'Rendering Calculations'
-order: 9
+title: 'Rendering Calculations (Historical)'
+order: 13
 tags: docs
-section: Internals
+section: Reference
 ---
 
 # LMS Calendar Rendering Calculations
+
+> **Historical document.** This was the original rendering calculations reference written for the CSS grid system (`repeat(1440, 1fr)`). The calendar now uses absolute positioning with `--minute-height`. See the [Rendering Pipeline](./rendering-pipeline.md) for the current system.
 
 This document describes all the rendering calculations used throughout the LMS Calendar component system to ensure pixel-perfect alignment and consistent behavior across all views.
 
