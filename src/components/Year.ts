@@ -37,9 +37,18 @@ export default class Year extends LitElement {
         :host {
             display: block;
             height: 100%;
-            contain: size layout style;
+            contain: layout style;
+            /* inline-size only: host participates in parent width calculation
+               while still providing width-based container queries */
+            container-type: inline-size;
+        }
+
+        /* Inner wrapper provides block-axis containment for cqb units
+           and handles scrolling. Its contain: size (implied by container-type: size)
+           is harmless here — it receives dimensions from :host, not the reverse. */
+        .scroll-container {
+            height: 100%;
             overflow-y: auto;
-            /* size enables both width container queries and cqb (block) units */
             container-type: size;
             scroll-snap-type: y mandatory;
             scroll-padding-top: 1em;
@@ -48,37 +57,29 @@ export default class Year extends LitElement {
         .year-grid {
             display: grid;
             grid-template-columns: repeat(var(--year-grid-columns, 3), 1fr);
-            /* Hybrid row height: max of viewport-fill and noon-alignment.
-               - Viewport-fill: 2 rows (6 months) = container height (no peeking)
-               - Noon-align: padding + 2 rows + 1 gap = --half-day-height
-                 → row = (--half-day-height − 2.25em) / 2 */
+            /* 2 visible rows per snap page. minmax allows growth for
+               6-week months. Snap targets on every .mini-month give
+               per-row snapping for any column count. */
             grid-template-rows: repeat(
                 4,
-                max(
-                    calc((100cqb - 2em - 1.25em) / 2),
-                    calc((var(--half-day-height) - 2.25em) / 2)
+                minmax(
+                    max(calc((100cqb - 2em - 1.25em) / 2), calc((var(--half-day-height) - 2.25em) / 2)),
+                    auto
                 )
             );
             gap: 1.25em 1em;
             padding: 1em;
         }
 
-        /* Snap at the start of each 2-row section (months 1 and 7) */
-        .mini-month:nth-child(6n + 1) {
-            scroll-snap-align: start;
-        }
-
         /* Container queries — respond to component width, not viewport */
         @container (max-width: 400px) {
             .year-grid {
                 grid-template-columns: repeat(var(--year-grid-columns-mobile, 1), 1fr);
-                /* 1-col: padding + 6 rows + 5 gaps = --half-day-height
-                   → row = (--half-day-height − 5.75em) / 6 */
                 grid-template-rows: repeat(
                     12,
-                    max(
-                        calc((100cqb - 2 * 0.75em - 5 * 1em) / 6),
-                        calc((var(--half-day-height) - 5.75em) / 6)
+                    minmax(
+                        max(calc((100cqb - 1.5em - 1em) / 2), calc((var(--half-day-height) - 1.75em) / 2)),
+                        auto
                     )
                 );
                 gap: 1em 0.75em;
@@ -89,13 +90,11 @@ export default class Year extends LitElement {
         @container (min-width: 401px) and (max-width: 700px) {
             .year-grid {
                 grid-template-columns: repeat(var(--year-grid-columns-tablet, 2), 1fr);
-                /* 2-col: padding + 3 rows + 2 gaps = --half-day-height
-                   → row = (--half-day-height − 3.5em) / 3 */
                 grid-template-rows: repeat(
                     6,
-                    max(
-                        calc((100cqb - 2em - 2 * 1.25em) / 3),
-                        calc((var(--half-day-height) - 3.5em) / 3)
+                    minmax(
+                        max(calc((100cqb - 2em - 1.25em) / 2), calc((var(--half-day-height) - 2.25em) / 2)),
+                        auto
                     )
                 );
             }
@@ -106,6 +105,9 @@ export default class Year extends LitElement {
             flex-direction: column;
             gap: 0.15em;
             min-width: 0; /* prevent grid blowout */
+            /* Snap target — months sharing a grid row resolve to the
+               same position, so this works for any column count. */
+            scroll-snap-align: start;
         }
 
         .month-label {
@@ -274,18 +276,20 @@ export default class Year extends LitElement {
         const weekdayOrder = getWeekdayOrder(this.firstDayOfWeek);
 
         return html`
-            <div class="year-grid" role="grid" aria-label="${getMessages(this.locale).year} ${year}">
-                ${Array.from({ length: 12 }, (_, i) => {
-                    const month = i + 1;
-                    return this._renderMiniMonth(
-                        year,
-                        month,
-                        todayDay,
-                        todayMonth,
-                        todayYear,
-                        weekdayOrder,
-                    );
-                })}
+            <div class="scroll-container">
+                <div class="year-grid" role="grid" aria-label="${getMessages(this.locale).year} ${year}">
+                    ${Array.from({ length: 12 }, (_, i) => {
+                        const month = i + 1;
+                        return this._renderMiniMonth(
+                            year,
+                            month,
+                            todayDay,
+                            todayMonth,
+                            todayYear,
+                            weekdayOrder,
+                        );
+                    })}
+                </div>
             </div>
         `;
     }
