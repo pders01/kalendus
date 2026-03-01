@@ -132,11 +132,8 @@ export default class LMSCalendar extends LitElement {
     >();
 
     private _layoutCalculator = new LayoutCalculator({
-        timeColumnWidth: 80,
         minuteHeight: 1,
         eventMinHeight: 20,
-        cascadeOffset: 15,
-        paddingLeft: 10,
     });
 
     private _handleResize = (entries: ResizeObserverEntry[]): void => {
@@ -1111,6 +1108,7 @@ export default class LMSCalendar extends LitElement {
                 activeDate: currentActiveDate,
                 firstDayOfWeek: this.firstDayOfWeek,
                 weekDates: condensedDatesForAllDay,
+                locale: this.locale,
             };
 
             const position = slotManager.calculatePosition(positionConfig);
@@ -1214,6 +1212,7 @@ export default class LMSCalendar extends LitElement {
                 isAllDay: entry.isContinuation || this._isAllDayEvent(entry),
                 firstDayOfWeek: this.firstDayOfWeek,
                 weekDates: condensedDates,
+                locale: this.locale,
             };
 
             const position = slotManager.calculatePosition(positionConfig);
@@ -1328,13 +1327,24 @@ declare global {
         'lms-calendar-day': LMSCalendarDay;
         'lms-calendar-context': LMSCalendarContext;
         'lms-calendar-entry': LMSCalendarEntry;
-        'lms-calendar-menu': LMSCalendarMenu;
+        'lms-menu': LMSCalendarMenu;
         'lms-calendar-year': LMSCalendarYear;
     }
+
+    type CalendarDate = {
+        day: number;
+        month: number;
+        year: number;
+    };
 
     type CalendarTime = {
         hour: number;
         minute: number;
+    };
+
+    type CalendarTimeInterval = {
+        start: CalendarTime;
+        end: CalendarTime;
     };
 
     type CalendarDateInterval = {
