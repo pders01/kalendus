@@ -1,5 +1,7 @@
 /**
- * Pure-math CSS color parser. Handles hex, rgb(), hsl(), and CSS named colors.
+ * Pure-math CSS color parser. Handles all CSS Color Level 4 formats:
+ * hex, rgb(), hsl(), hwb(), lab(), lch(), oklab(), oklch(),
+ * color(srgb), color(xyz-d50), color(xyz-d65), and named CSS colors.
  * No DOM dependency — works in both Node and browser environments.
  */
 
@@ -275,6 +277,241 @@ function hslToRgb(h: number, s: number, l: number): RGBTuple {
     ];
 }
 
+// ── hwb() parser ────────────────────────────────────────────────────────
+function parseHwb(input: string): RGBTuple | undefined {
+    const match = input.match(
+        /^hwb\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
+    );
+    if (!match) return undefined;
+
+    const hue = parseAngle(match[1].trim());
+    const white = parsePercent(match[2].trim());
+    const black = parsePercent(match[3].trim());
+
+    if (isNaN(hue) || isNaN(white) || isNaN(black)) return undefined;
+
+    return hwbToRgb(hue, white, black);
+}
+
+function hwbToRgb(h: number, w: number, b: number): RGBTuple {
+    w = Math.max(0, Math.min(1, w));
+    b = Math.max(0, Math.min(1, b));
+
+    // When white + black >= 1, the result is a shade of gray
+    if (w + b >= 1) {
+        const gray = Math.round((w / (w + b)) * 255);
+        return [gray, gray, gray];
+    }
+
+    // Get the base RGB from the hue (pure color at full saturation, 50% lightness)
+    const [r, g, bl] = hslToRgb(h, 1, 0.5);
+    // Mix with white and black
+    const scale = 1 - w - b;
+    return [
+        Math.round((r / 255) * scale * 255 + w * 255),
+        Math.round((g / 255) * scale * 255 + w * 255),
+        Math.round((bl / 255) * scale * 255 + w * 255),
+    ];
+}
+
+// ── lab() parser (CIE Lab D50) ──────────────────────────────────────────
+function parseLab(input: string): RGBTuple | undefined {
+    const match = input.match(
+        /^lab\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
+    );
+    if (!match) return undefined;
+
+    const L = parsePercentOr(match[1].trim(), 100); // L: 0-100 or 0%-100%
+    const a = parsePercentOr(match[2].trim(), 125);  // a: -125 to 125
+    const b = parsePercentOr(match[3].trim(), 125);
+
+    if (isNaN(L) || isNaN(a) || isNaN(b)) return undefined;
+
+    return labToRgb(L, a, b);
+}
+
+function labToRgb(L: number, a: number, b: number): RGBTuple {
+    // CIE Lab → XYZ (D50 white point)
+    const fy = (L + 16) / 116;
+    const fx = a / 500 + fy;
+    const fz = fy - b / 200;
+
+    const delta = 6 / 29;
+    const xn = 0.3457 / 0.3585; // D50 white point X
+    const zn = (1 - 0.3457 - 0.3585) / 0.3585; // D50 white point Z
+
+    const x = xn * (fx > delta ? fx ** 3 : 3 * delta * delta * (fx - 4 / 29));
+    const y = 1.0 * (fy > delta ? fy ** 3 : 3 * delta * delta * (fy - 4 / 29));
+    const z = zn * (fz > delta ? fz ** 3 : 3 * delta * delta * (fz - 4 / 29));
+
+    // XYZ D50 → linear sRGB (via Bradford adaptation to D65, then to sRGB)
+    // Combined D50→sRGB matrix
+    const lr = 3.1338561 * x - 1.6168667 * y - 0.4906146 * z;
+    const lg = -0.9787684 * x + 1.9161415 * y + 0.0334540 * z;
+    const lb = 0.0719453 * x - 0.2289914 * y + 1.4052427 * z;
+
+    return [
+        clamp(Math.round(gammaEncode(lr) * 255)),
+        clamp(Math.round(gammaEncode(lg) * 255)),
+        clamp(Math.round(gammaEncode(lb) * 255)),
+    ];
+}
+
+// ── oklab() parser ──────────────────────────────────────────────────────
+function parseOklab(input: string): RGBTuple | undefined {
+    const match = input.match(
+        /^oklab\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
+    );
+    if (!match) return undefined;
+
+    const L = parsePercentOr(match[1].trim(), 1);    // L: 0-1 or 0%-100%
+    const a = parsePercentOr(match[2].trim(), 0.4);   // a: -0.4 to 0.4
+    const b = parsePercentOr(match[3].trim(), 0.4);
+
+    if (isNaN(L) || isNaN(a) || isNaN(b)) return undefined;
+
+    return oklabToRgb(L, a, b);
+}
+
+function oklabToRgb(L: number, a: number, b: number): RGBTuple {
+    // OKLab → LMS (approximate inverse)
+    const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+    const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+    const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+
+    // Cube to get linear LMS
+    const l = l_ * l_ * l_;
+    const m = m_ * m_ * m_;
+    const s = s_ * s_ * s_;
+
+    // LMS → linear sRGB
+    const lr = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+    const lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+    const lb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+    return [
+        clamp(Math.round(gammaEncode(lr) * 255)),
+        clamp(Math.round(gammaEncode(lg) * 255)),
+        clamp(Math.round(gammaEncode(lb) * 255)),
+    ];
+}
+
+// ── oklch() parser ──────────────────────────────────────────────────────
+function parseOklch(input: string): RGBTuple | undefined {
+    const match = input.match(
+        /^oklch\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
+    );
+    if (!match) return undefined;
+
+    const L = parsePercentOr(match[1].trim(), 1);    // L: 0-1 or 0%-100%
+    const C = parsePercentOr(match[2].trim(), 0.4);   // C: 0-0.4
+    const H = parseAngle(match[3].trim());             // Hue angle
+
+    if (isNaN(L) || isNaN(C) || isNaN(H)) return undefined;
+
+    // Convert oklch → oklab
+    const hRad = (H * Math.PI) / 180;
+    return oklabToRgb(L, C * Math.cos(hRad), C * Math.sin(hRad));
+}
+
+// ── lch() parser (CIE LCH — cylindrical Lab) ───────────────────────────
+function parseLch(input: string): RGBTuple | undefined {
+    const match = input.match(
+        /^lch\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
+    );
+    if (!match) return undefined;
+
+    const L = parsePercentOr(match[1].trim(), 100);   // L: 0-100 or 0%-100%
+    const C = parsePercentOr(match[2].trim(), 150);    // C: 0-150
+    const H = parseAngle(match[3].trim());              // Hue angle
+
+    if (isNaN(L) || isNaN(C) || isNaN(H)) return undefined;
+
+    // Convert lch → lab
+    const hRad = (H * Math.PI) / 180;
+    return labToRgb(L, C * Math.cos(hRad), C * Math.sin(hRad));
+}
+
+// ── color() function parser ─────────────────────────────────────────────
+// Supports color(srgb r g b), color(xyz-d50 x y z), color(xyz-d65 x y z)
+function parseColorFn(input: string): RGBTuple | undefined {
+    const match = input.match(
+        /^color\(\s*([\w-]+)\s+([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
+    );
+    if (!match) return undefined;
+
+    const space = match[1].toLowerCase();
+    const v1 = parsePercentOrPlain(match[2].trim());
+    const v2 = parsePercentOrPlain(match[3].trim());
+    const v3 = parsePercentOrPlain(match[4].trim());
+
+    if (isNaN(v1) || isNaN(v2) || isNaN(v3)) return undefined;
+
+    if (space === 'srgb') {
+        return [
+            clamp(Math.round(v1 * 255)),
+            clamp(Math.round(v2 * 255)),
+            clamp(Math.round(v3 * 255)),
+        ];
+    }
+
+    if (space === 'xyz-d50') {
+        return xyzD50ToRgb(v1, v2, v3);
+    }
+
+    if (space === 'xyz-d65' || space === 'xyz') {
+        return xyzD65ToRgb(v1, v2, v3);
+    }
+
+    return undefined;
+}
+
+function xyzD50ToRgb(x: number, y: number, z: number): RGBTuple {
+    // XYZ D50 → linear sRGB (combined Bradford D50→D65 + sRGB matrix)
+    const lr = 3.1338561 * x - 1.6168667 * y - 0.4906146 * z;
+    const lg = -0.9787684 * x + 1.9161415 * y + 0.0334540 * z;
+    const lb = 0.0719453 * x - 0.2289914 * y + 1.4052427 * z;
+
+    return [
+        clamp(Math.round(gammaEncode(lr) * 255)),
+        clamp(Math.round(gammaEncode(lg) * 255)),
+        clamp(Math.round(gammaEncode(lb) * 255)),
+    ];
+}
+
+function xyzD65ToRgb(x: number, y: number, z: number): RGBTuple {
+    // XYZ D65 → linear sRGB
+    const lr = 3.2404542 * x - 1.5371385 * y - 0.4985314 * z;
+    const lg = -0.9692660 * x + 1.8760108 * y + 0.0415560 * z;
+    const lb = 0.0556434 * x - 0.2040259 * y + 1.0572252 * z;
+
+    return [
+        clamp(Math.round(gammaEncode(lr) * 255)),
+        clamp(Math.round(gammaEncode(lg) * 255)),
+        clamp(Math.round(gammaEncode(lb) * 255)),
+    ];
+}
+
+/** Parse a value as a plain number or percentage (where 100% = 1.0). */
+function parsePercentOrPlain(value: string): number {
+    if (value.endsWith('%')) return parseFloat(value) / 100;
+    return parseFloat(value);
+}
+
+// ── Shared helpers ──────────────────────────────────────────────────────
+
+/** Parse a value that can be either a number or a percentage of a reference. */
+function parsePercentOr(value: string, reference: number): number {
+    if (value.endsWith('%')) return (parseFloat(value) / 100) * reference;
+    return parseFloat(value);
+}
+
+/** sRGB gamma encoding: linear → sRGB transfer function. */
+function gammaEncode(linear: number): number {
+    if (linear <= 0.0031308) return 12.92 * linear;
+    return 1.055 * Math.pow(linear, 1 / 2.4) - 0.055;
+}
+
 function clamp(value: number): number {
     return Math.max(0, Math.min(255, value));
 }
@@ -306,7 +543,37 @@ export function parseColor(input?: string): RGBTuple | undefined {
         return parseHsl(trimmed);
     }
 
-    // 4. Named color lookup
+    // 4. Try hwb()
+    if (trimmed.startsWith('hwb')) {
+        return parseHwb(trimmed);
+    }
+
+    // 5. Try oklab() — must come before lab() since "oklab" starts with "o" not "l"
+    if (trimmed.startsWith('oklab')) {
+        return parseOklab(trimmed);
+    }
+
+    // 6. Try oklch()
+    if (trimmed.startsWith('oklch')) {
+        return parseOklch(trimmed);
+    }
+
+    // 7. Try lch()
+    if (trimmed.startsWith('lch')) {
+        return parseLch(trimmed);
+    }
+
+    // 8. Try lab()
+    if (trimmed.startsWith('lab')) {
+        return parseLab(trimmed);
+    }
+
+    // 9. Try color() function (srgb, xyz-d50, xyz-d65)
+    if (trimmed.startsWith('color')) {
+        return parseColorFn(trimmed);
+    }
+
+    // 10. Named color lookup
     const named = NAMED_COLORS[trimmed];
     if (named) return [...named];
 
