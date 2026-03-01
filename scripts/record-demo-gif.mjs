@@ -265,6 +265,82 @@ const sampleEntries = JSON.stringify([
     },
 ]);
 
+// ── Translated entry labels per locale ───────────────────────────────
+// Order matches the 15 entries above. Each item is [heading, content].
+
+const entryLabels = {
+    en: [
+        ['Morning Standup', 'Daily team sync'],
+        ['Design Review', 'UX/UI session'],
+        ['Code Review', 'PR walkthrough'],
+        ['Lunch & Learn', 'Web Components talk'],
+        ['Afternoon Focus', 'Deep work block'],
+        ['Product Sprint', 'Multi-day sprint'],
+        ['Conference', 'Tech conference'],
+        ['Team Retro', 'Sprint retrospective'],
+        ['1:1 Meeting', 'Manager sync'],
+        ['Planning', 'Sprint planning'],
+        ['Demo Day', 'Feature demos'],
+        ['Workshop', 'Lit workshop'],
+        ['Hackathon', 'Internal hackathon'],
+        ['Release', 'v2.0 release'],
+        ['Board Sync', 'Quarterly review'],
+    ],
+    de: [
+        ['Morgen-Standup', 'Tägliches Team-Sync'],
+        ['Design-Review', 'UX/UI-Sitzung'],
+        ['Code-Review', 'PR-Durchsprache'],
+        ['Lunch & Learn', 'Vortrag Web Components'],
+        ['Fokuszeit', 'Deep-Work-Block'],
+        ['Produkt-Sprint', 'Mehrtägiger Sprint'],
+        ['Konferenz', 'Tech-Konferenz'],
+        ['Team-Retro', 'Sprint-Retrospektive'],
+        ['1:1-Meeting', 'Manager-Sync'],
+        ['Planung', 'Sprint-Planung'],
+        ['Demo-Tag', 'Feature-Demos'],
+        ['Workshop', 'Lit-Workshop'],
+        ['Hackathon', 'Interner Hackathon'],
+        ['Release', 'v2.0-Release'],
+        ['Board-Sync', 'Quartalsbericht'],
+    ],
+    ja: [
+        ['朝会', 'チーム同期'],
+        ['デザインレビュー', 'UX/UIセッション'],
+        ['コードレビュー', 'PRウォークスルー'],
+        ['ランチ勉強会', 'Web Componentsの話'],
+        ['集中タイム', 'ディープワーク'],
+        ['プロダクトスプリント', '複数日スプリント'],
+        ['カンファレンス', 'テックカンファレンス'],
+        ['チーム振り返り', 'スプリント振り返り'],
+        ['1on1ミーティング', 'マネージャー同期'],
+        ['プランニング', 'スプリント計画'],
+        ['デモデー', '機能デモ'],
+        ['ワークショップ', 'Litワークショップ'],
+        ['ハッカソン', '社内ハッカソン'],
+        ['リリース', 'v2.0リリース'],
+        ['役員会議', '四半期レビュー'],
+    ],
+    ar: [
+        ['اجتماع الصباح', 'مزامنة الفريق'],
+        ['مراجعة التصميم', 'جلسة UX/UI'],
+        ['مراجعة الكود', 'مراجعة PR'],
+        ['غداء تعليمي', 'محادثة Web Components'],
+        ['وقت التركيز', 'عمل معمّق'],
+        ['سباق المنتج', 'سباق متعدد الأيام'],
+        ['مؤتمر', 'مؤتمر تقني'],
+        ['استعراض الفريق', 'استعراض السبرنت'],
+        ['اجتماع فردي', 'مزامنة المدير'],
+        ['تخطيط', 'تخطيط السبرنت'],
+        ['يوم العرض', 'عروض الميزات'],
+        ['ورشة عمل', 'ورشة Lit'],
+        ['هاكاثون', 'هاكاثون داخلي'],
+        ['إصدار', 'إصدار v2.0'],
+        ['اجتماع المجلس', 'مراجعة ربع سنوية'],
+    ],
+};
+
+const serializedLabels = JSON.stringify(entryLabels);
+
 // ── HTML template ────────────────────────────────────────────────────
 
 const testHTML = `<!DOCTYPE html>
@@ -363,6 +439,16 @@ const testHTML = `<!DOCTYPE html>
                 label.textContent = text;
             };
 
+            const __entryLabels = ${serializedLabels};
+            window.__localizeEntries = (locale) => {
+                const labels = __entryLabels[locale] || __entryLabels.en;
+                cal.entries = cal.entries.map((entry, i) => ({
+                    ...entry,
+                    heading: labels[i][0],
+                    content: labels[i][1],
+                }));
+            };
+
             window.__calReady = true;
         }
         init();
@@ -428,6 +514,7 @@ const scenes = [
             window.__switchTheme(null);
             window.__setLocale('de');
             window.__setHeading('Mein Kalender');
+            window.__localizeEntries('de');
         },
         dwell: 1200,
     },
@@ -436,6 +523,7 @@ const scenes = [
         action: () => {
             window.__setLocale('ja');
             window.__setHeading('カレンダー');
+            window.__localizeEntries('ja');
         },
         dwell: 1200,
     },
@@ -444,6 +532,7 @@ const scenes = [
         action: () => {
             window.__setLocale('ar');
             window.__setHeading('التقويم');
+            window.__localizeEntries('ar');
         },
         dwell: 1200,
     },
@@ -454,6 +543,7 @@ const scenes = [
         action: () => {
             window.__setLocale('en');
             window.__setHeading('My Calendar');
+            window.__localizeEntries('en');
             window.__setFirstDayOfWeek(0);
         },
         dwell: 1200,
