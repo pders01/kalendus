@@ -52,14 +52,14 @@ export class Menu extends LitElement {
             max-width: 22em;
             padding: 0.875em 1em;
             opacity: 0;
-            transform: scale(0.95);
+            transform: var(--menu-transform-origin);
             transition:
-                opacity 0.15s ease,
-                transform 0.15s ease;
+                opacity var(--transition-speed) ease,
+                transform var(--transition-speed) ease;
         }
         .card.visible {
             opacity: 1;
-            transform: scale(1);
+            transform: var(--menu-transform-active);
         }
         .header {
             display: flex;
@@ -70,7 +70,7 @@ export class Menu extends LitElement {
         .title {
             flex: 1;
             font-size: 1em;
-            font-weight: 600;
+            font-weight: var(--menu-title-font-weight);
             color: var(--separator-dark);
             line-height: 1.3;
             word-break: break-word;
@@ -86,10 +86,10 @@ export class Menu extends LitElement {
             margin: -0.15em -0.25em 0 0;
             border-radius: var(--border-radius-sm);
             color: var(--header-text-color);
-            transition: background-color 0.15s;
+            transition: background-color var(--transition-speed);
         }
         .close-btn:hover {
-            background-color: var(--separator-light);
+            background-color: var(--hover-bg);
         }
         .meta {
             font-size: 0.8125em;
@@ -114,13 +114,13 @@ export class Menu extends LitElement {
             cursor: pointer;
             font-family: var(--system-ui);
             font-size: 0.8125em;
-            font-weight: 500;
+            font-weight: var(--menu-item-font-weight);
             color: var(--primary-color);
             padding: 0;
-            transition: opacity 0.15s;
+            transition: opacity var(--transition-speed);
         }
         .export-btn:hover {
-            opacity: 0.7;
+            opacity: var(--export-hover-opacity);
         }
     `;
 

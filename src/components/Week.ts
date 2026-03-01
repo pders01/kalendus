@@ -79,7 +79,7 @@ export default class Week extends LitElement {
             align-items: center;
             gap: 0.35em;
             cursor: pointer;
-            transition: background-color 0.2s ease;
+            transition: background-color var(--transition-speed) ease;
             overflow: hidden;
         }
 
@@ -92,18 +92,18 @@ export default class Week extends LitElement {
 
         .day-number {
             font-size: 0.95em;
-            font-weight: 600;
+            font-weight: var(--day-label-number-font-weight);
             line-height: 1;
         }
 
         .day-label:hover {
-            background-color: var(--separator-light);
+            background-color: var(--hover-bg);
         }
 
         .day-label:focus {
             outline: 2px solid var(--entry-focus-color, var(--primary-color));
             outline-offset: 2px;
-            background-color: var(--separator-light);
+            background-color: var(--focus-bg);
         }
 
         .day-label:last-child {
@@ -228,7 +228,7 @@ export default class Week extends LitElement {
             border-bottom-left-radius: 0 !important;
             border-bottom-right-radius: 0 !important;
             position: relative !important;
-            border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
+            border-left: var(--multi-day-separator) !important;
             margin-left: -2px !important;
         }
 
@@ -238,7 +238,7 @@ export default class Week extends LitElement {
             border-top-right-radius: var(--entry-border-radius) !important;
             border-bottom-right-radius: var(--entry-border-radius) !important;
             position: relative !important;
-            border-left: 3px solid rgba(255, 255, 255, 0.4) !important;
+            border-left: var(--multi-day-separator) !important;
             margin-left: -2px !important;
         }
 
@@ -277,19 +277,19 @@ export default class Week extends LitElement {
             cursor: pointer;
             user-select: none;
             padding: 0.1em 0.35em;
-            border-radius: var(--border-radius-sm, 4px);
+            border-radius: var(--border-radius-sm);
             transition:
-                background-color 0.15s ease,
-                color 0.15s ease;
+                background-color var(--transition-speed) ease,
+                color var(--transition-speed) ease;
         }
 
         .peek-indicator:hover {
-            background-color: var(--separator-light, rgba(0, 0, 0, 0.06));
+            background-color: var(--hover-bg);
             color: var(--separator-dark, rgba(0, 0, 0, 0.7));
         }
 
         .peek-indicator:active {
-            background-color: var(--separator-mid, rgba(0, 0, 0, 0.12));
+            background-color: var(--peek-active-bg);
         }
 
         .peek-indicator--hidden {
