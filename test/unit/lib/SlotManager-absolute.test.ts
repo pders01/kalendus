@@ -90,12 +90,12 @@ describe('SlotManager — absolute positioning path', () => {
             expect(css).to.include('top: calc(570 * var(--minute-height))');
             expect(css).to.include('height: calc(75 * var(--minute-height))');
             expect(css).to.include('width: 80%');
-            expect(css).to.include('left: 10%');
+            expect(css).to.include('inset-inline-start: 10%');
             expect(css).to.include('z-index: 5');
             expect(css).to.include('opacity: 0.9');
             expect(css).to.include('grid-column: unset');
             expect(css).to.include('grid-row: unset');
-            expect(css).to.include('margin-left: 0');
+            expect(css).to.include('margin-inline-start: 0');
         });
 
         it('should clamp short events to minimum 20 minutes', () => {

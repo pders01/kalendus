@@ -65,13 +65,16 @@ export default class Entry extends LitElement {
             border-radius: var(--entry-border-radius);
             grid-row: var(--start-slot);
             width: var(--entry-width, 100%);
-            margin-left: var(--entry-margin-left, 0);
+            margin-inline-start: var(--entry-margin-inline-start, var(--entry-margin-left, 0));
             background-color: var(--entry-background-color);
             color: var(--entry-color);
             border: var(--entry-border, none);
-            /* When a handle is present, remove the left border so the
-               ::before handle covers the full left edge without bleed */
-            border-left: var(--entry-border-left, var(--entry-border, none));
+            /* When a handle is present, remove the start border so the
+               ::before handle covers the full start edge without bleed */
+            border-inline-start: var(
+                --entry-border-inline-start,
+                var(--entry-border-left, var(--entry-border, none))
+            );
             /* z-index of separators in day view is 0 */
             z-index: var(--entry-z-index, 1);
             opacity: var(--entry-opacity, 1);
@@ -82,12 +85,12 @@ export default class Entry extends LitElement {
             position: relative;
         }
 
-        /* Color handle indicator on the left — absolutely positioned
+        /* Color handle indicator on the start edge — absolutely positioned
            so it doesn't affect content width or title visibility */
         :host::before {
             content: '';
             position: absolute;
-            left: 0;
+            inset-inline-start: 0;
             top: 0;
             bottom: 0;
             width: var(--entry-handle-width, 0px);
@@ -126,13 +129,13 @@ export default class Entry extends LitElement {
             padding-top: calc(var(--entry-padding-top, 0) + 0.15em);
             border-radius: var(--entry-border-radius);
             background-color: inherit;
-            text-align: left;
+            text-align: start;
             height: 100%;
             box-sizing: border-box;
             display: flex;
             flex-direction: var(--entry-layout);
             align-items: var(--entry-align); /* Use shared design token */
-            justify-content: flex-start; /* Always align content to left */
+            justify-content: flex-start; /* Always align content to start */
             gap: var(--entry-gap);
             overflow: visible;
             position: relative;
@@ -148,13 +151,13 @@ export default class Entry extends LitElement {
 
         /* When handle design is used, adjust padding for the colored handle */
         .main {
-            padding-left: var(--entry-padding-left, 0.25em);
+            padding-inline-start: var(--entry-padding-inline-start, var(--entry-padding-left, 0.25em));
         }
 
         .text-content {
             position: absolute;
             top: var(--entry-text-top, -20px);
-            left: var(--entry-text-left, 0);
+            inset-inline-start: var(--entry-text-inline-start, var(--entry-text-left, 0));
             background: var(--float-text-bg);
             padding: 2px 6px;
             border-radius: var(--float-text-border-radius);
@@ -202,7 +205,7 @@ export default class Entry extends LitElement {
             opacity: var(--entry-time-opacity);
             white-space: nowrap;
             flex-shrink: 0;
-            margin-left: 0; /* Ensure time stays on the left, don't auto-align to right */
+            margin-inline-start: 0; /* Ensure time stays at start, don't auto-align to end */
         }
 
         /* Row layout: optimized for side-by-side content */
@@ -296,7 +299,7 @@ export default class Entry extends LitElement {
             font-family: var(--entry-time-font);
             text-align: var(--entry-time-align);
             min-width: 0;
-            margin-left: auto;
+            margin-inline-start: auto;
             color: inherit;
             opacity: 0.8;
             flex-shrink: 1;

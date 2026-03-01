@@ -138,6 +138,8 @@ const LOCALE_WEEK_START: Record<string, FirstDayOfWeek> = {
     'fi-FI': 1,
     cs: 1,
     'cs-CZ': 1,
+    el: 1,
+    'el-GR': 1,
     tr: 1,
     'tr-TR': 1,
     vi: 1,

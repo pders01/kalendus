@@ -37,6 +37,15 @@ import { ViewStateController } from './lib/ViewStateController.js';
 import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
 import { getWeekDates } from './lib/weekStartHelper.js';
 
+// ── RTL locale detection ───────────────────────────────────────────────
+const RTL_LOCALES = new Set(['ar', 'he', 'fa', 'ur', 'yi']);
+
+/** Resolve a BCP 47 locale to 'ltr' or 'rtl'. */
+function resolveDirection(locale: string): 'ltr' | 'rtl' {
+    const primary = locale.split('-')[0].toLowerCase();
+    return RTL_LOCALES.has(primary) ? 'rtl' : 'ltr';
+}
+
 // ── Derived type for expanded (multi-day) entries ──────────────────────
 type ExpandedCalendarEntry = CalendarEntry & {
     isContinuation: boolean;
@@ -66,6 +75,17 @@ export default class LMSCalendar extends LitElement {
      */
     @property({ type: String })
     locale = (typeof document !== 'undefined' && document.documentElement.lang) || 'en';
+
+    /**
+     * Text direction for the calendar UI chrome.
+     * - `'auto'` — detected from `locale` (Arabic, Hebrew → RTL).
+     * - `'ltr'` / `'rtl'` — explicit override.
+     *
+     * The calendar grid (day columns, time axis) always stays LTR,
+     * matching Google Calendar / Apple Calendar convention.
+     */
+    @property({ type: String, reflect: true })
+    override dir: 'ltr' | 'rtl' | 'auto' = 'auto';
 
     /**
      * Determines which view opens when a day cell is clicked in the year overview.
@@ -267,7 +287,7 @@ export default class LMSCalendar extends LitElement {
 
             --context-height: 1.75em;
             --context-padding: 0.25em;
-            --context-text-align: left;
+            --context-text-align: start;
 
             /* Core layout tokens */
             --time-column-width: 4em;
@@ -322,9 +342,9 @@ export default class LMSCalendar extends LitElement {
 
             --header-height: 3.5em;
             --header-height-mobile: 4.5em;
-            --header-info-padding-left: 1em;
+            --header-info-padding-inline-start: 1em;
             --header-text-color: inherit;
-            --header-buttons-padding-right: 1em;
+            --header-buttons-padding-inline-end: 1em;
             --button-padding: 0.75em;
             --button-border-radius: var(--border-radius-sm);
 
@@ -535,6 +555,13 @@ export default class LMSCalendar extends LitElement {
     protected override willUpdate(
         changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
     ): void {
+        // Resolve dir from locale when set to 'auto'
+        if (changedProperties.has('dir' as never) || changedProperties.has('locale' as never)) {
+            const resolved = this.dir === 'auto' ? resolveDirection(this.locale) : this.dir;
+            // setAttribute so CSS :host([dir='rtl']) selectors work
+            this.setAttribute('dir', resolved);
+        }
+
         if (!changedProperties.has('entries' as never)) {
             return;
         }
@@ -1235,7 +1262,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: index + entriesByDate.length,
                 slot: position.slotName,
-                inlineStyle: `--entry-background-color: rgba(${r}, ${g}, ${b}, 0.08); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.25); --entry-border-left: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); order: ${row}; ${positionCSS}`,
+                inlineStyle: `--entry-background-color: rgba(${r}, ${g}, ${b}, 0.08); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.25); --entry-border-inline-start: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); order: ${row}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     accessibility: accessibility,
@@ -1321,7 +1348,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: globalIndex,
                 slot: position.slotName,
-                inlineStyle: `--entry-background-color: color-mix(in srgb, var(--background-color) 80%, transparent); --entry-border: 1px solid var(--separator-light); --entry-border-left: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
+                inlineStyle: `--entry-background-color: color-mix(in srgb, var(--background-color) 80%, transparent); --entry-border: 1px solid var(--separator-light); --entry-border-inline-start: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     // Add accessibility data to entry

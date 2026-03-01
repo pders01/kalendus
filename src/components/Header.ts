@@ -39,8 +39,11 @@ export default class Header extends LitElement {
         }
 
         .info {
-            padding-left: var(--header-info-padding-left, 1em);
-            text-align: left;
+            padding-inline-start: var(
+                --header-info-padding-inline-start,
+                var(--header-info-padding-left, 1em)
+            );
+            text-align: start;
             display: grid;
             justify-self: stretch;
             min-width: 0;
@@ -64,7 +67,7 @@ export default class Header extends LitElement {
                 align-items: baseline;
                 justify-content: center;
                 gap: 0.4em;
-                padding-left: 0;
+                padding-inline-start: 0;
             }
             .view-detail {
                 grid-row: unset;
@@ -75,7 +78,7 @@ export default class Header extends LitElement {
                 display: inline;
             }
             .buttons {
-                padding-right: 0;
+                padding-inline-end: 0;
             }
         }
 
@@ -137,7 +140,10 @@ export default class Header extends LitElement {
         .buttons {
             display: flex;
             align-items: center;
-            padding-right: var(--header-buttons-padding-right, 1em);
+            padding-inline-end: var(
+                --header-buttons-padding-inline-end,
+                var(--header-buttons-padding-right, 1em)
+            );
             gap: 0.15em;
             justify-self: end;
         }

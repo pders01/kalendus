@@ -424,7 +424,7 @@ const testHTML = `<!DOCTYPE html>
 
             window.__setLocale = (locale) => {
                 cal.locale = locale;
-                document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+                // dir is auto-detected from locale by the component
             };
 
             window.__setFirstDayOfWeek = (n) => {
