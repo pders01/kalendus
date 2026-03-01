@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vite';
+import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 const dirname =
     typeof __dirname !== 'undefined'
@@ -11,6 +12,11 @@ const dirname =
         : path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+    plugins: [
+        viteStaticCopy({
+            targets: [{ src: 'src/themes/*', dest: 'themes' }],
+        }),
+    ],
     build: {
         lib: {
             entry: resolve(dirname, 'src/lms-calendar.ts'),

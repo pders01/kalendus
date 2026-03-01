@@ -112,7 +112,7 @@ export default class Year extends LitElement {
 
         .month-label {
             font-size: var(--year-month-label-font-size, 0.875em);
-            font-weight: 600;
+            font-weight: var(--month-label-font-weight);
             color: var(--separator-dark, rgba(0, 0, 0, 0.7));
             cursor: pointer;
             padding: 0.3em 0;
@@ -126,7 +126,7 @@ export default class Year extends LitElement {
         }
 
         .month-label:hover {
-            color: var(--primary-color, #3b82f6);
+            color: var(--year-month-label-hover-color);
         }
 
         .weekday-header {
@@ -139,7 +139,7 @@ export default class Year extends LitElement {
             font-size: 0.65em;
             color: var(--header-text-color, rgba(0, 0, 0, 0.45));
             padding: 0.2em 0;
-            font-weight: 500;
+            font-weight: var(--year-weekday-font-weight);
             overflow: hidden;
         }
 
@@ -160,15 +160,15 @@ export default class Year extends LitElement {
             cursor: pointer;
             border: none;
             background: none;
-            border-radius: var(--border-radius-sm, 4px);
+            border-radius: var(--border-radius-sm);
             font-family: inherit;
             padding: 0;
             line-height: 1;
         }
 
         .cw-label:hover {
-            color: var(--primary-color, #3b82f6);
-            background: var(--separator-light, rgba(0, 0, 0, 0.06));
+            color: var(--cw-hover-color);
+            background: var(--cw-hover-bg);
         }
 
         .day-cell {
@@ -179,7 +179,7 @@ export default class Year extends LitElement {
             font-size: var(--year-day-font-size, 0.7em);
             border: none;
             background: none;
-            border-radius: 50%;
+            border-radius: var(--year-day-cell-border-radius);
             cursor: pointer;
             position: relative;
             width: var(--year-cell-size, 1.8em);
@@ -192,17 +192,17 @@ export default class Year extends LitElement {
         }
 
         .day-cell:hover {
-            background: var(--separator-light, rgba(0, 0, 0, 0.08));
+            background: var(--hover-bg);
         }
 
         .day-cell.current {
-            background: var(--primary-color, #3b82f6);
-            color: white;
-            font-weight: 600;
+            background: var(--current-day-bg);
+            color: var(--current-day-color);
+            font-weight: var(--current-day-font-weight);
         }
 
         .day-cell.current:hover {
-            opacity: 0.85;
+            opacity: var(--current-day-hover-opacity);
         }
 
         .day-cell.selected {
@@ -224,7 +224,7 @@ export default class Year extends LitElement {
         }
 
         .day-cell.current.has-events::after {
-            background: rgba(255, 255, 255, 0.9);
+            background: var(--current-dot-bg);
         }
 
         /* ── Heatmap density mode ── */
@@ -239,7 +239,7 @@ export default class Year extends LitElement {
         }
         .day-cell[data-density='4'] {
             background: var(--year-heatmap-4, rgba(59, 130, 246, 0.75));
-            color: white;
+            color: var(--year-heatmap-4-text);
         }
 
         .day-cell.current[data-density] {
@@ -258,7 +258,7 @@ export default class Year extends LitElement {
         }
 
         .day-cell.current .event-count {
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--current-day-color);
         }
 
         .empty-cell {

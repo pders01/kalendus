@@ -155,10 +155,10 @@ export default class Entry extends LitElement {
             position: absolute;
             top: var(--entry-text-top, -20px);
             left: var(--entry-text-left, 0);
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--float-text-bg);
             padding: 2px 6px;
-            border-radius: 3px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            border-radius: var(--float-text-border-radius);
+            box-shadow: var(--float-text-shadow);
             font-size: 0.7rem;
             z-index: 1000;
             white-space: nowrap;
@@ -238,7 +238,7 @@ export default class Entry extends LitElement {
 
         .main[style*='--entry-layout: column'] .title {
             width: 100%;
-            font-weight: 500; /* Slightly bolder in column layout */
+            font-weight: var(--title-column-weight);
             line-height: 1.2;
             margin-bottom: 0.1em;
         }
@@ -455,7 +455,7 @@ export default class Entry extends LitElement {
                     style="background-color: var(--entry-background-color); height: 100%; position: relative; overflow: visible;"
                 >
                     <div class="text-content">
-                        <span style="font-weight: 500;">${this.heading}</span>
+                        <span style="font-weight: var(--entry-title-weight);">${this.heading}</span>
                         ${this._renderTime()}
                     </div>
                 </div>

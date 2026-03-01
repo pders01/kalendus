@@ -26,6 +26,7 @@ const preview: Preview = {
                                 'Fixed Month Snapshot',
                                 'Empty State',
                                 'Custom Theming',
+                                'Default Theme',
                                 'Mobile View',
                                 'Interaction Test',
                                 'Navigate Months',

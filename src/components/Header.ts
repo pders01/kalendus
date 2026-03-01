@@ -103,33 +103,33 @@ export default class Header extends LitElement {
             font-size: 0.85em;
             color: var(--header-text-color, rgba(0, 0, 0, 0.6));
             cursor: pointer;
-            border-radius: var(--border-radius-sm, 5px);
+            border-radius: var(--border-radius-sm);
             transition:
-                background-color 0.15s ease,
-                color 0.15s ease;
+                background-color var(--transition-speed) ease,
+                color var(--transition-speed) ease;
         }
 
         button:hover {
-            background: var(--separator-light, rgba(0, 0, 0, 0.1));
+            background: var(--hover-bg);
         }
 
         .context {
             display: flex;
             align-items: center;
             gap: 0;
-            background: var(--separator-light, rgba(0, 0, 0, 0.06));
-            border-radius: var(--border-radius-sm, 5px);
+            background: var(--context-bg);
+            border-radius: var(--border-radius-sm);
             padding: 0.15em;
         }
 
         .context button {
-            border-radius: calc(var(--border-radius-sm, 5px) - 1px);
+            border-radius: calc(var(--border-radius-sm) - 1px);
         }
 
         .context button[data-active] {
-            background: var(--background-color, white);
+            background: var(--active-indicator-bg);
             color: var(--separator-dark, rgba(0, 0, 0, 0.7));
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+            box-shadow: var(--active-indicator-shadow);
         }
 
         .buttons {

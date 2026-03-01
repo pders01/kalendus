@@ -159,10 +159,10 @@ export default class LMSCalendar extends LitElement {
                the real constraint — not the min-content height. */
             min-height: 0;
 
-            --shadow-sm: rgba(0, 0, 0, 0.18) 0px 2px 4px;
-            --shadow-md: rgba(0, 0, 0, 0.15) 0px 3px 3px 0px;
-            --shadow-lg: rgba(0, 0, 0, 0.15) 0px 2px 8px;
-            --shadow-hv: rgba(0, 0, 0, 0.08) 0px 4px 12px;
+            --shadow-sm: none;
+            --shadow-md: none;
+            --shadow-lg: none;
+            --shadow-hv: none;
 
             --breakpoint-xs: 425px;
             --breakpoint-sm: 768px;
@@ -172,18 +172,34 @@ export default class LMSCalendar extends LitElement {
             --separator-mid: rgba(0, 0, 0, 0.4);
             --separator-dark: rgba(0, 0, 0, 0.7);
 
-            --system-ui:
-                system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji',
-                'Segoe UI Emoji', 'Segoe UI Symbol';
-            --monospace-ui:
-                'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            --system-ui: inherit;
+            --monospace-ui: monospace;
 
-            --border-radius-sm: 5px;
-            --border-radius-md: 7px;
-            --border-radius-lg: 12px;
+            --border-radius-sm: 0;
+            --border-radius-md: 0;
+            --border-radius-lg: 0;
 
-            --background-color: white;
-            --primary-color: #3b82f6;
+            --background-color: Canvas;
+            --primary-color: AccentColor;
+
+            /* Interaction tokens — neutral by default */
+            --transition-speed: 0s;
+            --hover-bg: transparent;
+            --focus-bg: transparent;
+            --peek-active-bg: transparent;
+            --context-bg: transparent;
+            --active-indicator-bg: transparent;
+            --active-indicator-shadow: none;
+
+            /* Float text tokens */
+            --float-text-bg: transparent;
+            --float-text-border-radius: 0;
+            --float-text-shadow: none;
+
+            /* Menu animation tokens */
+            --menu-transform-origin: scale(1);
+            --menu-transform-active: scale(1);
+            --export-hover-opacity: 1;
 
             --height: 100%;
             --width: 100%;
@@ -192,10 +208,10 @@ export default class LMSCalendar extends LitElement {
             --entry-font-size: 0.75rem;
             --entry-line-height: 1.2;
             --entry-min-height: 1.2em;
-            --entry-border-radius: var(--border-radius-sm);
-            --entry-background-color: var(--background-color);
-            --entry-color: var(--primary-color);
-            --entry-highlight-color: var(--separator-light);
+            --entry-border-radius: 0;
+            --entry-background-color: transparent;
+            --entry-color: inherit;
+            --entry-highlight-color: transparent;
             --entry-focus-color: var(--primary-color);
             --entry-padding: 0.15em 0.3em;
             --entry-font-family: system-ui;
@@ -211,10 +227,11 @@ export default class LMSCalendar extends LitElement {
             --entry-month-text-color: var(--separator-dark);
 
             /* Entry typography tokens */
-            --entry-title-weight: 500;
+            --entry-title-weight: inherit;
             --entry-title-wrap: nowrap;
             --entry-time-font-size: 0.85em;
-            --entry-time-opacity: 0.8;
+            --entry-time-opacity: 1;
+            --title-column-weight: inherit;
 
             /* Entry density mode tokens */
             --entry-compact-show-time: none;
@@ -275,23 +292,25 @@ export default class LMSCalendar extends LitElement {
             /* Typography tokens */
             --hour-indicator-font-size: 0.8125em;
             --hour-indicator-color: var(--header-text-color, rgba(0, 0, 0, 0.6));
-            --day-label-font-weight: 500;
+            --day-label-font-weight: inherit;
             --day-label-name-font-size: 0.75em;
             --day-label-number-font-size: 1.125em;
-            --day-label-number-font-weight: 600;
+            --day-label-number-font-weight: inherit;
             --day-label-gap: 0.15em;
 
             --header-height: 3.5em;
             --header-height-mobile: 4.5em;
             --header-info-padding-left: 1em;
-            --header-text-color: rgba(0, 0, 0, 0.6);
+            --header-text-color: inherit;
             --header-buttons-padding-right: 1em;
             --button-padding: 0.75em;
             --button-border-radius: var(--border-radius-sm);
 
             --month-day-gap: 1px;
-            --indicator-color: var(--primary-color);
-            --indicator-font-weight: 600;
+            --indicator-color: currentColor;
+            --indicator-font-weight: inherit;
+            --indicator-backdrop-filter: none;
+            --month-indicator-border-radius: 0;
             --indicator-padding: 0.25em;
             --indicator-margin-bottom: 0.25em;
 
@@ -301,11 +320,11 @@ export default class LMSCalendar extends LitElement {
             --menu-content-padding: 1em;
             --menu-item-padding: 0.75em;
             --menu-item-margin-bottom: 0.75em;
-            --menu-item-font-weight: 500;
+            --menu-item-font-weight: inherit;
             --menu-button-size: 2em;
             --menu-button-padding: 0.5em;
             --menu-title-font-size: 0.875em;
-            --menu-title-font-weight: 500;
+            --menu-title-font-weight: inherit;
             --menu-content-font-size: 0.875em;
             --menu-detail-label-min-width: 4em;
             --menu-detail-label-font-size: 0.8125em;
@@ -323,11 +342,26 @@ export default class LMSCalendar extends LitElement {
             --year-heatmap-2: rgba(59, 130, 246, 0.35);
             --year-heatmap-3: rgba(59, 130, 246, 0.55);
             --year-heatmap-4: rgba(59, 130, 246, 0.75);
+            --year-day-cell-border-radius: 0;
+            --year-month-label-hover-color: inherit;
+            --year-weekday-font-weight: inherit;
+            --month-label-font-weight: inherit;
+            --cw-hover-color: inherit;
+            --cw-hover-bg: transparent;
+            --current-day-bg: AccentColor;
+            --current-day-color: Canvas;
+            --current-day-font-weight: inherit;
+            --current-day-hover-opacity: 1;
+            --current-dot-bg: Canvas;
+            --year-heatmap-4-text: inherit;
 
             /* Year view — calendar week column */
             --year-cw-width: 1.8em;
             --year-cw-font-size: 0.55em;
             --year-cw-color: var(--header-text-color, rgba(0, 0, 0, 0.45));
+
+            /* Multi-day separator */
+            --multi-day-separator: none;
         }
         .calendar-container {
             box-sizing: border-box;
@@ -337,7 +371,7 @@ export default class LMSCalendar extends LitElement {
             border-radius: var(--calendar-border-radius, var(--border-radius-lg));
             border: 1px solid var(--separator-light);
             font-family: var(--system-ui);
-            color: var(--separator-dark);
+            color: inherit;
             box-shadow: var(--calendar-shadow, none);
             contain: layout style;
             position: relative;

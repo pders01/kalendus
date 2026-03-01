@@ -138,7 +138,7 @@ export default class Day extends LitElement {
 
         .day-header .day-number {
             font-size: 0.95em;
-            font-weight: 600;
+            font-weight: var(--day-label-number-font-weight);
             line-height: 1;
         }
 
