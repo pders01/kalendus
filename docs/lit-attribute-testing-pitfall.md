@@ -1,7 +1,7 @@
 ---
 layout: base.njk
 title: 'Lit Attribute Testing Pitfall'
-order: 14
+order: 15
 tags: docs
 section: Reference
 ---
