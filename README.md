@@ -220,7 +220,7 @@ pnpm storybook
 - **Theme stories**: Default, Ink, Soft, Brutalist, Midnight — one story per built-in theme
 - **Custom Theming**: Inline CSS variable overrides
 - **Locale stories**: Individual stories for each supported locale (German, French, Spanish, Japanese, etc.)
-- **LocaleShowcase**: 19 calendars on one page, each with a different locale
+- **LocaleShowcase**: 26 calendars on one page, each with a different locale
 - **WeekStartComparison**: Side-by-side Monday-first vs Sunday-first
 - **Heavy Event Load**: Stress testing with 200+ events
 - **Overlapping Events**: Extreme overlap scenarios

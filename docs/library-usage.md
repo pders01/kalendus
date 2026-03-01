@@ -157,7 +157,7 @@ All styles live inside the component’s shadow root, so global CSS will not lea
 
 ## Localization
 
-- Set `locale` per instance to any of the built-in codes: `en`, `de`, `de-DE`, `es`, `fr`, `hi`, `bn`, `ru`, `id`, `ko`, `tr`, `vi`, `it`, `th`, `pl`, `uk`, `nl`, `ja`, `pt`, `ar`, `zh-Hans`.
+- Set `locale` per instance to any of the built-in codes: `en`, `ar`, `bn`, `cs`, `da`, `de`, `de-DE`, `el`, `es`, `fi`, `fr`, `he`, `hi`, `id`, `it`, `ja`, `ko`, `nb`, `nl`, `pl`, `pt`, `ru`, `sv`, `th`, `tr`, `uk`, `vi`, `zh-Hans`.
 - The component auto-detects from `<html lang>` when `locale` is unset.
 - Day and month names come from Luxon/Intl; UI strings come from `src/lib/messages.ts`.
 - Override the week structure via `firstDayOfWeek` (0=Sunday … 6=Saturday) to match local conventions independently of locale.
@@ -252,7 +252,7 @@ For Angular or Lit apps, treat `<lms-calendar>` as any other custom element; Ang
 ## Further Reading
 
 - **[Events Reference](./events.md)** — complete event documentation with payload types and code examples.
-- **[CSS Token Reference](./css-tokens.md)** — all 113 CSS custom properties.
+- **[CSS Token Reference](./css-tokens.md)** — all 151 CSS custom properties.
 - **[Layout & Positioning](./layout-and-positioning.md)** — height requirements, responsive behavior, all-day events.
 - **[Troubleshooting](./troubleshooting.md)** — solutions for common issues.
 - **[Rendering Calculations](./rendering-calculations.md)** — slot math that powers week/day positioning.
