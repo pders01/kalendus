@@ -63,6 +63,7 @@
         "storybook": "storybook dev -p 6006",
         "build-storybook": "storybook build",
         "test-storybook": "vitest --project=storybook --run",
+        "test:e2e": "playwright test",
         "i18n:extract": "lit-localize extract",
         "i18n:build": "lit-localize build",
         "demo:gif": "node scripts/record-demo-gif.mjs"

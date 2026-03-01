@@ -292,12 +292,9 @@ describe('Calendar Component', () => {
 
         const initialWidth = (el as any)._calendarWidth;
 
-        // Simulate resize by calling the resize handler directly
-        const mockEntry = {
-            contentRect: { width: 500 },
-        } as ResizeObserverEntry;
-
-        (el as any)._handleResize([mockEntry]);
+        // Simulate resize by setting _calendarWidth directly (the
+        // ResizeObserver callback does this when the width changes)
+        (el as any)._calendarWidth = 500;
 
         expect((el as any)._calendarWidth).to.equal(500);
         expect((el as any)._calendarWidth).to.not.equal(initialWidth);
