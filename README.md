@@ -68,7 +68,7 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 | `heading`         | `string`                        | `undefined`                               | Calendar title displayed in header                                                            |
 | `activeDate`      | `CalendarDate`                  | Current date                              | Initially displayed date                                                                      |
 | `entries`         | `CalendarEntry[]`               | `[]`                                      | Array of calendar events                                                                      |
-| `color`           | `string`                        | `'#000000'`                               | Primary theme color                                                                           |
+| `color`           | `string`                        | `'#000000'`                               | Primary theme color (any CSS color format)                                                    |
 | `locale`          | `string`                        | `document.documentElement.lang \|\| 'en'` | Locale for UI strings and date formatting (auto-detected from page, overridable per-instance) |
 | `firstDayOfWeek`  | `0-6`                           | `1`                                       | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)                                              |
 | `yearDrillTarget` | `'day' \| 'month'`              | `'month'`                                 | Determines whether a year-view click opens day or month view                                  |
@@ -80,7 +80,7 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 interface CalendarEntry {
     heading: string;
     content: string;
-    color: string;
+    color: string; // any CSS color: hex, named, rgb(), hsl(), oklch(), …
     isContinuation: boolean;
     date: {
         start: { day: number; month: number; year: number };
@@ -134,18 +134,27 @@ interface CalendarEntry {
 
 ## Styling & Theming
 
-Override CSS custom properties to match your design system:
+Kalendus ships **unstyled by default** (neutral base, respects OS light/dark mode). Import a built-in theme for an opinionated look:
+
+```js
+import '@jpahd/kalendus/themes/default.css';    // polished light theme
+import '@jpahd/kalendus/themes/ink.css';        // monochrome editorial
+import '@jpahd/kalendus/themes/soft.css';       // pastel, generous radii
+import '@jpahd/kalendus/themes/brutalist.css';  // bold borders, stark contrast
+import '@jpahd/kalendus/themes/midnight.css';   // dark mode
+```
+
+Override individual CSS custom properties to fine-tune any theme:
 
 ```css
 lms-calendar {
     --primary-color: #1976d2;
     --background-color: #ffffff;
     --entry-border-radius: 6px;
-    --header-height: 4em;
 }
 ```
 
-See [docs/theming.md](docs/theming.md) for the full token reference (primary colors, entry styling, layout & spacing, week column controls, year view tokens).
+See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format support, and the full 80+ token reference.
 
 ## Documentation Map
 
@@ -155,7 +164,7 @@ See [docs/theming.md](docs/theming.md) for the full token reference (primary col
 | Application Developers | [Library Usage](docs/library-usage.md)                       | API surface, data contracts, DOM events               |
 | Component Contributors | [Developer Guide](docs/developer-guide.md)                   | Internal architecture, debugging tips, adding locales |
 | Rendering Internals    | [Rendering Calculations](docs/rendering-calculations.md)     | Grid math, condensed weeks, density modes             |
-| Design Systems         | [Theming Reference](docs/theming.md)                         | Full CSS custom property reference (80+ tokens)       |
+| Design Systems         | [Theming Reference](docs/theming.md)                         | Built-in themes, color formats, 80+ CSS tokens        |
 | Architecture           | [Architecture Overview](docs/architecture.md)                | Component tree, technologies, design patterns         |
 | Design Tokens          | [Design Token Refactoring](docs/design-token-refactoring.md) | Token audit and proposed hierarchy                    |
 | Backend/API            | [API Server Guide](docs/api-server.md)                       | REST + SSE backend, database + adapters               |
@@ -193,19 +202,21 @@ pnpm storybook
 ### Available Stories
 
 - **Default**: Basic calendar with sample events
+- **Theme stories**: Default, Ink, Soft, Brutalist, Midnight — one story per built-in theme
+- **Custom Theming**: Inline CSS variable overrides
 - **Locale stories**: Individual stories for each supported locale (German, French, Spanish, Japanese, etc.)
 - **LocaleShowcase**: 19 calendars on one page, each with a different locale
 - **WeekStartComparison**: Side-by-side Monday-first vs Sunday-first
 - **Heavy Event Load**: Stress testing with 200+ events
 - **Overlapping Events**: Extreme overlap scenarios
+- **Tall Container**: Verifies layout in oversized containers
 - **Mobile View**: Responsive mobile experience
-- **Custom Theming**: Theme variations and customization
 
 ## Development
 
 ```bash
 pnpm install
-pnpm storybook     # Start Storybook dev server
+pnpm storybook      # Start Storybook dev server
 pnpm build          # Build with Vite
 pnpm test           # Run tests
 pnpm lint           # Run lit-analyzer + oxlint
