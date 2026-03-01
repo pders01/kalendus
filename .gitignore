@@ -14,6 +14,9 @@ coverage/
 # Profiling trace output
 trace-*.json
 
+# e2e test result output
+test-results/
+
 # Server SQLite data
 server/data/
 
