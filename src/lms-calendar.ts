@@ -1205,7 +1205,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: index + entriesByDate.length,
                 slot: position.slotName,
-                inlineStyle: `--entry-background-color: rgba(${r}, ${g}, ${b}, 0.08); --entry-color: #333; --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.25); --entry-border-left: none; --entry-handle-color: ${entry.color || '#1976d2'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); order: ${row}; ${positionCSS}`,
+                inlineStyle: `--entry-background-color: rgba(${r}, ${g}, ${b}, 0.08); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.25); --entry-border-left: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); order: ${row}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     accessibility: accessibility,
@@ -1291,7 +1291,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: globalIndex,
                 slot: position.slotName,
-                inlineStyle: `--entry-background-color: rgba(250, 250, 250, 0.8); --entry-color: #333; --entry-border: 1px solid rgba(0, 0, 0, 0.15); --entry-border-left: none; --entry-handle-color: ${entry.color || '#1976d2'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
+                inlineStyle: `--entry-background-color: color-mix(in srgb, var(--background-color) 80%, transparent); --entry-border: 1px solid var(--separator-light); --entry-border-left: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     // Add accessibility data to entry
