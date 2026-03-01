@@ -56,6 +56,51 @@ describe('getColorTextWithContrast', () => {
         });
     });
 
+    describe('rgb() color format handling', () => {
+        it('should handle rgb() colors', () => {
+            const [bgColor, textColor] = getColorTextWithContrast('rgb(255, 0, 0)');
+            expect(bgColor).to.equal('rgb(255,0,0)');
+            expect(textColor).to.equal('rgb(255, 255, 255)');
+        });
+
+        it('should handle rgba() colors', () => {
+            const [bgColor, textColor] = getColorTextWithContrast('rgba(255, 255, 255, 0.5)');
+            expect(bgColor).to.equal('rgb(255,255,255)');
+            expect(textColor).to.equal('rgb(0, 0, 0)');
+        });
+    });
+
+    describe('hsl() color format handling', () => {
+        it('should handle hsl() colors', () => {
+            const [bgColor, textColor] = getColorTextWithContrast('hsl(0, 100%, 50%)');
+            expect(bgColor).to.equal('rgb(255,0,0)');
+            expect(textColor).to.equal('rgb(255, 255, 255)');
+        });
+
+        it('should handle dark hsl() colors', () => {
+            const [, textColor] = getColorTextWithContrast('hsl(240, 100%, 20%)');
+            expect(textColor).to.equal('rgb(255, 255, 255)');
+        });
+    });
+
+    describe('named color format handling', () => {
+        it('should handle named colors', () => {
+            const [bgColor, textColor] = getColorTextWithContrast('red');
+            expect(bgColor).to.equal('rgb(255,0,0)');
+            expect(textColor).to.equal('rgb(255, 255, 255)');
+        });
+
+        it('should handle light named colors', () => {
+            const [, textColor] = getColorTextWithContrast('white');
+            expect(textColor).to.equal('rgb(0, 0, 0)');
+        });
+
+        it('should handle dark named colors', () => {
+            const [, textColor] = getColorTextWithContrast('navy');
+            expect(textColor).to.equal('rgb(255, 255, 255)');
+        });
+    });
+
     describe('edge cases', () => {
         it('should handle undefined color', () => {
             const [bgColor, textColor] = getColorTextWithContrast();
