@@ -45,9 +45,6 @@ export default class Entry extends LitElement {
     @state()
     _highlighted?: boolean;
 
-    @state()
-    _extended?: boolean;
-
     private _sumReducer: (accumulator: number, currentValue: number) => number = (
         accumulator,
         currentValue,
@@ -117,10 +114,6 @@ export default class Entry extends LitElement {
             outline-offset: 2px;
             position: relative;
             z-index: 999 !important;
-        }
-
-        :host([data-extended]) {
-            background: var(--entry-extended-background-color, var(--background-color));
         }
 
         .main {
@@ -386,12 +379,6 @@ export default class Entry extends LitElement {
         return nothing;
     }
 
-    private _shouldShowTime(): boolean {
-        if (this.density === 'compact') return false;
-        if (this.isContinuation) return true; // Always show "All Day"
-        return this.density === 'standard' || this.density === 'full';
-    }
-
     private _getAriaLabel(): string {
         const msg = getMessages(this.locale);
         const timeInfo = this.time
@@ -424,7 +411,6 @@ export default class Entry extends LitElement {
                     class=${mainClass}
                     title=${this._renderTitle()}
                     data-full-content=${this.content || ''}
-                    ?data-extended=${this._extended}
                     ?data-is-multi-day=${isMultiDay}
                 >
                     ${
@@ -460,10 +446,9 @@ export default class Entry extends LitElement {
                 class=${mainClass}
                 title=${this._renderTitle()}
                 data-full-content=${this.content || ''}
-                ?data-extended=${this._extended}
             >
                 <span class="title">${this.heading}</span>
-                ${this._shouldShowTime() ? this._renderTime() : nothing}
+                ${this._renderTime()}
                 ${this._renderContent()}
             </div>
         `;

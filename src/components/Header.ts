@@ -178,16 +178,19 @@ export default class Header extends LitElement {
                     <span class="year">${date.year}</span>
                 </div>
                 <div class="view-detail${this.viewMode === 'week' ? ' active' : ''}">
-                    <span class="week"
-                        >${msg.calendarWeek}
-                        ${this._getWeekInfo(date).weekNumber}</span
-                    >
-                    <span class="month"
-                        >${getLocalizedMonth(date.month, this.locale)}</span
-                    >
-                    <span class="year"
-                        >${this._getWeekInfo(date).weekYear}</span
-                    >
+                    ${(() => {
+                        const { weekNumber, weekYear } = this._getWeekInfo(date);
+                        return html`
+                            <span class="week"
+                                >${msg.calendarWeek}
+                                ${weekNumber}</span
+                            >
+                            <span class="month"
+                                >${getLocalizedMonth(date.month, this.locale)}</span
+                            >
+                            <span class="year">${weekYear}</span>
+                        `;
+                    })()}
                 </div>
                 <div class="view-detail${this.viewMode === 'month' ? ' active' : ''}">
                     <span class="month"
