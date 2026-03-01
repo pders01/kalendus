@@ -362,7 +362,11 @@ export default class Entry extends LitElement {
                 return html`<span class="time">${msg.allDay}</span>`;
             }
             if (!this.time) return nothing;
-            const startTime = formatLocalizedTime(this.time.start.hour, this.time.start.minute, this.locale);
+            const startTime = formatLocalizedTime(
+                this.time.start.hour,
+                this.time.start.minute,
+                this.locale,
+            );
             return startTime ? html`<span class="time">${startTime}</span>` : nothing;
         }
 
