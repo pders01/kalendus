@@ -1,4 +1,3 @@
-import { ResizeController } from '@lit-labs/observers/resize-controller.js';
 import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
@@ -149,24 +148,16 @@ export default class LMSCalendar extends LitElement {
         eventMinHeight: 20,
     });
 
-    private _handleResize = (entries: ResizeObserverEntry[]): void => {
-        const [div] = entries;
-
-        this._calendarWidth = div.contentRect.width || this._calendarWidth;
-    };
-
-    private _resizeController: ResizeController<void> = new ResizeController<void>(this, {
-        target: null,
-        callback: this._handleResize,
-        skipInitial: true,
-    });
+    private _resizeObserver?: ResizeObserver;
 
     static override styles = css`
         :host {
             display: block;
             contain: layout style paint;
-            content-visibility: auto;
-            contain-intrinsic-size: auto 600px 800px;
+            /* Override grid/flex automatic minimum size so that an
+               external height (e.g. height: 100% on a grid item) is
+               the real constraint — not the min-content height. */
+            min-height: 0;
 
             --shadow-sm: rgba(0, 0, 0, 0.18) 0px 2px 4px;
             --shadow-md: rgba(0, 0, 0, 0.15) 0px 3px 3px 0px;
@@ -398,6 +389,7 @@ export default class LMSCalendar extends LitElement {
 
     override disconnectedCallback() {
         super.disconnectedCallback();
+        this._resizeObserver?.disconnect();
         // Safety net: clean up listeners if component is removed while menu is open
         document.removeEventListener('click', this._handleClickOutside, true);
         document.removeEventListener('keydown', this._handleEscape);
@@ -458,12 +450,21 @@ export default class LMSCalendar extends LitElement {
     protected override firstUpdated(
         _changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
     ): void {
-        const firstElementChild = this.shadowRoot?.firstElementChild;
-        if (!firstElementChild) {
-            return;
-        }
+        const container = this.shadowRoot?.firstElementChild;
+        if (!container) return;
 
-        this._resizeController.observe(firstElementChild);
+        // Manual ResizeObserver: only trigger re-render when width actually
+        // changes. The @lit-labs ResizeController unconditionally calls
+        // requestUpdate() on every observation (even height-only changes),
+        // which can create a render loop when combined with view components
+        // that set CSS custom properties on their host.
+        this._resizeObserver = new ResizeObserver(([entry]) => {
+            const w = entry.contentRect.width;
+            if (w > 0 && w !== this._calendarWidth) {
+                this._calendarWidth = w;
+            }
+        });
+        this._resizeObserver.observe(container);
     }
 
     /** We filter invalid entries in the willUpdate hook, so be prepared:
