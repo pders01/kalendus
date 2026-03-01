@@ -139,6 +139,12 @@ export class Menu extends LitElement {
     }
 
     private _handleKeydown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+            e.stopPropagation();
+            this._handleClose();
+            return;
+        }
+
         if (e.key !== 'Tab') return;
 
         const focusable = Array.from(
@@ -212,9 +218,10 @@ export class Menu extends LitElement {
 
     private _handleExport = () => {
         const { heading, content, time, date } = this.eventDetails;
-        const eventYear = date?.year ?? 2025;
-        const eventMonth = (date?.month ?? 4) - 1;
-        const eventDay = date?.day ?? 18;
+        const today = new Date();
+        const eventYear = date?.year ?? today.getFullYear();
+        const eventMonth = (date?.month ?? today.getMonth() + 1) - 1;
+        const eventDay = date?.day ?? today.getDate();
         let start, end;
         if (time) {
             start = {

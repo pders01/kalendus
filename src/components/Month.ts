@@ -121,37 +121,32 @@ export default class Month extends LitElement {
             }
         });
 
-        // Add scroll detection for day cells
-        this._setupScrollDetection();
+        // Use a single delegated scroll listener on the shadow root for all .day cells.
+        // This avoids per-element listener management across re-renders.
+        this._setupDelegatedScrollListener();
     }
 
-    private _setupScrollDetection() {
-        // Use requestAnimationFrame for throttling
-        let rafId: number | null = null;
+    private _scrollRafId: number | null = null;
 
-        const handleScroll = (dayElement: HTMLElement) => {
-            if (rafId) return;
+    private _setupDelegatedScrollListener() {
+        this.shadowRoot?.addEventListener(
+            'scroll',
+            (e: Event) => {
+                const target = e.target as HTMLElement;
+                if (!target.classList?.contains('day')) return;
 
-            rafId = requestAnimationFrame(() => {
-                if (dayElement.scrollTop > 5) {
-                    dayElement.classList.add('scrolled');
-                } else {
-                    dayElement.classList.remove('scrolled');
-                }
-                rafId = null;
-            });
-        };
-
-        // Add listeners after render
-        this.updateComplete.then(() => {
-            const days = this.shadowRoot?.querySelectorAll('.day');
-            days?.forEach((day) => {
-                const dayElement = day as HTMLElement;
-                dayElement.addEventListener('scroll', () => handleScroll(dayElement), {
-                    passive: true,
+                if (this._scrollRafId) return;
+                this._scrollRafId = requestAnimationFrame(() => {
+                    if (target.scrollTop > 5) {
+                        target.classList.add('scrolled');
+                    } else {
+                        target.classList.remove('scrolled');
+                    }
+                    this._scrollRafId = null;
                 });
-            });
-        });
+            },
+            { capture: true, passive: true },
+        );
     }
 
     private _isCurrentDate(date: string) {
