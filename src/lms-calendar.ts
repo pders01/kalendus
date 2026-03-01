@@ -175,8 +175,10 @@ export default class LMSCalendar extends LitElement {
             --focus-bg: transparent;
             --peek-active-bg: transparent;
             --context-bg: transparent;
+            --context-text-color: inherit;
             --active-indicator-bg: transparent;
             --active-indicator-shadow: none;
+            --hover-color: inherit;
 
             /* Float text tokens */
             --float-text-bg: transparent;

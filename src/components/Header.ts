@@ -111,6 +111,7 @@ export default class Header extends LitElement {
 
         button:hover {
             background: var(--hover-bg);
+            color: var(--hover-color, var(--header-text-color, rgba(0, 0, 0, 0.6)));
         }
 
         .context {
@@ -124,6 +125,7 @@ export default class Header extends LitElement {
 
         .context button {
             border-radius: calc(var(--border-radius-sm) - 1px);
+            color: var(--context-text-color, var(--header-text-color, rgba(0, 0, 0, 0.6)));
         }
 
         .context button[data-active] {
