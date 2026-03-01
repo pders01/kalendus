@@ -1,7 +1,6 @@
 import { ResizeController } from '@lit-labs/observers/resize-controller.js';
 import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { ifDefined } from 'lit/directives/if-defined.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { DateTime, Interval } from 'luxon';
 import * as R from 'remeda';
@@ -37,6 +36,20 @@ import {
 import { ViewStateController } from './lib/ViewStateController.js';
 import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
 import { getWeekDates } from './lib/weekStartHelper.js';
+
+// ── Hex color → RGB tuple (for translucent backgrounds) ────────────────
+function hexToRgb(hex?: string): [number, number, number] {
+    if (!hex || !hex.trim()) return [25, 118, 210]; // default accent
+    const normalized = hex.startsWith('#') ? hex : `#${hex}`;
+    const match = normalized
+        .replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i, (_m, r, g, b) => `#${r}${r}${g}${g}${b}${b}`)
+        .substring(1)
+        .match(/.{2}/g);
+    if (!match || match.length !== 3) return [25, 118, 210];
+    const [r, g, b] = match.map((x) => parseInt(x, 16));
+    if (isNaN(r) || isNaN(g) || isNaN(b)) return [25, 118, 210];
+    return [r, g, b];
+}
 
 // ── Derived type for expanded (multi-day) entries ──────────────────────
 type ExpandedCalendarEntry = CalendarEntry & {
@@ -185,15 +198,15 @@ export default class LMSCalendar extends LitElement {
             --width: 100%;
 
             /* Entry design tokens - responsive and density-aware */
-            --entry-font-size: 0.8rem;
-            --entry-line-height: 1.3;
+            --entry-font-size: 0.75rem;
+            --entry-line-height: 1.2;
             --entry-min-height: 1.2em;
             --entry-border-radius: var(--border-radius-sm);
             --entry-background-color: var(--background-color);
             --entry-color: var(--primary-color);
             --entry-highlight-color: var(--separator-light);
             --entry-focus-color: var(--primary-color);
-            --entry-padding: 0.2em 0.35em;
+            --entry-padding: 0.15em 0.3em;
             --entry-font-family: system-ui;
             --entry-gap: 0.25em;
 
@@ -201,7 +214,7 @@ export default class LMSCalendar extends LitElement {
             --entry-dot-size: 6px;
             --entry-dot-margin: 0.25em;
             --entry-month-background: transparent;
-            --entry-month-padding: 0.1em 0.3em 0.1em 0;
+            --entry-month-padding: 0.05em 0.25em 0.05em 0;
             --entry-time-font: var(--monospace-ui);
             --entry-time-align: right;
             --entry-month-text-color: var(--separator-dark);
@@ -218,9 +231,9 @@ export default class LMSCalendar extends LitElement {
             --entry-align: flex-start;
 
             /* Responsive scaling for different viewport sizes */
-            --entry-font-size-sm: 0.7rem;
-            --entry-font-size-md: 0.75rem;
-            --entry-font-size-lg: 0.8rem;
+            --entry-font-size-sm: 0.65rem;
+            --entry-font-size-md: 0.7rem;
+            --entry-font-size-lg: 0.75rem;
 
             --context-height: 1.75em;
             --context-padding: 0.25em;
@@ -228,13 +241,16 @@ export default class LMSCalendar extends LitElement {
 
             /* Core layout tokens */
             --time-column-width: 4em;
-            --view-container-height-offset: 0px;
-            --main-content-height-offset: 1em;
 
             /* Time grid sizing — replaces 1440-row grid */
             --minute-height: 0.8px;
             --hour-height: calc(60 * var(--minute-height));
             --day-total-height: calc(1440 * var(--minute-height));
+
+            /* Snap section: all views share a half-day rhythm.
+               Day/week snap at noon; year view splits 6+6 months
+               at the same scroll offset. */
+            --half-day-height: calc(var(--day-total-height) / 2);
 
             /* Deprecated: kept for consumers who read them, no longer used internally */
             --grid-rows-per-day: 1440;
@@ -251,12 +267,10 @@ export default class LMSCalendar extends LitElement {
             --calendar-grid-columns-month: repeat(7, 1fr);
 
             /* Calculated heights */
-            --view-container-height: calc(100% - var(--view-container-height-offset));
-            --main-content-height: calc(100% - var(--main-content-height-offset));
+            --view-container-height: 100%;
 
-            /* Legacy tokens (for backward compatibility) */
-            --day-header-height: 3.5em;
-            --day-main-offset: var(--main-content-height-offset);
+            /* Day/week view header height */
+            --day-header-height: 2.5em;
             --day-gap: 1px;
             --day-text-align: center;
             --day-padding: 0.5em;
@@ -346,7 +360,8 @@ export default class LMSCalendar extends LitElement {
         main {
             flex: 1;
             min-height: 0;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
             display: flex;
             flex-direction: column;
         }
@@ -578,7 +593,7 @@ export default class LMSCalendar extends LitElement {
                     </lms-calendar-header>
                 </header>
 
-                <main role="region" aria-live="polite" aria-label="${getMessages(this.locale)[viewMode]} ${getMessages(this.locale).viewLabel}" style=${ifDefined(viewMode === 'year' ? 'overflow-y: auto' : undefined)}>
+                <main role="region" aria-live="polite" aria-label="${getMessages(this.locale)[viewMode]} ${getMessages(this.locale).viewLabel}">
                     ${
                         viewMode === 'month'
                             ? html`
@@ -646,6 +661,8 @@ export default class LMSCalendar extends LitElement {
                                           @open-menu=${this._handleOpenMenu}
                                           @clear-other-selections=${this._handleClearOtherSelections}
                                           .allDayRowCount=${result.allDayRowCount}
+                                          .activeDate=${currentActiveDate}
+                                          .firstDayOfWeek=${this.firstDayOfWeek}
                                           .locale=${this.locale}
                                       >
                                           ${result.elements}
@@ -1098,7 +1115,7 @@ export default class LMSCalendar extends LitElement {
 
         // Process all-day entries with layout info
         const allDayElements = allDayEntries.map((entry, index) => {
-            const [background, text] = getColorTextWithContrast(entry.color);
+            const [r, g, b] = hexToRgb(entry.color);
             const eventId = this._createConsistentEventId(entry);
 
             const positionConfig: PositionConfig = {
@@ -1153,7 +1170,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: index + entriesByDate.length,
                 slot: position.slotName,
-                inlineStyle: `--entry-background-color: ${background}; --entry-color: ${text}; order: ${row}; ${positionCSS}`,
+                inlineStyle: `--entry-background-color: rgba(${r}, ${g}, ${b}, 0.08); --entry-color: #333; --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.25); --entry-border-left: none; --entry-handle-color: ${entry.color || '#1976d2'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); order: ${row}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     accessibility: accessibility,
@@ -1239,7 +1256,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: globalIndex,
                 slot: position.slotName,
-                inlineStyle: `--entry-background-color: rgba(250, 250, 250, 0.8); --entry-color: #333; --entry-border: 1px solid rgba(0, 0, 0, 0.15); --entry-handle-color: ${entry.color || '#1976d2'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
+                inlineStyle: `--entry-background-color: rgba(250, 250, 250, 0.8); --entry-color: #333; --entry-border: 1px solid rgba(0, 0, 0, 0.15); --entry-border-left: none; --entry-handle-color: ${entry.color || '#1976d2'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-left: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     // Add accessibility data to entry

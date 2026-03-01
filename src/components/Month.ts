@@ -35,6 +35,7 @@ export default class Month extends LitElement {
             height: 100%;
             display: grid;
             grid-template-columns: repeat(7, 1fr);
+            grid-template-rows: repeat(6, 1fr);
             border-top: 1px solid var(--separator-light);
         }
 
@@ -57,9 +58,10 @@ export default class Month extends LitElement {
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
-            overflow-y: auto;
+            overflow-y: hidden;
             gap: var(--month-day-gap, 1px);
             min-width: 0;
+            min-height: 0;
             /* Let Blink skip layout/paint for off-screen day cells */
             content-visibility: auto;
             contain-intrinsic-size: auto 6em;

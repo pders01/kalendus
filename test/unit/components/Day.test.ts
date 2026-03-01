@@ -199,9 +199,10 @@ describe('Day Component', () => {
             ) as HTMLDivElement;
             expect(container).to.exist;
 
-            // Container height should be adjusted based on all-day events
-            // Should be: calc(100% - 3.5em - 48px) for 2 events (2 * 24px)
-            expect(container.style.height).to.include('48px');
+            // Container uses flex: 1 to fill remaining space after all-day section.
+            // The all-day-wrapper should be present when allDayRowCount > 0.
+            const allDayWrapper = el.shadowRoot?.querySelector('.all-day-wrapper');
+            expect(allDayWrapper).to.exist;
         });
 
         it('should support custom CSS properties', async () => {

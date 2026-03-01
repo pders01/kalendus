@@ -55,12 +55,13 @@ export default class Week extends LitElement {
         .week-header {
             display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
-            height: var(--day-header-height, 3.5em);
+            height: var(--day-header-height, 2.5em);
             flex-shrink: 0;
             border-bottom: var(--separator-border);
             gap: var(--day-gap, 1px);
-            padding: var(--day-padding, 0.5em);
+            padding: 0 var(--day-padding, 0.5em);
             position: relative;
+            overflow: hidden;
         }
 
         .time-header {
@@ -69,28 +70,29 @@ export default class Week extends LitElement {
 
         .day-label {
             text-align: center;
-            padding: var(--day-padding, 0.5em);
+            padding: 0 0.25em;
             font-weight: var(--day-label-font-weight);
             border-right: var(--separator-border);
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             justify-content: center;
             align-items: center;
-            gap: var(--day-label-gap, 0.15em);
+            gap: 0.35em;
             cursor: pointer;
             transition: background-color 0.2s ease;
+            overflow: hidden;
         }
 
         .day-name {
-            font-size: var(--day-label-name-font-size, 0.75em);
+            font-size: 0.7em;
             text-transform: uppercase;
             letter-spacing: 0.03em;
             opacity: 0.7;
         }
 
         .day-number {
-            font-size: var(--day-label-number-font-size, 1.125em);
-            font-weight: var(--day-label-number-font-weight, 600);
+            font-size: 0.95em;
+            font-weight: 600;
             line-height: 1;
         }
 
@@ -116,11 +118,14 @@ export default class Week extends LitElement {
         .week-scroll {
             flex: 1;
             overflow-y: auto;
+            scroll-snap-type: y proximity;
             display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
             grid-template-rows: 1fr;
             gap: var(--day-gap, 1px);
-            padding: var(--day-padding, 0.5em);
+            /* Horizontal-only padding keeps the scrollport flush with the
+               hour grid so 12 hours fills the viewport exactly. */
+            padding: 0 var(--day-padding, 0.5em);
             min-height: 0;
             position: relative;
             contain: content;
@@ -132,6 +137,8 @@ export default class Week extends LitElement {
             height: var(--day-total-height);
             border-right: var(--sidebar-border, 1px solid var(--separator-light));
             background: var(--background-color, white);
+            /* Clip overflow so hour-24 label doesn't inflate scrollHeight */
+            overflow: clip;
         }
 
         .hour-label {
@@ -145,10 +152,17 @@ export default class Week extends LitElement {
             pointer-events: none;
         }
 
+        /* Snap at noon: first scroll stop aligns with --half-day-height */
+        .hour-label.snap-target {
+            scroll-snap-align: start;
+        }
+
         .day-column {
             position: relative;
             height: var(--day-total-height);
             border-right: var(--sidebar-border, 1px solid var(--separator-light));
+            /* Match time-labels clipping */
+            overflow: clip;
             background-image: repeating-linear-gradient(
                 to bottom,
                 transparent 0,
@@ -167,6 +181,7 @@ export default class Week extends LitElement {
         .all-day-wrapper {
             display: grid;
             grid-template-rows: 1fr;
+            flex-shrink: 0;
             border-bottom: var(--separator-border);
             background: var(--background-color);
             z-index: 2;
@@ -319,14 +334,63 @@ export default class Week extends LitElement {
         return this.visibleDates !== undefined && this.visibleLength < 7;
     }
 
+    private _scrollRO?: ResizeObserver;
+    private _lastScrollH = 0;
+
+    /**
+     * Observe the scroll container and derive --minute-height (+ all dependent
+     * tokens) so that exactly 12 hours fills the visible viewport.
+     *
+     * CSS custom properties resolve var() at the element where the property is
+     * SET, not where it's consumed. So overriding --minute-height alone on this
+     * element won't recalculate --hour-height or --day-total-height (those were
+     * already resolved at the lms-calendar host). We must override every
+     * derived token directly.
+     *
+     * Style writes are deferred to the next frame via requestAnimationFrame to
+     * avoid the "ResizeObserver loop completed with undelivered notifications"
+     * error that occurs when synchronous style changes trigger additional
+     * layout observations within the same frame.
+     */
+    override firstUpdated() {
+        const scrollEl = this.renderRoot?.querySelector('.week-scroll');
+        if (!scrollEl) return;
+
+        // Eager initial sync — clientHeight forces synchronous layout so
+        // the first paint already uses the correct --minute-height.
+        this._applyScrollHeight(scrollEl.clientHeight);
+
+        // ResizeObserver for ongoing size changes (window resize, all-day
+        // section appearing, etc.). Uses rAF to avoid the benign
+        // "ResizeObserver loop completed" error.
+        this._scrollRO = new ResizeObserver(([entry]) => {
+            const h = entry.contentRect.height;
+            if (h > 0 && Math.abs(h - this._lastScrollH) > 0.5) {
+                requestAnimationFrame(() => this._applyScrollHeight(h));
+            }
+        });
+        this._scrollRO.observe(scrollEl);
+    }
+
+    private _applyScrollHeight(h: number) {
+        if (h <= 0) return;
+        this._lastScrollH = h;
+        const m = h / 720;
+        this.style.setProperty('--minute-height', `${m}px`);
+        this.style.setProperty('--hour-height', `${m * 60}px`);
+        this.style.setProperty('--day-total-height', `${m * 1440}px`);
+        this.style.setProperty('--half-day-height', `${h}px`);
+    }
+
+    override disconnectedCallback() {
+        super.disconnectedCallback();
+        this._scrollRO?.disconnect();
+    }
+
     override render() {
         const datesToRender = this._getDatesToRender();
         const weekdayOrder = this._getVisibleWeekdayOrder();
         const hasAllDay = this.allDayRowCount > 0;
-        const allDayHeight = hasAllDay ? Math.max(2.5, this.allDayRowCount * 2) + 1 : 0;
-        const weekContentHeight = hasAllDay
-            ? `calc(var(--main-content-height) - ${allDayHeight}em)`
-            : 'var(--main-content-height)';
 
         const showLeftPeek = this._isCondensed && this.visibleStartIndex > 0;
         const showRightPeek = this._isCondensed && this.visibleStartIndex + this.visibleLength < 7;
@@ -409,12 +473,12 @@ export default class Week extends LitElement {
                 `
                         : nothing
                 }
-                <div class="week-scroll" style="height: ${weekContentHeight}">
+                <div class="week-scroll">
                     <div class="time-labels">
                         ${Array.from({ length: 25 }).map(
                             (_, hour) => html`
                                 <div
-                                    class="hour-label"
+                                    class="hour-label${hour % 12 === 0 ? ' snap-target' : ''}"
                                     style="top: calc(${hour} * var(--hour-height))"
                                 >
                                     ${this._renderIndicatorValue(hour)}
