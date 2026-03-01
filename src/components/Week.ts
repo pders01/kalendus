@@ -284,10 +284,6 @@ export default class Week extends LitElement {
         }
     `;
 
-    override connectedCallback() {
-        super.connectedCallback();
-    }
-
     private _getWeekDates(): CalendarDate[] {
         return getWeekDates(this.activeDate, this.firstDayOfWeek);
     }

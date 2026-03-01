@@ -35,7 +35,7 @@ export interface LayoutResult {
 export class LayoutCalculator {
     private config: GridConfig;
 
-    constructor(config: Partial<GridConfig & Record<string, number>> = {}) {
+    constructor(config: Partial<GridConfig> = {}) {
         this.config = {
             minuteHeight: config.minuteHeight ?? 1,
             eventMinHeight: config.eventMinHeight ?? 20,
