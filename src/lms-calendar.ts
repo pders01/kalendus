@@ -183,7 +183,7 @@ export default class LMSCalendar extends LitElement {
             --border-radius-lg: 12px;
 
             --background-color: white;
-            --primary-color: dodgerblue;
+            --primary-color: #3b82f6;
 
             --height: 100%;
             --width: 100%;
@@ -291,7 +291,7 @@ export default class LMSCalendar extends LitElement {
 
             --month-day-gap: 1px;
             --indicator-color: var(--primary-color);
-            --indicator-font-weight: bold;
+            --indicator-font-weight: 600;
             --indicator-padding: 0.25em;
             --indicator-margin-bottom: 0.25em;
 
@@ -319,10 +319,10 @@ export default class LMSCalendar extends LitElement {
             --year-day-font-size: 0.7em;
             --year-cell-size: 1.8em;
             --year-dot-color: var(--indicator-color, var(--primary-color));
-            --year-heatmap-1: rgba(30, 144, 255, 0.15);
-            --year-heatmap-2: rgba(30, 144, 255, 0.35);
-            --year-heatmap-3: rgba(30, 144, 255, 0.55);
-            --year-heatmap-4: rgba(30, 144, 255, 0.75);
+            --year-heatmap-1: rgba(59, 130, 246, 0.15);
+            --year-heatmap-2: rgba(59, 130, 246, 0.35);
+            --year-heatmap-3: rgba(59, 130, 246, 0.55);
+            --year-heatmap-4: rgba(59, 130, 246, 0.75);
 
             /* Year view — calendar week column */
             --year-cw-width: 1.8em;
