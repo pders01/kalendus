@@ -1,0 +1,8 @@
+{
+    "layout": "base.njk",
+    "title": "Kalendus",
+    "order": 0,
+    "tags": "docs",
+    "section": "Getting Started",
+    "permalink": "/"
+}

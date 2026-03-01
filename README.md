@@ -1,12 +1,3 @@
----
-layout: base.njk
-title: 'Kalendus'
-order: 0
-tags: docs
-section: Getting Started
-permalink: /
----
-
 # kalendus
 
 A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and 151 CSS design tokens.
