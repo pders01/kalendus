@@ -760,6 +760,7 @@ export const BrutalistTheme: Story = createThemeStory('Brutalist Theme', `
         --float-text-shadow: 3px 3px 0 #000;
         --transition-speed: 0s;
         --hover-bg: #e60000;
+        --hover-color: #fff;
         --focus-bg: #e60000;
         --peek-active-bg: #000;
         --current-day-hover-opacity: 1;
@@ -768,6 +769,7 @@ export const BrutalistTheme: Story = createThemeStory('Brutalist Theme', `
         --entry-color: #000;
         --entry-highlight-color: #ff0;
         --context-bg: #000;
+        --context-text-color: #fff;
         --active-indicator-bg: #fff;
         --indicator-backdrop-filter: none;
         --multi-day-separator: 3px solid #000;
