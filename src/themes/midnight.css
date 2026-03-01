@@ -1,0 +1,106 @@
+/*
+ * Kalendus — Midnight Theme
+ *
+ * Dark mode. Deep charcoal background, soft glowing accents,
+ * muted separators. Easy on the eyes.
+ *
+ * Usage:
+ *   import '@jpahd/kalendus/themes/midnight.css';
+ */
+
+lms-calendar {
+    /* ── Colors ─────────────────────────────────── */
+    --background-color: #1a1b2e;
+    --primary-color: #818cf8;
+    --separator-light: rgba(255, 255, 255, 0.08);
+    --separator-mid: rgba(255, 255, 255, 0.2);
+    --separator-dark: rgba(255, 255, 255, 0.85);
+
+    /* ── Typography ─────────────────────────────── */
+    --system-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --monospace-ui: 'JetBrains Mono', 'Fira Code', monospace;
+    --header-text-color: rgba(255, 255, 255, 0.5);
+    --indicator-color: var(--primary-color);
+    --indicator-font-weight: 600;
+    --day-label-font-weight: 500;
+    --day-label-number-font-weight: 600;
+    --menu-item-font-weight: 500;
+    --menu-title-font-weight: 600;
+    --entry-title-weight: 500;
+    --entry-time-opacity: 0.7;
+    --title-column-weight: 500;
+    --month-label-font-weight: 600;
+    --year-weekday-font-weight: 500;
+
+    /* ── Border Radius ──────────────────────────── */
+    --border-radius-sm: 6px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --entry-border-radius: 4px;
+    --month-indicator-border-radius: 1em;
+    --year-day-cell-border-radius: 50%;
+    --float-text-border-radius: 4px;
+
+    /* ── Shadows ─────────────────────────────────── */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+    --shadow-hv: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --active-indicator-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --float-text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+
+    /* ── Transitions ────────────────────────────── */
+    --transition-speed: 0.2s;
+
+    /* ── Hover / Focus / Active ─────────────────── */
+    --hover-bg: rgba(255, 255, 255, 0.06);
+    --focus-bg: rgba(255, 255, 255, 0.08);
+    --peek-active-bg: rgba(255, 255, 255, 0.12);
+    --current-day-hover-opacity: 0.85;
+    --export-hover-opacity: 0.7;
+
+    /* ── Entry ───────────────────────────────────── */
+    --entry-background-color: rgba(255, 255, 255, 0.06);
+    --entry-color: var(--primary-color);
+    --entry-highlight-color: rgba(129, 140, 248, 0.1);
+    --entry-focus-color: var(--primary-color);
+
+    /* ── Header ──────────────────────────────────── */
+    --context-bg: rgba(255, 255, 255, 0.06);
+    --active-indicator-bg: rgba(255, 255, 255, 0.1);
+
+    /* ── Month ───────────────────────────────────── */
+    --indicator-backdrop-filter: blur(10px);
+
+    /* ── Week ────────────────────────────────────── */
+    --multi-day-separator: 2px solid rgba(255, 255, 255, 0.1);
+
+    /* ── Year ────────────────────────────────────── */
+    --year-month-label-hover-color: var(--primary-color);
+    --year-cw-color: rgba(255, 255, 255, 0.3);
+    --cw-hover-color: var(--primary-color);
+    --cw-hover-bg: rgba(255, 255, 255, 0.06);
+    --current-day-bg: var(--primary-color);
+    --current-day-color: #1a1b2e;
+    --current-day-font-weight: 600;
+    --current-dot-bg: #1a1b2e;
+    --year-heatmap-4-text: #1a1b2e;
+    --year-heatmap-1: rgba(129, 140, 248, 0.12);
+    --year-heatmap-2: rgba(129, 140, 248, 0.25);
+    --year-heatmap-3: rgba(129, 140, 248, 0.4);
+    --year-heatmap-4: rgba(129, 140, 248, 0.6);
+    --year-dot-color: var(--primary-color);
+
+    /* ── Float Text ──────────────────────────────── */
+    --float-text-bg: #252640;
+
+    /* ── Hour indicator ──────────────────────────── */
+    --hour-indicator-color: rgba(255, 255, 255, 0.35);
+
+    /* ── Month view ──────────────────────────────── */
+    --entry-month-text-color: rgba(255, 255, 255, 0.7);
+
+    /* ── Menu ────────────────────────────────────── */
+    --menu-transform-origin: scale(0.96);
+    --menu-transform-active: scale(1);
+}

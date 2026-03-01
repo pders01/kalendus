@@ -561,6 +561,305 @@ export const DefaultTheme: Story = {
     `,
 };
 
+// ── Theme story helper ──────────────────────────────────────────────
+// Each theme story wraps the calendar in a scoped container and injects
+// the theme CSS via a <style> block with a class-qualified selector
+// (higher specificity than the bare `lms-calendar` in preview).
+const createThemeStory = (
+    name: string,
+    themeCSS: string,
+    opts: { bg?: string } = {},
+): Story => ({
+    name: storyName(STORY_GROUPS.OVERVIEW, name),
+    args: { entries: sampleEntries },
+    decorators: [
+        (Story) => html`
+            <style>
+                ${themeCSS}
+            </style>
+            <div class="theme-demo" style="${opts.bg ? `background: ${opts.bg};` : ''}">${Story()}</div>
+        `,
+    ],
+    render: (args) => html`
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            .firstDayOfWeek=${args.firstDayOfWeek}
+            .locale=${args.locale}
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+});
+
+export const InkTheme: Story = createThemeStory('Ink Theme', `
+    .theme-demo lms-calendar {
+        --background-color: #fff;
+        --primary-color: #111;
+        --separator-light: rgba(0, 0, 0, 0.12);
+        --separator-mid: rgba(0, 0, 0, 0.4);
+        --separator-dark: #111;
+        --system-ui: 'Georgia', 'Times New Roman', serif;
+        --monospace-ui: 'Courier New', Courier, monospace;
+        --header-text-color: #444;
+        --indicator-color: #111;
+        --indicator-font-weight: 700;
+        --day-label-font-weight: 400;
+        --day-label-number-font-weight: 700;
+        --menu-item-font-weight: 400;
+        --menu-title-font-weight: 600;
+        --entry-title-weight: 600;
+        --entry-time-opacity: 0.6;
+        --title-column-weight: 600;
+        --month-label-font-weight: 700;
+        --year-weekday-font-weight: 400;
+        --border-radius-sm: 0;
+        --border-radius-md: 0;
+        --border-radius-lg: 0;
+        --entry-border-radius: 0;
+        --month-indicator-border-radius: 0;
+        --year-day-cell-border-radius: 0;
+        --float-text-border-radius: 0;
+        --shadow-sm: none;
+        --shadow-md: none;
+        --shadow-lg: none;
+        --shadow-hv: none;
+        --active-indicator-shadow: none;
+        --float-text-shadow: none;
+        --transition-speed: 0.1s;
+        --hover-bg: rgba(0, 0, 0, 0.05);
+        --focus-bg: rgba(0, 0, 0, 0.05);
+        --peek-active-bg: rgba(0, 0, 0, 0.1);
+        --current-day-hover-opacity: 0.8;
+        --export-hover-opacity: 0.6;
+        --entry-background-color: #f8f8f8;
+        --entry-color: #111;
+        --entry-highlight-color: rgba(0, 0, 0, 0.06);
+        --context-bg: rgba(0, 0, 0, 0.04);
+        --active-indicator-bg: #fff;
+        --indicator-backdrop-filter: none;
+        --multi-day-separator: 1px solid rgba(0, 0, 0, 0.15);
+        --year-month-label-hover-color: #000;
+        --cw-hover-color: #000;
+        --cw-hover-bg: rgba(0, 0, 0, 0.04);
+        --current-day-bg: #111;
+        --current-day-color: #fff;
+        --current-day-font-weight: 700;
+        --current-dot-bg: #fff;
+        --year-heatmap-4-text: #fff;
+        --year-heatmap-1: rgba(0, 0, 0, 0.08);
+        --year-heatmap-2: rgba(0, 0, 0, 0.2);
+        --year-heatmap-3: rgba(0, 0, 0, 0.35);
+        --year-heatmap-4: rgba(0, 0, 0, 0.55);
+        --year-dot-color: #111;
+        --float-text-bg: #fff;
+        --menu-transform-origin: scale(1);
+        --menu-transform-active: scale(1);
+    }
+`);
+
+export const SoftTheme: Story = createThemeStory('Soft Theme', `
+    .theme-demo lms-calendar {
+        --background-color: #fefcfb;
+        --primary-color: #7c6beb;
+        --separator-light: rgba(124, 107, 235, 0.1);
+        --separator-mid: rgba(124, 107, 235, 0.25);
+        --separator-dark: #4a4458;
+        --system-ui: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+        --monospace-ui: 'Fira Code', 'Cascadia Code', monospace;
+        --header-text-color: #8b7faa;
+        --indicator-color: var(--primary-color);
+        --indicator-font-weight: 600;
+        --day-label-font-weight: 500;
+        --day-label-number-font-weight: 600;
+        --menu-item-font-weight: 500;
+        --menu-title-font-weight: 600;
+        --entry-title-weight: 500;
+        --entry-time-opacity: 0.7;
+        --title-column-weight: 500;
+        --month-label-font-weight: 600;
+        --year-weekday-font-weight: 500;
+        --border-radius-sm: 10px;
+        --border-radius-md: 14px;
+        --border-radius-lg: 20px;
+        --entry-border-radius: 8px;
+        --month-indicator-border-radius: 1.25em;
+        --year-day-cell-border-radius: 50%;
+        --float-text-border-radius: 8px;
+        --shadow-sm: 0 1px 3px rgba(124, 107, 235, 0.08);
+        --shadow-md: 0 2px 6px rgba(124, 107, 235, 0.1);
+        --shadow-lg: 0 4px 16px rgba(124, 107, 235, 0.12);
+        --shadow-hv: 0 6px 20px rgba(124, 107, 235, 0.1);
+        --active-indicator-shadow: 0 1px 4px rgba(124, 107, 235, 0.12);
+        --float-text-shadow: 0 2px 8px rgba(124, 107, 235, 0.12);
+        --transition-speed: 0.25s;
+        --hover-bg: rgba(124, 107, 235, 0.06);
+        --focus-bg: rgba(124, 107, 235, 0.08);
+        --peek-active-bg: rgba(124, 107, 235, 0.12);
+        --current-day-hover-opacity: 0.9;
+        --export-hover-opacity: 0.75;
+        --entry-background-color: var(--background-color);
+        --entry-color: var(--primary-color);
+        --entry-highlight-color: rgba(124, 107, 235, 0.06);
+        --context-bg: rgba(124, 107, 235, 0.06);
+        --active-indicator-bg: var(--background-color);
+        --indicator-backdrop-filter: blur(12px);
+        --multi-day-separator: 2px solid rgba(255, 255, 255, 0.5);
+        --year-month-label-hover-color: var(--primary-color);
+        --cw-hover-color: var(--primary-color);
+        --cw-hover-bg: rgba(124, 107, 235, 0.06);
+        --current-day-bg: var(--primary-color);
+        --current-day-color: #fff;
+        --current-day-font-weight: 600;
+        --current-dot-bg: rgba(255, 255, 255, 0.9);
+        --year-heatmap-4-text: #fff;
+        --year-heatmap-1: rgba(124, 107, 235, 0.1);
+        --year-heatmap-2: rgba(124, 107, 235, 0.25);
+        --year-heatmap-3: rgba(124, 107, 235, 0.4);
+        --year-heatmap-4: rgba(124, 107, 235, 0.6);
+        --float-text-bg: rgba(254, 252, 251, 0.97);
+        --menu-transform-origin: scale(0.96);
+        --menu-transform-active: scale(1);
+    }
+`);
+
+export const BrutalistTheme: Story = createThemeStory('Brutalist Theme', `
+    .theme-demo lms-calendar {
+        --background-color: #fff;
+        --primary-color: #e60000;
+        --separator-light: #000;
+        --separator-mid: #000;
+        --separator-dark: #000;
+        --system-ui: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        --monospace-ui: 'Courier New', Courier, monospace;
+        --header-text-color: #000;
+        --indicator-color: #e60000;
+        --indicator-font-weight: 900;
+        --day-label-font-weight: 700;
+        --day-label-number-font-weight: 900;
+        --menu-item-font-weight: 700;
+        --menu-title-font-weight: 900;
+        --entry-title-weight: 700;
+        --entry-time-opacity: 1;
+        --title-column-weight: 700;
+        --month-label-font-weight: 900;
+        --year-weekday-font-weight: 700;
+        --border-radius-sm: 0;
+        --border-radius-md: 0;
+        --border-radius-lg: 0;
+        --entry-border-radius: 0;
+        --month-indicator-border-radius: 0;
+        --year-day-cell-border-radius: 0;
+        --float-text-border-radius: 0;
+        --shadow-sm: 3px 3px 0 #000;
+        --shadow-md: 4px 4px 0 #000;
+        --shadow-lg: 5px 5px 0 #000;
+        --shadow-hv: 6px 6px 0 #000;
+        --active-indicator-shadow: 2px 2px 0 #000;
+        --float-text-shadow: 3px 3px 0 #000;
+        --transition-speed: 0s;
+        --hover-bg: #e60000;
+        --focus-bg: #e60000;
+        --peek-active-bg: #000;
+        --current-day-hover-opacity: 1;
+        --export-hover-opacity: 1;
+        --entry-background-color: #fff;
+        --entry-color: #000;
+        --entry-highlight-color: #ff0;
+        --context-bg: #000;
+        --active-indicator-bg: #fff;
+        --indicator-backdrop-filter: none;
+        --multi-day-separator: 3px solid #000;
+        --year-month-label-hover-color: #e60000;
+        --cw-hover-color: #e60000;
+        --cw-hover-bg: transparent;
+        --current-day-bg: #e60000;
+        --current-day-color: #fff;
+        --current-day-font-weight: 900;
+        --current-dot-bg: #fff;
+        --year-heatmap-4-text: #fff;
+        --year-heatmap-1: rgba(230, 0, 0, 0.15);
+        --year-heatmap-2: rgba(230, 0, 0, 0.35);
+        --year-heatmap-3: rgba(230, 0, 0, 0.55);
+        --year-heatmap-4: rgba(230, 0, 0, 0.8);
+        --year-dot-color: #e60000;
+        --float-text-bg: #fff;
+        --menu-transform-origin: scale(1);
+        --menu-transform-active: scale(1);
+    }
+`);
+
+export const MidnightTheme: Story = createThemeStory('Midnight Theme', `
+    .theme-demo lms-calendar {
+        --background-color: #1a1b2e;
+        --primary-color: #818cf8;
+        --separator-light: rgba(255, 255, 255, 0.08);
+        --separator-mid: rgba(255, 255, 255, 0.2);
+        --separator-dark: rgba(255, 255, 255, 0.85);
+        --system-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --monospace-ui: 'JetBrains Mono', 'Fira Code', monospace;
+        --header-text-color: rgba(255, 255, 255, 0.5);
+        --indicator-color: var(--primary-color);
+        --indicator-font-weight: 600;
+        --day-label-font-weight: 500;
+        --day-label-number-font-weight: 600;
+        --menu-item-font-weight: 500;
+        --menu-title-font-weight: 600;
+        --entry-title-weight: 500;
+        --entry-time-opacity: 0.7;
+        --title-column-weight: 500;
+        --month-label-font-weight: 600;
+        --year-weekday-font-weight: 500;
+        --border-radius-sm: 6px;
+        --border-radius-md: 8px;
+        --border-radius-lg: 12px;
+        --entry-border-radius: 4px;
+        --month-indicator-border-radius: 1em;
+        --year-day-cell-border-radius: 50%;
+        --float-text-border-radius: 4px;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+        --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
+        --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+        --shadow-hv: 0 8px 24px rgba(0, 0, 0, 0.4);
+        --active-indicator-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+        --float-text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        --transition-speed: 0.2s;
+        --hover-bg: rgba(255, 255, 255, 0.06);
+        --focus-bg: rgba(255, 255, 255, 0.08);
+        --peek-active-bg: rgba(255, 255, 255, 0.12);
+        --current-day-hover-opacity: 0.85;
+        --export-hover-opacity: 0.7;
+        --entry-background-color: rgba(255, 255, 255, 0.06);
+        --entry-color: var(--primary-color);
+        --entry-highlight-color: rgba(129, 140, 248, 0.1);
+        --entry-focus-color: var(--primary-color);
+        --context-bg: rgba(255, 255, 255, 0.06);
+        --active-indicator-bg: rgba(255, 255, 255, 0.1);
+        --indicator-backdrop-filter: blur(10px);
+        --multi-day-separator: 2px solid rgba(255, 255, 255, 0.1);
+        --year-month-label-hover-color: var(--primary-color);
+        --year-cw-color: rgba(255, 255, 255, 0.3);
+        --cw-hover-color: var(--primary-color);
+        --cw-hover-bg: rgba(255, 255, 255, 0.06);
+        --current-day-bg: var(--primary-color);
+        --current-day-color: #1a1b2e;
+        --current-day-font-weight: 600;
+        --current-dot-bg: #1a1b2e;
+        --year-heatmap-4-text: #1a1b2e;
+        --year-heatmap-1: rgba(129, 140, 248, 0.12);
+        --year-heatmap-2: rgba(129, 140, 248, 0.25);
+        --year-heatmap-3: rgba(129, 140, 248, 0.4);
+        --year-heatmap-4: rgba(129, 140, 248, 0.6);
+        --year-dot-color: var(--primary-color);
+        --float-text-bg: #252640;
+        --hour-indicator-color: rgba(255, 255, 255, 0.35);
+        --entry-month-text-color: rgba(255, 255, 255, 0.7);
+        --menu-transform-origin: scale(0.96);
+        --menu-transform-active: scale(1);
+    }
+`, { bg: '#12132a' });
+
 export const MobileView: Story = {
     name: storyName(STORY_GROUPS.OVERVIEW, 'Mobile View'),
     args: {

@@ -1,0 +1,97 @@
+/*
+ * Kalendus — Soft Theme
+ *
+ * Pastel palette, generous radii, gentle shadows and transitions.
+ * Warm and approachable.
+ *
+ * Usage:
+ *   import '@jpahd/kalendus/themes/soft.css';
+ */
+
+lms-calendar {
+    /* ── Colors ─────────────────────────────────── */
+    --background-color: #fefcfb;
+    --primary-color: #7c6beb;
+    --separator-light: rgba(124, 107, 235, 0.1);
+    --separator-mid: rgba(124, 107, 235, 0.25);
+    --separator-dark: #4a4458;
+
+    /* ── Typography ─────────────────────────────── */
+    --system-ui: 'Nunito', 'Segoe UI', system-ui, sans-serif;
+    --monospace-ui: 'Fira Code', 'Cascadia Code', monospace;
+    --header-text-color: #8b7faa;
+    --indicator-color: var(--primary-color);
+    --indicator-font-weight: 600;
+    --day-label-font-weight: 500;
+    --day-label-number-font-weight: 600;
+    --menu-item-font-weight: 500;
+    --menu-title-font-weight: 600;
+    --entry-title-weight: 500;
+    --entry-time-opacity: 0.7;
+    --title-column-weight: 500;
+    --month-label-font-weight: 600;
+    --year-weekday-font-weight: 500;
+
+    /* ── Border Radius ──────────────────────────── */
+    --border-radius-sm: 10px;
+    --border-radius-md: 14px;
+    --border-radius-lg: 20px;
+    --entry-border-radius: 8px;
+    --month-indicator-border-radius: 1.25em;
+    --year-day-cell-border-radius: 50%;
+    --float-text-border-radius: 8px;
+
+    /* ── Shadows ─────────────────────────────────── */
+    --shadow-sm: 0 1px 3px rgba(124, 107, 235, 0.08);
+    --shadow-md: 0 2px 6px rgba(124, 107, 235, 0.1);
+    --shadow-lg: 0 4px 16px rgba(124, 107, 235, 0.12);
+    --shadow-hv: 0 6px 20px rgba(124, 107, 235, 0.1);
+    --active-indicator-shadow: 0 1px 4px rgba(124, 107, 235, 0.12);
+    --float-text-shadow: 0 2px 8px rgba(124, 107, 235, 0.12);
+
+    /* ── Transitions ────────────────────────────── */
+    --transition-speed: 0.25s;
+
+    /* ── Hover / Focus / Active ─────────────────── */
+    --hover-bg: rgba(124, 107, 235, 0.06);
+    --focus-bg: rgba(124, 107, 235, 0.08);
+    --peek-active-bg: rgba(124, 107, 235, 0.12);
+    --current-day-hover-opacity: 0.9;
+    --export-hover-opacity: 0.75;
+
+    /* ── Entry ───────────────────────────────────── */
+    --entry-background-color: var(--background-color);
+    --entry-color: var(--primary-color);
+    --entry-highlight-color: rgba(124, 107, 235, 0.06);
+
+    /* ── Header ──────────────────────────────────── */
+    --context-bg: rgba(124, 107, 235, 0.06);
+    --active-indicator-bg: var(--background-color);
+
+    /* ── Month ───────────────────────────────────── */
+    --indicator-backdrop-filter: blur(12px);
+
+    /* ── Week ────────────────────────────────────── */
+    --multi-day-separator: 2px solid rgba(255, 255, 255, 0.5);
+
+    /* ── Year ────────────────────────────────────── */
+    --year-month-label-hover-color: var(--primary-color);
+    --cw-hover-color: var(--primary-color);
+    --cw-hover-bg: rgba(124, 107, 235, 0.06);
+    --current-day-bg: var(--primary-color);
+    --current-day-color: #fff;
+    --current-day-font-weight: 600;
+    --current-dot-bg: rgba(255, 255, 255, 0.9);
+    --year-heatmap-4-text: #fff;
+    --year-heatmap-1: rgba(124, 107, 235, 0.1);
+    --year-heatmap-2: rgba(124, 107, 235, 0.25);
+    --year-heatmap-3: rgba(124, 107, 235, 0.4);
+    --year-heatmap-4: rgba(124, 107, 235, 0.6);
+
+    /* ── Float Text ──────────────────────────────── */
+    --float-text-bg: rgba(254, 252, 251, 0.97);
+
+    /* ── Menu ────────────────────────────────────── */
+    --menu-transform-origin: scale(0.96);
+    --menu-transform-active: scale(1);
+}
