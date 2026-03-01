@@ -37,10 +37,10 @@ src/
 └── generated/
     ├── locale-codes.ts          # Source & target locale definitions
     └── locales/                 # Generated translation templates (hash ID → string)
-        ├── ar.ts, bn.ts, de.ts, de-DE.ts, es.ts, fr.ts, hi.ts
-        ├── id.ts, it.ts, ja.ts, ko.ts, nl.ts, pl.ts, pt.ts
-        ├── ru.ts, th.ts, tr.ts, uk.ts, vi.ts
-        └── zh-Hans.ts
+        ├── ar.ts, bn.ts, cs.ts, da.ts, de-DE.ts, de.ts, el.ts
+        ├── es.ts, fi.ts, fr.ts, he.ts, hi.ts, id.ts, it.ts
+        ├── ja.ts, ko.ts, nb.ts, nl.ts, pl.ts, pt.ts, ru.ts
+        └── sv.ts, th.ts, tr.ts, uk.ts, vi.ts, zh-Hans.ts
 ```
 
 ## Key Technologies
@@ -58,7 +58,7 @@ src/
 - **Per-instance state** via `ViewStateController` (Lit `ReactiveController`)
 - **Per-instance localization** via direct template hash lookups (bypasses `@lit/localize` singleton)
 - **Event bubbling** for component communication (`switchdate`, `switchview`, `expand`, `open-menu`)
-- **CSS custom properties** for theming (80+ tokens)
+- **CSS custom properties** for theming (151 tokens)
 - **Slot-based composition** for entry placement in view grids
 - **Container queries** for responsive header layout
 

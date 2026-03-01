@@ -109,7 +109,7 @@ lms-calendar {
 
     In Lit templates: `.locale=${'de'}` (not `locale="de"` — though the attribute works for static values).
 
-2. **Unsupported locale code** — Only these 21 codes are supported: `en`, `ar`, `bn`, `de`, `de-DE`, `es`, `fr`, `hi`, `id`, `it`, `ja`, `ko`, `nl`, `pl`, `pt`, `ru`, `th`, `tr`, `uk`, `vi`, `zh-Hans`.
+2. **Unsupported locale code** — <!-- GENERATED:LOCALE_LIST_INLINE:START -->Only these 28 codes are supported: `en`, `ar`, `bn`, `cs`, `da`, `de`, `de-DE`, `el`, `es`, `fi`, `fr`, `he`, `hi`, `id`, `it`, `ja`, `ko`, `nb`, `nl`, `pl`, `pt`, `ru`, `sv`, `th`, `tr`, `uk`, `vi`, `zh-Hans`.<!-- GENERATED:LOCALE_LIST_INLINE:END -->
 
 3. **`<html lang>` mismatch** — If `locale` is not set, the component reads `document.documentElement.lang`. Ensure this matches your desired locale.
 

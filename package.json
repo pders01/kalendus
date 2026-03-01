@@ -72,7 +72,9 @@
         "i18n:extract": "lit-localize extract",
         "i18n:build": "lit-localize build",
         "demo:gif": "node scripts/record-demo-gif.mjs",
-        "docs:build": "eleventy",
+        "docs:sync": "node scripts/sync-docs.mjs",
+        "docs:sync:check": "node scripts/sync-docs.mjs --check",
+        "docs:build": "node scripts/sync-docs.mjs && eleventy",
         "docs:serve": "eleventy --serve"
     },
     "dependencies": {

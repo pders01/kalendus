@@ -120,14 +120,14 @@ lms-calendar.theme-ocean {
 
 Listen on the element for user actions:
 
-| Event           | Detail payload                                 | When it fires              |
-| --------------- | ---------------------------------------------- | -------------------------- | -------------------------- | --------- | ------------------- |
-| `switchview`    | `{ view: 'day'                                 | 'week'                     | 'month'                    | 'year' }` | Header view buttons |
-| `switchdate`    | `{ direction: 'next'                           | 'previous' }`              | Header navigation          |
-| `peek-navigate` | `{ direction: 'next'                           | 'previous' }`              | Condensed week peek arrows |
-| `expand`        | `{ date, drillTarget }`                        | Month/Week/Year day clicks |
-| `open-menu`     | `{ heading, content, time, date, anchorRect }` | Entry selection            |
-| `menu-close`    | _none_                                         | Menu dismiss               |
+| Event           | Detail payload                                                          | When it fires              |
+| --------------- | ----------------------------------------------------------------------- | -------------------------- |
+| `switchview`    | <code>{ view: 'day' &#124; 'week' &#124; 'month' &#124; 'year' }</code> | Header view buttons        |
+| `switchdate`    | <code>{ direction: 'next' &#124; 'previous' }</code>                    | Header navigation          |
+| `peek-navigate` | <code>{ direction: 'next' &#124; 'previous' }</code>                    | Condensed week peek arrows |
+| `expand`        | `{ date, drillTarget }`                                                 | Month/Week/Year day clicks |
+| `open-menu`     | `{ heading, content, time, date, anchorRect }`                          | Entry selection            |
+| `menu-close`    | _none_                                                                  | Menu dismiss               |
 
 > **Note:** The `expand` event's `drillTarget` is only present when fired from the year view. See the [Events Reference](./events.md) for full payload details.
 
