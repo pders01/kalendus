@@ -23,6 +23,7 @@ import LMSCalendarYear from './components/Year';
 import './components/Year.js';
 import type { DensityMode, DrillTarget } from './components/Year.js';
 import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/allDayLayout.js';
+import { parseColorWithDefault } from './lib/colorParser.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator, type LayoutResult } from './lib/LayoutCalculator.js';
 import { getMessages } from './lib/messages.js';
@@ -35,20 +36,6 @@ import {
 import { ViewStateController } from './lib/ViewStateController.js';
 import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
 import { getWeekDates } from './lib/weekStartHelper.js';
-
-// ── Hex color → RGB tuple (for translucent backgrounds) ────────────────
-function hexToRgb(hex?: string): [number, number, number] {
-    if (!hex || !hex.trim()) return [25, 118, 210]; // default accent
-    const normalized = hex.startsWith('#') ? hex : `#${hex}`;
-    const match = normalized
-        .replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i, (_m, r, g, b) => `#${r}${r}${g}${g}${b}${b}`)
-        .substring(1)
-        .match(/.{2}/g);
-    if (!match || match.length !== 3) return [25, 118, 210];
-    const [r, g, b] = match.map((x) => parseInt(x, 16));
-    if (isNaN(r) || isNaN(g) || isNaN(b)) return [25, 118, 210];
-    return [r, g, b];
-}
 
 // ── Derived type for expanded (multi-day) entries ──────────────────────
 type ExpandedCalendarEntry = CalendarEntry & {
@@ -1150,7 +1137,7 @@ export default class LMSCalendar extends LitElement {
 
         // Process all-day entries with layout info
         const allDayElements = allDayEntries.map((entry, index) => {
-            const [r, g, b] = hexToRgb(entry.color);
+            const [r, g, b] = parseColorWithDefault(entry.color);
             const eventId = this._createConsistentEventId(entry);
 
             const positionConfig: PositionConfig = {

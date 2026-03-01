@@ -1,40 +1,19 @@
+import { parseColor } from './colorParser.js';
+
 /**
  * Calculates the text color and background color based on the given color.
  *
- * @param {string} color - The color to process.
+ * @param {string} color - The color to process (hex, rgb, hsl, or named CSS color).
  * @returns {[string, string]} An array containing the text color and background color.
  */
 export default function getColorTextWithContrast(color?: string): [string, string] {
-    let red = 0;
-    let green = 0;
-    let blue = 0;
+    const rgb = parseColor(color);
 
-    // Return default colors for undefined, empty string, or whitespace
-    if (!color || !color.trim()) {
-        return ['rgb(255,255,255)', 'rgb(0,0,0)'];
-    }
-    // Check for empty or whitespace-only string
-    // Add # if missing
-    const normalizedColor = color.startsWith('#') ? color : `#${color}`;
-
-    const matches: RegExpMatchArray | null = normalizedColor
-        .replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i, (_m, r, g, b) => `#${r}${r}${g}${g}${b}${b}`)
-        .substring(1)
-        .match(/.{2}/g);
-
-    if (!matches || matches.length !== 3) {
-        // Return default background and text colors for invalid input
+    if (!rgb) {
         return ['rgb(255,255,255)', 'rgb(0,0,0)'];
     }
 
-    try {
-        [red, green, blue] = matches.map((x) => parseInt(x, 16));
-        if (isNaN(red) || isNaN(green) || isNaN(blue)) {
-            return ['rgb(255,255,255)', 'rgb(0,0,0)'];
-        }
-    } catch {
-        return ['rgb(255,255,255)', 'rgb(0,0,0)'];
-    }
+    const [red, green, blue] = rgb;
 
     // Calculate brightness of randomized colour
     const brightness = (red * 299 + green * 587 + blue * 114) / 1000;
