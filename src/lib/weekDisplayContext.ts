@@ -41,7 +41,8 @@ function clamp(value: number, min: number, max: number): number {
  */
 function findActiveDateIndex(weekDates: CalendarDate[], activeDate: CalendarDate): number {
     const idx = weekDates.findIndex(
-        (d) => d.year === activeDate.year && d.month === activeDate.month && d.day === activeDate.day,
+        (d) =>
+            d.year === activeDate.year && d.month === activeDate.month && d.day === activeDate.day,
     );
     return idx >= 0 ? idx : 0;
 }

@@ -195,9 +195,7 @@ function parseHex(input: string): RGBTuple | undefined {
 // ── rgb()/rgba() parser ─────────────────────────────────────────────────
 function parseRgb(input: string): RGBTuple | undefined {
     // Match both rgb() and rgba(), comma and space syntax
-    const match = input.match(
-        /^rgba?\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
-    );
+    const match = input.match(/^rgba?\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i);
     if (!match) return undefined;
 
     const values = [match[1], match[2], match[3]].map((v) => {
@@ -214,9 +212,7 @@ function parseRgb(input: string): RGBTuple | undefined {
 
 // ── hsl()/hsla() parser ─────────────────────────────────────────────────
 function parseHsl(input: string): RGBTuple | undefined {
-    const match = input.match(
-        /^hsla?\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
-    );
+    const match = input.match(/^hsla?\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i);
     if (!match) return undefined;
 
     // Parse hue with unit support
@@ -270,18 +266,12 @@ function hslToRgb(h: number, s: number, l: number): RGBTuple {
         [r, g, b] = [c, 0, x];
     }
 
-    return [
-        Math.round((r + m) * 255),
-        Math.round((g + m) * 255),
-        Math.round((b + m) * 255),
-    ];
+    return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 }
 
 // ── hwb() parser ────────────────────────────────────────────────────────
 function parseHwb(input: string): RGBTuple | undefined {
-    const match = input.match(
-        /^hwb\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
-    );
+    const match = input.match(/^hwb\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i);
     if (!match) return undefined;
 
     const hue = parseAngle(match[1].trim());
@@ -316,13 +306,11 @@ function hwbToRgb(h: number, w: number, b: number): RGBTuple {
 
 // ── lab() parser (CIE Lab D50) ──────────────────────────────────────────
 function parseLab(input: string): RGBTuple | undefined {
-    const match = input.match(
-        /^lab\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
-    );
+    const match = input.match(/^lab\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i);
     if (!match) return undefined;
 
     const L = parsePercentOr(match[1].trim(), 100); // L: 0-100 or 0%-100%
-    const a = parsePercentOr(match[2].trim(), 125);  // a: -125 to 125
+    const a = parsePercentOr(match[2].trim(), 125); // a: -125 to 125
     const b = parsePercentOr(match[3].trim(), 125);
 
     if (isNaN(L) || isNaN(a) || isNaN(b)) return undefined;
@@ -347,7 +335,7 @@ function labToRgb(L: number, a: number, b: number): RGBTuple {
     // XYZ D50 → linear sRGB (via Bradford adaptation to D65, then to sRGB)
     // Combined D50→sRGB matrix
     const lr = 3.1338561 * x - 1.6168667 * y - 0.4906146 * z;
-    const lg = -0.9787684 * x + 1.9161415 * y + 0.0334540 * z;
+    const lg = -0.9787684 * x + 1.9161415 * y + 0.033454 * z;
     const lb = 0.0719453 * x - 0.2289914 * y + 1.4052427 * z;
 
     return [
@@ -359,13 +347,11 @@ function labToRgb(L: number, a: number, b: number): RGBTuple {
 
 // ── oklab() parser ──────────────────────────────────────────────────────
 function parseOklab(input: string): RGBTuple | undefined {
-    const match = input.match(
-        /^oklab\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
-    );
+    const match = input.match(/^oklab\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i);
     if (!match) return undefined;
 
-    const L = parsePercentOr(match[1].trim(), 1);    // L: 0-1 or 0%-100%
-    const a = parsePercentOr(match[2].trim(), 0.4);   // a: -0.4 to 0.4
+    const L = parsePercentOr(match[1].trim(), 1); // L: 0-1 or 0%-100%
+    const a = parsePercentOr(match[2].trim(), 0.4); // a: -0.4 to 0.4
     const b = parsePercentOr(match[3].trim(), 0.4);
 
     if (isNaN(L) || isNaN(a) || isNaN(b)) return undefined;
@@ -377,7 +363,7 @@ function oklabToRgb(L: number, a: number, b: number): RGBTuple {
     // OKLab → LMS (approximate inverse)
     const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
     const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
-    const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+    const s_ = L - 0.0894841775 * a - 1.291485548 * b;
 
     // Cube to get linear LMS
     const l = l_ * l_ * l_;
@@ -387,7 +373,7 @@ function oklabToRgb(L: number, a: number, b: number): RGBTuple {
     // LMS → linear sRGB
     const lr = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
     const lg = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-    const lb = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+    const lb = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
 
     return [
         clamp(Math.round(gammaEncode(lr) * 255)),
@@ -398,14 +384,12 @@ function oklabToRgb(L: number, a: number, b: number): RGBTuple {
 
 // ── oklch() parser ──────────────────────────────────────────────────────
 function parseOklch(input: string): RGBTuple | undefined {
-    const match = input.match(
-        /^oklch\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
-    );
+    const match = input.match(/^oklch\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i);
     if (!match) return undefined;
 
-    const L = parsePercentOr(match[1].trim(), 1);    // L: 0-1 or 0%-100%
-    const C = parsePercentOr(match[2].trim(), 0.4);   // C: 0-0.4
-    const H = parseAngle(match[3].trim());             // Hue angle
+    const L = parsePercentOr(match[1].trim(), 1); // L: 0-1 or 0%-100%
+    const C = parsePercentOr(match[2].trim(), 0.4); // C: 0-0.4
+    const H = parseAngle(match[3].trim()); // Hue angle
 
     if (isNaN(L) || isNaN(C) || isNaN(H)) return undefined;
 
@@ -416,14 +400,12 @@ function parseOklch(input: string): RGBTuple | undefined {
 
 // ── lch() parser (CIE LCH — cylindrical Lab) ───────────────────────────
 function parseLch(input: string): RGBTuple | undefined {
-    const match = input.match(
-        /^lch\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
-    );
+    const match = input.match(/^lch\(\s*([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i);
     if (!match) return undefined;
 
-    const L = parsePercentOr(match[1].trim(), 100);   // L: 0-100 or 0%-100%
-    const C = parsePercentOr(match[2].trim(), 150);    // C: 0-150
-    const H = parseAngle(match[3].trim());              // Hue angle
+    const L = parsePercentOr(match[1].trim(), 100); // L: 0-100 or 0%-100%
+    const C = parsePercentOr(match[2].trim(), 150); // C: 0-150
+    const H = parseAngle(match[3].trim()); // Hue angle
 
     if (isNaN(L) || isNaN(C) || isNaN(H)) return undefined;
 
@@ -435,9 +417,7 @@ function parseLch(input: string): RGBTuple | undefined {
 // ── color() function parser ─────────────────────────────────────────────
 // Supports color(srgb r g b), color(xyz-d50 x y z), color(xyz-d65 x y z)
 function parseColorFn(input: string): RGBTuple | undefined {
-    const match = input.match(
-        /^color\(\s*([\w-]+)\s+([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i,
-    );
+    const match = input.match(/^color\(\s*([\w-]+)\s+([^\s,)]+)[\s,]+([^\s,)]+)[\s,]+([^\s,/)]+)/i);
     if (!match) return undefined;
 
     const space = match[1].toLowerCase();
@@ -469,7 +449,7 @@ function parseColorFn(input: string): RGBTuple | undefined {
 function xyzD50ToRgb(x: number, y: number, z: number): RGBTuple {
     // XYZ D50 → linear sRGB (combined Bradford D50→D65 + sRGB matrix)
     const lr = 3.1338561 * x - 1.6168667 * y - 0.4906146 * z;
-    const lg = -0.9787684 * x + 1.9161415 * y + 0.0334540 * z;
+    const lg = -0.9787684 * x + 1.9161415 * y + 0.033454 * z;
     const lb = 0.0719453 * x - 0.2289914 * y + 1.4052427 * z;
 
     return [
@@ -482,7 +462,7 @@ function xyzD50ToRgb(x: number, y: number, z: number): RGBTuple {
 function xyzD65ToRgb(x: number, y: number, z: number): RGBTuple {
     // XYZ D65 → linear sRGB
     const lr = 3.2404542 * x - 1.5371385 * y - 0.4985314 * z;
-    const lg = -0.9692660 * x + 1.8760108 * y + 0.0415560 * z;
+    const lg = -0.969266 * x + 1.8760108 * y + 0.041556 * z;
     const lb = 0.0556434 * x - 0.2040259 * y + 1.0572252 * z;
 
     return [

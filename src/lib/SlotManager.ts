@@ -10,9 +10,9 @@
  * and grid positioning complexities.
  */
 
-import type { ViewMode } from './ViewStateController.js';
 import { formatLocalizedDate, formatLocalizedTime } from './localization.js';
 import { getMessages } from './messages.js';
+import type { ViewMode } from './ViewStateController.js';
 import { type FirstDayOfWeek, getWeekDates } from './weekStartHelper.js';
 
 export type { ViewMode };
@@ -71,7 +71,14 @@ export class SlotManager {
             case 'day':
                 return this._calculateDayPosition(date, time, isAllDay);
             case 'week':
-                return this._calculateWeekPosition(date, config.activeDate!, time, isAllDay, config.firstDayOfWeek, config.weekDates);
+                return this._calculateWeekPosition(
+                    date,
+                    config.activeDate!,
+                    time,
+                    isAllDay,
+                    config.firstDayOfWeek,
+                    config.weekDates,
+                );
             case 'month':
                 return this._calculateMonthPosition(date);
             default:
@@ -198,9 +205,8 @@ export class SlotManager {
      * Reads --minute-height from the host element. For future drag/resize interactions.
      */
     public pxToTime(px: number, hostEl: Element): { hour: number; minute: number } {
-        const minuteHeight = parseFloat(
-            getComputedStyle(hostEl).getPropertyValue('--minute-height'),
-        ) || 0.8;
+        const minuteHeight =
+            parseFloat(getComputedStyle(hostEl).getPropertyValue('--minute-height')) || 0.8;
         const totalMinutes = Math.round(px / minuteHeight);
         const clamped = Math.max(0, Math.min(totalMinutes, 1439));
         return { hour: Math.floor(clamped / 60), minute: clamped % 60 };
@@ -269,7 +275,11 @@ export class SlotManager {
             tabIndex = time.start.hour * 60 + time.start.minute;
         } else if (isAllDay) {
             if (viewMode === 'week') {
-                const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!, firstDayOfWeek ?? 1);
+                const dayOfWeek = this.getWeekDayIndex(
+                    date,
+                    config.activeDate!,
+                    firstDayOfWeek ?? 1,
+                );
                 tabIndex = 1000 + dayOfWeek;
             } else {
                 tabIndex = 0;

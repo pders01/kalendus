@@ -565,11 +565,7 @@ export const DefaultTheme: Story = {
 // Each theme story wraps the calendar in a scoped container and injects
 // the theme CSS via a <style> block with a class-qualified selector
 // (higher specificity than the bare `lms-calendar` in preview).
-const createThemeStory = (
-    name: string,
-    themeCSS: string,
-    opts: { bg?: string } = {},
-): Story => ({
+const createThemeStory = (name: string, themeCSS: string, opts: { bg?: string } = {}): Story => ({
     name: storyName(STORY_GROUPS.OVERVIEW, name),
     args: { entries: sampleEntries },
     decorators: [
@@ -593,7 +589,9 @@ const createThemeStory = (
     `,
 });
 
-export const InkTheme: Story = createThemeStory('Ink Theme', `
+export const InkTheme: Story = createThemeStory(
+    'Ink Theme',
+    `
     .theme-demo lms-calendar {
         --background-color: #fff;
         --primary-color: #111;
@@ -657,9 +655,12 @@ export const InkTheme: Story = createThemeStory('Ink Theme', `
         --menu-transform-origin: scale(1);
         --menu-transform-active: scale(1);
     }
-`);
+`,
+);
 
-export const SoftTheme: Story = createThemeStory('Soft Theme', `
+export const SoftTheme: Story = createThemeStory(
+    'Soft Theme',
+    `
     .theme-demo lms-calendar {
         --background-color: #fefcfb;
         --primary-color: #7c6beb;
@@ -722,9 +723,12 @@ export const SoftTheme: Story = createThemeStory('Soft Theme', `
         --menu-transform-origin: scale(0.96);
         --menu-transform-active: scale(1);
     }
-`);
+`,
+);
 
-export const BrutalistTheme: Story = createThemeStory('Brutalist Theme', `
+export const BrutalistTheme: Story = createThemeStory(
+    'Brutalist Theme',
+    `
     .theme-demo lms-calendar {
         --background-color: #fff;
         --primary-color: #e60000;
@@ -790,9 +794,12 @@ export const BrutalistTheme: Story = createThemeStory('Brutalist Theme', `
         --menu-transform-origin: scale(1);
         --menu-transform-active: scale(1);
     }
-`);
+`,
+);
 
-export const MidnightTheme: Story = createThemeStory('Midnight Theme', `
+export const MidnightTheme: Story = createThemeStory(
+    'Midnight Theme',
+    `
     .theme-demo lms-calendar {
         color: rgba(255, 255, 255, 0.85);
         --background-color: #1a1b2e;
@@ -861,7 +868,9 @@ export const MidnightTheme: Story = createThemeStory('Midnight Theme', `
         --menu-transform-origin: scale(0.96);
         --menu-transform-active: scale(1);
     }
-`, { bg: '#12132a' });
+`,
+    { bg: '#12132a' },
+);
 
 export const MobileView: Story = {
     name: storyName(STORY_GROUPS.OVERVIEW, 'Mobile View'),
