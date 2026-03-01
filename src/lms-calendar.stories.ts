@@ -1493,6 +1493,42 @@ export const WeekStartComparison: Story = {
     },
 };
 
+export const TallContainer: Story = {
+    name: storyName(STORY_GROUPS.LAYOUT, 'Tall Container'),
+    args: {
+        entries: sampleEntries,
+    },
+    render: (args) => html`
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em; height: 1400px;">
+            <lms-calendar
+                .heading=${'720px (default)'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 720px; display: block;"
+            ></lms-calendar>
+            <lms-calendar
+                .heading=${'1400px (tall)'}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 100%; display: block;"
+            ></lms-calendar>
+        </div>
+    `,
+    parameters: {
+        docs: {
+            description: {
+                story: 'Side-by-side comparison of the calendar at its default 720px height vs a tall 1400px container. Verifies that the dynamic --minute-height scales correctly: hour rows stretch so that exactly 12 hours fill the visible scroll viewport regardless of container size. Switch between Day, Week, Month, and Year views to check each layout.',
+            },
+        },
+    },
+};
+
 // --- Condensed week view stories ---
 
 export const CondensedWeekView: Story = {
