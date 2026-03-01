@@ -176,7 +176,7 @@ export default class Entry extends LitElement {
         /* Standard mode: title + time in various layouts */
         .main.standard {
             flex-direction: var(--entry-layout, row);
-            align-items: flex-start;
+            align-items: baseline;
             gap: 0.25em;
         }
 
@@ -207,7 +207,7 @@ export default class Entry extends LitElement {
 
         /* Row layout: optimized for side-by-side content */
         .main[style*='--entry-layout: row'] {
-            align-items: center; /* Center align for single-line layout */
+            align-items: baseline; /* Baseline-align title and time text */
             gap: 0.5em; /* Gap between title and time */
             flex-wrap: nowrap; /* Prevent wrapping */
             min-height: 1.4em; /* Ensure consistent height */
@@ -374,8 +374,19 @@ export default class Entry extends LitElement {
             return html`<span class="time">${msg.allDay}</span>`;
         }
 
-        const timeString = this._displayInterval(this.time);
-        return timeString ? html`<span class="time">${timeString}</span>` : nothing;
+        if (!this.time) return nothing;
+
+        // Detect all-day events (0:00–24:00) before showing start-time-only
+        const { start, end } = this.time;
+        const lastsAllDay =
+            end.hour === 24 && (start.hour + start.minute + end.hour + end.minute) % 24 === 0;
+        if (lastsAllDay) {
+            return html`<span class="time">${msg.allDay}</span>`;
+        }
+
+        // Show start time only (e.g. "9:30 AM") — keeps title visible
+        const startTime = formatLocalizedTime(start.hour, start.minute, this.locale);
+        return startTime ? html`<span class="time">${startTime}</span>` : nothing;
     }
 
     private _renderContent() {

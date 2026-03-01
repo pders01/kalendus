@@ -95,7 +95,7 @@ describe('Entry Component', () => {
         await el.updateComplete;
 
         const timeElement = el.shadowRoot?.querySelector('.time');
-        expect(timeElement?.textContent).to.equal('9:30 AM – 10:45 AM');
+        expect(timeElement?.textContent).to.equal('9:30 AM');
     });
 
     it('should format single digit hours and minutes with leading zeros', async () => {
@@ -116,7 +116,7 @@ describe('Entry Component', () => {
         await el.updateComplete;
 
         const timeElement = el.shadowRoot?.querySelector('.time');
-        expect(timeElement?.textContent).to.equal('8:05 AM – 9:00 AM');
+        expect(timeElement?.textContent).to.equal('8:05 AM');
     });
 
     it('should display "All Day" for continuation events', async () => {
