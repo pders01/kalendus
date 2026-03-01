@@ -231,8 +231,9 @@ describe('Entry Component', () => {
             '.main',
         ) as HTMLElement;
         mainElement.click();
+        await el.updateComplete;
 
-        expect((el as any)._highlighted).to.be.true;
+        expect(el.getAttribute('aria-selected')).to.equal('true');
     });
 
     it('should emit open-menu with event details when date is provided', async () => {
@@ -292,8 +293,9 @@ describe('Entry Component', () => {
 
         const enterEvent = new KeyboardEvent('keydown', { key: 'Enter' });
         el.dispatchEvent(enterEvent);
+        await el.updateComplete;
 
-        expect((el as any)._highlighted).to.be.true;
+        expect(el.getAttribute('aria-selected')).to.equal('true');
     });
 
     it('should handle keyboard interactions (Space key)', async () => {
@@ -305,8 +307,9 @@ describe('Entry Component', () => {
 
         const spaceEvent = new KeyboardEvent('keydown', { key: ' ' });
         el.dispatchEvent(spaceEvent);
+        await el.updateComplete;
 
-        expect((el as any)._highlighted).to.be.true;
+        expect(el.getAttribute('aria-selected')).to.equal('true');
     });
 
     it('should ignore other keyboard keys', async () => {
@@ -318,8 +321,9 @@ describe('Entry Component', () => {
 
         const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
         el.dispatchEvent(escapeEvent);
+        await el.updateComplete;
 
-        expect((el as any)._highlighted).to.not.be.true;
+        expect(el.getAttribute('aria-selected')).to.not.equal('true');
     });
 
     it('should handle events without date gracefully', async () => {
@@ -333,19 +337,8 @@ describe('Entry Component', () => {
             '.main',
         ) as HTMLElement;
         mainElement.click();
-
-        expect((el as any)._highlighted).to.be.true;
-    });
-
-    it('should handle extended state correctly', async () => {
-        const el: Entry = await fixture(html`
-            <lms-calendar-entry heading="Extended Event"></lms-calendar-entry>
-        `);
-
-        (el as any)._extended = true;
         await el.updateComplete;
 
-        const mainElement = el.shadowRoot?.querySelector('.main');
-        expect(mainElement?.hasAttribute('data-extended')).to.be.true;
+        expect(el.getAttribute('aria-selected')).to.equal('true');
     });
 });

@@ -226,7 +226,7 @@ describe('Month Component', () => {
         }
     });
 
-    it('should debug August 2024 rendering', async () => {
+    it('should render August 2024 with correct day counts', async () => {
         const el: Month = await fixture(html`
             <lms-calendar-month
                 .activeDate=${{ day: 1, month: 8, year: 2024 }}
@@ -241,20 +241,11 @@ describe('Month Component', () => {
             el.getAttribute('data-date'),
         );
 
-        console.log('August 2024 - All rendered dates:', dates);
-        console.log('Total days:', dates.length);
-
         const julyDays = dates.filter((date) => date?.includes('2024-7-'));
-        console.log('July days:', julyDays);
-
         const augustDays = dates.filter((date) => date?.includes('2024-8-'));
-        console.log('August days:', augustDays);
-        console.log('August days count:', augustDays.length);
-
         const septemberDays = dates.filter((date) =>
             date?.includes('2024-9-'),
         );
-        console.log('September days:', septemberDays);
 
         // Should have exactly 42 days total
         expect(allDays).to.have.length(42);
