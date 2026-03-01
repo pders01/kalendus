@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Integration Guide'
+order: 1
+tags: docs
+section: Usage
+---
+
 # Integration Guide
 
 Practical recipes for embedding `<lms-calendar>` in different environments.
@@ -216,7 +224,8 @@ Use the public `openMenu` method:
 calendar.openMenu({
     heading: 'Custom entry',
     content: 'Details rendered externally',
-    time: '08:00 – 09:00',
+    time: { start: { hour: 8, minute: 0 }, end: { hour: 9, minute: 0 } },
+    displayTime: '08:00 – 09:00',
 });
 ```
 

@@ -71,7 +71,9 @@
         "test:e2e": "playwright test",
         "i18n:extract": "lit-localize extract",
         "i18n:build": "lit-localize build",
-        "demo:gif": "node scripts/record-demo-gif.mjs"
+        "demo:gif": "node scripts/record-demo-gif.mjs",
+        "docs:build": "eleventy",
+        "docs:serve": "eleventy --serve"
     },
     "dependencies": {
         "@lit-labs/observers": "^2.1.0"

@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Rendering Calculations'
+order: 9
+tags: docs
+section: Internals
+---
+
 # LMS Calendar Rendering Calculations
 
 This document describes all the rendering calculations used throughout the LMS Calendar component system to ensure pixel-perfect alignment and consistent behavior across all views.

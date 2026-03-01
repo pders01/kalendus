@@ -29,3 +29,6 @@ custom-elements.json
 
 # Demo recording temp files
 .demo-tmp/
+
+# Eleventy output
+_site/

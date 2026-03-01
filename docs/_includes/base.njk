@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} — Kalendus</title>
+  <style>
+    /* ── Reset & Base ────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sidebar-w: 260px;
+      --header-h: 56px;
+      --clr-bg: #ffffff;
+      --clr-surface: #f6f8fa;
+      --clr-border: #d1d9e0;
+      --clr-text: #1f2328;
+      --clr-text-muted: #656d76;
+      --clr-accent: #0969da;
+      --clr-accent-subtle: #ddf4ff;
+      --clr-code-bg: #f6f8fa;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --clr-bg: #0d1117;
+        --clr-surface: #161b22;
+        --clr-border: #30363d;
+        --clr-text: #e6edf3;
+        --clr-text-muted: #8b949e;
+        --clr-accent: #58a6ff;
+        --clr-accent-subtle: #0c2d6b;
+        --clr-code-bg: #161b22;
+      }
+    }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--clr-text);
+      background: var(--clr-bg);
+      line-height: 1.6;
+    }
+
+    /* ── Header ──────────────────────────────────── */
+    .site-header {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 100;
+      height: var(--header-h);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 20px;
+      background: var(--clr-surface);
+      border-bottom: 1px solid var(--clr-border);
+    }
+    .site-header a {
+      color: var(--clr-text);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 18px;
+    }
+    .site-header .gh-link {
+      margin-left: auto;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--clr-text-muted);
+    }
+    .site-header .gh-link:hover { color: var(--clr-accent); }
+
+    /* ── Sidebar ─────────────────────────────────── */
+    .sidebar {
+      position: fixed; top: var(--header-h); bottom: 0; left: 0;
+      width: var(--sidebar-w);
+      overflow-y: auto;
+      padding: 20px 16px;
+      background: var(--clr-surface);
+      border-right: 1px solid var(--clr-border);
+      z-index: 90;
+    }
+    .sidebar nav a {
+      display: block;
+      padding: 6px 12px;
+      margin: 2px 0;
+      border-radius: 6px;
+      color: var(--clr-text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sidebar nav a:hover {
+      background: var(--clr-accent-subtle);
+      color: var(--clr-accent);
+    }
+    .sidebar nav a.active {
+      background: var(--clr-accent-subtle);
+      color: var(--clr-accent);
+      font-weight: 600;
+    }
+    .sidebar nav .nav-section {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--clr-text-muted);
+      padding: 16px 12px 4px;
+    }
+
+    /* ── Mobile toggle ───────────────────────────── */
+    #sidebar-toggle { display: none; }
+    .toggle-label {
+      display: none;
+      cursor: pointer;
+      font-size: 22px;
+      line-height: 1;
+      user-select: none;
+    }
+
+    @media (max-width: 768px) {
+      .toggle-label { display: block; }
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+      }
+      #sidebar-toggle:checked ~ .sidebar {
+        transform: translateX(0);
+      }
+      #sidebar-toggle:checked ~ .backdrop {
+        display: block;
+      }
+      .main { margin-left: 0 !important; }
+      .backdrop {
+        display: none;
+        position: fixed; inset: 0;
+        z-index: 80;
+        background: rgba(0,0,0,0.3);
+      }
+    }
+
+    /* ── Main content ────────────────────────────── */
+    .main {
+      margin-left: var(--sidebar-w);
+      margin-top: var(--header-h);
+      padding: 40px 48px 80px;
+      max-width: 880px;
+      margin-right: auto;
+      margin-left: max(var(--sidebar-w), calc(50% - 440px));
+    }
+
+    /* ── Typography ──────────────────────────────── */
+    .main h1 { font-size: 2em; margin: 0 0 16px; border-bottom: 1px solid var(--clr-border); padding-bottom: 8px; }
+    .main h2 { font-size: 1.5em; margin: 32px 0 12px; border-bottom: 1px solid var(--clr-border); padding-bottom: 6px; }
+    .main h3 { font-size: 1.25em; margin: 24px 0 8px; }
+    .main h4 { font-size: 1em; margin: 20px 0 6px; }
+    .main p { margin: 0 0 16px; }
+    .main a { color: var(--clr-accent); text-decoration: none; }
+    .main a:hover { text-decoration: underline; }
+    .main ul, .main ol { padding-left: 24px; margin: 0 0 16px; }
+    .main li { margin: 4px 0; }
+    .main img { max-width: 100%; border-radius: 8px; }
+    .main blockquote {
+      margin: 0 0 16px;
+      padding: 8px 16px;
+      border-left: 4px solid var(--clr-accent);
+      color: var(--clr-text-muted);
+      background: var(--clr-surface);
+      border-radius: 0 6px 6px 0;
+    }
+    .main hr { border: none; border-top: 1px solid var(--clr-border); margin: 24px 0; }
+
+    /* ── Tables ───────────────────────────────────── */
+    .main table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 16px;
+      font-size: 14px;
+    }
+    .main th, .main td {
+      padding: 8px 12px;
+      border: 1px solid var(--clr-border);
+      text-align: left;
+    }
+    .main th { background: var(--clr-surface); font-weight: 600; }
+
+    /* ── Inline code ─────────────────────────────── */
+    .main code {
+      font-family: var(--font-mono);
+      font-size: 0.875em;
+      background: var(--clr-code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .main pre { margin: 0 0 16px; border-radius: 8px; overflow-x: auto; }
+    .main pre code { background: none; padding: 0; }
+
+    /* ── Prism One Dark (for syntax highlight plugin) */
+    pre[class*="language-"] {
+      background: #282c34;
+      color: #abb2bf;
+      padding: 16px 20px;
+      font-size: 13.5px;
+      line-height: 1.55;
+      tab-size: 2;
+    }
+    .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #5c6370; font-style: italic; }
+    .token.punctuation { color: #abb2bf; }
+    .token.property, .token.tag, .token.boolean, .token.number, .token.constant, .token.symbol, .token.deleted { color: #e06c75; }
+    .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted { color: #98c379; }
+    .token.operator, .token.entity, .token.url, .language-css .token.string, .style .token.string { color: #56b6c2; }
+    .token.atrule, .token.attr-value, .token.keyword { color: #c678dd; }
+    .token.function, .token.class-name { color: #61afef; }
+    .token.regex, .token.important, .token.variable { color: #d19a66; }
+  </style>
+</head>
+<body>
+  <input type="checkbox" id="sidebar-toggle">
+
+  <header class="site-header">
+    <label class="toggle-label" for="sidebar-toggle" aria-label="Toggle navigation">&#9776;</label>
+    <a href="{{ '/' | url }}">Kalendus</a>
+    <a class="gh-link" href="https://github.com/pders01/kalendus">GitHub</a>
+  </header>
+
+  <label class="backdrop" for="sidebar-toggle"></label>
+
+  <aside class="sidebar">
+    <nav>
+      {%- set currentSection = "" %}
+      {%- for doc in collections.docs %}
+        {%- if doc.data.section != currentSection %}
+          {%- set currentSection = doc.data.section %}
+          <div class="nav-section">{{ currentSection }}</div>
+        {%- endif %}
+        <a href="{{ doc.url | url }}" {% if doc.url == page.url %}class="active"{% endif %}>
+          {{ doc.data.title }}
+        </a>
+      {%- endfor %}
+    </nav>
+  </aside>
+
+  <main class="main">
+    {{ content | safe }}
+  </main>
+</body>
+</html>

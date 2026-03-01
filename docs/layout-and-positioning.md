@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Layout & Positioning'
+order: 6
+tags: docs
+section: Layout
+---
+
 # Layout & Positioning Guide
 
 Essential information for getting `<lms-calendar>` to display correctly in your application. This covers height requirements, responsive behavior, all-day events, and common layout patterns.

@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Lit Attribute Testing Pitfall'
+order: 14
+tags: docs
+section: Reference
+---
+
 # Lit Custom Attribute Names: A Testing Pitfall
 
 ## The Bug

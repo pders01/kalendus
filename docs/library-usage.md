@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Library Usage'
+order: 2
+tags: docs
+section: Usage
+---
+
 # Using Kalendus as a Library
 
 This document explains how to consume the `lms-calendar` web component that ships with `@jpahd/kalendus`, with emphasis on package structure, runtime contracts, and integration patterns for application developers embedding the calendar inside their own products.
@@ -43,11 +51,12 @@ type CalendarDateInterval = { start: CalendarDate; end: CalendarDate };
 
 type CalendarEntry = {
     date: CalendarDateInterval;
-    time?: CalendarTimeInterval; // omit or span 00:00-23:59 for all-day blocks
+    time: CalendarTimeInterval; // span 00:00-23:59 for all-day blocks
     heading: string;
-    content?: string;
+    content: string;
     color: string; // any valid CSS color
-    isContinuation?: boolean; // optional, the component recalculates this
+    isContinuation: boolean; // the component recalculates this
+    continuation?: Continuation; // auto-injected for multi-day entries
 };
 ```
 
@@ -74,7 +83,7 @@ Constraints enforced inside `willUpdate`:
 
 ### Methods
 
-- `openMenu(eventDetails)` opens the built-in `lms-menu` overlay with `{ heading, content, time, date?, anchorRect? }`. Use this to integrate your own action surfaces (e.g., call `openMenu` when a host-side list item is clicked so the same menu renders).
+- `openMenu(eventDetails)` opens the built-in `lms-menu` overlay with `{ heading, content, time?, displayTime, date?, anchorRect? }`. Use this to integrate your own action surfaces (e.g., call `openMenu` when a host-side list item is clicked so the same menu renders).
 
 ### Reactive updates
 
@@ -86,16 +95,16 @@ Constraints enforced inside `willUpdate`:
 
 All events bubble and are composed, so you can listen directly on `<lms-calendar>` in any framework.
 
-| Event                    | Detail payload                                            | Fired by                                                                 | Typical use                                                                                 |
-| ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `switchdate`             | `{ direction: 'next' \| 'previous' }`                     | Header nav buttons                                                       | Mirror navigation in your app bar or analytics.                                             |
-| `switchview`             | `{ view: 'day' \| 'week' \| 'month' \| 'year' }`          | Header context buttons                                                   | Track the active zoom level.                                                                |
-| `jumptoday`              | `{ date: CalendarDate }`                                  | Header “Today” button                                                    | Reset external filters to today.                                                            |
-| `expand`                 | `{ date: CalendarDate; drillTarget?: 'day' \| 'month' }`  | Clicking a day label in month/week grid or any cell in the year overview | Switch your surrounding UI (e.g., load day-specific details) when the calendar drills down. |
-| `open-menu`              | `{ heading, content, time, date?, anchorRect }`           | Entry cards                                                              | Intercept to show a custom panel or cancel the built-in one.                                |
-| `menu-close`             | none                                                      | Menu close button                                                        | Hide mirrored overlays when the built-in menu closes.                                       |
-| `peek-navigate`          | `{ date: CalendarDate, direction: 'next' \| 'previous' }` | Condensed week peek arrows                                               | Track peek navigation in condensed week mode.                                               |
-| `clear-other-selections` | `{ exceptEntry: HTMLElement }`                            | Entry focus events                                                       | Internal. Keep multi-surface selections in sync.                                            |
+| Event                    | Detail payload                                                     | Fired by                                                                 | Typical use                                                                                 |
+| ------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `switchdate`             | `{ direction: 'next' \| 'previous' }`                              | Header nav buttons                                                       | Mirror navigation in your app bar or analytics.                                             |
+| `switchview`             | `{ view: 'day' \| 'week' \| 'month' \| 'year' }`                   | Header context buttons                                                   | Track the active zoom level.                                                                |
+| `jumptoday`              | `{ date: CalendarDate }`                                           | Header “Today” button                                                    | Reset external filters to today.                                                            |
+| `expand`                 | `{ date: CalendarDate; drillTarget?: 'day' \| 'week' \| 'month' }` | Clicking a day label in month/week grid or any cell in the year overview | Switch your surrounding UI (e.g., load day-specific details) when the calendar drills down. |
+| `open-menu`              | `{ heading, content, time, date?, anchorRect }`                    | Entry cards                                                              | Intercept to show a custom panel or cancel the built-in one.                                |
+| `menu-close`             | none                                                               | Menu close button                                                        | Hide mirrored overlays when the built-in menu closes.                                       |
+| `peek-navigate`          | `{ date: CalendarDate, direction: 'next' \| 'previous' }`          | Condensed week peek arrows                                               | Track peek navigation in condensed week mode.                                               |
+| `clear-other-selections` | `{ exceptEntry: HTMLElement }`                                     | Entry focus events                                                       | Internal. Keep multi-surface selections in sync.                                            |
 
 > **Note:** The `expand` event payload varies by source — Month and Week views omit `drillTarget`, while Year view always includes it. See the [Events Reference](./events.md) for full details.
 
@@ -120,7 +129,7 @@ For complete event documentation including payload types, source components, and
 
 ## Styling and theming
 
-The element exposes 80+ CSS custom properties. Common entry points:
+The element exposes 151 CSS custom properties. Common entry points:
 
 | Token                                                         | Purpose                                                          |
 | ------------------------------------------------------------- | ---------------------------------------------------------------- |

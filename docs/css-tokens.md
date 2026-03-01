@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'CSS Token Reference'
+order: 3
+tags: docs
+section: Usage
+---
+
 # CSS Custom Properties Reference
 
 Complete reference of all CSS custom properties exposed by `<lms-calendar>`. Override these on the host element to theme or adapt the calendar to your design system.

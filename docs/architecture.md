@@ -1,3 +1,11 @@
+---
+layout: base.njk
+title: 'Architecture'
+order: 10
+tags: docs
+section: Internals
+---
+
 # Architecture
 
 ## Component Structure
@@ -23,9 +31,8 @@ src/
 │   ├── allDayLayout.ts          # All-day event row allocation
 │   ├── weekStartHelper.ts       # Week start offset & locale mapping
 │   ├── DirectionalCalendarDateCalculator.ts
-│   ├── getOverlappingEntitiesIndices.ts
-│   ├── getSortedGradingsByIndex.ts
-│   ├── partitionOverlappingIntervals.ts
+│   ├── weekDisplayContext.ts    # Condensed week display logic
+│   ├── colorParser.ts           # Color parsing & contrast utils
 │   └── getColorTextWithContrast.ts
 └── generated/
     ├── locale-codes.ts          # Source & target locale definitions
