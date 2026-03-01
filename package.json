@@ -36,6 +36,10 @@
             "default": "./dist/kalendus.js"
         },
         "./themes/default.css": "./dist/themes/default.css",
+        "./themes/ink.css": "./dist/themes/ink.css",
+        "./themes/soft.css": "./dist/themes/soft.css",
+        "./themes/brutalist.css": "./dist/themes/brutalist.css",
+        "./themes/midnight.css": "./dist/themes/midnight.css",
         "./package.json": "./package.json"
     },
     "publishConfig": {
