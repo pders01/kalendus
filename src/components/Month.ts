@@ -41,11 +41,11 @@ export default class Month extends LitElement {
 
         .month > div {
             border-bottom: 1px solid var(--separator-light);
-            border-right: 1px solid var(--separator-light);
+            border-inline-end: 1px solid var(--separator-light);
         }
 
         .month > div:nth-child(7n + 7) {
-            border-right: none;
+            border-inline-end: none;
         }
 
         .month > div:nth-last-child(-n + 7) {
@@ -70,7 +70,7 @@ export default class Month extends LitElement {
         /* Ensure consistent multi-day event layering */
         ::slotted(lms-calendar-entry) {
             position: relative;
-            margin-left: 1em;
+            margin-inline-start: 1em;
             width: calc(100% - 1em);
         }
 
@@ -82,12 +82,12 @@ export default class Month extends LitElement {
         .indicator {
             position: sticky;
             top: 0.25em;
-            left: 0.25em;
+            inset-inline-start: 0.25em;
             z-index: 500;
             background: transparent;
             backdrop-filter: var(--indicator-backdrop-filter);
             -webkit-backdrop-filter: var(--indicator-backdrop-filter);
-            text-align: left;
+            text-align: start;
             min-height: 2em;
             line-height: 2em;
             margin: 0.25em;

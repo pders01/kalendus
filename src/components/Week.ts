@@ -65,14 +65,14 @@ export default class Week extends LitElement {
         }
 
         .time-header {
-            border-right: 1px solid var(--separator-light);
+            border-inline-end: 1px solid var(--separator-light);
         }
 
         .day-label {
             text-align: center;
             padding: 0 0.25em;
             font-weight: var(--day-label-font-weight);
-            border-right: var(--separator-border);
+            border-inline-end: var(--separator-border);
             display: flex;
             flex-direction: row;
             justify-content: center;
@@ -107,7 +107,7 @@ export default class Week extends LitElement {
         }
 
         .day-label:last-child {
-            border-right: none;
+            border-inline-end: none;
         }
 
         .day-label.current {
@@ -136,7 +136,7 @@ export default class Week extends LitElement {
             grid-column: 1;
             position: relative;
             height: var(--day-total-height);
-            border-right: var(--sidebar-border, 1px solid var(--separator-light));
+            border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
             background: var(--background-color, white);
         }
 
@@ -159,7 +159,7 @@ export default class Week extends LitElement {
         .day-column {
             position: relative;
             height: var(--day-total-height);
-            border-right: var(--sidebar-border, 1px solid var(--separator-light));
+            border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
             /* Match time-labels clipping */
             overflow: clip;
             background-image: repeating-linear-gradient(
@@ -173,7 +173,7 @@ export default class Week extends LitElement {
         }
 
         .day-column:last-child {
-            border-right: none;
+            border-inline-end: none;
         }
 
         /* All-day events section */
@@ -215,31 +215,31 @@ export default class Week extends LitElement {
 
         /* Enhanced multi-day spanning styles with consistent ordering */
         .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.first-day) {
-            border-top-right-radius: 0 !important;
-            border-bottom-right-radius: 0 !important;
-            border-top-left-radius: var(--entry-border-radius) !important;
-            border-bottom-left-radius: var(--entry-border-radius) !important;
+            border-start-end-radius: 0 !important;
+            border-end-end-radius: 0 !important;
+            border-start-start-radius: var(--entry-border-radius) !important;
+            border-end-start-radius: var(--entry-border-radius) !important;
             position: relative !important;
         }
 
         .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.middle-day) {
-            border-top-left-radius: 0 !important;
-            border-top-right-radius: 0 !important;
-            border-bottom-left-radius: 0 !important;
-            border-bottom-right-radius: 0 !important;
+            border-start-start-radius: 0 !important;
+            border-start-end-radius: 0 !important;
+            border-end-start-radius: 0 !important;
+            border-end-end-radius: 0 !important;
             position: relative !important;
-            border-left: var(--multi-day-separator) !important;
-            margin-left: -2px !important;
+            border-inline-start: var(--multi-day-separator) !important;
+            margin-inline-start: -2px !important;
         }
 
         .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.last-day) {
-            border-top-left-radius: 0 !important;
-            border-bottom-left-radius: 0 !important;
-            border-top-right-radius: var(--entry-border-radius) !important;
-            border-bottom-right-radius: var(--entry-border-radius) !important;
+            border-start-start-radius: 0 !important;
+            border-end-start-radius: 0 !important;
+            border-start-end-radius: var(--entry-border-radius) !important;
+            border-end-end-radius: var(--entry-border-radius) !important;
             position: relative !important;
-            border-left: var(--multi-day-separator) !important;
-            margin-left: -2px !important;
+            border-inline-start: var(--multi-day-separator) !important;
+            margin-inline-start: -2px !important;
         }
 
         .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.single-day) {
@@ -254,7 +254,7 @@ export default class Week extends LitElement {
             font-size: var(--hour-indicator-font-size);
             color: var(--hour-indicator-color);
             font-weight: var(--day-label-font-weight);
-            border-right: var(--separator-border);
+            border-inline-end: var(--separator-border);
         }
 
         /* Peek indicators for condensed view */

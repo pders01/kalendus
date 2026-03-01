@@ -131,12 +131,12 @@ A greedy first-fit algorithm that packs all-day events into rows without visual 
 
 Assigns a CSS class to each day-segment of a multi-day event:
 
-| Class        | Condition                                     | Effect                                  |
-| ------------ | --------------------------------------------- | --------------------------------------- |
-| `first-day`  | First visible day of the span                 | Left border-radius, no right radius     |
-| `middle-day` | Between first and last                        | No border-radius, left separator border |
-| `last-day`   | Last visible day of the span                  | Right border-radius, left separator     |
-| `single-day` | Span is 1 day, or first and last are the same | Full border-radius on both sides        |
+| Class        | Condition                                     | Effect                                   |
+| ------------ | --------------------------------------------- | ---------------------------------------- |
+| `first-day`  | First visible day of the span                 | Start border-radius, no end radius       |
+| `middle-day` | Between first and last                        | No border-radius, start separator border |
+| `last-day`   | Last visible day of the span                  | End border-radius, start separator       |
+| `single-day` | Span is 1 day, or first and last are the same | Full border-radius on both sides         |
 
 Week.ts applies corresponding CSS rules so multi-day events render as a connected strip across day columns.
 
@@ -158,7 +158,7 @@ top: calc(${startMinute} * var(--minute-height));
 height: calc(${durationMinutes} * var(--minute-height));
 min-height: calc(20 * var(--minute-height));          /* 20-minute minimum */
 width: ${layoutBox.width}%;
-left: ${layoutBox.x}%;
+inset-inline-start: ${layoutBox.x}%;
 z-index: ${layoutBox.zIndex};
 opacity: ${layoutBox.opacity};
 ```
@@ -167,7 +167,7 @@ The `top` and `height` formulas use the `--minute-height` CSS custom property se
 
 ### All-day entries (slot-based positioning)
 
-All-day entries don't use absolute positioning. They flow inside slot containers. SlotManager still sets `--entry-width`, `--entry-margin-left`, `--entry-z-index`, and `--entry-opacity` as CSS custom properties.
+All-day entries don't use absolute positioning. They flow inside slot containers. SlotManager still sets `--entry-width`, `--entry-margin-inline-start`, `--entry-z-index`, and `--entry-opacity` as CSS custom properties.
 
 ### Slot naming conventions
 
@@ -347,7 +347,7 @@ The result is applied via the `--entry-layout` CSS custom property.
 
 ### Entry.ts color handle
 
-Each timed entry renders a left-edge color indicator via a `::before` pseudo-element:
+Each timed entry renders an inline-start color indicator via a `::before` pseudo-element:
 
 ```css
 :host::before {

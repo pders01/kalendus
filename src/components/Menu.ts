@@ -83,7 +83,8 @@ export class Menu extends LitElement {
             font-size: 1.125em;
             line-height: 1;
             padding: 0.15em 0.25em;
-            margin: -0.15em -0.25em 0 0;
+            margin: -0.15em;
+            margin-inline-start: auto;
             border-radius: var(--border-radius-sm);
             color: var(--header-text-color);
             transition: background-color var(--transition-speed);
@@ -190,15 +191,28 @@ export class Menu extends LitElement {
             const cardW = cardRect.width || 260;
             const cardH = cardRect.height || 200;
 
-            // Prefer right placement; flip left if overflow
+            // Detect RTL from host context
+            const isRTL = getComputedStyle(container).direction === 'rtl';
+
+            // In LTR: prefer right placement, flip left.
+            // In RTL: prefer left placement, flip right.
             let left: number;
-            if (anchorRight + gap + cardW <= containerRect.width) {
-                left = anchorRight + gap;
-            } else if (anchorLeft - gap - cardW >= 0) {
-                left = anchorLeft - gap - cardW;
+            if (isRTL) {
+                if (anchorLeft - gap - cardW >= 0) {
+                    left = anchorLeft - gap - cardW;
+                } else if (anchorRight + gap + cardW <= containerRect.width) {
+                    left = anchorRight + gap;
+                } else {
+                    left = Math.max(gap, (containerRect.width - cardW) / 2);
+                }
             } else {
-                // Fallback: center horizontally in container
-                left = Math.max(gap, (containerRect.width - cardW) / 2);
+                if (anchorRight + gap + cardW <= containerRect.width) {
+                    left = anchorRight + gap;
+                } else if (anchorLeft - gap - cardW >= 0) {
+                    left = anchorLeft - gap - cardW;
+                } else {
+                    left = Math.max(gap, (containerRect.width - cardW) / 2);
+                }
             }
 
             // Center vertically on anchor, clamp to container

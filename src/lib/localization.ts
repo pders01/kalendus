@@ -140,7 +140,9 @@ export function formatLocalizedTimeRange(
 ): string {
     const start = formatLocalizedTime(startHour, startMinute, locale);
     const end = formatLocalizedTime(endHour, endMinute, locale);
-    return `${start} \u2013 ${end}`;
+    // LRI (U+2066) ... PDI (U+2069) isolate the range so the BiDi algorithm
+    // doesn't reverse "9:00 – 9:30" into "9:30 – 9:00" in RTL contexts.
+    return `\u2066${start} \u2013 ${end}\u2069`;
 }
 
 /**

@@ -118,7 +118,7 @@ export default class Year extends LitElement {
             padding: 0.3em 0;
             border: none;
             background: none;
-            text-align: left;
+            text-align: start;
             border-radius: 0;
             font-family: inherit;
             border-bottom: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));

@@ -164,7 +164,7 @@ All properties are defined in the `:host` block of the component's Shadow DOM st
 | ---------------------- | -------- | ------------------------------ |
 | `--context-height`     | `1.75em` | Height of the context bar      |
 | `--context-padding`    | `0.25em` | Padding inside the context bar |
-| `--context-text-align` | `left`   | Text alignment in context bar  |
+| `--context-text-align` | `start`  | Text alignment in context bar  |
 
 ## Time Grid Sizing
 
@@ -231,15 +231,17 @@ These tokens are read at runtime by `computeWeekDisplayContext`. Below the break
 
 ## Header
 
-| Token                            | Default                   | Description                       |
-| -------------------------------- | ------------------------- | --------------------------------- |
-| `--header-height`                | `3.5em`                   | Header height on desktop          |
-| `--header-height-mobile`         | `4.5em`                   | Header height on mobile           |
-| `--header-info-padding-left`     | `1em`                     | Left padding for header info area |
-| `--header-text-color`            | `inherit`                 | Text color in header              |
-| `--header-buttons-padding-right` | `1em`                     | Right padding for header buttons  |
-| `--button-padding`               | `0.75em`                  | Padding inside header buttons     |
-| `--button-border-radius`         | `var(--border-radius-sm)` | Border radius for buttons         |
+| Token                                 | Default                   | Description                                             |
+| ------------------------------------- | ------------------------- | ------------------------------------------------------- |
+| `--header-height`                     | `3.5em`                   | Header height on desktop                                |
+| `--header-height-mobile`              | `4.5em`                   | Header height on mobile                                 |
+| `--header-info-padding-inline-start`  | `1em`                     | Start-edge padding for header info area (adapts to RTL) |
+| `--header-text-color`                 | `inherit`                 | Text color in header                                    |
+| `--header-buttons-padding-inline-end` | `1em`                     | End-edge padding for header buttons (adapts to RTL)     |
+| `--button-padding`                    | `0.75em`                  | Padding inside header buttons                           |
+| `--button-border-radius`              | `var(--border-radius-sm)` | Border radius for buttons                               |
+
+> **Migration note:** The old `--header-info-padding-left` and `--header-buttons-padding-right` tokens are still accepted as fallbacks. New code should use the `inline-start/end` variants.
 
 ## Month View — Indicators
 

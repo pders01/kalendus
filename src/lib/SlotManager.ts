@@ -104,10 +104,10 @@ export class SlotManager {
                 `top: calc(${startMinute} * var(--minute-height))`,
                 `height: calc(${duration} * var(--minute-height))`,
                 `width: ${layout.width}%`,
-                `left: ${layout.x}%`,
+                `inset-inline-start: ${layout.x}%`,
                 `z-index: ${layout.zIndex}`,
                 `opacity: ${layout.opacity}`,
-                'margin-left: 0',
+                'margin-inline-start: 0',
                 'grid-column: unset',
                 'grid-row: unset',
             ].join('; ');
@@ -115,11 +115,11 @@ export class SlotManager {
 
         if (position.useDirectGrid) {
             // Direct grid positioning (bypasses slots)
-            return `grid-column: ${position.gridColumn || 2}; grid-row: ${position.gridRow || '1'}; --entry-width: ${layout.width}%; --entry-margin-left: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
+            return `grid-column: ${position.gridColumn || 2}; grid-row: ${position.gridRow || '1'}; --entry-width: ${layout.width}%; --entry-margin-inline-start: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
         } else {
             // Slot-based positioning with CSS variables
             const startSlot = time ? this._getGridSlotByTime(time) : '1';
-            return `--start-slot: ${startSlot}; --entry-width: ${layout.width}%; --entry-margin-left: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
+            return `--start-slot: ${startSlot}; --entry-width: ${layout.width}%; --entry-margin-inline-start: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
         }
     }
 

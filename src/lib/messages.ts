@@ -1,19 +1,26 @@
 import { targetLocales } from '../generated/locale-codes.js';
 import { templates as arTemplates } from '../generated/locales/ar.js';
 import { templates as bnTemplates } from '../generated/locales/bn.js';
+import { templates as csTemplates } from '../generated/locales/cs.js';
+import { templates as daTemplates } from '../generated/locales/da.js';
 import { templates as deDETemplates } from '../generated/locales/de-DE.js';
 import { templates as deTemplates } from '../generated/locales/de.js';
+import { templates as elTemplates } from '../generated/locales/el.js';
 import { templates as esTemplates } from '../generated/locales/es.js';
+import { templates as fiTemplates } from '../generated/locales/fi.js';
 import { templates as frTemplates } from '../generated/locales/fr.js';
+import { templates as heTemplates } from '../generated/locales/he.js';
 import { templates as hiTemplates } from '../generated/locales/hi.js';
 import { templates as idTemplates } from '../generated/locales/id.js';
 import { templates as itTemplates } from '../generated/locales/it.js';
 import { templates as jaTemplates } from '../generated/locales/ja.js';
 import { templates as koTemplates } from '../generated/locales/ko.js';
+import { templates as nbTemplates } from '../generated/locales/nb.js';
 import { templates as nlTemplates } from '../generated/locales/nl.js';
 import { templates as plTemplates } from '../generated/locales/pl.js';
 import { templates as ptTemplates } from '../generated/locales/pt.js';
 import { templates as ruTemplates } from '../generated/locales/ru.js';
+import { templates as svTemplates } from '../generated/locales/sv.js';
 import { templates as thTemplates } from '../generated/locales/th.js';
 import { templates as trTemplates } from '../generated/locales/tr.js';
 import { templates as ukTemplates } from '../generated/locales/uk.js';
@@ -23,19 +30,26 @@ import { templates as zhHansTemplates } from '../generated/locales/zh-Hans.js';
 const allTemplates: Record<string, Record<string, string>> = {
     ar: arTemplates,
     bn: bnTemplates,
+    cs: csTemplates,
+    da: daTemplates,
     de: deTemplates,
     'de-DE': deDETemplates,
+    el: elTemplates,
     es: esTemplates,
+    fi: fiTemplates,
     fr: frTemplates,
+    he: heTemplates,
     hi: hiTemplates,
     id: idTemplates,
     it: itTemplates,
     ja: jaTemplates,
     ko: koTemplates,
+    nb: nbTemplates,
     nl: nlTemplates,
     pl: plTemplates,
     pt: ptTemplates,
     ru: ruTemplates,
+    sv: svTemplates,
     th: thTemplates,
     tr: trTemplates,
     uk: ukTemplates,

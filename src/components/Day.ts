@@ -111,7 +111,7 @@ export default class Day extends LitElement {
         }
 
         .day-header .time-header {
-            border-right: 1px solid var(--separator-light);
+            border-inline-end: 1px solid var(--separator-light);
         }
 
         .day-header .day-label {
@@ -126,7 +126,7 @@ export default class Day extends LitElement {
             /* Offset by half the time column so the label visually
                centers across the full calendar width, not just the
                content column */
-            padding-right: var(--time-column-width, 4em);
+            padding-inline-end: var(--time-column-width, 4em);
         }
 
         .day-header .day-name {
@@ -177,7 +177,7 @@ export default class Day extends LitElement {
             position: relative;
             height: var(--day-total-height);
             display: var(--day-show-time-column, block);
-            border-right: var(--sidebar-border, 1px solid var(--separator-light));
+            border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
         }
 
         .hour-label {
@@ -217,7 +217,7 @@ export default class Day extends LitElement {
 
         .sidebar {
             height: 100%;
-            border-left: var(--sidebar-border, 1px solid var(--separator-light));
+            border-inline-start: var(--sidebar-border, 1px solid var(--separator-light));
         }
 
         .w-100 {
@@ -247,7 +247,9 @@ export default class Day extends LitElement {
 
         .all-day {
             font-size: var(--day-all-day-font-size, 16px);
-            margin: var(--day-all-day-margin, 0 1.25em 0 4.25em);
+            margin-block: 0;
+            margin-inline-start: var(--day-all-day-margin-inline-start, 4.25em);
+            margin-inline-end: var(--day-all-day-margin-inline-end, 1.25em);
             overflow: hidden;
             min-height: 0;
             padding: 0.5em 0;

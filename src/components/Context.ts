@@ -26,7 +26,7 @@ export default class Context extends LitElement {
         span {
             /* Match the month indicator's margin (0.25em) + padding (0.25em) */
             padding: var(--context-padding, 0.25em) var(--context-padding-inline, 0.5em);
-            text-align: var(--context-text-align, left);
+            text-align: var(--context-text-align, start);
         }
     `;
 

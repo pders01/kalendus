@@ -43,19 +43,26 @@ const meta: Meta<LMSCalendar> = {
                 'en',
                 'ar',
                 'bn',
+                'cs',
+                'da',
                 'de',
                 'de-DE',
+                'el',
                 'es',
+                'fi',
                 'fr',
+                'he',
                 'hi',
                 'id',
                 'it',
                 'ja',
                 'ko',
+                'nb',
                 'nl',
                 'pl',
                 'pt',
                 'ru',
+                'sv',
                 'th',
                 'tr',
                 'uk',
@@ -363,6 +370,116 @@ const localeEntryCopy: Record<string, LocaleEntryText[]> = {
         { heading: 'Teamdag buiten', content: 'Hele dag teambuilding' },
         { heading: 'Productsprint', content: 'Meerdaagse focus op features' },
         { heading: 'Code review', content: 'Wekelijkse PR-sessie' },
+    ],
+    he: [
+        {
+            heading: '\u05E4\u05D2\u05D9\u05E9\u05EA \u05D1\u05D5\u05E7\u05E8',
+            content:
+                '\u05E1\u05E0\u05DB\u05E8\u05D5\u05DF \u05D9\u05D5\u05DE\u05D9 \u05E9\u05DC \u05D4\u05E6\u05D5\u05D5\u05EA',
+        },
+        {
+            heading: '\u05E1\u05D3\u05E0\u05EA \u05E2\u05D9\u05E6\u05D5\u05D1',
+            content: '\u05E1\u05E7\u05D9\u05E8\u05EA UX/UI',
+        },
+        {
+            heading:
+                '\u05D0\u05E8\u05D5\u05D7\u05EA \u05E6\u05D4\u05E8\u05D9\u05D9\u05DD \u05D5\u05DC\u05DE\u05D9\u05D3\u05D4',
+            content:
+                '\u05D4\u05E8\u05E6\u05D0\u05D4 \u05E2\u05DC \u05E8\u05DB\u05D9\u05D1\u05D9 \u05D5\u05D5\u05D1',
+        },
+        {
+            heading: '\u05D9\u05D5\u05DD \u05E6\u05D5\u05D5\u05EA',
+            content:
+                '\u05D9\u05D5\u05DD \u05E9\u05DC\u05DD \u05E9\u05DC \u05D1\u05E0\u05D9\u05D9\u05EA \u05E6\u05D5\u05D5\u05EA',
+        },
+        {
+            heading: '\u05E1\u05E4\u05E8\u05D9\u05E0\u05D8 \u05DE\u05D5\u05E6\u05E8',
+            content:
+                '\u05DE\u05E1\u05E4\u05E8 \u05D9\u05DE\u05D9\u05DD \u05E9\u05DC \u05E4\u05D9\u05EA\u05D5\u05D7 \u05DE\u05DE\u05D5\u05E7\u05D3',
+        },
+        {
+            heading: '\u05E1\u05E7\u05D9\u05E8\u05EA \u05E7\u05D5\u05D3',
+            content:
+                '\u05E1\u05E7\u05D9\u05E8\u05D4 \u05E9\u05D1\u05D5\u05E2\u05D9\u05EA \u05E9\u05DC PR',
+        },
+    ],
+    cs: [
+        { heading: 'Rann\u00ed porada', content: 'Denn\u00ed synchronizace t\u00fdmu' },
+        { heading: 'Designov\u00fd workshop', content: 'UX/UI revize' },
+        {
+            heading: 'Ob\u011bd a u\u010den\u00ed',
+            content: 'Sezen\u00ed o webov\u00fdch komponent\u00e1ch',
+        },
+        { heading: 'T\u00fdmov\u00fd v\u00fdlet', content: 'Celodenn\u00ed teambuilding' },
+        { heading: 'Produktov\u00fd sprint', content: 'V\u00edcedenn\u00ed fokus na v\u00fdvoj' },
+        { heading: 'Revize k\u00f3du', content: 'T\u00fddenn\u00ed review PR' },
+    ],
+    da: [
+        { heading: 'Morgenm\u00f8de', content: 'Daglig teamsynkronisering' },
+        { heading: 'Designworkshop', content: 'UX/UI-gennemgang' },
+        { heading: 'Frokost og l\u00e6ring', content: 'Session om webkomponenter' },
+        { heading: 'Teamdag ude', content: 'Heldags teambuilding' },
+        { heading: 'Produktsprint', content: 'Flerdages udviklingsfokus' },
+        { heading: 'Kodegennemgang', content: 'Ugentlig PR-review' },
+    ],
+    el: [
+        {
+            heading:
+                '\u03A0\u03C1\u03C9\u03B9\u03BD\u03AE \u03C3\u03C5\u03BD\u03AC\u03BD\u03C4\u03B7\u03C3\u03B7',
+            content:
+                '\u039A\u03B1\u03B8\u03B7\u03BC\u03B5\u03C1\u03B9\u03BD\u03CC\u03C2 \u03C3\u03C5\u03B3\u03C7\u03C1\u03BF\u03BD\u03B9\u03C3\u03BC\u03CC\u03C2 \u03BF\u03BC\u03AC\u03B4\u03B1\u03C2',
+        },
+        {
+            heading:
+                '\u0395\u03C1\u03B3\u03B1\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03C3\u03C7\u03B5\u03B4\u03AF\u03B1\u03C3\u03B7\u03C2',
+            content: '\u0391\u03BD\u03B1\u03C3\u03BA\u03CC\u03C0\u03B7\u03C3\u03B7 UX/UI',
+        },
+        {
+            heading:
+                '\u039C\u03B5\u03C3\u03B7\u03BC\u03B5\u03C1\u03B9\u03B1\u03BD\u03CC \u03BA\u03B1\u03B9 \u03BC\u03AC\u03B8\u03B7\u03C3\u03B7',
+            content:
+                '\u03A3\u03C5\u03BD\u03B5\u03B4\u03C1\u03AF\u03B1 \u03B3\u03B9\u03B1 web components',
+        },
+        {
+            heading:
+                '\u0395\u03BA\u03B4\u03C1\u03BF\u03BC\u03AE \u03BF\u03BC\u03AC\u03B4\u03B1\u03C2',
+            content: '\u039F\u03BB\u03BF\u03AE\u03BC\u03B5\u03C1\u03BF team building',
+        },
+        {
+            heading: 'Sprint \u03C0\u03C1\u03BF\u03CA\u03CC\u03BD\u03C4\u03BF\u03C2',
+            content:
+                '\u03A0\u03BF\u03BB\u03C5\u03AE\u03BC\u03B5\u03C1\u03B7 \u03B1\u03BD\u03AC\u03C0\u03C4\u03C5\u03BE\u03B7',
+        },
+        {
+            heading:
+                '\u0391\u03BD\u03B1\u03C3\u03BA\u03CC\u03C0\u03B7\u03C3\u03B7 \u03BA\u03CE\u03B4\u03B9\u03BA\u03B1',
+            content:
+                '\u0395\u03B2\u03B4\u03BF\u03BC\u03B1\u03B4\u03B9\u03B1\u03AF\u03B1 \u03B1\u03BD\u03B1\u03B8\u03B5\u03CE\u03C1\u03B7\u03C3\u03B7 PR',
+        },
+    ],
+    fi: [
+        { heading: 'Aamupalaveri', content: 'P\u00e4ivitt\u00e4inen tiimin synkronointi' },
+        { heading: 'Suunnitteluty\u00f6paja', content: 'UX/UI-katselmointi' },
+        { heading: 'Lounas ja oppiminen', content: 'Web-komponenttisessio' },
+        { heading: 'Tiimiretki', content: 'Koko p\u00e4iv\u00e4n tiiminrakennus' },
+        { heading: 'Tuotesprintti', content: 'Usean p\u00e4iv\u00e4n kehitysfokus' },
+        { heading: 'Koodikatselmointi', content: 'Viikoittainen PR-arviointi' },
+    ],
+    nb: [
+        { heading: 'Morgenm\u00f8te', content: 'Daglig teamsynkronisering' },
+        { heading: 'Designverksted', content: 'UX/UI-gjennomgang' },
+        { heading: 'Lunsj og l\u00e6ring', content: '\u00d8kt om webkomponenter' },
+        { heading: 'Teamdag ute', content: 'Heldags teambygging' },
+        { heading: 'Produktsprint', content: 'Flerdagers utviklingsfokus' },
+        { heading: 'Kodegjennomgang', content: 'Ukentlig PR-gjennomgang' },
+    ],
+    sv: [
+        { heading: 'Morgonm\u00f6te', content: 'Daglig teamsynkronisering' },
+        { heading: 'Designworkshop', content: 'UX/UI-granskning' },
+        { heading: 'Lunch och l\u00e4rande', content: 'Session om webbkomponenter' },
+        { heading: 'Teamdag ute', content: 'Heldags teambuilding' },
+        { heading: 'Produktsprint', content: 'Flerdagars utvecklingsfokus' },
+        { heading: 'Kodgranskning', content: 'Veckovis PR-granskning' },
     ],
 };
 
@@ -2109,7 +2226,7 @@ export const LocalePortuguese: Story = createLocaleStory(
 export const LocaleArabic: Story = createLocaleStory(
     'ar',
     '\u0627\u0644\u0639\u0631\u0628\u064A\u0629 (Arabic)',
-    'Arabic locale with Saturday-first week. Note: full RTL text support requires additional dir="rtl" styling which is outside the scope of this locale configuration. Calendar grid columns remain left-to-right as this is the universal convention even in RTL locales.',
+    'Arabic locale with Saturday-first week. RTL direction is auto-detected from the locale — the entire layout flips: time column moves right, day columns flow right-to-left, text and entry handles flip.',
 );
 
 export const LocaleEnglishUS: Story = createLocaleStory(
@@ -2190,6 +2307,48 @@ export const LocaleDutch: Story = createLocaleStory(
     'Dutch locale with Monday-first week (European convention). All UI strings fully translated.',
 );
 
+export const LocaleHebrew: Story = createLocaleStory(
+    'he',
+    '\u05E2\u05D1\u05E8\u05D9\u05EA (Hebrew)',
+    'Hebrew locale with Sunday-first week (Israeli convention). RTL direction is auto-detected from the locale — the entire layout flips to match native RTL conventions.',
+);
+
+export const LocaleSwedish: Story = createLocaleStory(
+    'sv',
+    'Svenska (Swedish)',
+    'Swedish locale with Monday-first week (ISO 8601). All UI strings fully translated.',
+);
+
+export const LocaleFinnish: Story = createLocaleStory(
+    'fi',
+    'Suomi (Finnish)',
+    'Finnish locale with Monday-first week (ISO 8601). Demonstrates Finnish diacritics (\u00e4, \u00f6) in UI labels.',
+);
+
+export const LocaleDanish: Story = createLocaleStory(
+    'da',
+    'Dansk (Danish)',
+    'Danish locale with Monday-first week (ISO 8601). Demonstrates Danish characters (\u00e6, \u00f8, \u00e5) in date formatting.',
+);
+
+export const LocaleGreek: Story = createLocaleStory(
+    'el',
+    '\u0395\u03BB\u03BB\u03B7\u03BD\u03B9\u03BA\u03AC (Greek)',
+    'Greek locale with Monday-first week (European convention). Demonstrates Greek script in UI labels and date formatting.',
+);
+
+export const LocaleCzech: Story = createLocaleStory(
+    'cs',
+    '\u010Ce\u0161tina (Czech)',
+    'Czech locale with Monday-first week (European convention). Demonstrates Czech diacritics (\u010D, \u0159, \u0161, \u017E) in UI labels.',
+);
+
+export const LocaleNorwegian: Story = createLocaleStory(
+    'nb',
+    'Norsk bokm\u00E5l (Norwegian)',
+    'Norwegian Bokm\u00E5l locale with Monday-first week (ISO 8601). All UI strings fully translated.',
+);
+
 export const LocaleShowcase: Story = {
     name: storyName(STORY_GROUPS.LOCALIZATION, 'Locale Showcase'),
     args: {
@@ -2200,7 +2359,7 @@ export const LocaleShowcase: Story = {
             Each calendar independently renders its own locale — UI strings, weekday names,
             and date formatting are all per-instance. No global locale switching needed.
         </p>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.5em; height: 1800px;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.5em; height: 2400px;">
             ${(
                 [
                     'de',
@@ -2213,6 +2372,7 @@ export const LocaleShowcase: Story = {
                     'uk',
                     'tr',
                     'ar',
+                    'he',
                     'hi',
                     'bn',
                     'th',
@@ -2222,6 +2382,12 @@ export const LocaleShowcase: Story = {
                     'id',
                     'vi',
                     'pt',
+                    'sv',
+                    'fi',
+                    'da',
+                    'el',
+                    'cs',
+                    'nb',
                 ] as const
             ).map((locale) => {
                 const labels: Record<string, string> = {
@@ -2235,6 +2401,7 @@ export const LocaleShowcase: Story = {
                     uk: '\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430',
                     tr: 'T\u00fcrk\u00e7e',
                     ar: '\u0627\u0644\u0639\u0631\u0628\u064A\u0629',
+                    he: '\u05E2\u05D1\u05E8\u05D9\u05EA',
                     hi: '\u0939\u093f\u0928\u094d\u0926\u0940',
                     bn: '\u09ac\u09be\u0982\u09b2\u09be',
                     th: '\u0e44\u0e17\u0e22',
@@ -2244,6 +2411,12 @@ export const LocaleShowcase: Story = {
                     id: 'Indonesia',
                     vi: 'Ti\u1ebfng Vi\u1ec7t',
                     pt: 'Portugu\u00eas',
+                    sv: 'Svenska',
+                    fi: 'Suomi',
+                    da: 'Dansk',
+                    el: '\u0395\u03BB\u03BB\u03B7\u03BD\u03B9\u03BA\u03AC',
+                    cs: '\u010Ce\u0161tina',
+                    nb: 'Norsk',
                 };
                 return html`
                     <lms-calendar
@@ -2262,7 +2435,83 @@ export const LocaleShowcase: Story = {
     parameters: {
         docs: {
             description: {
-                story: 'Showcase of all 19 non-English locales in a 4-column grid. Each calendar uses its own locale for UI strings and date formatting, plus locale-appropriate firstDayOfWeek. All calendars render independently on the same page — no global locale switching.',
+                story: 'Showcase of all 26 non-English locales in a 4-column grid. Each calendar uses its own locale for UI strings and date formatting, plus locale-appropriate firstDayOfWeek. All calendars render independently on the same page — no global locale switching.',
+            },
+        },
+    },
+};
+
+// --- RTL stories ---
+
+export const RTLShowcase: Story = {
+    name: storyName(STORY_GROUPS.LOCALIZATION, 'RTL Showcase'),
+    args: {
+        entries: sampleEntries,
+    },
+    render: (args) => html`
+        <p style="margin: 0.5em 1em; color: #666; font-size: 0.85em;">
+            RTL direction is auto-detected from the locale. The entire layout flips:
+            time column moves to the right, day columns flow right-to-left, text and entry
+            handles follow the writing direction. Use <code>dir="ltr"</code> to override.
+        </p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em; height: 720px; padding: 0 1em;">
+            <lms-calendar
+                .heading=${'العربية (Arabic)'}
+                .activeDate=${args.activeDate}
+                .entries=${getLocaleEntries('ar')}
+                .color=${'#1976d2'}
+                .locale=${'ar'}
+                .firstDayOfWeek=${getFirstDayForLocale('ar') as FirstDayOfWeek}
+                style="height: 100%; display: block;"
+            ></lms-calendar>
+            <lms-calendar
+                .heading=${'עברית (Hebrew)'}
+                .activeDate=${args.activeDate}
+                .entries=${getLocaleEntries('he')}
+                .color=${'#1976d2'}
+                .locale=${'he'}
+                .firstDayOfWeek=${getFirstDayForLocale('he') as FirstDayOfWeek}
+                style="height: 100%; display: block;"
+            ></lms-calendar>
+        </div>
+    `,
+    parameters: {
+        docs: {
+            description: {
+                story: 'Side-by-side Arabic and Hebrew calendars demonstrating automatic RTL detection. The entire layout flips: time column moves to the right, day columns flow right-to-left, and entry text follows the writing direction. Switch to week or day view to see the full effect.',
+            },
+        },
+    },
+};
+
+export const RTLOverride: Story = {
+    name: storyName(STORY_GROUPS.LOCALIZATION, 'RTL Override'),
+    args: {
+        heading: 'Arabic (forced LTR)',
+        locale: 'ar',
+        firstDayOfWeek: getFirstDayForLocale('ar') as number,
+        entries: getLocaleEntries('ar'),
+    },
+    render: (args) => html`
+        <p style="margin: 0.5em 1em; color: #666; font-size: 0.85em;">
+            Arabic locale with <code>dir="ltr"</code> override — forces LTR layout
+            even though the locale would normally trigger RTL.
+        </p>
+        <lms-calendar
+            .heading=${args.heading}
+            .activeDate=${args.activeDate}
+            .entries=${args.entries}
+            .color=${args.color}
+            .locale=${args.locale}
+            .firstDayOfWeek=${args.firstDayOfWeek as FirstDayOfWeek}
+            dir="ltr"
+            style="height: 720px; display: block;"
+        ></lms-calendar>
+    `,
+    parameters: {
+        docs: {
+            description: {
+                story: 'Demonstrates the dir="ltr" override on an Arabic calendar. Even though Arabic is an RTL locale, the explicit dir attribute forces LTR layout.',
             },
         },
     },
