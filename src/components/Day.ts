@@ -115,15 +115,18 @@ export default class Day extends LitElement {
         }
 
         .day-header .day-label {
-            text-align: left;
             padding: 0 0.25em;
             font-weight: var(--day-label-font-weight);
             display: flex;
             flex-direction: row;
-            justify-content: flex-start;
+            justify-content: center;
             align-items: center;
             gap: 0.35em;
             overflow: hidden;
+            /* Offset by half the time column so the label visually
+               centers across the full calendar width, not just the
+               content column */
+            padding-right: var(--time-column-width, 4em);
         }
 
         .day-header .day-name {
