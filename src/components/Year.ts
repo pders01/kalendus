@@ -124,7 +124,7 @@ export default class Year extends LitElement {
         }
 
         .month-label:hover {
-            color: var(--primary-color, dodgerblue);
+            color: var(--primary-color, #3b82f6);
         }
 
         .weekday-header {
@@ -165,7 +165,7 @@ export default class Year extends LitElement {
         }
 
         .cw-label:hover {
-            color: var(--primary-color, dodgerblue);
+            color: var(--primary-color, #3b82f6);
             background: var(--separator-light, rgba(0, 0, 0, 0.06));
         }
 
@@ -194,9 +194,9 @@ export default class Year extends LitElement {
         }
 
         .day-cell.current {
-            background: var(--primary-color, dodgerblue);
+            background: var(--primary-color, #3b82f6);
             color: white;
-            font-weight: bold;
+            font-weight: 600;
         }
 
         .day-cell.current:hover {
@@ -204,7 +204,7 @@ export default class Year extends LitElement {
         }
 
         .day-cell.selected {
-            outline: 2px solid var(--primary-color, dodgerblue);
+            outline: 2px solid var(--primary-color, #3b82f6);
             outline-offset: -2px;
         }
 
@@ -218,7 +218,7 @@ export default class Year extends LitElement {
             width: 3px;
             height: 3px;
             border-radius: 50%;
-            background: var(--year-dot-color, var(--indicator-color, var(--primary-color, dodgerblue)));
+            background: var(--year-dot-color, var(--indicator-color, var(--primary-color, #3b82f6)));
         }
 
         .day-cell.current.has-events::after {
@@ -227,21 +227,21 @@ export default class Year extends LitElement {
 
         /* ── Heatmap density mode ── */
         .day-cell[data-density='1'] {
-            background: var(--year-heatmap-1, rgba(30, 144, 255, 0.15));
+            background: var(--year-heatmap-1, rgba(59, 130, 246, 0.15));
         }
         .day-cell[data-density='2'] {
-            background: var(--year-heatmap-2, rgba(30, 144, 255, 0.35));
+            background: var(--year-heatmap-2, rgba(59, 130, 246, 0.35));
         }
         .day-cell[data-density='3'] {
-            background: var(--year-heatmap-3, rgba(30, 144, 255, 0.55));
+            background: var(--year-heatmap-3, rgba(59, 130, 246, 0.55));
         }
         .day-cell[data-density='4'] {
-            background: var(--year-heatmap-4, rgba(30, 144, 255, 0.75));
+            background: var(--year-heatmap-4, rgba(59, 130, 246, 0.75));
             color: white;
         }
 
         .day-cell.current[data-density] {
-            background: var(--primary-color, dodgerblue);
+            background: var(--primary-color, #3b82f6);
         }
 
         /* ── Count density mode ── */
