@@ -36,22 +36,51 @@ export default class Year extends LitElement {
     static override styles = css`
         :host {
             display: block;
-            contain: content;
+            height: 100%;
+            contain: size layout style;
             overflow-y: auto;
-            container-type: inline-size;
+            /* size enables both width container queries and cqb (block) units */
+            container-type: size;
+            scroll-snap-type: y mandatory;
+            scroll-padding-top: 1em;
         }
 
         .year-grid {
             display: grid;
             grid-template-columns: repeat(var(--year-grid-columns, 3), 1fr);
+            /* Hybrid row height: max of viewport-fill and noon-alignment.
+               - Viewport-fill: 2 rows (6 months) = container height (no peeking)
+               - Noon-align: padding + 2 rows + 1 gap = --half-day-height
+                 → row = (--half-day-height − 2.25em) / 2 */
+            grid-template-rows: repeat(
+                4,
+                max(
+                    calc((100cqb - 2em - 1.25em) / 2),
+                    calc((var(--half-day-height) - 2.25em) / 2)
+                )
+            );
             gap: 1.25em 1em;
             padding: 1em;
+        }
+
+        /* Snap at the start of each 2-row section (months 1 and 7) */
+        .mini-month:nth-child(6n + 1) {
+            scroll-snap-align: start;
         }
 
         /* Container queries — respond to component width, not viewport */
         @container (max-width: 400px) {
             .year-grid {
                 grid-template-columns: repeat(var(--year-grid-columns-mobile, 1), 1fr);
+                /* 1-col: padding + 6 rows + 5 gaps = --half-day-height
+                   → row = (--half-day-height − 5.75em) / 6 */
+                grid-template-rows: repeat(
+                    12,
+                    max(
+                        calc((100cqb - 2 * 0.75em - 5 * 1em) / 6),
+                        calc((var(--half-day-height) - 5.75em) / 6)
+                    )
+                );
                 gap: 1em 0.75em;
                 padding: 0.75em;
             }
@@ -60,6 +89,15 @@ export default class Year extends LitElement {
         @container (min-width: 401px) and (max-width: 700px) {
             .year-grid {
                 grid-template-columns: repeat(var(--year-grid-columns-tablet, 2), 1fr);
+                /* 2-col: padding + 3 rows + 2 gaps = --half-day-height
+                   → row = (--half-day-height − 3.5em) / 3 */
+                grid-template-rows: repeat(
+                    6,
+                    max(
+                        calc((100cqb - 2em - 2 * 1.25em) / 3),
+                        calc((var(--half-day-height) - 3.5em) / 3)
+                    )
+                );
             }
         }
 

@@ -40,9 +40,9 @@ export default class Header extends LitElement {
 
         .info {
             padding-left: var(--header-info-padding-left, 1em);
-            text-align: right;
+            text-align: left;
             display: grid;
-            justify-self: start;
+            justify-self: stretch;
             min-width: 0;
             overflow: hidden;
         }

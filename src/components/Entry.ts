@@ -69,6 +69,9 @@ export default class Entry extends LitElement {
             background-color: var(--entry-background-color);
             color: var(--entry-color);
             border: var(--entry-border, none);
+            /* When a handle is present, remove the left border so the
+               ::before handle covers the full left edge without bleed */
+            border-left: var(--entry-border-left, var(--entry-border, none));
             /* z-index of separators in day view is 0 */
             z-index: var(--entry-z-index, 1);
             opacity: var(--entry-opacity, 1);
@@ -79,7 +82,8 @@ export default class Entry extends LitElement {
             position: relative;
         }
 
-        /* Color handle indicator on the left - only for day/week views */
+        /* Color handle indicator on the left — absolutely positioned
+           so it doesn't affect content width or title visibility */
         :host::before {
             content: '';
             position: absolute;
@@ -88,7 +92,8 @@ export default class Entry extends LitElement {
             bottom: 0;
             width: var(--entry-handle-width, 0px);
             background-color: var(--entry-handle-color, transparent);
-            border-radius: var(--entry-border-radius) 0 0 var(--entry-border-radius);
+            /* No border-radius — host's overflow:hidden clips to rounded corners */
+            border-radius: 0;
             display: var(--entry-handle-display, none);
         }
 
@@ -352,12 +357,13 @@ export default class Entry extends LitElement {
         const msg = getMessages(this.locale);
 
         if (this.displayMode === 'month-dot') {
-            // In month view, always try to show time when possible
+            // In month view, show start time only (e.g. "9:30 AM") for compactness
             if (this.isContinuation) {
                 return html`<span class="time">${msg.allDay}</span>`;
             }
-            const timeString = this._displayInterval(this.time);
-            return timeString ? html`<span class="time">${timeString}</span>` : nothing;
+            if (!this.time) return nothing;
+            const startTime = formatLocalizedTime(this.time.start.hour, this.time.start.minute, this.locale);
+            return startTime ? html`<span class="time">${startTime}</span>` : nothing;
         }
 
         if (this.density === 'compact') {
