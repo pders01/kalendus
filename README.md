@@ -56,7 +56,7 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 ### Per-Instance Localization
 
 - **Independent Locale Per Instance**: Multiple calendars on the same page can each display a different locale
-- **21 Built-in Locales**: English, German, Spanish, French, Hindi, Bengali, Russian, Indonesian, Korean, Turkish, Vietnamese, Italian, Thai, Polish, Ukrainian, Dutch, Japanese, Portuguese, Arabic, Chinese (Simplified), and German (DE)
+- **28 Built-in Locales**: See [Supported Locales](#supported-locales) below for the full list
 - **Localized UI Strings**: All buttons, labels, and messages translated per instance
 - **Localized Date Formatting**: Weekday names, month names, and date formats use the instance's locale
 - **Configurable Week Start**: `firstDayOfWeek` property supports Monday (ISO), Sunday (US/JP), Saturday (AR), or any day
@@ -108,29 +108,40 @@ interface CalendarEntry {
 
 ### Supported Locales
 
-| Code      | Language             | Default Week Start |
-| --------- | -------------------- | ------------------ |
-| `en`      | English              | Sunday             |
-| `de`      | German               | Monday             |
-| `de-DE`   | German (Germany)     | Monday             |
-| `es`      | Spanish              | Monday             |
-| `fr`      | French               | Monday             |
-| `hi`      | Hindi                | Sunday             |
-| `bn`      | Bengali              | Sunday             |
-| `ru`      | Russian              | Monday             |
-| `id`      | Indonesian           | Sunday             |
-| `ko`      | Korean               | Sunday             |
-| `tr`      | Turkish              | Monday             |
-| `vi`      | Vietnamese           | Monday             |
-| `it`      | Italian              | Monday             |
-| `th`      | Thai                 | Sunday             |
-| `pl`      | Polish               | Monday             |
-| `uk`      | Ukrainian            | Monday             |
-| `nl`      | Dutch                | Monday             |
-| `ja`      | Japanese             | Sunday             |
-| `pt`      | Portuguese           | Sunday             |
-| `ar`      | Arabic               | Saturday           |
-| `zh-Hans` | Chinese (Simplified) | Sunday             |
+<!-- GENERATED:LOCALE_TABLE:START -->
+
+| Code      | Language           | Default Week Start |
+| --------- | ------------------ | ------------------ |
+| `en`      | English            | Sunday             |
+| `ar`      | Arabic             | Saturday           |
+| `bn`      | Bangla             | Sunday             |
+| `cs`      | Czech              | Monday             |
+| `da`      | Danish             | Monday             |
+| `de`      | German             | Monday             |
+| `de-DE`   | German (Germany)   | Monday             |
+| `el`      | Greek              | Monday             |
+| `es`      | Spanish            | Monday             |
+| `fi`      | Finnish            | Monday             |
+| `fr`      | French             | Monday             |
+| `he`      | Hebrew             | Sunday             |
+| `hi`      | Hindi              | Sunday             |
+| `id`      | Indonesian         | Sunday             |
+| `it`      | Italian            | Monday             |
+| `ja`      | Japanese           | Sunday             |
+| `ko`      | Korean             | Sunday             |
+| `nb`      | Norwegian Bokmål   | Monday             |
+| `nl`      | Dutch              | Monday             |
+| `pl`      | Polish             | Monday             |
+| `pt`      | Portuguese         | Sunday             |
+| `ru`      | Russian            | Monday             |
+| `sv`      | Swedish            | Monday             |
+| `th`      | Thai               | Sunday             |
+| `tr`      | Turkish            | Monday             |
+| `uk`      | Ukrainian          | Monday             |
+| `vi`      | Vietnamese         | Monday             |
+| `zh-Hans` | Simplified Chinese | Sunday             |
+
+<!-- GENERATED:LOCALE_TABLE:END -->
 
 ## Styling & Theming
 
