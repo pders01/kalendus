@@ -119,6 +119,9 @@ Listen on the element for user actions:
 | `peek-navigate` | `{ direction: 'next'                           | 'previous' }`              | Condensed week peek arrows |
 | `expand`        | `{ date, drillTarget }`                        | Month/Week/Year day clicks |
 | `open-menu`     | `{ heading, content, time, date, anchorRect }` | Entry selection            |
+| `menu-close`    | _none_                                         | Menu dismiss               |
+
+> **Note:** The `expand` event's `drillTarget` is only present when fired from the year view. See the [Events Reference](./events.md) for full payload details.
 
 Example (vanilla):
 
@@ -194,7 +197,16 @@ The adapter listens to `switchview`/`switchdate`, computes the appropriate date 
 
 ### 2. Highlight weekends
 
-Use `::part(day-cell)` once the component exposes parts, or wrap `<lms-calendar-month>` with your own CSS using the attribute selectors the component emits (coming soon). For now, listen to `expand` events and decorate surrounding UI.
+The component uses Shadow DOM, so external CSS cannot target internal elements directly. Instead, use CSS custom properties to style day cells:
+
+```css
+lms-calendar {
+    --current-day-bg: #e3f2fd;
+    --indicator-color: #1976d2;
+}
+```
+
+For weekend-specific styling, listen to `expand` events and decorate surrounding UI, or apply conditional entry colors in your data layer.
 
 ### 3. Inject external actions into the menu
 
@@ -244,3 +256,10 @@ Override the CSS variables defined in `src/components/Menu.ts` by applying token
 **Does Kalendus work with Shadow DOM encapsulation?**
 
 Yes. The component ships as a custom element with its own shadow root. Consumers can use standard custom-element patterns (attributes/properties/events) regardless of framework.
+
+## Further Reading
+
+- **[Events Reference](./events.md)** — complete event documentation with payload types and code examples.
+- **[CSS Token Reference](./css-tokens.md)** — all CSS custom properties organized by category.
+- **[Layout & Positioning](./layout-and-positioning.md)** — height requirements, responsive behavior, all-day events.
+- **[Troubleshooting](./troubleshooting.md)** — solutions for common issues.

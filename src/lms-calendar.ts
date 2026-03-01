@@ -47,23 +47,49 @@ type ExpandedCalendarEntry = CalendarEntry & {
 
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
+    /** Optional title displayed in the calendar header. */
     @property({ type: String })
     heading?: string;
 
+    /**
+     * First day of the week.
+     * `0` = Sunday, `1` = Monday (ISO default), …, `6` = Saturday.
+     * Reflected as the `first-day-of-week` HTML attribute.
+     */
     @property({ type: Number, attribute: 'first-day-of-week' })
     firstDayOfWeek: FirstDayOfWeek = 1;
 
+    /**
+     * BCP 47 locale code for UI strings and date formatting.
+     * Auto-detected from `<html lang="…">` when not set explicitly.
+     * Each instance can use a different locale.
+     */
     @property({ type: String })
     locale = (typeof document !== 'undefined' && document.documentElement.lang) || 'en';
 
+    /**
+     * Determines which view opens when a day cell is clicked in the year overview.
+     * - `'month'` — zooms into the month grid (default).
+     * - `'day'` — jumps straight to the 24-hour day view.
+     */
     @property({ type: String, attribute: 'year-drill-target' })
     yearDrillTarget: DrillTarget = 'month';
 
+    /**
+     * Controls how per-day entry density is visualized in the year overview.
+     * - `'dot'` — a small dot per day with entries (default).
+     * - `'heatmap'` — tonal background intensity based on count.
+     * - `'count'` — explicit numeric count.
+     */
     @property({ type: String, attribute: 'year-density-mode' })
     yearDensityMode: DensityMode = 'dot';
 
     private _viewState = new ViewStateController(this);
 
+    /**
+     * The currently displayed date. Assigning a new value navigates
+     * the calendar to that date. Defaults to today.
+     */
     get activeDate(): CalendarDate {
         return this._viewState.activeDate;
     }
@@ -72,9 +98,18 @@ export default class LMSCalendar extends LitElement {
         this._viewState.setActiveDate(value);
     }
 
+    /**
+     * Array of calendar events to display. Provide a new array reference
+     * when mutating (Lit requires immutable updates to detect changes).
+     * Invalid entries (end before start) are automatically dropped.
+     */
     @property({ type: Array })
     entries: CalendarEntry[] = [];
 
+    /**
+     * Primary accent color used for header buttons, highlights, and gradients.
+     * Accepts any valid CSS color format: hex, named, `rgb()`, `hsl()`, `oklch()`, etc.
+     */
     @property({ type: String })
     color = '#000000';
 
@@ -794,6 +829,14 @@ export default class LMSCalendar extends LitElement {
         this._returnFocusToTrigger();
     }
 
+    /**
+     * Opens the built-in detail menu overlay.
+     *
+     * Use this to show the same menu from external UI (e.g., a sidebar list item).
+     * The menu will position itself relative to `anchorRect` if provided.
+     *
+     * @param eventDetails - The event data to display in the menu.
+     */
     public openMenu(eventDetails: {
         heading: string;
         content: string;
@@ -1370,55 +1413,107 @@ declare global {
         'lms-calendar-year': LMSCalendarYear;
     }
 
+    /** A calendar date represented by day, month, and year numbers. */
     type CalendarDate = {
+        /** Day of the month (1–31). */
         day: number;
+        /** Month number (1–12). */
         month: number;
+        /** Four-digit year. */
         year: number;
     };
 
+    /** A time-of-day represented by hour and minute. */
     type CalendarTime = {
+        /** Hour in 24-hour format (0–23). */
         hour: number;
+        /** Minute (0–59). */
         minute: number;
     };
 
+    /** A time range within a single day. */
     type CalendarTimeInterval = {
+        /** Start time. */
         start: CalendarTime;
+        /** End time (must be after start). */
         end: CalendarTime;
     };
 
+    /** A date range spanning one or more days. */
     type CalendarDateInterval = {
+        /** Start date (inclusive). */
         start: CalendarDate;
+        /** End date (inclusive). */
         end: CalendarDate;
     };
 
+    /**
+     * A single calendar event.
+     *
+     * Multi-day events are automatically expanded into per-day slices
+     * by the component. Omit `time` or use `00:00–23:59` for all-day events.
+     */
     type CalendarEntry = {
+        /** Date range the event spans. */
         date: CalendarDateInterval;
+        /** Time range within each day. Omit for all-day events. */
         time: CalendarTimeInterval;
+        /** Title displayed on the entry chip. */
         heading: string;
+        /** Body text shown in the detail menu. */
         content: string;
+        /** CSS color for the entry indicator. Any valid CSS color format. */
         color: string;
+        /**
+         * Whether this entry is a continuation slice of a multi-day event.
+         * The component recalculates this automatically — you can omit it.
+         */
         isContinuation: boolean;
+        /**
+         * Metadata about multi-day continuation.
+         * Injected automatically by the component.
+         */
         continuation?: Continuation;
     };
 
+    /**
+     * Metadata describing a multi-day event's continuation slices.
+     * Populated automatically by the component during entry expansion.
+     */
     type Continuation = {
+        /** `true` if this event continues into the next day. */
         has: boolean;
+        /** `true` if this is a continuation from the previous day. */
         is: boolean;
+        /** Zero-based index of this slice within the multi-day span. */
         index: number;
+        /** Total number of days this event spans. */
         total: number;
     };
 
+    /**
+     * A numeric interval used by the overlap layout algorithm.
+     * @internal
+     */
     type Interval = {
         start: number;
         end: number;
     };
 
+    /**
+     * Layout grading metadata for overlapping event positioning.
+     * @internal
+     */
     type Grading = {
         index: number;
         depth: number;
         group: number;
     };
 
+    /**
+     * A partitioned interval with optional grading metadata.
+     * @internal
+     */
     type Partition = {
         index?: number;
         depth?: number;

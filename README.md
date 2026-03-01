@@ -1,6 +1,6 @@
 # kalendus
 
-A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and 80+ CSS design tokens.
+A sophisticated, responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and 113 CSS design tokens.
 
 ![demo](assets/demo.gif)
 
@@ -51,7 +51,7 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 - **Responsive Design**: Mobile-first approach with adaptive layouts and container queries
 - **Color Dot Indicators**: Scalable month view with color-coded event dots
 - **Accessibility**: Full keyboard navigation, ARIA labels, focus trapping, and screen reader support
-- **CSS Custom Properties**: 80+ design tokens for comprehensive theming
+- **CSS Custom Properties**: 113 design tokens for comprehensive theming
 
 ### Per-Instance Localization
 
@@ -137,11 +137,11 @@ interface CalendarEntry {
 Kalendus ships **unstyled by default** (neutral base, respects OS light/dark mode). Import a built-in theme for an opinionated look:
 
 ```js
-import '@jpahd/kalendus/themes/default.css';    // polished light theme
-import '@jpahd/kalendus/themes/ink.css';        // monochrome editorial
-import '@jpahd/kalendus/themes/soft.css';       // pastel, generous radii
-import '@jpahd/kalendus/themes/brutalist.css';  // bold borders, stark contrast
-import '@jpahd/kalendus/themes/midnight.css';   // dark mode
+import '@jpahd/kalendus/themes/default.css'; // polished light theme
+import '@jpahd/kalendus/themes/ink.css'; // monochrome editorial
+import '@jpahd/kalendus/themes/soft.css'; // pastel, generous radii
+import '@jpahd/kalendus/themes/brutalist.css'; // bold borders, stark contrast
+import '@jpahd/kalendus/themes/midnight.css'; // dark mode
 ```
 
 Override individual CSS custom properties to fine-tune any theme:
@@ -154,20 +154,24 @@ lms-calendar {
 }
 ```
 
-See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format support, and the full 80+ token reference.
+See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format support, and quick-start examples. For the complete token list, see the [CSS Token Reference](docs/css-tokens.md).
 
 ## Documentation Map
 
-| Audience               | Document                                                     | Highlights                                            |
-| ---------------------- | ------------------------------------------------------------ | ----------------------------------------------------- |
-| Integrators            | [Integration Guide](docs/integration-guide.md)               | Framework recipes, theming tokens, analytics hooks    |
-| Application Developers | [Library Usage](docs/library-usage.md)                       | API surface, data contracts, DOM events               |
-| Component Contributors | [Developer Guide](docs/developer-guide.md)                   | Internal architecture, debugging tips, adding locales |
-| Rendering Internals    | [Rendering Calculations](docs/rendering-calculations.md)     | Grid math, condensed weeks, density modes             |
-| Design Systems         | [Theming Reference](docs/theming.md)                         | Built-in themes, color formats, 80+ CSS tokens        |
-| Architecture           | [Architecture Overview](docs/architecture.md)                | Component tree, technologies, design patterns         |
-| Design Tokens          | [Design Token Refactoring](docs/design-token-refactoring.md) | Token audit and proposed hierarchy                    |
-| Backend/API            | [API Server Guide](docs/api-server.md)                       | REST + SSE backend, database + adapters               |
+| Audience               | Document                                                     | Highlights                                               |
+| ---------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
+| Integrators            | [Integration Guide](docs/integration-guide.md)               | Framework recipes, theming tokens, analytics hooks       |
+| Application Developers | [Library Usage](docs/library-usage.md)                       | API surface, data contracts, DOM events                  |
+| CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                    | Complete reference of all 113 CSS custom properties      |
+| CSS / Design Systems   | [Theming Reference](docs/theming.md)                         | Built-in themes, color formats, quick-start examples     |
+| Events                 | [Events Reference](docs/events.md)                           | All 8 custom events with payloads and code examples      |
+| Layout                 | [Layout & Positioning](docs/layout-and-positioning.md)       | Height requirements, responsive behavior, all-day events |
+| Troubleshooting        | [Troubleshooting](docs/troubleshooting.md)                   | Top consumer issues and fixes                            |
+| Component Contributors | [Developer Guide](docs/developer-guide.md)                   | Internal architecture, debugging tips, adding locales    |
+| Rendering Internals    | [Rendering Calculations](docs/rendering-calculations.md)     | Grid math, condensed weeks, density modes                |
+| Architecture           | [Architecture Overview](docs/architecture.md)                | Component tree, technologies, design patterns            |
+| Design Tokens          | [Design Token Refactoring](docs/design-token-refactoring.md) | Historical: token audit and proposed hierarchy           |
+| Backend/API            | [API Server Guide](docs/api-server.md)                       | REST + SSE backend, database + adapters                  |
 
 ## Testing
 

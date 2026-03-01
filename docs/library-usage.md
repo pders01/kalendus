@@ -86,17 +86,22 @@ Constraints enforced inside `willUpdate`:
 
 All events bubble and are composed, so you can listen directly on `<lms-calendar>` in any framework.
 
-| Event                    | Detail payload                                           | Fired by                                                                 | Typical use                                                                                 |
-| ------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `switchdate`             | `{ direction: 'next' \| 'previous' }`                    | Header nav buttons                                                       | Mirror navigation in your app bar or analytics.                                             |
-| `switchview`             | `{ view: 'day' \| 'week' \| 'month' \| 'year' }`         | Header context buttons                                                   | Track the active zoom level.                                                                |
-| `jumptoday`              | `{ date: CalendarDate }`                                 | Header “Today” button                                                    | Reset external filters to today.                                                            |
-| `expand`                 | `{ date: CalendarDate; drillTarget?: 'day' \| 'month' }` | Clicking a day label in month/week grid or any cell in the year overview | Switch your surrounding UI (e.g., load day-specific details) when the calendar drills down. |
-| `open-menu`              | `{ heading, content, time, date?, anchorRect }`          | Entry cards                                                              | Intercept to show a custom panel or cancel the built-in one.                                |
-| `menu-close`             | none                                                     | Menu close button                                                        | Hide mirrored overlays when the built-in menu closes.                                       |
-| `clear-other-selections` | `{ exceptEntry: HTMLElement }`                           | Entry focus events                                                       | Keep multi-surface selections in sync.                                                      |
+| Event                    | Detail payload                                            | Fired by                                                                 | Typical use                                                                                 |
+| ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `switchdate`             | `{ direction: 'next' \| 'previous' }`                     | Header nav buttons                                                       | Mirror navigation in your app bar or analytics.                                             |
+| `switchview`             | `{ view: 'day' \| 'week' \| 'month' \| 'year' }`          | Header context buttons                                                   | Track the active zoom level.                                                                |
+| `jumptoday`              | `{ date: CalendarDate }`                                  | Header “Today” button                                                    | Reset external filters to today.                                                            |
+| `expand`                 | `{ date: CalendarDate; drillTarget?: 'day' \| 'month' }`  | Clicking a day label in month/week grid or any cell in the year overview | Switch your surrounding UI (e.g., load day-specific details) when the calendar drills down. |
+| `open-menu`              | `{ heading, content, time, date?, anchorRect }`           | Entry cards                                                              | Intercept to show a custom panel or cancel the built-in one.                                |
+| `menu-close`             | none                                                      | Menu close button                                                        | Hide mirrored overlays when the built-in menu closes.                                       |
+| `peek-navigate`          | `{ date: CalendarDate, direction: 'next' \| 'previous' }` | Condensed week peek arrows                                               | Track peek navigation in condensed week mode.                                               |
+| `clear-other-selections` | `{ exceptEntry: HTMLElement }`                            | Entry focus events                                                       | Internal. Keep multi-surface selections in sync.                                            |
+
+> **Note:** The `expand` event payload varies by source — Month and Week views omit `drillTarget`, while Year view always includes it. See the [Events Reference](./events.md) for full details.
 
 You can stop propagation to replace built-in behavior. For example, intercept `open-menu`, call `event.preventDefault()`, and show your own drawer while leaving the rest of the component untouched.
+
+For complete event documentation including payload types, source components, and code examples, see the **[Events Reference](./events.md)**.
 
 ## Year view integration
 
@@ -235,4 +240,10 @@ For Angular or Lit apps, treat `<lms-calendar>` as any other custom element; Ang
 - **Menu stuck open**: check for listeners that swallow `menu-close`. If you replace the built-in menu, call `clearSelection()` on the triggering `<lms-calendar-entry>` to reset ARIA state.
 - **Incorrect locale**: pass `locale` explicitly when embedding calendars inside documents whose `<html lang>` differs from the desired language.
 
-Refer to `docs/rendering-calculations.md` for deeper insight into the slot math that powers week/day positioning if you need to extend the component.
+## Further Reading
+
+- **[Events Reference](./events.md)** — complete event documentation with payload types and code examples.
+- **[CSS Token Reference](./css-tokens.md)** — all 113 CSS custom properties.
+- **[Layout & Positioning](./layout-and-positioning.md)** — height requirements, responsive behavior, all-day events.
+- **[Troubleshooting](./troubleshooting.md)** — solutions for common issues.
+- **[Rendering Calculations](./rendering-calculations.md)** — slot math that powers week/day positioning.
