@@ -11,21 +11,9 @@
  */
 
 import type { ViewMode } from './ViewStateController.js';
+import { formatLocalizedDate, formatLocalizedTime } from './localization.js';
+import { getMessages } from './messages.js';
 import { type FirstDayOfWeek, getWeekDates } from './weekStartHelper.js';
-
-// Import types - these should be available globally but let's be explicit
-declare global {
-    type CalendarDate = {
-        day: number;
-        month: number;
-        year: number;
-    };
-
-    type CalendarTimeInterval = {
-        start: { hour: number; minute: number };
-        end: { hour: number; minute: number };
-    };
-}
 
 export type { ViewMode };
 export type { FirstDayOfWeek };
@@ -38,6 +26,7 @@ export interface PositionConfig {
     activeDate?: CalendarDate; // For week view calculations
     firstDayOfWeek?: FirstDayOfWeek; // 0=Sun, 1=Mon (default), 6=Sat
     weekDates?: CalendarDate[]; // Optional visible subset for condensed week view
+    locale?: string; // For localized ARIA labels
 }
 
 export interface LayoutDimensions {
@@ -298,24 +287,17 @@ export class SlotManager {
      * Generate comprehensive ARIA label for screen readers
      */
     private _generateAriaLabel(config: PositionConfig): string {
-        const { date, time, isAllDay } = config;
+        const { date, time, isAllDay, locale = 'en' } = config;
+        const msg = getMessages(locale);
 
-        // Format date
-        const dateStr = `${date.month}/${date.day}/${date.year}`;
+        const dateStr = formatLocalizedDate(date.day, date.month, date.year, locale);
 
-        // Format time
         const timeStr =
             isAllDay || !time
-                ? 'All day'
-                : `${String(time.start.hour).padStart(2, '0')}:${String(time.start.minute).padStart(
-                      2,
-                      '0',
-                  )} to ${String(time.end.hour).padStart(
-                      2,
-                      '0',
-                  )}:${String(time.end.minute).padStart(2, '0')}`;
+                ? msg.allDay
+                : `${formatLocalizedTime(time.start.hour, time.start.minute, locale)} ${msg.to} ${formatLocalizedTime(time.end.hour, time.end.minute, locale)}`;
 
-        return `Calendar event on ${dateStr}, ${timeStr}. Press Enter or Space to open details.`;
+        return `${msg.calendarEvent}: ${dateStr}, ${timeStr}. ${msg.pressToOpen}`;
     }
 
     /**
