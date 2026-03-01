@@ -88,7 +88,12 @@ export function getLocalizedMonth(month: number, locale = 'en'): string {
  * Format day + abbreviated month using the locale's natural ordering.
  * e.g., "1. Feb." (de), "1 feb" (es), "2月1日" (zh/ja)
  */
-export function getLocalizedDayMonth(day: number, month: number, year: number, locale = 'en'): string {
+export function getLocalizedDayMonth(
+    day: number,
+    month: number,
+    year: number,
+    locale = 'en',
+): string {
     const date = new Date(year, month - 1, day);
     return getDayMonthFormatter(locale).format(date);
 }

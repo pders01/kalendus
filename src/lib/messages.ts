@@ -1,8 +1,8 @@
 import { targetLocales } from '../generated/locale-codes.js';
 import { templates as arTemplates } from '../generated/locales/ar.js';
 import { templates as bnTemplates } from '../generated/locales/bn.js';
-import { templates as deTemplates } from '../generated/locales/de.js';
 import { templates as deDETemplates } from '../generated/locales/de-DE.js';
+import { templates as deTemplates } from '../generated/locales/de.js';
 import { templates as esTemplates } from '../generated/locales/es.js';
 import { templates as frTemplates } from '../generated/locales/fr.js';
 import { templates as hiTemplates } from '../generated/locales/hi.js';
