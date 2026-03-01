@@ -54,6 +54,7 @@ lms-calendar {
 
     /* ── Hover / Focus / Active ─────────────────── */
     --hover-bg: #e60000;
+    --hover-color: #fff;
     --focus-bg: #e60000;
     --peek-active-bg: #000;
     --current-day-hover-opacity: 1;
@@ -66,6 +67,7 @@ lms-calendar {
 
     /* ── Header ──────────────────────────────────── */
     --context-bg: #000;
+    --context-text-color: #fff;
     --active-indicator-bg: #fff;
 
     /* ── Month ───────────────────────────────────── */
