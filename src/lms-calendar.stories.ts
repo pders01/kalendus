@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { html } from 'lit';
-import { expect, userEvent } from 'storybook/test';
+import { expect, userEvent, waitFor } from 'storybook/test';
 
 import './lms-calendar.js';
 import type { FirstDayOfWeek } from './lib/weekStartHelper.js';
@@ -521,17 +521,18 @@ export const WithInteractions: Story = {
         ></lms-calendar>
     `,
     play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        // Wait for the calendar to be rendered
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        const calendar = await waitFor(
+            () => {
+                const el = canvasElement.querySelector('lms-calendar') as LMSCalendar;
+                expect(el).toBeInTheDocument();
+                return el;
+            },
+            { timeout: 2000 },
+        );
 
-        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
-        await expect(calendar).toBeInTheDocument();
-
-        // Access the shadow root
         const shadowRoot = calendar.shadowRoot;
         await expect(shadowRoot).toBeTruthy();
 
-        // Find and click the day view button
         const header = shadowRoot?.querySelector('lms-calendar-header');
         if (header) {
             const headerShadow = header.shadowRoot;
@@ -539,12 +540,10 @@ export const WithInteractions: Story = {
             if (dayButton) {
                 await userEvent.click(dayButton);
 
-                // Wait for view change
-                await new Promise((resolve) => setTimeout(resolve, 300));
-
-                // Verify day view is shown
-                const dayView = shadowRoot?.querySelector('lms-calendar-day');
-                await expect(dayView).toBeInTheDocument();
+                await waitFor(() => {
+                    const dayView = shadowRoot?.querySelector('lms-calendar-day');
+                    expect(dayView).toBeInTheDocument();
+                });
             }
         }
     },
@@ -616,17 +615,23 @@ export const NavigateMonths: Story = {
             ) as HTMLButtonElement;
 
             if (nextButton) {
-                // Click next month button
                 await userEvent.click(nextButton);
-                await new Promise((resolve) => setTimeout(resolve, 300));
+                await waitFor(() =>
+                    expect(
+                        calendar.shadowRoot?.querySelector('lms-calendar-month'),
+                    ).toBeInTheDocument(),
+                );
 
-                // Click previous month button
                 const prevButton = headerShadow?.querySelector(
                     'button[name="previous"]',
                 ) as HTMLButtonElement;
                 if (prevButton) {
                     await userEvent.click(prevButton);
-                    await new Promise((resolve) => setTimeout(resolve, 300));
+                    await waitFor(() =>
+                        expect(
+                            calendar.shadowRoot?.querySelector('lms-calendar-month'),
+                        ).toBeInTheDocument(),
+                    );
                 }
             }
         }
