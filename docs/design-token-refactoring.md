@@ -1,5 +1,7 @@
 # Design Token Refactoring Analysis
 
+> **Historical document.** This was a planning doc written before the token refactoring was implemented. Most proposals here have been completed. For the current token surface, see the [CSS Token Reference](./css-tokens.md).
+
 ## Current State Analysis
 
 After examining all component styles, I've identified significant opportunities to reduce duplication and improve consistency through better design token composition.
