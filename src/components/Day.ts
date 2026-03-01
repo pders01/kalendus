@@ -164,9 +164,10 @@ export default class Day extends LitElement {
             overflow-y: scroll;
             scroll-snap-type: y proximity;
             text-align: var(--day-text-align, center);
-            /* Horizontal-only padding keeps the scrollport flush with the
-               hour grid so 12 hours fills the viewport exactly. */
-            padding: 0 var(--day-padding, 0.5em);
+            /* Vertical padding gives the first/last hour labels room to
+               render above/below the grid without clipping.
+               Horizontal padding keeps the scrollport flush. */
+            padding: 0.6em var(--day-padding, 0.5em);
             position: relative;
             contain: content;
         }
@@ -177,8 +178,6 @@ export default class Day extends LitElement {
             height: var(--day-total-height);
             display: var(--day-show-time-column, block);
             border-right: var(--sidebar-border, 1px solid var(--separator-light));
-            /* Clip overflow so hour-24 label doesn't inflate scrollHeight */
-            overflow: clip;
         }
 
         .hour-label {

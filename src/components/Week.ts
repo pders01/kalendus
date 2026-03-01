@@ -123,9 +123,10 @@ export default class Week extends LitElement {
             grid-template-columns: var(--calendar-grid-columns-week);
             grid-template-rows: 1fr;
             gap: var(--day-gap, 1px);
-            /* Horizontal-only padding keeps the scrollport flush with the
-               hour grid so 12 hours fills the viewport exactly. */
-            padding: 0 var(--day-padding, 0.5em);
+            /* Vertical padding gives the first/last hour labels room to
+               render above/below the grid without clipping.
+               Horizontal padding keeps the scrollport flush. */
+            padding: 0.6em var(--day-padding, 0.5em);
             min-height: 0;
             position: relative;
             contain: content;
@@ -137,8 +138,6 @@ export default class Week extends LitElement {
             height: var(--day-total-height);
             border-right: var(--sidebar-border, 1px solid var(--separator-light));
             background: var(--background-color, white);
-            /* Clip overflow so hour-24 label doesn't inflate scrollHeight */
-            overflow: clip;
         }
 
         .hour-label {
