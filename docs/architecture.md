@@ -48,9 +48,8 @@ src/
 - **Lit 3.x**: Modern web components with reactive properties and decorators
 - **TypeScript**: Type-safe development with strict mode
 - **Luxon**: Robust date/time manipulation and locale-aware formatting
-- **Remeda**: Functional programming utilities for data transformations
-- **ts-pattern**: Pattern matching for cleaner conditional logic
-- **ts-ics**: ICS calendar file generation for event export
+- **Remeda**: Functional programming utilities (named imports only for tree-shaking)
+- **ts-ics**: ICS calendar file generation for event export (lazy-loaded on click)
 - **@lit/localize** (build-time only): Template extraction and generation via `lit-localize` CLI
 
 ## Design Patterns

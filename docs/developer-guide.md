@@ -88,7 +88,7 @@ lms-calendar {
 1. Add the locale code to `lit-localize.json` target locales
 2. Run `bunx lit-localize extract` to generate the template file
 3. Translate strings in `src/generated/locales/<locale>.ts`
-4. Add the import and entry in `src/lib/messages.ts` (`allTemplates` map)
+4. Add a loader entry in `src/lib/messages.ts` (`localeLoaders` map)
 5. Optionally add a `LUXON_LOCALE_MAP` entry in `localization.ts` if the locale code differs from Intl/Luxon conventions
 
 ## Staying Consistent
