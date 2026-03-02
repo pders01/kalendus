@@ -19,8 +19,7 @@ This document explains how to consume the `lms-calendar` web component that ship
 ## Installation
 
 ```bash
-pnpm add @jpahd/kalendus lit luxon
-# or: npm/yarn equivalents
+npm install @jpahd/kalendus lit luxon
 ```
 
 Kalendus targets modern evergreen browsers with native Custom Elements, Shadow DOM, ResizeObserver, and CSS container queries. For legacy browsers you must supply the relevant polyfills yourself.

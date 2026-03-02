@@ -7,7 +7,7 @@ A sophisticated, responsive calendar web component built with Lit 3.x and TypeSc
 ## Installation
 
 ```bash
-pnpm add @jpahd/kalendus
+npm install @jpahd/kalendus
 ```
 
 ## Quick Usage
@@ -188,16 +188,16 @@ See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format
 
 ```bash
 # Run unit tests
-pnpm test
+npm test
 
 # Run tests in watch mode
-pnpm test:watch
+npm run test:watch
 
 # Run component tests (Web Test Runner + Playwright)
-pnpm test:components
+npm run test:components
 
 # Run Storybook interaction tests (Vitest)
-pnpm test-storybook
+npm run test-storybook
 ```
 
 ### Test Categories
@@ -211,7 +211,7 @@ pnpm test-storybook
 Explore all features and variations in Storybook:
 
 ```bash
-pnpm storybook
+npm run storybook
 ```
 
 ### Available Stories
@@ -230,13 +230,13 @@ pnpm storybook
 ## Development
 
 ```bash
-pnpm install
-pnpm storybook      # Start Storybook dev server
-pnpm build          # Build with Vite
-pnpm test           # Run tests
-pnpm lint           # Run lit-analyzer + oxlint
-pnpm format         # Format with oxfmt
-pnpm demo:gif       # Record demo GIF (requires ffmpeg)
+npm install
+npm run storybook   # Start Storybook dev server
+npm run build       # Build with Vite
+npm test            # Run tests
+npm run lint        # Run lit-analyzer + oxlint
+npm run format      # Format with oxfmt
+npm run demo:gif    # Record demo GIF (requires ffmpeg)
 ```
 
 See `docs/developer-guide.md` for internal architecture notes, troubleshooting checklists, and tips on extending condensed week layouts or localization.
@@ -246,10 +246,11 @@ See `docs/developer-guide.md` for internal architecture notes, troubleshooting c
 The repository includes `@jpahd/kalendus-server`, a Hono + SQLite backend with REST/SSE endpoints.
 
 ```bash
-# From repo root
-pnpm --filter @jpahd/kalendus-server db:migrate
-pnpm --filter @jpahd/kalendus-server db:seed
-pnpm --filter @jpahd/kalendus-server dev
+# From the server directory
+cd server
+npm run db:migrate
+npm run db:seed
+npm run dev
 ```
 
 Configuration, endpoint overview, and adapter usage live in `docs/api-server.md`.

@@ -63,7 +63,7 @@ lms-calendar {
 
 ### Localization workflow
 
-- Message keys live in `src/lib/messages.ts`. Add new keys there, then run `pnpm i18n:extract` / `pnpm i18n:build` to update `src/generated/locales/*.ts`.
+- Message keys live in `src/lib/messages.ts`. Add new keys there, then run `bun run i18n:extract` / `bun run i18n:build` to update `src/generated/locales/*.ts`.
 - Consumers can override UI text by providing new target locales or by translating the generated template files.
 - Common a11y strings (`previous`, `next`, `events`, `viewLabel`) are part of the message bundle. Prefer retrieving them via `getMessages(locale)`.
 
@@ -71,7 +71,7 @@ lms-calendar {
 
 | Scenario                                    | Recommended steps                                                                                                                                                                                                                                      |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Add a new locale**                        | 1) Append code to `lit-localize.json`. 2) Run `pnpm i18n:extract`. 3) Translate strings in `src/generated/locales/<code>.ts`. 4) Register the template map in `src/lib/messages.ts` and `lit-localize.json`. 5) Add sample Storybook locale if needed. |
+| **Add a new locale**                        | 1) Append code to `lit-localize.json`. 2) Run `bun run i18n:extract`. 3) Translate strings in `src/generated/locales/<code>.ts`. 4) Register the template map in `src/lib/messages.ts` and `lit-localize.json`. 5) Add sample Storybook locale if needed. |
 | **Different condensed-window sizes**        | Override `--week-mobile-day-count` or `--week-day-count`. The controller automatically clamps between 1 and 7 days and re-centers around the active date.                                                                                              |
 | **All-day events overlap incorrectly**      | Ensure entries without `time` remain all-day; avoid providing `time` ranges shorter than 24 hours for all-day blocks. Inspect `allocateAllDayRows` inputs by logging `allDayLayoutEvents`.                                                             |
 | **Performance spikes with huge entry sets** | Verify that layout caches are reused. When adding new derived data, store per-entry metadata during `_expandEntryMaybe` to avoid re-hashing in inner loops.                                                                                            |
@@ -79,14 +79,14 @@ lms-calendar {
 
 ### Testing Tips
 
-- Unit tests live under `test/unit/`. Use `pnpm test` for the full suite or `NODE_OPTIONS=--experimental-vm-modules mocha path/to/file.test.ts` for targeted runs.
+- Unit tests live under `test/unit/`. Use `bun test` for the full suite or `NODE_OPTIONS=--experimental-vm-modules mocha path/to/file.test.ts` for targeted runs.
 - Week/day layout logic has dedicated tests in `test/unit/lib/allDayLayout.test.ts`, `test/unit/lib/ViewStateController.test.ts`, and `test/unit/week-rendering.test.ts`.
 - When modifying CSS token behavior or condensed-week logic, add/extend tests in `test/unit/lib/weekDisplayContext.test.ts` (create this file if missing) to ensure the context math stays stable.
 
 ## Adding a New Locale
 
 1. Add the locale code to `lit-localize.json` target locales
-2. Run `pnpm exec lit-localize extract` to generate the template file
+2. Run `bunx lit-localize extract` to generate the template file
 3. Translate strings in `src/generated/locales/<locale>.ts`
 4. Add the import and entry in `src/lib/messages.ts` (`allTemplates` map)
 5. Optionally add a `LUXON_LOCALE_MAP` entry in `localization.ts` if the locale code differs from Intl/Luxon conventions

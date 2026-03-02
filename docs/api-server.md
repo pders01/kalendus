@@ -22,18 +22,21 @@ Kalendus ships with an optional Node.js server that exposes REST and Server-Sent
 ## Running locally
 
 ```bash
-# Install deps for the workspace (once)
-pnpm install
+# Install deps (once)
+npm install
+
+# From the server directory
+cd server
 
 # Generate database artifacts (stored in server/src/migrations)
-pnpm --filter @jpahd/kalendus-server db:generate
+npm run db:generate
 
 # Apply migrations & seed demo data
-pnpm --filter @jpahd/kalendus-server db:migrate
-pnpm --filter @jpahd/kalendus-server db:seed
+npm run db:migrate
+npm run db:seed
 
 # Start the dev server with TSX hot reload
-pnpm --filter @jpahd/kalendus-server dev
+npm run dev
 ```
 
 Environment variables:
@@ -73,7 +76,7 @@ Telemetry posts (e.g., navigation actions) are accepted asynchronously and inten
 ### Vanilla client
 
 ```ts
-import { KalendusApiClient } from '@/server/src/adapters/kalendus-api-client';
+import { KalendusApiClient } from '@jpahd/kalendus-server/client';
 
 const client = new KalendusApiClient({
     baseUrl: 'http://localhost:3000',
@@ -92,7 +95,7 @@ client.connect();
 ### Lit ReactiveController
 
 ```ts
-import { KalendusLitAdapter } from '@/server/src/adapters/kalendus-lit-adapter';
+import { KalendusLitAdapter } from '@jpahd/kalendus-server/lit';
 
 class RemoteCalendar extends LitElement {
     adapter = new KalendusLitAdapter(this, {
@@ -112,9 +115,10 @@ The adapter listens to `switchdate`/`switchview`, fetches the relevant range, an
 ## Testing the server
 
 ```bash
-pnpm --filter @jpahd/kalendus-server test        # 54 tests
-pnpm --filter @jpahd/kalendus-server lint        # oxlint
-pnpm --filter @jpahd/kalendus-server format:check
+cd server
+npm test                # 54 tests
+npm run lint            # oxlint
+npm run format:check
 ```
 
 Contract tests keep API shapes aligned with the Zod schemas in `server/src/http/middleware/validator.ts` and the TypeScript types consumed by the adapters.

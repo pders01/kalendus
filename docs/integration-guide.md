@@ -146,7 +146,7 @@ The server package (`@jpahd/kalendus-server`) exposes REST + SSE endpoints under
 ### Vanilla client
 
 ```ts
-import { KalendusApiClient } from '@jpahd/kalendus-server/src/adapters/kalendus-api-client';
+import { KalendusApiClient } from '@jpahd/kalendus-server/client';
 
 const client = new KalendusApiClient({
     baseUrl: 'https://api.example.com',
@@ -168,7 +168,7 @@ client.connect();
 ### Lit adapter
 
 ```ts
-import { KalendusLitAdapter } from '@jpahd/kalendus-server/src/adapters/kalendus-lit-adapter';
+import { KalendusLitAdapter } from '@jpahd/kalendus-server/lit';
 
 class RemoteCalendar extends LitElement {
     adapter = new KalendusLitAdapter(this, {

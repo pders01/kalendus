@@ -9,7 +9,7 @@ Run the [Kalendus](https://github.com/pders01/kalendus) calendar web component i
 npx expo install react-native-webview
 
 # In the Kalendus repo — build the self-contained IIFE bundle
-pnpm run build:iife
+npm run build:iife
 # Output: dist/kalendus.iife.js
 ```
 
