@@ -149,14 +149,13 @@ describe('Week View Row Allocation for Multi-Day Events', () => {
             ];
             const rows = allocateRows(events);
 
-            // Processing order (by start day): EventA (0), EventB (0), EventC (1)
-            // EventA gets row 0 on Mon
-            // EventB can't use row 0 on Mon, gets row 1 for Mon-Thu
-            // EventC can use row 0 from Tue onwards (EventA only on Mon)
+            // Multi-day events are placed first (sorted by start day):
+            //   EventB (start 0, multi): row 0 free → gets row 0, occupies days 0-3
+            //   EventC (start 1, multi): row 0 occupied on days 1-3 → gets row 1
+            // Then single-day:
+            //   EventA (day 0): row 0 occupied → gets row 1
             const eventCRow = rows.get('EventC');
-            expect(eventCRow).to.equal(0); // Can use row 0 starting from Tue
-
-            // EventC maintains row 0 for all its days (Tue-Fri)
+            expect(eventCRow).to.equal(1); // Row 0 blocked by EventB on overlapping days
         });
     });
 
