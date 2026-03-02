@@ -1,61 +1,14 @@
-import { targetLocales } from '../generated/locale-codes.js';
-import { templates as arTemplates } from '../generated/locales/ar.js';
-import { templates as bnTemplates } from '../generated/locales/bn.js';
-import { templates as csTemplates } from '../generated/locales/cs.js';
-import { templates as daTemplates } from '../generated/locales/da.js';
-import { templates as deDETemplates } from '../generated/locales/de-DE.js';
-import { templates as deTemplates } from '../generated/locales/de.js';
-import { templates as elTemplates } from '../generated/locales/el.js';
-import { templates as esTemplates } from '../generated/locales/es.js';
-import { templates as fiTemplates } from '../generated/locales/fi.js';
-import { templates as frTemplates } from '../generated/locales/fr.js';
-import { templates as heTemplates } from '../generated/locales/he.js';
-import { templates as hiTemplates } from '../generated/locales/hi.js';
-import { templates as idTemplates } from '../generated/locales/id.js';
-import { templates as itTemplates } from '../generated/locales/it.js';
-import { templates as jaTemplates } from '../generated/locales/ja.js';
-import { templates as koTemplates } from '../generated/locales/ko.js';
-import { templates as nbTemplates } from '../generated/locales/nb.js';
-import { templates as nlTemplates } from '../generated/locales/nl.js';
-import { templates as plTemplates } from '../generated/locales/pl.js';
-import { templates as ptTemplates } from '../generated/locales/pt.js';
-import { templates as ruTemplates } from '../generated/locales/ru.js';
-import { templates as svTemplates } from '../generated/locales/sv.js';
-import { templates as thTemplates } from '../generated/locales/th.js';
-import { templates as trTemplates } from '../generated/locales/tr.js';
-import { templates as ukTemplates } from '../generated/locales/uk.js';
-import { templates as viTemplates } from '../generated/locales/vi.js';
-import { templates as zhHansTemplates } from '../generated/locales/zh-Hans.js';
-
-const allTemplates: Record<string, Record<string, string>> = {
-    ar: arTemplates,
-    bn: bnTemplates,
-    cs: csTemplates,
-    da: daTemplates,
-    de: deTemplates,
-    'de-DE': deDETemplates,
-    el: elTemplates,
-    es: esTemplates,
-    fi: fiTemplates,
-    fr: frTemplates,
-    he: heTemplates,
-    hi: hiTemplates,
-    id: idTemplates,
-    it: itTemplates,
-    ja: jaTemplates,
-    ko: koTemplates,
-    nb: nbTemplates,
-    nl: nlTemplates,
-    pl: plTemplates,
-    pt: ptTemplates,
-    ru: ruTemplates,
-    sv: svTemplates,
-    th: thTemplates,
-    tr: trTemplates,
-    uk: ukTemplates,
-    vi: viTemplates,
-    'zh-Hans': zhHansTemplates,
-};
+/**
+ * Locale-aware message resolver with lazy-loaded dictionaries.
+ *
+ * English strings are built-in (zero-cost). All other locales are
+ * loaded on demand via dynamic import(), keeping them out of the
+ * main bundle. The public API (`getMessages`) remains synchronous —
+ * it returns English fallbacks until the locale chunk has loaded.
+ *
+ * Consumers call `ensureLocale(locale)` to trigger the async load
+ * and then re-render once the templates are available.
+ */
 
 // Typed message keys — compile-time safety for hash IDs
 export type MessageKey =
@@ -126,13 +79,60 @@ const MESSAGE_DEFS: ReadonlyArray<readonly [MessageKey, string, string]> = [
     ['viewLabel', 'sa1b2c3d4e5f60012', 'view'],
 ] as const;
 
+// ── Lazy loader map ─────────────────────────────────────────────
+// Each entry is a thunk returning a dynamic import(). Vite/Rollup
+// will code-split each into a separate chunk.
+// de-DE reuses the de module (files are byte-identical).
+type TemplateModule = { templates: Record<string, string> };
+const localeLoaders: Record<string, () => Promise<TemplateModule>> = {
+    ar: () => import('../generated/locales/ar.js'),
+    bn: () => import('../generated/locales/bn.js'),
+    cs: () => import('../generated/locales/cs.js'),
+    da: () => import('../generated/locales/da.js'),
+    de: () => import('../generated/locales/de.js'),
+    'de-DE': () => import('../generated/locales/de.js'),
+    el: () => import('../generated/locales/el.js'),
+    es: () => import('../generated/locales/es.js'),
+    fi: () => import('../generated/locales/fi.js'),
+    fr: () => import('../generated/locales/fr.js'),
+    he: () => import('../generated/locales/he.js'),
+    hi: () => import('../generated/locales/hi.js'),
+    id: () => import('../generated/locales/id.js'),
+    it: () => import('../generated/locales/it.js'),
+    ja: () => import('../generated/locales/ja.js'),
+    ko: () => import('../generated/locales/ko.js'),
+    nb: () => import('../generated/locales/nb.js'),
+    nl: () => import('../generated/locales/nl.js'),
+    pl: () => import('../generated/locales/pl.js'),
+    pt: () => import('../generated/locales/pt.js'),
+    ru: () => import('../generated/locales/ru.js'),
+    sv: () => import('../generated/locales/sv.js'),
+    th: () => import('../generated/locales/th.js'),
+    tr: () => import('../generated/locales/tr.js'),
+    uk: () => import('../generated/locales/uk.js'),
+    vi: () => import('../generated/locales/vi.js'),
+    'zh-Hans': () => import('../generated/locales/zh-Hans.js'),
+};
+
+// ── Runtime state ───────────────────────────────────────────────
+/** Templates that have been loaded so far. */
+const loadedTemplates: Record<string, Record<string, string>> = {};
+
+/** In-flight load promises (prevents duplicate fetches). */
+const pendingLoads = new Map<string, Promise<void>>();
+
 const _bundleCache = new Map<string, ResolvedMessages>();
 
 function resolveTemplates(locale: string): Record<string, string> | undefined {
     if (locale === 'en') return undefined;
-    return allTemplates[locale] ?? allTemplates[locale.split('-')[0]];
+    return loadedTemplates[locale] ?? loadedTemplates[locale.split('-')[0]];
 }
 
+/**
+ * Synchronous message resolver. Returns the best available messages
+ * for the given locale — English fallbacks until the locale chunk
+ * has been loaded via `ensureLocale()`.
+ */
 export function getMessages(locale: string): ResolvedMessages {
     let bundle = _bundleCache.get(locale);
     if (bundle) return bundle;
@@ -147,11 +147,56 @@ export function getMessages(locale: string): ResolvedMessages {
     return bundle;
 }
 
-// Dev-mode validation — tree-shaken in production builds
-if ((import.meta as ImportMeta & { env?: { DEV?: boolean } }).env?.DEV) {
-    for (const code of targetLocales) {
-        if (!(code in allTemplates)) {
-            console.warn(`[lms-calendar] Missing locale template registration for "${code}"`);
+/**
+ * Ensure a locale's templates are loaded. Returns immediately if
+ * the locale is already available. For English, this is a no-op.
+ *
+ * After the promise resolves, subsequent `getMessages(locale)` calls
+ * will return the correct translations.
+ */
+export function ensureLocale(locale: string): Promise<void> {
+    // English is built-in — nothing to load
+    if (locale === 'en') return Promise.resolve();
+
+    // Already loaded
+    if (loadedTemplates[locale]) return Promise.resolve();
+
+    // Check language-only fallback (e.g. de-AT → de)
+    const langOnly = locale.split('-')[0];
+    if (langOnly !== locale && loadedTemplates[langOnly]) return Promise.resolve();
+
+    // Already in-flight
+    const pending = pendingLoads.get(locale);
+    if (pending) return pending;
+
+    // Resolve the loader: exact match → language-only fallback
+    const loader = localeLoaders[locale] ?? localeLoaders[langOnly];
+    if (!loader) return Promise.resolve(); // unknown locale — English fallback
+
+    const promise = loader().then((mod) => {
+        loadedTemplates[locale] = mod.templates;
+        // Also register under language-only key for sub-tag fallback
+        if (langOnly !== locale && !loadedTemplates[langOnly]) {
+            loadedTemplates[langOnly] = mod.templates;
         }
+        // Invalidate cached bundles so getMessages() rebuilds with new templates
+        _bundleCache.delete(locale);
+        _bundleCache.delete(langOnly);
+        pendingLoads.delete(locale);
+    });
+
+    pendingLoads.set(locale, promise);
+    return promise;
+}
+
+/**
+ * @internal — exposed for testing only.
+ * Clears all loaded templates and cached bundles.
+ */
+export function _resetForTesting(): void {
+    for (const key of Object.keys(loadedTemplates)) {
+        delete loadedTemplates[key];
     }
+    pendingLoads.clear();
+    _bundleCache.clear();
 }

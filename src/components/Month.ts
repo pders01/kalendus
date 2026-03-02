@@ -1,7 +1,6 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
-import { P, match } from 'ts-pattern';
 
 import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator.js';
 import { getLocalizedDayMonth } from '../lib/localization.js';
@@ -207,12 +206,8 @@ export default class Month extends LitElement {
     private _getDaysInMonth(date: CalendarDate) {
         /** Important note: Passing 0 as the date shifts the
          *  months indices by positive 1, so 1-12 */
-        return match(date)
-            .with({ year: P.number, month: P.number, day: P.number }, ({ year, month }) => {
-                const days = new Date(year, month, 0).getDate();
-                return days > 0 ? days : 0;
-            })
-            .otherwise(() => 0);
+        const days = new Date(date.year, date.month, 0).getDate();
+        return days > 0 ? days : 0;
     }
 
     private _getOffsetOfFirstDayInMonth(date: CalendarDate) {
@@ -221,15 +216,12 @@ export default class Month extends LitElement {
 
     private _getDatesInMonthAsArray(date: CalendarDate, sliceArgs: number[]) {
         const daysInMonth = this._getDaysInMonth(date);
-        return match(daysInMonth)
-            .with(0, () => [])
-            .otherwise((days) =>
-                Array.from(Array(days).keys(), (_, n) => ({
-                    year: date.year,
-                    month: date.month,
-                    day: n + 1,
-                })).slice(...(sliceArgs || [0])),
-            );
+        if (daysInMonth === 0) return [];
+        return Array.from(Array(daysInMonth).keys(), (_, n) => ({
+            year: date.year,
+            month: date.month,
+            day: n + 1,
+        })).slice(...(sliceArgs || [0]));
     }
 
     private _getCalendarArray() {

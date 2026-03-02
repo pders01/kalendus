@@ -2,8 +2,7 @@ import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { DateTime, Interval } from 'luxon';
-import * as R from 'remeda';
-import { match } from 'ts-pattern';
+import { filter, groupBy, map, merge, pipe, sort, sortBy } from 'remeda';
 
 import LMSCalendarContext from './components/Context';
 import './components/Context.js';
@@ -26,7 +25,7 @@ import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/al
 import { parseColorWithDefault } from './lib/colorParser.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator, type LayoutResult } from './lib/LayoutCalculator.js';
-import { getMessages } from './lib/messages.js';
+import { ensureLocale, getMessages } from './lib/messages.js';
 import {
     slotManager,
     type LayoutDimensions,
@@ -561,6 +560,9 @@ export default class LMSCalendar extends LitElement {
             const resolved = this.dir === 'auto' ? resolveDirection(this.locale) : this.dir;
             // setAttribute so CSS :host([dir='rtl']) selectors work
             this.setAttribute('dir', resolved);
+
+            // Lazy-load locale dictionary; re-render once loaded
+            ensureLocale(this.locale).then(() => this.requestUpdate());
         }
 
         if (!changedProperties.has('entries' as never)) {
@@ -573,17 +575,17 @@ export default class LMSCalendar extends LitElement {
             return;
         }
 
-        this._processedEntries = R.pipe(
+        this._processedEntries = pipe(
             this.entries,
-            R.filter((entry) => {
+            filter((entry) => {
                 // All-day entries without time are always valid
                 if (!entry.time) return true;
                 return Interval.fromDateTimes(
-                    DateTime.fromObject(R.merge(entry.date.start, entry.time.start)),
-                    DateTime.fromObject(R.merge(entry.date.end, entry.time.end)),
+                    DateTime.fromObject(merge(entry.date.start, entry.time.start)),
+                    DateTime.fromObject(merge(entry.date.end, entry.time.end)),
                 ).isValid;
             }),
-            R.sort((a, b) => {
+            sort((a, b) => {
                 const aHour = a.time?.start.hour ?? 0;
                 const bHour = b.time?.start.hour ?? 0;
                 const aMin = a.time?.start.minute ?? 0;
@@ -634,13 +636,13 @@ export default class LMSCalendar extends LitElement {
         }
 
         // 3. Month view: sort + compute colors once
-        this._monthViewSorted = R.pipe(
+        this._monthViewSorted = pipe(
             this._expandedEntries,
-            R.sortBy((entry) => {
+            sortBy((entry) => {
                 const isMultiDay = entry.continuation?.has || false;
                 return isMultiDay ? entry.originalIndex - 1000 : entry.originalIndex;
             }),
-            R.map((entry) => {
+            map((entry) => {
                 const [background] = getColorTextWithContrast(entry.color);
                 return { entry, background, originalIndex: entry.originalIndex };
             }),
@@ -799,12 +801,16 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _handleSwitchView(e: CustomEvent) {
-        return match(e.detail.view)
-            .with('day', () => this._viewState.switchToDayView())
-            .with('week', () => this._viewState.switchToWeekView())
-            .with('month', () => this._viewState.switchToMonthView())
-            .with('year', () => this._viewState.switchToYearView())
-            .otherwise(() => {});
+        switch (e.detail.view) {
+            case 'day':
+                return this._viewState.switchToDayView();
+            case 'week':
+                return this._viewState.switchToWeekView();
+            case 'month':
+                return this._viewState.switchToMonthView();
+            case 'year':
+                return this._viewState.switchToYearView();
+        }
     }
 
     private _handleJumpToday(_e: CustomEvent) {
@@ -1126,7 +1132,7 @@ export default class LMSCalendar extends LitElement {
 
             if (viewMode === 'week') {
                 // Group timed entries by day for week view
-                const entriesByDay = R.groupBy(
+                const entriesByDay = groupBy(
                     entriesByDate,
                     (entry) =>
                         `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,

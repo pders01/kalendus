@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { generateIcsEvent, type IcsEvent } from 'ts-ics';
+import type { IcsEvent } from 'ts-ics';
 
 import { formatLocalizedDate } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
@@ -230,7 +230,8 @@ export class Menu extends LitElement {
         this.dispatchEvent(new CustomEvent('menu-close', { bubbles: true, composed: true }));
     };
 
-    private _handleExport = () => {
+    private _handleExport = async () => {
+        const { generateIcsEvent } = await import('ts-ics');
         const { heading, content, time, date } = this.eventDetails;
         const today = new Date();
         const eventYear = date?.year ?? today.getFullYear();

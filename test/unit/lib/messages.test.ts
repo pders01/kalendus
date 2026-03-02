@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { getMessages, type MessageKey } from '../../../src/lib/messages.js';
+import { getMessages, ensureLocale, _resetForTesting, type MessageKey } from '../../../src/lib/messages.js';
 
 const ALL_KEYS: MessageKey[] = [
     'day', 'week', 'month', 'currentMonth', 'allDay',
@@ -12,6 +12,10 @@ const ALL_KEYS: MessageKey[] = [
 ];
 
 describe('getMessages', () => {
+    beforeEach(() => {
+        _resetForTesting();
+    });
+
     describe('English fallbacks', () => {
         it('should return English fallbacks for all 30 keys', () => {
             const msg = getMessages('en');
@@ -47,8 +51,15 @@ describe('getMessages', () => {
         });
     });
 
-    describe('German translations', () => {
-        it('should return German translations for de locale', () => {
+    describe('German translations (async)', () => {
+        it('should return English fallbacks before ensureLocale resolves', () => {
+            const msg = getMessages('de');
+            // Before loading, should fall back to English
+            expect(msg.day).to.equal('Day');
+        });
+
+        it('should return German translations after ensureLocale', async () => {
+            await ensureLocale('de');
             const msg = getMessages('de');
             expect(msg.day).to.equal('Tag');
             expect(msg.week).to.equal('Woche');
@@ -60,7 +71,8 @@ describe('getMessages', () => {
             expect(msg.year).to.equal('Jahr');
         });
 
-        it('should return German translations for new keys', () => {
+        it('should return German translations for new keys', async () => {
+            await ensureLocale('de');
             const msg = getMessages('de');
             expect(msg.calendarEvent).to.equal('Kalenderereignis');
             expect(msg.to).to.equal('bis');
@@ -71,22 +83,47 @@ describe('getMessages', () => {
     });
 
     describe('Language-only fallback', () => {
-        it('should fall back from de-AT to de templates', () => {
+        it('should fall back from de-AT to de templates', async () => {
+            await ensureLocale('de-AT');
             const msg = getMessages('de-AT');
             // de-AT is not a registered locale, so it should fall back to de
             expect(msg.day).to.equal('Tag');
             expect(msg.today).to.equal('Heute');
         });
 
-        it('should fall back to English for unknown locale', () => {
+        it('should fall back to English for unknown locale', async () => {
+            await ensureLocale('xx-YY');
             const msg = getMessages('xx-YY');
             expect(msg.day).to.equal('Day');
             expect(msg.today).to.equal('Today');
         });
     });
 
+    describe('ensureLocale', () => {
+        it('should resolve immediately for English', async () => {
+            await ensureLocale('en');
+            // No error — English needs no loading
+        });
+
+        it('should be idempotent (calling twice does not break)', async () => {
+            await ensureLocale('fr');
+            await ensureLocale('fr');
+            const msg = getMessages('fr');
+            expect(msg.day).to.not.equal('Day'); // Should be French
+        });
+
+        it('should deduplicate concurrent loads for the same locale', async () => {
+            const p1 = ensureLocale('ja');
+            const p2 = ensureLocale('ja');
+            await Promise.all([p1, p2]);
+            const msg = getMessages('ja');
+            expect(msg).to.be.an('object');
+        });
+    });
+
     describe('Caching', () => {
-        it('should return the same reference for repeated calls', () => {
+        it('should return the same reference for repeated synchronous calls', async () => {
+            await ensureLocale('fr');
             const a = getMessages('fr');
             const b = getMessages('fr');
             expect(a).to.equal(b);
@@ -94,8 +131,9 @@ describe('getMessages', () => {
 
         it('should return different objects for different locales', () => {
             const en = getMessages('en');
-            const de = getMessages('de');
-            expect(en).to.not.equal(de);
+            const unknown = getMessages('zz');
+            // Both English fallback, but different cache entries
+            expect(en).to.not.equal(unknown);
         });
     });
 

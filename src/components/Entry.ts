@@ -1,6 +1,5 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { P, match } from 'ts-pattern';
 
 import { formatLocalizedTime, formatLocalizedTimeRange } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
@@ -350,9 +349,7 @@ export default class Entry extends LitElement {
     `;
 
     private _renderTitle() {
-        return match(this.content)
-            .with(P.nullish, () => this.heading)
-            .otherwise(() => `${this.heading}: ${this.content}`);
+        return this.content == null ? this.heading : `${this.heading}: ${this.content}`;
     }
 
     private _renderTime() {
