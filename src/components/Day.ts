@@ -87,6 +87,11 @@ export default class Day extends LitElement {
             display: block;
             height: 100%;
             width: 100%;
+            /* Flex item in lms-calendar's <main> — allow shrinking below
+               content height so the outer container doesn't scroll and
+               clip the day header */
+            min-height: 0;
+            overflow: hidden;
         }
 
         .wrapper {
