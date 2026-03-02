@@ -64,7 +64,7 @@
         "lint": "oxlint src/",
         "format": "oxfmt --write 'src/**/*.ts' '*.json'",
         "format:check": "oxfmt --check 'src/**/*.ts' '*.json'",
-        "prepublishOnly": "pnpm run clean && pnpm run build && pnpm test && pnpm lint"
+        "prepublishOnly": "npm run clean && npm run build && npm test && npm run lint"
     },
     "dependencies": {
         "@hono/node-server": "^1.14.0",
