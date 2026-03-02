@@ -21,10 +21,10 @@ Common issues and solutions when using `<lms-calendar>`.
 1. **Missing peer dependencies** — `lit` and `luxon` must be installed alongside `@jpahd/kalendus`. Duplicate copies can break `instanceof` checks.
 
     ```bash
-    pnpm add @jpahd/kalendus lit luxon
+    npm install @jpahd/kalendus lit luxon
     ```
 
-    Verify a single copy: `pnpm ls lit luxon`
+    Verify a single copy: `npm ls lit luxon`
 
 2. **Module not imported** — The component must be imported once for its custom element to register.
 
@@ -211,6 +211,32 @@ If the container doesn't support container queries (very old browsers), the grid
 
 - Widen the container
 - This behavior is based on `ResizeObserver` measuring the actual container width, not the viewport — so a calendar in a narrow sidebar will show dots even on a wide screen
+
+---
+
+## Native Dependency Build Fails on macOS (Node 25+)
+
+**Symptoms:** `bun install` or `npm install` fails with `fatal error: 'climits' file not found` when building `better-sqlite3` or other native addons.
+
+**Cause:** Node 25.x's node-gyp does not pass the correct macOS SDK include path to the compiler.
+
+**Fix:** Set `CXXFLAGS` before installing:
+
+```bash
+CXXFLAGS="-isysroot $(xcrun --show-sdk-path)" bun install
+```
+
+Or add it to your shell profile (`~/.zshrc`):
+
+```bash
+export CXXFLAGS="-isysroot $(xcrun --show-sdk-path)"
+```
+
+If Xcode Command Line Tools are not installed:
+
+```bash
+xcode-select --install
+```
 
 ---
 
