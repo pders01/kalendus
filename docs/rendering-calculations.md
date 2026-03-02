@@ -238,7 +238,7 @@ function expandEntryMaybe(entry: CalendarEntry): CalendarEntry[] {
             },
             continuation: {
                 has: dayCount > 1,
-                is: index > 1,
+                is: index > 0,
                 index,
             },
         };
@@ -463,7 +463,8 @@ To verify pixel-perfect alignment:
 - `src/components/Month.ts` - Month view implementation
 - `src/lms-calendar.ts` - Main calendar and entry rendering
 - `src/lib/DirectionalCalendarDateCalculator.ts` - Date navigation
-- `src/lib/getOverlappingEntitiesIndices.ts` - Overlap calculations
-- `src/lib/partitionOverlappingIntervals.ts` - Interval partitioning
-- `src/lib/getSortedGradingsByIndex.ts` - Entry positioning
-- `test/unit/week-rendering.test.ts` - Calculation tests
+- `src/lib/LayoutCalculator.ts` - Overlap and positioning calculations
+- `src/lib/SlotManager.ts` - Slot assignment and CSS generation
+- `src/lib/allDayLayout.ts` - All-day event row allocation
+- `test/unit/LayoutCalculator.test.ts` - Layout calculation tests
+- `test/unit/week-row-allocation.test.ts` - Row allocation tests

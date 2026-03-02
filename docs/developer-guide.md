@@ -69,18 +69,18 @@ lms-calendar {
 
 ### Common Use Cases / Troubleshooting
 
-| Scenario                                    | Recommended steps                                                                                                                                                                                                                                      |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Scenario                                    | Recommended steps                                                                                                                                                                                                                                         |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Add a new locale**                        | 1) Append code to `lit-localize.json`. 2) Run `bun run i18n:extract`. 3) Translate strings in `src/generated/locales/<code>.ts`. 4) Register the template map in `src/lib/messages.ts` and `lit-localize.json`. 5) Add sample Storybook locale if needed. |
-| **Different condensed-window sizes**        | Override `--week-mobile-day-count` or `--week-day-count`. The controller automatically clamps between 1 and 7 days and re-centers around the active date.                                                                                              |
-| **All-day events overlap incorrectly**      | Ensure entries without `time` remain all-day; avoid providing `time` ranges shorter than 24 hours for all-day blocks. Inspect `allocateAllDayRows` inputs by logging `allDayLayoutEvents`.                                                             |
-| **Performance spikes with huge entry sets** | Verify that layout caches are reused. When adding new derived data, store per-entry metadata during `_expandEntryMaybe` to avoid re-hashing in inner loops.                                                                                            |
-| **Custom analytics on view changes**        | Listen for `switchview`, `switchdate`, `peek-navigate`, and `expand` events on `<lms-calendar>`. Drill targets (e.g., `'day'` vs `'month'`) are included in the `expand` detail payload.                                                               |
+| **Different condensed-window sizes**        | Override `--week-mobile-day-count` or `--week-day-count`. The controller automatically clamps between 1 and 7 days and re-centers around the active date.                                                                                                 |
+| **All-day events overlap incorrectly**      | Ensure entries without `time` remain all-day; avoid providing `time` ranges shorter than 24 hours for all-day blocks. Inspect `allocateAllDayRows` inputs by logging `allDayLayoutEvents`.                                                                |
+| **Performance spikes with huge entry sets** | Verify that layout caches are reused. When adding new derived data, store per-entry metadata during `_expandEntryMaybe` to avoid re-hashing in inner loops.                                                                                               |
+| **Custom analytics on view changes**        | Listen for `switchview`, `switchdate`, `peek-navigate`, and `expand` events on `<lms-calendar>`. Drill targets (e.g., `'day'` vs `'month'`) are included in the `expand` detail payload.                                                                  |
 
 ### Testing Tips
 
 - Unit tests live under `test/unit/`. Use `bun test` for the full suite or `NODE_OPTIONS=--experimental-vm-modules mocha path/to/file.test.ts` for targeted runs.
-- Week/day layout logic has dedicated tests in `test/unit/lib/allDayLayout.test.ts`, `test/unit/lib/ViewStateController.test.ts`, and `test/unit/week-rendering.test.ts`.
+- Week/day layout logic has dedicated tests in `test/unit/lib/allDayLayout.test.ts`, `test/unit/lib/ViewStateController.test.ts`, `test/unit/LayoutCalculator.test.ts`, and `test/unit/week-row-allocation.test.ts`.
 - When modifying CSS token behavior or condensed-week logic, add/extend tests in `test/unit/lib/weekDisplayContext.test.ts` (create this file if missing) to ensure the context math stays stable.
 
 ## Adding a New Locale

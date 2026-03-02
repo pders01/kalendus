@@ -73,6 +73,7 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 | `firstDayOfWeek`  | `0-6`                           | `1`                                       | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)                                              |
 | `yearDrillTarget` | `'day' \| 'month'`              | `'month'`                                 | Determines whether a year-view click opens day or month view                                  |
 | `yearDensityMode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`                                   | Chooses how per-day entry density is visualized in year view                                  |
+| `dir`             | `'ltr' \| 'rtl' \| 'auto'`      | `'auto'`                                  | Text direction; auto-detected from locale (RTL for `ar`, `he`, etc.)                          |
 
 ### Event Structure
 
@@ -225,6 +226,8 @@ npm run storybook
 - **Heavy Event Load**: Stress testing with 200+ events
 - **Overlapping Events**: Extreme overlap scenarios
 - **Tall Container**: Verifies layout in oversized containers
+- **RTLShowcase**: Side-by-side Arabic and Hebrew calendars with automatic RTL layout
+- **RTLOverride**: Demonstrates explicit `dir="ltr"` override on an RTL locale
 - **Mobile View**: Responsive mobile experience
 
 ## Development

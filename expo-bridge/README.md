@@ -113,7 +113,7 @@ Pass CSS custom properties via the `theme` prop:
 />
 ```
 
-All ~110 CSS custom properties defined on the `:host` block of the calendar component are available. See the [main README](../README.md) or `src/lms-calendar.ts` for the full list.
+All 151 CSS custom properties defined on the `:host` block of the calendar component are available. See the [main README](../README.md) or `src/lms-calendar.ts` for the full list.
 
 ## ICS Export Handling
 

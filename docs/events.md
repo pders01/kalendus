@@ -114,7 +114,7 @@ Fired when a calendar entry is activated (click or keyboard). The built-in `<lms
 
 | Property | Value                                                                                                                                                      |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Source   | `<lms-calendar-entry>`, forwarded by `<lms-calendar-month>`                                                                                                |
+| Source   | `<lms-calendar-entry>` (bubbles through all view components via `composed: true`)                                                                          |
 | Bubbles  | `true`                                                                                                                                                     |
 | Composed | `true`                                                                                                                                                     |
 | Detail   | `{ heading: string, content: string, time: CalendarTimeInterval \| undefined, displayTime: string, date: CalendarDate \| undefined, anchorRect: DOMRect }` |

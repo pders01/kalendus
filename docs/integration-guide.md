@@ -260,7 +260,7 @@ Yes—each instance holds its own `ViewStateController`. Set `locale` per compon
 
 **How do I theme the menu?**
 
-Override the CSS variables defined in `src/components/Menu.ts` by applying tokens on the `<lms-calendar>` element (e.g., `--menu-background`, `--menu-button-color`).
+Override the menu CSS custom properties on the `<lms-calendar>` element (e.g., `--menu-min-width`, `--menu-header-padding`, `--menu-title-font-size`). See the [CSS Token Reference](./css-tokens.md) for the full list.
 
 **Does Kalendus work with Shadow DOM encapsulation?**
 

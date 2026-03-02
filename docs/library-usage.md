@@ -69,16 +69,17 @@ Constraints enforced inside `willUpdate`:
 
 ### Public properties
 
-| Property          | Attribute           | Type                            | Default               | Notes                                                                                          |
-| ----------------- | ------------------- | ------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------- |
-| `heading`         | `heading`           | `string`                        | `undefined`           | Optional text rendered in the header.                                                          |
-| `activeDate`      | –                   | `CalendarDate`                  | today                 | Getter/setter proxying `ViewStateController`. Assigning triggers navigation.                   |
-| `entries`         | –                   | `CalendarEntry[]`               | `[]`                  | Main data source. Provide a new array when mutating so Lit detects the change.                 |
-| `color`           | `color`             | `string`                        | `'#000000'`           | Primary accent used by header buttons and gradients.                                           |
-| `locale`          | `locale`            | `string`                        | `<html lang>` \\ `en` | Controls UI strings plus date formatting. All supported codes are listed under _Localization_. |
-| `firstDayOfWeek`  | `first-day-of-week` | `0`–`6`                         | `1`                   | Changes ISO week alignment; reflected attribute enables declarative authoring.                 |
-| `yearDrillTarget` | `year-drill-target` | `'day' \| 'month'`              | `'month'`             | Determines which view opens after clicking a day in the year overview.                         |
-| `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`               | Selects the per-day density visualization in the year overview.                                |
+| Property          | Attribute           | Type                            | Default               | Notes                                                                                            |
+| ----------------- | ------------------- | ------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
+| `heading`         | `heading`           | `string`                        | `undefined`           | Optional text rendered in the header.                                                            |
+| `activeDate`      | –                   | `CalendarDate`                  | today                 | Getter/setter proxying `ViewStateController`. Assigning triggers navigation.                     |
+| `entries`         | –                   | `CalendarEntry[]`               | `[]`                  | Main data source. Provide a new array when mutating so Lit detects the change.                   |
+| `color`           | `color`             | `string`                        | `'#000000'`           | Primary accent used by header buttons and gradients.                                             |
+| `locale`          | `locale`            | `string`                        | `<html lang>` \\ `en` | Controls UI strings plus date formatting. All supported codes are listed under _Localization_.   |
+| `firstDayOfWeek`  | `first-day-of-week` | `0`–`6`                         | `1`                   | Changes ISO week alignment; reflected attribute enables declarative authoring.                   |
+| `yearDrillTarget` | `year-drill-target` | `'day' \| 'month'`              | `'month'`             | Determines which view opens after clicking a day in the year overview.                           |
+| `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`               | Selects the per-day density visualization in the year overview.                                  |
+| `dir`             | `dir`               | `'ltr' \| 'rtl' \| 'auto'`      | `'auto'`              | Text direction; auto-detected from locale (RTL for `ar`, `he`, etc.). Override to force LTR/RTL. |
 
 ### Methods
 
@@ -124,7 +125,7 @@ For complete event documentation including payload types, source components, and
 2. **Day splitting**: `_expandEntryMaybe` uses `DateTime.plus({ days: index })` to clone multi-day events. Continuation metadata is added so entry chips can indicate start, middle, or end segments.
 3. **All-day detection**: Any entry without `time`, or whose time interval runs 00:00–23:59, is rendered in the dedicated all-day row using `allocateAllDayRows` logic.
 4. **Responsive month mode**: if the observed width is `<768px`, month cells collapse to aggregated dots (`displayMode = 'month-dot'`). Above that threshold, full entry chips render inside each day.
-5. **Week/day stacking**: The combination of `LayoutCalculator` and `SlotManager` determines vertical slots (`minuteHeight = 1` pixel) and horizontal cascading (`cascadeOffset = 15`). Overlapping events share column slots with opacity adjustments.
+5. **Week/day stacking**: `LayoutCalculator` and `SlotManager` determine vertical positioning (`minuteHeight = 1` pixel) and horizontal cascading with progressive width reduction and offset. Overlapping events share column slots with opacity adjustments.
 
 ## Styling and theming
 
@@ -132,7 +133,7 @@ The element exposes 151 CSS custom properties. Common entry points:
 
 | Token                                                         | Purpose                                                          |
 | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `--background-color`                                          | Base surface color; default `white`.                             |
+| `--background-color`                                          | Base surface color; default `Canvas` (adapts to OS dark mode).   |
 | `--primary-color`                                             | Primary accent used in menu buttons and highlights.              |
 | `--header-height`, `--header-text-color`                      | Header sizing and typography.                                    |
 | `--border-radius-sm/md/lg`                                    | Rounded corners applied across entries, menu, and context chips. |
