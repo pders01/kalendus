@@ -128,7 +128,6 @@ export default class Entry extends LitElement {
             padding: var(--entry-padding);
             padding-top: calc(var(--entry-padding-top, 0) + 0.15em);
             border-radius: var(--entry-border-radius);
-            background-color: inherit;
             text-align: start;
             height: 100%;
             box-sizing: border-box;
