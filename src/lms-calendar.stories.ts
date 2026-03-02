@@ -680,31 +680,36 @@ export const DefaultTheme: Story = {
 
 // ── Theme story helper ──────────────────────────────────────────────
 // Each theme story wraps the calendar in a scoped container and injects
-// the theme CSS via a <style> block with a class-qualified selector
-// (higher specificity than the bare `lms-calendar` in preview).
-const createThemeStory = (name: string, themeCSS: string, opts: { bg?: string } = {}): Story => ({
-    name: storyName(STORY_GROUPS.OVERVIEW, name),
-    args: { entries: sampleEntries },
-    decorators: [
-        (Story) => html`
-            <style>
-                ${themeCSS}
-            </style>
-            <div class="theme-demo" style="${opts.bg ? `background: ${opts.bg};` : ''}">${Story()}</div>
+// the theme CSS via a <style> block with a unique class-qualified selector
+// so themes don't bleed into each other on the Docs page.
+const createThemeStory = (name: string, themeCSS: string, opts: { bg?: string } = {}): Story => {
+    const slug = name.toLowerCase().replace(/\s+/g, '-');
+    const scopeClass = `theme-${slug}`;
+    const scopedCSS = themeCSS.replace(/\.theme-demo/g, `.${scopeClass}`);
+    return {
+        name: storyName(STORY_GROUPS.OVERVIEW, name),
+        args: { entries: sampleEntries },
+        decorators: [
+            (Story) => html`
+                <style>
+                    ${scopedCSS}
+                </style>
+                <div class=${scopeClass} style="${opts.bg ? `background: ${opts.bg};` : ''}">${Story()}</div>
+            `,
+        ],
+        render: (args) => html`
+            <lms-calendar
+                .heading=${args.heading}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 720px; display: block;"
+            ></lms-calendar>
         `,
-    ],
-    render: (args) => html`
-        <lms-calendar
-            .heading=${args.heading}
-            .activeDate=${args.activeDate}
-            .entries=${args.entries}
-            .color=${args.color}
-            .firstDayOfWeek=${args.firstDayOfWeek}
-            .locale=${args.locale}
-            style="height: 720px; display: block;"
-        ></lms-calendar>
-    `,
-});
+    };
+};
 
 export const InkTheme: Story = createThemeStory(
     'Ink Theme',
