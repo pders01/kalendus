@@ -253,6 +253,7 @@ export default class LMSCalendar extends LitElement {
             --entry-border-radius: 0;
             --entry-background-color: transparent;
             --entry-color: inherit;
+            --entry-highlight-color: rgba(0, 0, 0, 0.08);
             --entry-highlight-color: color-mix(in srgb, AccentColor 12%, transparent);
             --entry-focus-color: var(--primary-color);
             --entry-padding: 0.15em 0.3em;

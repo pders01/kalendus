@@ -106,22 +106,6 @@ export default class Month extends LitElement {
 
     override connectedCallback() {
         super.connectedCallback();
-        // Forward open-menu events from entry components
-        this.addEventListener('open-menu', (e: Event) => {
-            const customEvent = e as CustomEvent;
-
-            // Only forward if the event came from an entry component, not from our own re-dispatch
-            if (e.target !== this) {
-                e.stopPropagation(); // Stop the original event
-                // Re-dispatch to ensure it bubbles up to calendar
-                const forwardedEvent = new CustomEvent('open-menu', {
-                    detail: customEvent.detail,
-                    bubbles: true,
-                    composed: true,
-                });
-                this.dispatchEvent(forwardedEvent);
-            }
-        });
 
         // Use a single delegated scroll listener on the shadow root for all .day cells.
         // This avoids per-element listener management across re-renders.

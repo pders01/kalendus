@@ -104,25 +104,6 @@ export default class Entry extends LitElement {
             padding-bottom: 0;
         }
 
-        :host([data-highlighted]) {
-            background: var(--entry-highlight-color);
-        }
-
-        /* Inset box-shadow so the highlight stays within bounds and
-           is never clipped by overflow:hidden on parent containers */
-        :host([aria-selected='true']) {
-            box-shadow: inset 0 0 0 2px var(--entry-focus-color);
-            outline: none;
-            z-index: 999 !important; /* Ensure highlighted entry appears above others */
-        }
-
-        /* Keyboard-only focus styles */
-        :host(:focus-visible) {
-            box-shadow: inset 0 0 0 2px var(--entry-focus-color);
-            outline: none;
-            z-index: 999 !important;
-        }
-
         .main {
             padding: var(--entry-padding);
             padding-top: calc(var(--entry-padding-top, 0) + 0.15em);
@@ -345,6 +326,26 @@ export default class Entry extends LitElement {
         :host([data-height='full']) .title {
             white-space: normal;
             word-wrap: break-word;
+        }
+
+        /* ── Interactive state overrides ──────────────────────────
+           Placed last so they beat all display-mode rules (equal
+           specificity, later source order wins).
+           No outline:none — the browser's native focus ring shows
+           by default; themes can suppress it when setting
+           --entry-focus-color. */
+        :host([data-highlighted]) {
+            background: var(--entry-highlight-color);
+        }
+
+        :host([aria-selected='true']) {
+            box-shadow: inset 0 0 0 2px var(--entry-focus-color);
+            z-index: 999 !important;
+        }
+
+        :host(:focus-visible) {
+            box-shadow: inset 0 0 0 2px var(--entry-focus-color);
+            z-index: 999 !important;
         }
     `;
 
