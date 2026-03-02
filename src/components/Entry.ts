@@ -108,19 +108,18 @@ export default class Entry extends LitElement {
             background: var(--entry-highlight-color);
         }
 
-        /* ARIA-compliant highlighted border for active menu entries */
+        /* Inset box-shadow so the highlight stays within bounds and
+           is never clipped by overflow:hidden on parent containers */
         :host([aria-selected='true']) {
-            outline: 3px solid var(--entry-focus-color);
-            outline-offset: 2px;
-            position: relative;
+            box-shadow: inset 0 0 0 2px var(--entry-focus-color);
+            outline: none;
             z-index: 999 !important; /* Ensure highlighted entry appears above others */
         }
 
-        /* Keyboard-only focus styles — mouse clicks won't trigger the outline */
+        /* Keyboard-only focus styles */
         :host(:focus-visible) {
-            outline: 2px solid var(--entry-focus-color);
-            outline-offset: 2px;
-            position: relative;
+            box-shadow: inset 0 0 0 2px var(--entry-focus-color);
+            outline: none;
             z-index: 999 !important;
         }
 
@@ -421,6 +420,8 @@ export default class Entry extends LitElement {
             this.setAttribute('role', 'button');
             this.setAttribute('aria-label', this.accessibility?.ariaLabel ?? this._getAriaLabel());
             this.setAttribute('aria-selected', this._highlighted ? 'true' : 'false');
+            // Sync the data attribute so :host([data-highlighted]) CSS activates
+            this.toggleAttribute('data-highlighted', !!this._highlighted);
         }
     }
 

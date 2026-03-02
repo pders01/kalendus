@@ -236,6 +236,61 @@ describe('Entry Component', () => {
         expect(el.getAttribute('aria-selected')).to.equal('true');
     });
 
+    // --- highlight / a11y regression (full lifecycle) ---
+
+    it('should set data-highlighted on click', async () => {
+        const el: Entry = await fixture(html`
+            <lms-calendar-entry heading="Highlight Test"></lms-calendar-entry>
+        `);
+        await el.updateComplete;
+
+        el.click();
+        await el.updateComplete;
+
+        expect(el.hasAttribute('data-highlighted')).to.be.true;
+    });
+
+    it('should clear both aria-selected and data-highlighted on clearSelection()', async () => {
+        const el: Entry = await fixture(html`
+            <lms-calendar-entry heading="Clear Test"></lms-calendar-entry>
+        `);
+        await el.updateComplete;
+
+        el.click();
+        await el.updateComplete;
+        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('data-highlighted')).to.be.true;
+
+        el.clearSelection();
+        await el.updateComplete;
+
+        expect(el.getAttribute('aria-selected')).to.equal('false');
+        expect(el.hasAttribute('data-highlighted')).to.be.false;
+    });
+
+    it('should re-highlight after clearSelection() (not stuck on first click)', async () => {
+        const el: Entry = await fixture(html`
+            <lms-calendar-entry heading="Re-highlight Test"></lms-calendar-entry>
+        `);
+        await el.updateComplete;
+
+        // First click
+        el.click();
+        await el.updateComplete;
+        expect(el.getAttribute('aria-selected')).to.equal('true');
+
+        // Clear
+        el.clearSelection();
+        await el.updateComplete;
+        expect(el.getAttribute('aria-selected')).to.equal('false');
+
+        // Second click should re-highlight
+        el.click();
+        await el.updateComplete;
+        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('data-highlighted')).to.be.true;
+    });
+
     it('should emit open-menu with event details when date is provided', async () => {
         const dateInterval: CalendarDateInterval = {
             start: { day: 15, month: 9, year: 2023 },
