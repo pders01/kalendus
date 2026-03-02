@@ -558,13 +558,6 @@ export default class Entry extends LitElement {
             });
 
             this.dispatchEvent(openMenuEvent);
-
-            // Listen for menu close to remove highlight
-            const handleMenuClose = () => {
-                this._highlighted = false;
-                this.removeEventListener('menu-close', handleMenuClose);
-            };
-            this.addEventListener('menu-close', handleMenuClose);
         }
     }
 }

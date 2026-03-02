@@ -853,6 +853,11 @@ export default class LMSCalendar extends LitElement {
     private _handleMenuClose() {
         this._menuOpen = false;
         this._menuEventDetails = undefined;
+        // Clear the trigger entry's highlight before returning focus,
+        // so it can be clicked again immediately.
+        if (this._menuTriggerEntry) {
+            (this._menuTriggerEntry as LMSCalendarEntry).clearSelection();
+        }
         this._returnFocusToTrigger();
     }
 
