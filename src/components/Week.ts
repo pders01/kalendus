@@ -25,6 +25,9 @@ export default class Week extends LitElement {
     @property({ type: String })
     locale = 'en';
 
+    @property({ type: Number })
+    localeVersion = 0;
+
     /** Condensed subset of dates to render (defaults to full week). */
     @property({ attribute: false })
     visibleDates?: CalendarDate[];

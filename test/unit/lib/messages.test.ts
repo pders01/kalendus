@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { getMessages, ensureLocale, _resetForTesting, type MessageKey } from '../../../src/lib/messages.js';
+import { getMessages, ensureLocale, isLocaleLoaded, _resetForTesting, type MessageKey } from '../../../src/lib/messages.js';
 
 const ALL_KEYS: MessageKey[] = [
     'day', 'week', 'month', 'currentMonth', 'allDay',
@@ -151,6 +151,31 @@ describe('getMessages', () => {
                 expect(msg).to.have.property(key);
                 expect(msg[key]).to.be.a('string');
             }
+        });
+    });
+
+    describe('isLocaleLoaded', () => {
+        it('should return true for English (built-in)', () => {
+            expect(isLocaleLoaded('en')).to.be.true;
+        });
+
+        it('should return false for an unloaded locale', () => {
+            expect(isLocaleLoaded('de')).to.be.false;
+        });
+
+        it('should return true after ensureLocale resolves', async () => {
+            expect(isLocaleLoaded('fr')).to.be.false;
+            await ensureLocale('fr');
+            expect(isLocaleLoaded('fr')).to.be.true;
+        });
+
+        it('should return true for language-only fallback (de-AT → de)', async () => {
+            await ensureLocale('de');
+            expect(isLocaleLoaded('de-AT')).to.be.true;
+        });
+
+        it('should return false for unknown locale', () => {
+            expect(isLocaleLoaded('xx-YY')).to.be.false;
         });
     });
 });

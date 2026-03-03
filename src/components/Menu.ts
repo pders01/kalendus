@@ -24,6 +24,7 @@ export class Menu extends LitElement {
     };
     @property({ attribute: false }) anchorRect?: DOMRect;
     @property({ type: String }) locale = 'en';
+    @property({ type: Number }) localeVersion = 0;
 
     @state() private _cardTop = 0;
     @state() private _cardLeft = 0;

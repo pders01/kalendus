@@ -41,6 +41,9 @@ export default class Entry extends LitElement {
     @property({ type: String })
     locale = 'en';
 
+    @property({ type: Number })
+    localeVersion = 0;
+
     @state()
     _highlighted?: boolean;
 

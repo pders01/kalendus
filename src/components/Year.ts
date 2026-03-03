@@ -24,6 +24,9 @@ export default class Year extends LitElement {
     @property({ type: String })
     locale = 'en';
 
+    @property({ type: Number })
+    localeVersion = 0;
+
     @property({ type: Object })
     entrySumByDay: Record<string, number> = {};
 

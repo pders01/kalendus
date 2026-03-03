@@ -1,4 +1,5 @@
-import { expect, fixture, html } from '@open-wc/testing';
+import { expect, fixture, html, oneEvent } from '@open-wc/testing';
+import { _resetForTesting } from '../../../src/lib/messages.js';
 import '../../../src/lms-calendar.ts';
 import type LMSCalendar from '../../../src/lms-calendar.ts';
 
@@ -382,5 +383,61 @@ describe('Calendar Component', () => {
             const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
             expect(monthEl).to.exist;
         }
+    });
+
+    describe('locale-ready behavior', () => {
+        beforeEach(() => {
+            _resetForTesting();
+        });
+
+        it('should dispatch locale-ready event after loading a non-English locale', async () => {
+            const el: LMSCalendar = await fixture(html`
+                <lms-calendar locale="en"></lms-calendar>
+            `);
+            await el.updateComplete;
+
+            // Switch to German — triggers async load
+            setTimeout(() => { el.locale = 'de'; });
+            const ev = await oneEvent(el, 'locale-ready') as CustomEvent;
+
+            expect(ev.detail.locale).to.equal('de');
+        });
+
+        it('should remove locale-loading class after locale loads', async () => {
+            const el: LMSCalendar = await fixture(html`
+                <lms-calendar locale="en"></lms-calendar>
+            `);
+            await el.updateComplete;
+
+            // Switch to German
+            el.locale = 'de';
+            await el.localeReady;
+            await el.updateComplete;
+
+            const container = el.shadowRoot?.querySelector('.calendar-container');
+            expect(container?.classList.contains('locale-loading')).to.be.false;
+        });
+
+        it('should resolve localeReady promise for English immediately', async () => {
+            const el: LMSCalendar = await fixture(html`
+                <lms-calendar locale="en"></lms-calendar>
+            `);
+            await el.updateComplete;
+
+            // Should resolve instantly — no async loading for English
+            await el.localeReady;
+            const container = el.shadowRoot?.querySelector('.calendar-container');
+            expect(container?.classList.contains('locale-loading')).to.be.false;
+        });
+
+        it('should not have locale-loading class for English locale', async () => {
+            const el: LMSCalendar = await fixture(html`
+                <lms-calendar locale="en"></lms-calendar>
+            `);
+            await el.updateComplete;
+
+            const container = el.shadowRoot?.querySelector('.calendar-container');
+            expect(container?.classList.contains('locale-loading')).to.be.false;
+        });
     });
 });

@@ -23,6 +23,9 @@ export default class Month extends LitElement {
     @property({ type: String })
     locale = 'en';
 
+    @property({ type: Number })
+    localeVersion = 0;
+
     static override styles = css`
         :host {
             display: block;

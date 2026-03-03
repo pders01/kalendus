@@ -148,6 +148,18 @@ export function getMessages(locale: string): ResolvedMessages {
 }
 
 /**
+ * Check whether a locale's templates are already loaded (synchronous).
+ * Returns `true` for English (built-in) and any locale whose chunk
+ * has already been fetched via `ensureLocale()`.
+ */
+export function isLocaleLoaded(locale: string): boolean {
+    if (locale === 'en') return true;
+    if (loadedTemplates[locale]) return true;
+    const langOnly = locale.split('-')[0];
+    return langOnly !== locale && !!loadedTemplates[langOnly];
+}
+
+/**
  * Ensure a locale's templates are loaded. Returns immediately if
  * the locale is already available. For English, this is a no-op.
  *

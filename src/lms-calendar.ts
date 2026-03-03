@@ -25,7 +25,7 @@ import { allocateAllDayRows, computeSpanClass, type AllDayEvent } from './lib/al
 import { parseColorWithDefault } from './lib/colorParser.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import { LayoutCalculator, type LayoutResult } from './lib/LayoutCalculator.js';
-import { ensureLocale, getMessages } from './lib/messages.js';
+import { ensureLocale, getMessages, isLocaleLoaded } from './lib/messages.js';
 import {
     slotManager,
     type LayoutDimensions,
@@ -137,6 +137,9 @@ export default class LMSCalendar extends LitElement {
     }
 
     @state() _calendarWidth: number = (typeof window !== 'undefined' && window.innerWidth) || 1024;
+
+    @state() private _localeReady = true;
+    @state() private _localeVersion = 0;
 
     @state() _menuOpen = false;
     @state() _menuEventDetails?: {
@@ -405,6 +408,10 @@ export default class LMSCalendar extends LitElement {
             /* Multi-day separator */
             --multi-day-separator: none;
         }
+        .calendar-container.locale-loading > header,
+        .calendar-container.locale-loading > main {
+            visibility: hidden;
+        }
         .calendar-container {
             box-sizing: border-box;
             width: var(--width);
@@ -561,8 +568,23 @@ export default class LMSCalendar extends LitElement {
             // setAttribute so CSS :host([dir='rtl']) selectors work
             this.setAttribute('dir', resolved);
 
-            // Lazy-load locale dictionary; re-render once loaded
-            ensureLocale(this.locale).then(() => this.requestUpdate());
+            // Gate rendering until locale chunk is loaded
+            if (!isLocaleLoaded(this.locale)) {
+                this._localeReady = false;
+            }
+            const targetLocale = this.locale;
+            ensureLocale(targetLocale).then(() => {
+                if (this.locale !== targetLocale) return; // locale changed while loading
+                this._localeReady = true;
+                this._localeVersion++;
+                this.dispatchEvent(
+                    new CustomEvent('locale-ready', {
+                        bubbles: true,
+                        composed: true,
+                        detail: { locale: targetLocale },
+                    }),
+                );
+            });
         }
 
         if (!changedProperties.has('entries' as never)) {
@@ -660,12 +682,24 @@ export default class LMSCalendar extends LitElement {
         this._allDayLayoutCache.clear();
     }
 
+    /** Resolves when the current locale's translations are loaded. */
+    get localeReady(): Promise<void> {
+        if (this._localeReady) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+            const handler = () => {
+                this.removeEventListener('locale-ready', handler);
+                resolve();
+            };
+            this.addEventListener('locale-ready', handler);
+        });
+    }
+
     override render() {
         const viewMode = this._viewState.viewMode;
         const currentActiveDate = this._viewState.activeDate;
 
         return html`
-            <div class="calendar-container">
+            <div class="calendar-container${this._localeReady ? '' : ' locale-loading'}">
                 <header>
                     <lms-calendar-header
                         @switchdate=${this._handleSwitchDate}
@@ -676,6 +710,7 @@ export default class LMSCalendar extends LitElement {
                         .viewMode=${viewMode}
                         .expandedDate=${viewMode === 'day' ? currentActiveDate : undefined}
                         .locale=${this.locale}
+                        .localeVersion=${this._localeVersion}
                     >
                     </lms-calendar-header>
                 </header>
@@ -687,6 +722,7 @@ export default class LMSCalendar extends LitElement {
                               <lms-calendar-context
                                   .firstDayOfWeek=${this.firstDayOfWeek}
                                   .locale=${this.locale}
+                                  .localeVersion=${this._localeVersion}
                               > </lms-calendar-context>
 
                               <lms-calendar-month
@@ -696,6 +732,7 @@ export default class LMSCalendar extends LitElement {
                                   .activeDate=${currentActiveDate}
                                   .firstDayOfWeek=${this.firstDayOfWeek}
                                   .locale=${this.locale}
+                                  .localeVersion=${this._localeVersion}
                               >
                                   ${
                                       this._calendarWidth < 768
@@ -726,6 +763,7 @@ export default class LMSCalendar extends LitElement {
                                           .allDayRowCount=${result.allDayRowCount}
                                           .firstDayOfWeek=${this.firstDayOfWeek}
                                           .locale=${this.locale}
+                                          .localeVersion=${this._localeVersion}
                                           .visibleDates=${ctx.visibleDates}
                                           .visibleStartIndex=${ctx.visibleStartIndex}
                                           .visibleLength=${ctx.visibleLength}
@@ -751,6 +789,7 @@ export default class LMSCalendar extends LitElement {
                                           .activeDate=${currentActiveDate}
                                           .firstDayOfWeek=${this.firstDayOfWeek}
                                           .locale=${this.locale}
+                                          .localeVersion=${this._localeVersion}
                                       >
                                           ${result.elements}
                                       </lms-calendar-day>
@@ -766,6 +805,7 @@ export default class LMSCalendar extends LitElement {
                                   .activeDate=${currentActiveDate}
                                   .firstDayOfWeek=${this.firstDayOfWeek}
                                   .locale=${this.locale}
+                                  .localeVersion=${this._localeVersion}
                                   .entrySumByDay=${this._entrySumByDay}
                                   .drillTarget=${this.yearDrillTarget}
                                   .densityMode=${this.yearDensityMode}
@@ -786,6 +826,7 @@ export default class LMSCalendar extends LitElement {
                     }
                     .anchorRect=${this._menuEventDetails?.anchorRect}
                     .locale=${this.locale}
+                    .localeVersion=${this._localeVersion}
                     @menu-close=${this._handleMenuClose}
                 ></lms-menu>
             </div>
@@ -933,6 +974,7 @@ export default class LMSCalendar extends LitElement {
                 .floatText=${floatText}
                 .accessibility=${entry.accessibility}
                 .locale=${this.locale}
+                .localeVersion=${this._localeVersion}
             >
             </lms-calendar-entry>
         `;

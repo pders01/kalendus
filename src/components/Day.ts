@@ -19,6 +19,9 @@ export default class Day extends LitElement {
     @property({ type: String })
     locale = 'en';
 
+    @property({ type: Number })
+    localeVersion = 0;
+
     @property({ attribute: false })
     activeDate: CalendarDate = {
         day: new Date().getDate(),
