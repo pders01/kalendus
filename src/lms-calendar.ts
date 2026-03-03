@@ -573,10 +573,11 @@ export default class LMSCalendar extends LitElement {
                 this._localeReady = false;
             }
             const targetLocale = this.locale;
-            ensureLocale(targetLocale).then(() => {
+            ensureLocale(targetLocale).then(async () => {
                 if (this.locale !== targetLocale) return; // locale changed while loading
                 this._localeReady = true;
                 this._localeVersion++;
+                await this.updateComplete;
                 this.dispatchEvent(
                     new CustomEvent('locale-ready', {
                         bubbles: true,
@@ -684,7 +685,7 @@ export default class LMSCalendar extends LitElement {
 
     /** Resolves when the current locale's translations are loaded. */
     get localeReady(): Promise<void> {
-        if (this._localeReady) return Promise.resolve();
+        if (this._localeReady && isLocaleLoaded(this.locale)) return Promise.resolve();
         return new Promise<void>((resolve) => {
             const handler = () => {
                 this.removeEventListener('locale-ready', handler);
