@@ -127,6 +127,7 @@ Listen on the element for user actions:
 | `peek-navigate` | <code>{ direction: 'next' &#124; 'previous' }</code>                    | Condensed week peek arrows |
 | `expand`        | `{ date, drillTarget }`                                                 | Month/Week/Year day clicks |
 | `open-menu`     | `{ heading, content, time, date, anchorRect }`                          | Entry selection            |
+| `locale-ready`  | `{ locale: string }`                                                    | Locale chunk loaded        |
 | `menu-close`    | _none_                                                                  | Menu dismiss               |
 
 > **Note:** The `expand` event's `drillTarget` is only present when fired from the year view. See the [Events Reference](./events.md) for full payload details.

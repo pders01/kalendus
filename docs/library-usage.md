@@ -81,9 +81,10 @@ Constraints enforced inside `willUpdate`:
 | `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`               | Selects the per-day density visualization in the year overview.                                  |
 | `dir`             | `dir`               | `'ltr' \| 'rtl' \| 'auto'`      | `'auto'`              | Text direction; auto-detected from locale (RTL for `ar`, `he`, etc.). Override to force LTR/RTL. |
 
-### Methods
+### Methods & Getters
 
 - `openMenu(eventDetails)` opens the built-in `lms-menu` overlay with `{ heading, content, time?, displayTime, date?, anchorRect? }`. Use this to integrate your own action surfaces (e.g., call `openMenu` when a host-side list item is clicked so the same menu renders).
+- `localeReady: Promise<void>` — resolves when the current locale's translations are loaded. For English this resolves immediately. Use it to gate downstream work that depends on translated UI strings.
 
 ### Reactive updates
 
@@ -104,6 +105,7 @@ All events bubble and are composed, so you can listen directly on `<lms-calendar
 | `open-menu`              | `{ heading, content, time, date?, anchorRect }`                    | Entry cards                                                              | Intercept to show a custom panel or cancel the built-in one.                                |
 | `menu-close`             | none                                                               | Menu close button                                                        | Hide mirrored overlays when the built-in menu closes.                                       |
 | `peek-navigate`          | `{ date: CalendarDate, direction: 'next' \| 'previous' }`          | Condensed week peek arrows                                               | Track peek navigation in condensed week mode.                                               |
+| `locale-ready`           | `{ locale: string }`                                               | After locale chunk loads                                                 | Coordinate with translated UI; hide skeletons or defer dependent work.                      |
 | `clear-other-selections` | `{ exceptEntry: HTMLElement }`                                     | Entry focus events                                                       | Internal. Keep multi-surface selections in sync.                                            |
 
 > **Note:** The `expand` event payload varies by source — Month and Week views omit `drillTarget`, while Year view always includes it. See the [Events Reference](./events.md) for full details.
@@ -161,6 +163,7 @@ All styles live inside the component’s shadow root, so global CSS will not lea
 - The component auto-detects from `<html lang>` when `locale` is unset.
 - Day and month names come from Luxon/Intl; UI strings come from `src/lib/messages.ts`.
 - Override the week structure via `firstDayOfWeek` (0=Sunday … 6=Saturday) to match local conventions independently of locale.
+- **No flash-of-English**: when a non-English locale is set, the component hides its UI chrome (`visibility: hidden`) until the translation chunk loads, preventing a flash of English fallback text. The `locale-ready` event and `localeReady` promise let you coordinate with this loading if needed. English is zero-cost — translations are built-in, so no hiding or async loading occurs.
 
 ## Accessibility behavior
 

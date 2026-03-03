@@ -172,6 +172,34 @@ calendar.addEventListener('peek-navigate', (e) => {
 
 ---
 
+## `locale-ready`
+
+Fired after a non-English locale's translation chunk has loaded and the component is ready to render with correct UI strings. English never fires this event (translations are built-in and always synchronous).
+
+| Property | Value                |
+| -------- | -------------------- |
+| Source   | `<lms-calendar>`     |
+| Bubbles  | `true`               |
+| Composed | `true`               |
+| Detail   | `{ locale: string }` |
+
+Use this event (or the `localeReady` promise) to avoid showing the calendar before translations are loaded:
+
+```js
+const calendar = document.querySelector('lms-calendar');
+calendar.locale = 'de';
+calendar.addEventListener('locale-ready', (e) => {
+    console.log(`${e.detail.locale} translations loaded`);
+});
+
+// Or use the promise-based API:
+await calendar.localeReady;
+```
+
+> **Note:** The component already hides its header and main content via `visibility: hidden` while loading, so consumers only need this event for custom coordination (e.g., showing a skeleton screen or deferring other work).
+
+---
+
 ## `clear-other-selections` (internal)
 
 Fired when an entry receives focus, instructing the parent to clear all other selected entries. **This is an internal coordination event** — you generally should not need to listen for it.

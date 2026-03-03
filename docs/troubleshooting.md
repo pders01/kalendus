@@ -113,6 +113,8 @@ lms-calendar {
 
 3. **`<html lang>` mismatch** — If `locale` is not set, the component reads `document.documentElement.lang`. Ensure this matches your desired locale.
 
+> **Note:** The calendar hides its UI chrome (`visibility: hidden`) while loading a non-English locale chunk. If you need to know when translations are ready, listen for the `locale-ready` event or await `calendar.localeReady`. See the [Events Reference](./events.md#locale-ready) for details.
+
 ---
 
 ## Menu Stuck Open

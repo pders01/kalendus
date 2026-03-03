@@ -66,6 +66,7 @@ lms-calendar {
 - Message keys live in `src/lib/messages.ts`. Add new keys there, then run `bun run i18n:extract` / `bun run i18n:build` to update `src/generated/locales/*.ts`.
 - Consumers can override UI text by providing new target locales or by translating the generated template files.
 - Common a11y strings (`previous`, `next`, `events`, `viewLabel`) are part of the message bundle. Prefer retrieving them via `getMessages(locale)`.
+- **Locale loading gating**: `isLocaleLoaded(locale)` checks synchronously whether a locale's chunk is available. The calendar's `willUpdate` sets `_localeReady = false` for unloaded locales, hiding UI chrome via `visibility: hidden` until the chunk loads. A `_localeVersion` counter then increments, busting Lit's dirty-check on all child components so `getMessages()` returns correct translations on re-render. English is always loaded (zero-cost).
 
 ### Common Use Cases / Troubleshooting
 
