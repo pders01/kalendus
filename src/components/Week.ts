@@ -150,8 +150,12 @@ export default class Week extends LitElement {
             text-align: var(--hour-text-align, center);
             font-size: var(--hour-indicator-font-size);
             color: var(--hour-indicator-color);
-            transform: translateY(var(--indicator-top, -0.55em));
             pointer-events: none;
+        }
+
+        .hour-label .indicator {
+            position: relative;
+            top: var(--indicator-top, -0.6em);
         }
 
         /* Snap at noon: first scroll stop aligns with --half-day-height */
@@ -349,23 +353,28 @@ export default class Week extends LitElement {
      * layout observations within the same frame.
      */
     override firstUpdated() {
-        const scrollEl = this.renderRoot?.querySelector('.week-scroll');
-        if (!scrollEl) return;
+        const wrapper = this.renderRoot?.querySelector('.week-container');
+        const header = this.renderRoot?.querySelector('.week-header');
+        if (!wrapper || !header) return;
+
+        // Compute from wrapper − header only, ignoring the all-day section
+        // and peek indicators. This keeps --minute-height identical between
+        // day and week views regardless of whether all-day events are present.
+        const baseHeight = () => wrapper.clientHeight - header.clientHeight;
 
         // Eager initial sync — clientHeight forces synchronous layout so
         // the first paint already uses the correct --minute-height.
-        this._applyScrollHeight(scrollEl.clientHeight);
+        this._applyScrollHeight(baseHeight());
 
-        // ResizeObserver for ongoing size changes (window resize, all-day
-        // section appearing, etc.). Uses rAF to avoid the benign
-        // "ResizeObserver loop completed" error.
-        this._scrollRO = new ResizeObserver(([entry]) => {
-            const h = entry.contentRect.height;
+        // ResizeObserver for ongoing size changes (window resize, etc.).
+        // Uses rAF to avoid the benign "ResizeObserver loop completed" error.
+        this._scrollRO = new ResizeObserver(() => {
+            const h = baseHeight();
             if (h > 0 && Math.abs(h - this._lastScrollH) > 0.5) {
                 requestAnimationFrame(() => this._applyScrollHeight(h));
             }
         });
-        this._scrollRO.observe(scrollEl);
+        this._scrollRO.observe(wrapper);
     }
 
     private _applyScrollHeight(h: number) {
@@ -477,7 +486,9 @@ export default class Week extends LitElement {
                                     class="hour-label${hour % 12 === 0 ? ' snap-target' : ''}"
                                     style="top: calc(${hour} * var(--hour-height))"
                                 >
-                                    ${this._renderIndicatorValue(hour)}
+                                    <span class="indicator">
+                                        ${this._renderIndicatorValue(hour)}
+                                    </span>
                                 </div>
                             `,
                         )}

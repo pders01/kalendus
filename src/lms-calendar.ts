@@ -330,7 +330,7 @@ export default class LMSCalendar extends LitElement {
             --day-all-day-font-size: 0.875rem;
             --day-all-day-margin: 0 1.25em 0 4.25em;
             --hour-text-align: center;
-            --indicator-top: -0.55em;
+            --indicator-top: -0.6em;
             --separator-border: 1px solid var(--separator-light);
             --sidebar-border: 1px solid var(--separator-light);
 
