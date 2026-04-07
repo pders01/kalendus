@@ -74,7 +74,7 @@ lms-calendar {
     --active-indicator-bg: var(--background-color, white);
 
     /* ── Month ───────────────────────────────────── */
-    --indicator-backdrop-filter: blur(10px);
+    --indicator-backdrop-filter: none;
 
     /* ── Week ────────────────────────────────────── */
     --multi-day-separator: 3px solid rgba(255, 255, 255, 0.4);

@@ -645,7 +645,7 @@ export const DefaultTheme: Story = {
                     --title-column-weight: 500;
                     --context-bg: var(--separator-light, rgba(0, 0, 0, 0.06));
                     --active-indicator-bg: var(--background-color, white);
-                    --indicator-backdrop-filter: blur(10px);
+                    --indicator-backdrop-filter: none;
                     --multi-day-separator: 3px solid rgba(255, 255, 255, 0.4);
                     --month-label-font-weight: 600;
                     --year-weekday-font-weight: 500;
@@ -827,7 +827,7 @@ export const SoftTheme: Story = createThemeStory(
         --entry-highlight-color: rgba(124, 107, 235, 0.06);
         --context-bg: rgba(124, 107, 235, 0.06);
         --active-indicator-bg: var(--background-color);
-        --indicator-backdrop-filter: blur(12px);
+        --indicator-backdrop-filter: none;
         --multi-day-separator: 2px solid rgba(255, 255, 255, 0.5);
         --year-month-label-hover-color: var(--primary-color);
         --cw-hover-color: var(--primary-color);
@@ -968,7 +968,7 @@ export const MidnightTheme: Story = createThemeStory(
         --entry-focus-color: var(--primary-color);
         --context-bg: rgba(255, 255, 255, 0.06);
         --active-indicator-bg: rgba(255, 255, 255, 0.1);
-        --indicator-backdrop-filter: blur(10px);
+        --indicator-backdrop-filter: none;
         --multi-day-separator: 2px solid rgba(255, 255, 255, 0.1);
         --year-month-label-hover-color: var(--primary-color);
         --year-cw-color: rgba(255, 255, 255, 0.3);
