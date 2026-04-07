@@ -51,23 +51,28 @@ export default class Day extends LitElement {
      * layout observations within the same frame.
      */
     override firstUpdated() {
-        const scrollEl = this.renderRoot?.querySelector('.main');
-        if (!scrollEl) return;
+        const wrapper = this.renderRoot?.querySelector('.wrapper');
+        const header = this.renderRoot?.querySelector('.day-header');
+        if (!wrapper || !header) return;
+
+        // Compute from wrapper − header only, ignoring the all-day section.
+        // This keeps --minute-height identical between day and week views
+        // regardless of whether all-day events are present.
+        const baseHeight = () => wrapper.clientHeight - header.clientHeight;
 
         // Eager initial sync — clientHeight forces synchronous layout so
         // the first paint already uses the correct --minute-height.
-        this._applyScrollHeight(scrollEl.clientHeight);
+        this._applyScrollHeight(baseHeight());
 
-        // ResizeObserver for ongoing size changes (window resize, all-day
-        // section appearing, etc.). Uses rAF to avoid the benign
-        // "ResizeObserver loop completed" error.
-        this._scrollRO = new ResizeObserver(([entry]) => {
-            const h = entry.contentRect.height;
+        // ResizeObserver for ongoing size changes (window resize, etc.).
+        // Uses rAF to avoid the benign "ResizeObserver loop completed" error.
+        this._scrollRO = new ResizeObserver(() => {
+            const h = baseHeight();
             if (h > 0 && Math.abs(h - this._lastScrollH) > 0.5) {
                 requestAnimationFrame(() => this._applyScrollHeight(h));
             }
         });
-        this._scrollRO.observe(scrollEl);
+        this._scrollRO.observe(wrapper);
     }
 
     private _applyScrollHeight(h: number) {
