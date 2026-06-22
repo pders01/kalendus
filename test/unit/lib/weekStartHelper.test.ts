@@ -5,6 +5,7 @@ import {
     getFirstDayOffset,
     getWeekdayOrder,
     getFirstDayForLocale,
+    getMonthCalendarArray,
     type FirstDayOfWeek,
 } from '../../../src/lib/weekStartHelper.js';
 
@@ -168,6 +169,76 @@ describe('weekStartHelper', () => {
         it('should default to Monday (1) for unknown locales', () => {
             expect(getFirstDayForLocale('xx')).to.equal(1);
             expect(getFirstDayForLocale('unknown')).to.equal(1);
+        });
+    });
+
+    describe('getMonthCalendarArray', () => {
+        it('should return exactly 42 dates', () => {
+            const dates = getMonthCalendarArray({ year: 2024, month: 9, day: 1 }, 1);
+            expect(dates).to.have.length(42);
+        });
+
+        it('should contain all days of the target month', () => {
+            // September 2024 has 30 days
+            const dates = getMonthCalendarArray({ year: 2024, month: 9, day: 15 }, 1);
+            const septDays = dates.filter((d) => d.year === 2024 && d.month === 9);
+            expect(septDays).to.have.length(30);
+            expect(septDays[0].day).to.equal(1);
+            expect(septDays[29].day).to.equal(30);
+        });
+
+        it('should include previous month days for padding', () => {
+            // Sep 1 2024 is Sunday. Monday-first: offset = 6
+            const dates = getMonthCalendarArray({ year: 2024, month: 9, day: 1 }, 1);
+            const augDays = dates.filter((d) => d.year === 2024 && d.month === 8);
+            expect(augDays.length).to.be.greaterThan(0);
+            expect(augDays.length).to.equal(6); // 6 days from August
+        });
+
+        it('should include next month days for padding', () => {
+            const dates = getMonthCalendarArray({ year: 2024, month: 9, day: 1 }, 1);
+            const octDays = dates.filter((d) => d.year === 2024 && d.month === 10);
+            expect(octDays.length).to.be.greaterThan(0);
+            // 42 - 6 (Aug) - 30 (Sep) = 6
+            expect(octDays.length).to.equal(6);
+        });
+
+        it('should work with different firstDayOfWeek', () => {
+            // Sep 1 2024 is Sunday. Sunday-first: offset = 0
+            const dates = getMonthCalendarArray({ year: 2024, month: 9, day: 1 }, 0);
+            const augDays = dates.filter((d) => d.year === 2024 && d.month === 8);
+            expect(augDays.length).to.equal(0); // No August days needed
+        });
+
+        it('should handle month starting on first day of week', () => {
+            // Oct 1 2024 is Tuesday. Monday-first: offset = 1
+            const dates = getMonthCalendarArray({ year: 2024, month: 10, day: 1 }, 1);
+            expect(dates).to.have.length(42);
+            const firstDate = dates[0];
+            expect(firstDate).to.deep.equal({ year: 2024, month: 9, day: 30 }); // Monday before
+        });
+
+        it('should be consistent with Month component logic', () => {
+            // Test multiple months to ensure consistency
+            const testCases = [
+                { date: { year: 2024, month: 1, day: 1 }, firstDay: 1 as FirstDayOfWeek },
+                { date: { year: 2024, month: 2, day: 1 }, firstDay: 1 as FirstDayOfWeek }, // Leap year
+                { date: { year: 2024, month: 12, day: 31 }, firstDay: 0 as FirstDayOfWeek },
+                { date: { year: 2025, month: 6, day: 15 }, firstDay: 6 as FirstDayOfWeek },
+            ];
+
+            for (const { date, firstDay } of testCases) {
+                const dates = getMonthCalendarArray(date, firstDay);
+                expect(dates).to.have.length(42);
+
+                // All dates should be valid
+                for (const d of dates) {
+                    expect(d.day).to.be.greaterThan(0);
+                    expect(d.month).to.be.greaterThan(0);
+                    expect(d.month).to.be.at.most(12);
+                    expect(d.year).to.be.greaterThan(0);
+                }
+            }
         });
     });
 });

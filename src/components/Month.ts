@@ -2,9 +2,8 @@ import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
-import DirectionalCalendarDateCalculator from '../lib/DirectionalCalendarDateCalculator.js';
 import { getLocalizedDayMonth } from '../lib/localization.js';
-import { type FirstDayOfWeek, getFirstDayOffset } from '../lib/weekStartHelper.js';
+import { type FirstDayOfWeek, getMonthCalendarArray } from '../lib/weekStartHelper.js';
 
 @customElement('lms-calendar-month')
 export default class Month extends LitElement {
@@ -72,6 +71,12 @@ export default class Month extends LitElement {
             position: relative;
             margin-inline-start: 1em;
             width: calc(100% - 1em);
+        }
+
+        /* All-day entries (month-span) take full width */
+        ::slotted(lms-calendar-entry[data-display-mode='month-span']) {
+            margin-inline-start: 0;
+            width: 100%;
         }
 
         .indicator.current {
@@ -151,9 +156,13 @@ export default class Month extends LitElement {
     }
 
     override render() {
+        const calendarArray = this.activeDate
+            ? getMonthCalendarArray(this.activeDate, this.firstDayOfWeek)
+            : [];
+
         return html`
             <div class="month">
-                ${this._getCalendarArray()?.map(
+                ${calendarArray.map(
                     ({ year, month, day }) =>
                         html`<div
                             class="day"
@@ -202,66 +211,5 @@ export default class Month extends LitElement {
         }
 
         this._dispatchExpand(e);
-    }
-
-    private _getDaysInMonth(date: CalendarDate) {
-        /** Important note: Passing 0 as the date shifts the
-         *  months indices by positive 1, so 1-12 */
-        const days = new Date(date.year, date.month, 0).getDate();
-        return days > 0 ? days : 0;
-    }
-
-    private _getOffsetOfFirstDayInMonth(date: CalendarDate) {
-        return getFirstDayOffset(date, this.firstDayOfWeek);
-    }
-
-    private _getDatesInMonthAsArray(date: CalendarDate, sliceArgs: number[]) {
-        const daysInMonth = this._getDaysInMonth(date);
-        if (daysInMonth === 0) return [];
-        return Array.from(Array(daysInMonth).keys(), (_, n) => ({
-            year: date.year,
-            month: date.month,
-            day: n + 1,
-        })).slice(...(sliceArgs || [0]));
-    }
-
-    private _getCalendarArray() {
-        if (!this.activeDate) {
-            return [];
-        }
-
-        const dateTransformer = new DirectionalCalendarDateCalculator({
-            date: this.activeDate,
-        });
-
-        try {
-            dateTransformer.direction = 'previous';
-            const offset = this._getOffsetOfFirstDayInMonth(this.activeDate);
-            const previousMonth =
-                offset > 0
-                    ? this._getDatesInMonthAsArray(dateTransformer.getDateByMonthInDirection(), [
-                          -offset,
-                      ])
-                    : [];
-
-            const activeMonth = this._getDatesInMonthAsArray(this.activeDate, []);
-
-            // Reset the date transformer to the active date before getting next month
-            dateTransformer.date = this.activeDate;
-            dateTransformer.direction = 'next';
-            const remainingDays = 42 - (previousMonth.length + activeMonth.length);
-            const nextMonth =
-                remainingDays > 0
-                    ? this._getDatesInMonthAsArray(dateTransformer.getDateByMonthInDirection(), [
-                          0,
-                          remainingDays,
-                      ])
-                    : [];
-
-            return previousMonth.concat(activeMonth, nextMonth);
-        } catch (error) {
-            console.error('Error generating calendar array:', error);
-            return [];
-        }
     }
 }

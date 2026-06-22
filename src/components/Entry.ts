@@ -30,7 +30,7 @@ export default class Entry extends LitElement {
     density: 'compact' | 'standard' | 'full' = 'standard';
 
     @property({ type: String, reflect: true, attribute: 'data-display-mode' })
-    displayMode: 'default' | 'month-dot' = 'default';
+    displayMode: 'default' | 'month-dot' | 'month-span' = 'default';
 
     @property({ type: Boolean, reflect: true, attribute: 'data-float-text' })
     floatText = false;
@@ -47,10 +47,18 @@ export default class Entry extends LitElement {
     @state()
     _highlighted?: boolean;
 
-    private _sumReducer: (accumulator: number, currentValue: number) => number = (
-        accumulator,
-        currentValue,
-    ) => accumulator + currentValue;
+    /**
+     * Check if a time interval represents an all-day event.
+     * Handles both 0:00-24:00 and 0:00-23:59 formats.
+     */
+    private _isAllDayTime(time?: CalendarTimeInterval): boolean {
+        if (!time) return true;
+        const { start, end } = time;
+        return (
+            (start.hour === 0 && start.minute === 0 && end.hour === 24) ||
+            (start.hour === 0 && start.minute === 0 && end.hour === 23 && end.minute === 59)
+        );
+    }
 
     static override styles = css`
         :host {
@@ -288,6 +296,77 @@ export default class Entry extends LitElement {
             text-overflow: ellipsis;
         }
 
+        /* Month view connected bar styles for all-day/multi-day events */
+        :host([data-display-mode='month-span']) {
+            background: var(--entry-background-color);
+            border: var(--entry-border, 1px solid transparent);
+            border-radius: var(--entry-border-radius, 3px);
+            color: var(--entry-color);
+            position: relative;
+            z-index: 1;
+            width: calc(100% + 2px);
+            min-width: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+            height: 1.6em;
+            min-height: 1.6em;
+            max-height: 1.6em;
+            font-size: var(--entry-font-size, 0.75rem);
+            line-height: 1.6em;
+            margin-inline-start: -1px;
+            margin-inline-end: -1px;
+            contain: style;
+        }
+
+        :host([data-display-mode='month-span']) .main {
+            padding: 0 0.5em;
+            align-items: center;
+            gap: 0;
+            flex-wrap: nowrap;
+            overflow: hidden;
+            flex-direction: row !important;
+            height: 100%;
+        }
+
+        :host([data-display-mode='month-span']) .title {
+            color: inherit;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+            font-weight: 500;
+        }
+
+        :host([data-display-mode='month-span']) .time {
+            display: none;
+        }
+
+        /* Spanning classes for connected multi-day bars */
+        :host([data-display-mode='month-span'].first-day) {
+            border-start-end-radius: 0;
+            border-end-end-radius: 0;
+            margin-inline-end: -3px;
+        }
+
+        :host([data-display-mode='month-span'].middle-day) {
+            border-radius: 0;
+            margin-inline-start: -3px;
+            margin-inline-end: -3px;
+            border-inline-start: none;
+        }
+
+        :host([data-display-mode='month-span'].last-day) {
+            border-start-start-radius: 0;
+            border-end-start-radius: 0;
+            margin-inline-start: -3px;
+            border-inline-start: none;
+        }
+
+        :host([data-display-mode='month-span'].single-day) {
+            border-radius: var(--entry-border-radius, 3px);
+        }
+
         .color-dot {
             width: var(--entry-dot-size);
             height: var(--entry-dot-size);
@@ -358,12 +437,18 @@ export default class Entry extends LitElement {
     private _renderTime() {
         const msg = getMessages(this.locale);
 
+        // Month-span mode: no time labels (bars represent all-day/multi-day events)
+        if (this.displayMode === 'month-span') {
+            return nothing;
+        }
+
+        // Month-dot mode: show "All Day" or start time
         if (this.displayMode === 'month-dot') {
-            // In month view, show start time only (e.g. "9:30 AM") for compactness
-            if (this.isContinuation) {
+            if (this.isContinuation || this._isAllDayTime(this.time)) {
                 return html`<span class="time">${msg.allDay}</span>`;
             }
-            if (!this.time) return nothing;
+            if (!this.time) return html`<span class="time">${msg.allDay}</span>`;
+
             const startTime = formatLocalizedTime(
                 this.time.start.hour,
                 this.time.start.minute,
@@ -372,26 +457,23 @@ export default class Entry extends LitElement {
             return startTime ? html`<span class="time">${startTime}</span>` : nothing;
         }
 
+        // Default mode (day/week views)
         if (this.density === 'compact') {
-            return nothing; // No time in compact mode by default
+            return nothing;
         }
 
-        if (this.isContinuation) {
+        if (this.isContinuation || this._isAllDayTime(this.time)) {
             return html`<span class="time">${msg.allDay}</span>`;
         }
 
         if (!this.time) return nothing;
 
-        // Detect all-day events (0:00–24:00) before showing start-time-only
-        const { start, end } = this.time;
-        const lastsAllDay =
-            end.hour === 24 && (start.hour + start.minute + end.hour + end.minute) % 24 === 0;
-        if (lastsAllDay) {
-            return html`<span class="time">${msg.allDay}</span>`;
-        }
-
         // Show start time only (e.g. "9:30 AM") — keeps title visible
-        const startTime = formatLocalizedTime(start.hour, start.minute, this.locale);
+        const startTime = formatLocalizedTime(
+            this.time.start.hour,
+            this.time.start.minute,
+            this.locale,
+        );
         return startTime ? html`<span class="time">${startTime}</span>` : nothing;
     }
 
@@ -404,9 +486,10 @@ export default class Entry extends LitElement {
 
     private _getAriaLabel(): string {
         const msg = getMessages(this.locale);
-        const timeInfo = this.time
-            ? `${formatLocalizedTime(this.time.start.hour, this.time.start.minute, this.locale)} ${msg.to} ${formatLocalizedTime(this.time.end.hour, this.time.end.minute, this.locale)}`
-            : msg.allDay;
+
+        const timeInfo = this._isAllDayTime(this.time)
+            ? msg.allDay
+            : `${formatLocalizedTime(this.time!.start.hour, this.time!.start.minute, this.locale)} ${msg.to} ${formatLocalizedTime(this.time!.end.hour, this.time!.end.minute, this.locale)}`;
 
         const contentInfo = this.content ? `, ${this.content}` : '';
 
@@ -451,6 +534,18 @@ export default class Entry extends LitElement {
             `;
         }
 
+        if (this.displayMode === 'month-span') {
+            return html`
+                <div
+                    class=${mainClass}
+                    title=${this._renderTitle()}
+                    data-full-content=${this.content || ''}
+                >
+                    <span class="title">${this.heading}</span>
+                </div>
+            `;
+        }
+
         // Float text mode: render box with floating text above
         if (this.floatText) {
             return html`
@@ -480,17 +575,8 @@ export default class Entry extends LitElement {
     }
 
     private _displayInterval(time?: CalendarTimeInterval) {
-        if (!time) {
-            return nothing;
-        }
-
-        const END_HOURS = 2;
-        const components = [time.start.hour, time.start.minute, time.end.hour, time.end.minute];
-
-        const lastsAllDay =
-            components[END_HOURS] === 24 && components.reduce(this._sumReducer, 0) % 24 === 0;
-        if (lastsAllDay) {
-            return getMessages(this.locale).allDay;
+        if (!time || this._isAllDayTime(time)) {
+            return time ? getMessages(this.locale).allDay : nothing;
         }
 
         return formatLocalizedTimeRange(

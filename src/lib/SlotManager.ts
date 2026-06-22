@@ -201,6 +201,17 @@ export class SlotManager {
     }
 
     /**
+     * Month view all-day positioning: uses all-day- prefixed date-based slots
+     */
+    public calculateMonthAllDayPosition(date: CalendarDate): SlotPosition {
+        return {
+            slotName: `all-day-${date.year}-${date.month}-${date.day}`,
+            useDirectGrid: false,
+            isAllDay: true,
+        };
+    }
+
+    /**
      * Convert a pixel offset within a time column to a time object.
      * Reads --minute-height from the host element. For future drag/resize interactions.
      */

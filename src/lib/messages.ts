@@ -41,7 +41,8 @@ export type MessageKey =
     | 'showLaterDays'
     | 'more'
     | 'calendarView'
-    | 'viewLabel';
+    | 'viewLabel'
+    | 'allDayEventsWeek';
 
 export type ResolvedMessages = Readonly<Record<MessageKey, string>>;
 
@@ -77,6 +78,7 @@ const MESSAGE_DEFS: ReadonlyArray<readonly [MessageKey, string, string]> = [
     ['more', 'sa1b2c3d4e5f60010', 'more'],
     ['calendarView', 'sa1b2c3d4e5f60011', 'Calendar view'],
     ['viewLabel', 'sa1b2c3d4e5f60012', 'view'],
+    ['allDayEventsWeek', 'sa1b2c3d4e5f60013', 'All-day events for this week'],
 ] as const;
 
 // ── Lazy loader map ─────────────────────────────────────────────

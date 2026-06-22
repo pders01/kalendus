@@ -1,4 +1,4 @@
-import { LitElement, PropertyValueMap, css, html, nothing } from 'lit';
+import { LitElement, PropertyValueMap, TemplateResult, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { DateTime, Interval } from 'luxon';
@@ -34,7 +34,7 @@ import {
 } from './lib/SlotManager.js';
 import { ViewStateController } from './lib/ViewStateController.js';
 import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
-import { getWeekDates } from './lib/weekStartHelper.js';
+import { getMonthCalendarArray, getWeekDates } from './lib/weekStartHelper.js';
 
 // ── RTL locale detection ───────────────────────────────────────────────
 const RTL_LOCALES = new Set(['ar', 'he', 'fa', 'ur', 'yi']);
@@ -170,6 +170,17 @@ export default class LMSCalendar extends LitElement {
 
     /** Mobile badge view: per-day event counts, ready for _renderEntriesSumByDay. */
     private _entrySumByDay: Record<string, number> = {};
+
+    /** Month view: cached all-day layout data per week row. */
+    private _monthAllDayLayoutCache: Array<{
+        weekEntries: Array<{
+            entry: ExpandedCalendarEntry;
+            background: string;
+            originalIndex: number;
+        }>;
+        rowAssignments: Map<string, number>;
+        mergedEvents: Map<string, AllDayEvent>;
+    }> = [];
 
     /** Day/week view: expanded entries grouped by ISO date for O(1) lookup. */
     private _expandedByISODate = new Map<string, ExpandedCalendarEntry[]>();
@@ -627,6 +638,7 @@ export default class LMSCalendar extends LitElement {
     private _clearEntryCaches() {
         this._expandedEntries = [];
         this._monthViewSorted = [];
+        this._monthAllDayLayoutCache = [];
         this._entrySumByDay = {};
         this._expandedByISODate.clear();
         this._layoutCache.clear();
@@ -658,9 +670,20 @@ export default class LMSCalendar extends LitElement {
             bucket.push(entry);
         }
 
-        // 3. Month view: sort + compute colors once
+        // 3. Month view: partition into all-day vs timed, then sort + compute colors
+        const monthAllDay: ExpandedCalendarEntry[] = [];
+        const monthTimed: ExpandedCalendarEntry[] = [];
+        for (const entry of this._expandedEntries) {
+            if (this._isEffectivelyAllDay(entry)) {
+                monthAllDay.push(entry);
+            } else {
+                monthTimed.push(entry);
+            }
+        }
+
+        // Sort timed entries for month view (existing behavior)
         this._monthViewSorted = pipe(
-            this._expandedEntries,
+            monthTimed,
             sortBy((entry) => {
                 const isMultiDay = entry.continuation?.has || false;
                 return isMultiDay ? entry.originalIndex - 1000 : entry.originalIndex;
@@ -670,6 +693,9 @@ export default class LMSCalendar extends LitElement {
                 return { entry, background, originalIndex: entry.originalIndex };
             }),
         );
+
+        // 4. Month view: compute all-day row allocations per week (includes sorting)
+        this._monthAllDayLayoutCache = this._computeMonthAllDayLayout(monthAllDay);
 
         // 5. Mobile badge: aggregate per-day counts once
         this._entrySumByDay = {};
@@ -681,6 +707,94 @@ export default class LMSCalendar extends LitElement {
         // 6. Invalidate layout caches (entries changed, layouts are stale)
         this._layoutCache.clear();
         this._allDayLayoutCache.clear();
+    }
+
+    /**
+     * Compute per-week all-day layout for month view.
+     * Returns an array of 6 elements (one per week row) with row assignments.
+     */
+    private _computeMonthAllDayLayout(allDayEntries: ExpandedCalendarEntry[]) {
+        if (allDayEntries.length === 0) return [];
+
+        const activeDate = this._viewState.activeDate;
+        if (!activeDate) return [];
+
+        const calendarArray = getMonthCalendarArray(activeDate, this.firstDayOfWeek);
+        if (!calendarArray?.length) return [];
+
+        // Sort entries (multi-day first, then by original index) and compute colors
+        const sorted = pipe(
+            allDayEntries,
+            sortBy((entry) => {
+                const isMultiDay = entry.continuation?.has || false;
+                return isMultiDay ? entry.originalIndex - 1000 : entry.originalIndex;
+            }),
+            map((entry) => {
+                const [background] = getColorTextWithContrast(entry.color);
+                return { entry, background, originalIndex: entry.originalIndex };
+            }),
+        );
+
+        type WeekEntry = (typeof sorted)[number];
+        const result: Array<{
+            weekEntries: WeekEntry[];
+            rowAssignments: Map<string, number>;
+            mergedEvents: Map<string, AllDayEvent>;
+        }> = [];
+
+        for (let weekStart = 0; weekStart < calendarArray.length; weekStart += 7) {
+            const weekDates = calendarArray.slice(weekStart, weekStart + 7);
+
+            // Find all-day entries that start on any day of this week
+            const weekEntries = sorted.filter(({ entry }) =>
+                weekDates.some(
+                    (d) =>
+                        d.year === entry.date.start.year &&
+                        d.month === entry.date.start.month &&
+                        d.day === entry.date.start.day,
+                ),
+            );
+
+            if (weekEntries.length === 0) {
+                result.push({
+                    weekEntries: [],
+                    rowAssignments: new Map(),
+                    mergedEvents: new Map(),
+                });
+                continue;
+            }
+
+            // Build AllDayEvent array for row allocation
+            const events: AllDayEvent[] = weekEntries.map(({ entry }) => {
+                const dayIndex = weekDates.findIndex(
+                    (d) =>
+                        d.year === entry.date.start.year &&
+                        d.month === entry.date.start.month &&
+                        d.day === entry.date.start.day,
+                );
+                return {
+                    id: this._createConsistentEventId(entry),
+                    days: [dayIndex >= 0 ? dayIndex : 0],
+                    isMultiDay: entry.continuation?.has || entry.continuation?.is || false,
+                };
+            });
+
+            // Merge multi-day events
+            const mergedEvents = new Map<string, AllDayEvent>();
+            for (const event of events) {
+                const existing = mergedEvents.get(event.id);
+                if (existing) {
+                    existing.days.push(...event.days);
+                } else {
+                    mergedEvents.set(event.id, { ...event, days: [...event.days] });
+                }
+            }
+
+            const { rowAssignments } = allocateAllDayRows(Array.from(mergedEvents.values()));
+            result.push({ weekEntries, rowAssignments, mergedEvents });
+        }
+
+        return result;
     }
 
     /** Resolves when the current locale's translations are loaded. */
@@ -738,7 +852,7 @@ export default class LMSCalendar extends LitElement {
                                   ${
                                       this._calendarWidth < 768
                                           ? this._renderEntriesSumByDay()
-                                          : this._renderEntries()
+                                          : this._renderMonthEntries()
                                   }
                               </lms-calendar-month>
                           `
@@ -953,7 +1067,7 @@ export default class LMSCalendar extends LitElement {
         };
         isContinuation?: boolean;
         density?: 'compact' | 'standard' | 'full';
-        displayMode?: 'default' | 'month-dot';
+        displayMode?: 'default' | 'month-dot' | 'month-span';
         floatText?: boolean;
         spanClass?: string;
     }) {
@@ -1077,41 +1191,103 @@ export default class LMSCalendar extends LitElement {
         }-${baseDate.day}-${entry.time?.start.hour || 0}-${entry.time?.start.minute || 0}`;
     }
 
-    private _renderEntries() {
-        if (!this._monthViewSorted.length) {
-            return nothing;
+    /**
+     * Render all entries for month view (both all-day and timed).
+     * All-day entries use connected bar styling, timed entries use dot indicators.
+     * All entries go into the same per-day slots.
+     */
+    private _renderMonthEntries() {
+        const allElements: TemplateResult[] = [];
+
+        // 1. Render all-day entries using cached layout
+        const activeDate = this._viewState.activeDate;
+        if (activeDate && this._monthAllDayLayoutCache.length > 0) {
+            const calendarArray = getMonthCalendarArray(activeDate, this.firstDayOfWeek);
+
+            for (let weekIndex = 0; weekIndex < this._monthAllDayLayoutCache.length; weekIndex++) {
+                const { weekEntries, rowAssignments, mergedEvents } =
+                    this._monthAllDayLayoutCache[weekIndex];
+
+                if (weekEntries.length === 0) continue;
+
+                const weekDates = calendarArray.slice(weekIndex * 7, weekIndex * 7 + 7);
+
+                for (const { entry, originalIndex } of weekEntries) {
+                    const eventId = this._createConsistentEventId(entry);
+                    const row = rowAssignments.get(eventId) ?? 0;
+                    const mergedEvent = mergedEvents.get(eventId);
+                    const visibleDays = mergedEvent?.days ?? [];
+                    const sortedDays = [...visibleDays].sort((a, b) => a - b);
+                    const dayIndex = weekDates.findIndex(
+                        (d) =>
+                            d.year === entry.date.start.year &&
+                            d.month === entry.date.start.month &&
+                            d.day === entry.date.start.day,
+                    );
+
+                    const spanClass = computeSpanClass({
+                        continuationIndex: dayIndex,
+                        totalDays: entry.continuation?.total ?? 1,
+                        visibleStartIndex: sortedDays[0] ?? dayIndex,
+                        visibleEndIndex: sortedDays[sortedDays.length - 1] ?? dayIndex,
+                    });
+
+                    // Use light background with accent color for text (matching week view style)
+                    const [r, g, b] = parseColorWithDefault(entry.color);
+                    const bgColor = `rgba(${r}, ${g}, ${b}, 0.12)`;
+                    const borderColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
+
+                    allElements.push(
+                        this._composeEntry({
+                            index: originalIndex,
+                            slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
+                            inlineStyle: `--entry-color: ${entry.color || 'var(--primary-color)'}; --entry-background-color: ${bgColor}; --entry-border: 1px solid ${borderColor}; order: ${row}; z-index: ${100 + row}`,
+                            entry: {
+                                time: entry.time,
+                                heading: entry.heading,
+                                content: entry.content,
+                                date: entry.date,
+                            },
+                            density: 'compact',
+                            displayMode: 'month-span',
+                            spanClass,
+                        }),
+                    );
+                }
+            }
         }
 
-        // Pure map over pre-computed cache — no expansion, sorting, or color
-        // computation happens here. This is the "read" side of the memo.
-        return this._monthViewSorted.map(({ entry, background, originalIndex }) => {
-            const isMultiDay = entry.isContinuation || entry.continuation?.has || false;
-            const slotPrefix = isMultiDay ? 'all-day-' : '';
-
-            return this._composeEntry({
-                index: originalIndex,
-                slot: `${slotPrefix}${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-                inlineStyle: `--entry-color: ${background}; --entry-background-color: ${background}; z-index: ${100 + originalIndex}`,
-                entry: {
-                    time: entry.time,
-                    heading: entry.heading,
-                    content: entry.content,
-                    date: entry.date,
-                    isContinuation: entry.isContinuation || false,
-                    continuation: entry.continuation,
+        // 2. Render timed entries
+        if (this._monthViewSorted.length > 0) {
+            const timedElements = this._monthViewSorted.map(
+                ({ entry, background, originalIndex }) => {
+                    return this._composeEntry({
+                        index: originalIndex,
+                        slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
+                        inlineStyle: `--entry-color: ${background}; --entry-background-color: ${background}; z-index: ${100 + originalIndex}`,
+                        entry: {
+                            time: entry.time,
+                            heading: entry.heading,
+                            content: entry.content,
+                            date: entry.date,
+                        },
+                        density: this._determineDensity(
+                            {
+                                time: entry.time,
+                                heading: entry.heading,
+                                content: entry.content,
+                            },
+                            undefined,
+                            undefined,
+                        ),
+                        displayMode: 'month-dot',
+                    });
                 },
-                density: this._determineDensity(
-                    {
-                        time: entry.time,
-                        heading: entry.heading,
-                        content: entry.content,
-                    },
-                    undefined,
-                    undefined,
-                ),
-                displayMode: 'month-dot',
-            });
-        });
+            );
+            allElements.push(...timedElements);
+        }
+
+        return allElements.length > 0 ? allElements : nothing;
     }
 
     private _renderEntriesByDate(weekCtx?: WeekDisplayContext) {

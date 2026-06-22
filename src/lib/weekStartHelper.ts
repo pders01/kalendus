@@ -68,6 +68,53 @@ export function getWeekdayOrder(firstDay: FirstDayOfWeek): number[] {
 }
 
 /**
+ * Generate the 42-day calendar array for a month view.
+ * Returns an array of 42 CalendarDate objects representing the 6-week grid
+ * including leading days from the previous month and trailing days from the next.
+ *
+ * @param activeDate - Any date within the target month
+ * @param firstDayOfWeek - Which day the week starts on (0=Sun, 1=Mon, 6=Sat)
+ */
+export function getMonthCalendarArray(
+    activeDate: CalendarDate,
+    firstDayOfWeek: FirstDayOfWeek,
+): CalendarDate[] {
+    const daysInMonth = (date: CalendarDate) => new Date(date.year, date.month, 0).getDate() || 0;
+
+    const getDatesInMonth = (date: CalendarDate, sliceArgs: number[]) => {
+        const days = daysInMonth(date);
+        return Array.from(Array(days).keys(), (_, n) => ({
+            year: date.year,
+            month: date.month,
+            day: n + 1,
+        })).slice(...sliceArgs);
+    };
+
+    // Previous month dates
+    const offset = getFirstDayOffset(activeDate, firstDayOfWeek);
+    const prevMonthDate: CalendarDate = {
+        day: 1,
+        month: activeDate.month === 1 ? 12 : activeDate.month - 1,
+        year: activeDate.month === 1 ? activeDate.year - 1 : activeDate.year,
+    };
+    const previousMonth = offset > 0 ? getDatesInMonth(prevMonthDate, [-offset]) : [];
+
+    // Active month dates
+    const activeMonth = getDatesInMonth(activeDate, []);
+
+    // Next month dates
+    const nextMonthDate: CalendarDate = {
+        day: 1,
+        month: activeDate.month === 12 ? 1 : activeDate.month + 1,
+        year: activeDate.month === 12 ? activeDate.year + 1 : activeDate.year,
+    };
+    const remainingDays = 42 - (previousMonth.length + activeMonth.length);
+    const nextMonth = remainingDays > 0 ? getDatesInMonth(nextMonthDate, [0, remainingDays]) : [];
+
+    return previousMonth.concat(activeMonth, nextMonth);
+}
+
+/**
  * CLDR-derived mapping of locale tags to conventional first day of week.
  *
  * Sources:

@@ -9,6 +9,7 @@ const ALL_KEYS: MessageKey[] = [
     'previous', 'next', 'events',
     'calendarEvent', 'pressToOpen', 'to', 'switchToDayView',
     'showEarlierDays', 'showLaterDays', 'more', 'calendarView', 'viewLabel',
+    'allDayEventsWeek',
 ];
 
 describe('getMessages', () => {
