@@ -342,6 +342,7 @@ export default class LMSCalendar extends LitElement {
             --day-all-day-margin: 0 1.25em 0 4.25em;
             --hour-text-align: center;
             --indicator-top: -0.6em;
+            --calendar-border-color: var(--separator-light);
             --separator-border: 1px solid var(--separator-light);
             --sidebar-border: 1px solid var(--separator-light);
 
@@ -429,7 +430,7 @@ export default class LMSCalendar extends LitElement {
             height: var(--height);
             background-color: var(--background-color);
             border-radius: var(--calendar-border-radius, var(--border-radius-lg));
-            border: 1px solid var(--separator-light);
+            border: 1px solid var(--calendar-border-color);
             font-family: var(--system-ui);
             color: inherit;
             box-shadow: var(--calendar-shadow, none);
