@@ -1494,7 +1494,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: index + entriesByDate.length,
                 slot: position.slotName,
-                inlineStyle: `--entry-background-color: rgba(${r}, ${g}, ${b}, 0.08); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.25); --entry-border-inline-start: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); order: ${row}; ${positionCSS}`,
+                inlineStyle: `--entry-color: ${entry.color || 'var(--primary-color)'}; --entry-background-color: rgba(${r}, ${g}, ${b}, 0.08); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.25); --entry-border-inline-start: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); order: ${row}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     accessibility: accessibility,
@@ -1580,7 +1580,7 @@ export default class LMSCalendar extends LitElement {
             return this._composeEntry({
                 index: globalIndex,
                 slot: position.slotName,
-                inlineStyle: `--entry-background-color: color-mix(in srgb, var(--background-color) 80%, transparent); --entry-border: 1px solid var(--separator-light); --entry-border-inline-start: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
+                inlineStyle: `--entry-color: ${entry.color || 'var(--primary-color)'}; --entry-background-color: color-mix(in srgb, var(--background-color) 80%, transparent); --entry-border: 1px solid var(--separator-light); --entry-border-inline-start: none; --entry-handle-color: ${entry.color || 'var(--primary-color)'}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
                 entry: {
                     ...entry,
                     // Add accessibility data to entry
