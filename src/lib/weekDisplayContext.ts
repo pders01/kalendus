@@ -72,12 +72,15 @@ export function computeWeekDisplayContext(
     hostEl: Element,
 ): WeekDisplayContext {
     // 1. Read CSS custom properties
-    const rawFull = parseInt(readCSSToken(hostEl, '--week-day-count', '7'), 10);
-    const fullCount = clamp(Number.isNaN(rawFull) ? 7 : rawFull, 1, 7);
-    const rawMobile = parseInt(readCSSToken(hostEl, '--week-mobile-day-count', '3'), 10);
-    const mobileCount = clamp(Number.isNaN(rawMobile) ? 3 : rawMobile, 1, 7);
-    const rawBreakpoint = parseInt(readCSSToken(hostEl, '--week-mobile-breakpoint', '768'), 10);
-    const breakpoint = Number.isNaN(rawBreakpoint) ? 768 : rawBreakpoint;
+    const rawFull = Number(readCSSToken(hostEl, '--week-day-count', '7'));
+    const fullCount = clamp(Number.isInteger(rawFull) ? rawFull : 7, 1, 7);
+    const rawMobile = Number(readCSSToken(hostEl, '--week-mobile-day-count', '3'));
+    const mobileCount = clamp(Number.isInteger(rawMobile) ? rawMobile : 3, 1, 7);
+    const breakpointToken = readCSSToken(hostEl, '--week-mobile-breakpoint', '768');
+    const rawBreakpoint = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px)?$/.test(breakpointToken)
+        ? parseFloat(breakpointToken)
+        : NaN;
+    const breakpoint = Number.isFinite(rawBreakpoint) ? rawBreakpoint : 768;
 
     // 2. Determine effective day count based on viewport width
     const effectiveCount = calendarWidth < breakpoint ? mobileCount : fullCount;

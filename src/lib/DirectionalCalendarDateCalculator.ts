@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon';
 
-import { CalendarDate } from '../lms-calendar';
+import type { CalendarDate } from '../lms-calendar.js';
+import { isValidCalendarDate } from './calendarModel.js';
 
 /**
  * This class handles calculations and adjustments for CalendarDate objects based on a specified direction.
@@ -24,11 +25,16 @@ export default class DirectionalCalendarDateCalculator {
         if (date) {
             this.date = date;
         }
-        this._direction = direction;
+        if (direction !== undefined) this.direction = direction;
     }
 
     set date(date: CalendarDate) {
-        const newDate = DateTime.fromObject(date);
+        if (!isValidCalendarDate(date))
+            throw new Error("date couldn't be converted to DateTime object");
+        const newDate = DateTime.fromObject(
+            { year: date.year, month: date.month, day: date.day },
+            { zone: 'UTC' },
+        );
         if (!newDate.isValid) {
             throw new Error("date couldn't be converted to DateTime object");
         }
@@ -36,6 +42,8 @@ export default class DirectionalCalendarDateCalculator {
     }
 
     set direction(direction: 'previous' | 'next') {
+        if (direction !== 'previous' && direction !== 'next')
+            throw new RangeError('Invalid direction');
         this._direction = direction;
     }
 
@@ -60,7 +68,7 @@ export default class DirectionalCalendarDateCalculator {
             days: this._direction === 'next' ? 1 : -1,
         });
 
-        if (!adjustedDate.isValid) {
+        if (!adjustedDate.isValid || !isValidCalendarDate(this._toCalendarDate(adjustedDate))) {
             throw new Error('generated date is invalid');
         }
 
@@ -81,7 +89,7 @@ export default class DirectionalCalendarDateCalculator {
             months: this._direction === 'next' ? 1 : -1,
         });
 
-        if (!adjustedDate.isValid) {
+        if (!adjustedDate.isValid || !isValidCalendarDate(this._toCalendarDate(adjustedDate))) {
             throw new Error('generated date is invalid');
         }
 

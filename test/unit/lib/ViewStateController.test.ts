@@ -267,6 +267,58 @@ describe('ViewStateController', () => {
         });
     });
 
+    describe('immutable validated state', () => {
+        it('owns date input and copies both activeDate and expandedDate outputs', () => {
+            const input = { year: 2026, month: 3, day: 7 };
+            controller.setActiveDate(input);
+            controller.switchToDayView();
+            input.day = 8;
+            controller.activeDate.day = 9;
+            controller.expandedDate!.day = 10;
+            expect(controller.activeDate).to.deep.equal({ year: 2026, month: 3, day: 7 });
+            expect(controller.activeDate).not.to.equal(controller.activeDate);
+        });
+
+        it('does not schedule updates for equal or invalid inputs', () => {
+            let updates = 0;
+            host.requestUpdate = () => { updates++; };
+            const current = controller.activeDate;
+            controller.setActiveDate({ ...current });
+            controller.setViewMode('month');
+            for (const value of [null, {}, { year: 2026, month: 2, day: 30 }, { year: 2026, month: 3, day: 1.5 }]) {
+                controller.setActiveDate(value as CalendarDate);
+            }
+            controller.setViewMode('invalid' as ViewMode);
+            expect(updates).to.equal(0);
+            expect(controller.activeDate).to.deep.equal(current);
+            expect(controller.viewMode).to.equal('month');
+        });
+
+        it('preserves a civil date skipped by the ambient time zone', () => {
+            const previous = process.env.TZ;
+            process.env.TZ = 'Pacific/Apia';
+            try {
+                controller.switchToDayView();
+                controller.setActiveDate({ year: 2011, month: 12, day: 29 });
+                controller.navigateNext();
+                expect(controller.activeDate).to.deep.equal({ year: 2011, month: 12, day: 30 });
+                controller.navigateNext();
+                expect(controller.activeDate).to.deep.equal({ year: 2011, month: 12, day: 31 });
+                controller.navigatePrevious();
+                expect(controller.activeDate.day).to.equal(30);
+            } finally {
+                if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+            }
+        });
+
+        it('navigates years below 100 without the native Date 1900 offset', () => {
+            controller.setActiveDate({ year: 4, month: 2, day: 29 });
+            controller.switchToYearView();
+            controller.navigateNext();
+            expect(controller.activeDate).to.deep.equal({ year: 5, month: 2, day: 28 });
+        });
+    });
+
     describe('host.requestUpdate called on mutations', () => {
         it('should call requestUpdate when setting active date', () => {
             let updateCount = 0;

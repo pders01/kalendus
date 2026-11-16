@@ -8,6 +8,109 @@ describe('LayoutCalculator', () => {
         calculator = new LayoutCalculator();
     });
 
+    describe('geometry and sweep invariants', () => {
+        const event = (id: string, start: number, end: number) => ({
+            id, heading: id, color: '#123456',
+            startTime: { hour: Math.floor(start / 60), minute: start % 60 },
+            endTime: { hour: Math.floor(end / 60), minute: end % 60 },
+        });
+
+        it('groups visually colliding short/point events using their minimum display height', () => {
+            const boxes = calculator.calculateLayout([
+                event('a', 540, 545), event('b', 550, 555), event('point', 560, 560),
+            ]).boxes;
+            expect(new Set(boxes.map((box) => box.group)).size).to.equal(1);
+            expect(boxes.map((box) => box.height)).to.deep.equal([20, 20, 20]);
+            expect(boxes.map((box) => box.durationMinutes)).to.deep.equal([20, 20, 20]);
+            expect(boxes[1].depth).to.be.greaterThan(0);
+        });
+
+        it('uses the configured pixel scale and minimum in collision detection', () => {
+            const scaled = new LayoutCalculator({ minuteHeight: 2, eventMinHeight: 60 });
+            const boxes = scaled.calculateLayout([event('a', 540, 545), event('b', 560, 565)]).boxes;
+            expect(boxes[0].group).to.equal(boxes[1].group);
+            expect(boxes[0].y).to.equal(1080);
+            expect(boxes[0].height).to.equal(60);
+            expect(boxes[0].durationMinutes).to.equal(30);
+        });
+
+        it('reuses foreground depth for non-simultaneous events instead of unbounded cascading', () => {
+            const boxes = calculator.calculateLayout([
+                event('background', 540, 720), event('early', 550, 580), event('late', 600, 630),
+            ]).boxes;
+            expect(boxes.map((box) => box.depth)).to.deep.equal([0, 1, 1]);
+            expect(boxes[1].x).to.equal(boxes[2].x);
+        });
+
+        it('keeps ties and group numbering deterministic through reordering', () => {
+            const events = [event('c', 540, 600), event('b', 540, 600), event('a', 540, 600), event('z', 720, 750)];
+            const canonical = (items: typeof events) => calculator.calculateLayout(items).boxes.sort((a, b) => a.id.localeCompare(b.id));
+            expect(canonical(events)).to.deep.equal(canonical([...events].reverse()));
+            expect(canonical(events)[0].depth).to.equal(0);
+        });
+
+        it('keeps touching display endpoints in separate groups', () => {
+            const boxes = calculator.calculateLayout([event('a', 540, 545), event('b', 560, 565)]).boxes;
+            expect(boxes[0].group).not.to.equal(boxes[1].group);
+        });
+
+        it('matches a simple reference connectivity calculation on deterministic random intervals', () => {
+            let seed = 42;
+            const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 2 ** 32; };
+            for (let trial = 0; trial < 20; trial++) {
+                const events = Array.from({ length: 30 }, (_, i) => {
+                    const start = Math.floor(random() * 1400);
+                    return event(String(i), start, Math.min(1440, start + Math.floor(random() * 60)));
+                });
+                const intervals = events.map((item) => {
+                    const start = item.startTime.hour * 60 + item.startTime.minute;
+                    const end = item.endTime.hour * 60 + item.endTime.minute;
+                    return { start, end: Math.max(start + 20, end) };
+                });
+                const boxes = calculator.calculateLayout(events).boxes;
+                for (let i = 0; i < events.length; i++) {
+                    const connected = new Set([i]);
+                    let changed = true;
+                    while (changed) {
+                        changed = false;
+                        intervals.forEach((candidate, j) => {
+                            if (!connected.has(j) && [...connected].some((k) => intervals[k].start < candidate.end && candidate.start < intervals[k].end)) {
+                                connected.add(j); changed = true;
+                            }
+                        });
+                    }
+                    for (let j = 0; j < events.length; j++) {
+                        expect(boxes[i].group === boxes[j].group).to.equal(connected.has(j));
+                    }
+                }
+            }
+        });
+
+        for (const size of [100, 1000, 10000]) {
+            it(`handles ${size} identical overlaps without repeated group scans`, function () {
+                this.timeout(10000);
+                const boxes = calculator.calculateLayout(Array.from({ length: size }, (_, i) => event(String(i).padStart(5, '0'), 540, 600))).boxes;
+                expect(boxes).to.have.length(size);
+                expect(new Set(boxes.map((box) => box.group)).size).to.equal(1);
+                expect(new Set(boxes.map((box) => box.depth)).size).to.equal(size);
+                expect(boxes.every((box) => Number.isFinite(box.x) && box.width >= 65)).to.equal(true);
+            });
+        }
+
+        it('handles 1,000 chained overlaps with bounded simultaneous foreground depth', () => {
+            const boxes = calculator.calculateLayout(Array.from({ length: 1000 }, (_, i) => event(String(i), i, i + 2))).boxes;
+            expect(new Set(boxes.map((box) => box.group)).size).to.equal(1);
+            expect(Math.max(...boxes.map((box) => box.depth))).to.be.at.most(20);
+        });
+
+        it('rejects impossible times, reversed intervals and invalid geometry scales', () => {
+            expect(() => calculator.calculateLayout([event('bad', 600, 540)])).to.throw(RangeError);
+            expect(() => calculator.calculateLayout([event('bad', 1440, 1440)])).to.throw(RangeError);
+            expect(() => new LayoutCalculator({ minuteHeight: 0 })).to.throw(RangeError);
+            expect(() => new LayoutCalculator({ eventMinHeight: NaN })).to.throw(RangeError);
+        });
+    });
+
     describe('Single Events', () => {
         it('should give single event full width and position at origin', () => {
             const events = [

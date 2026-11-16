@@ -2,11 +2,20 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
-import { formatLocalizedTime, getLocalizedWeekdayShort } from '../lib/localization.js';
+import {
+    formatLocalizedDate,
+    formatLocalizedTime,
+    getLocalizedWeekdayShort,
+} from '../lib/localization.js';
+import { getMessages } from '../lib/messages.js';
 import type { FirstDayOfWeek } from '../lib/weekStartHelper.js';
+import { CurrentDateController } from './CurrentDateController.js';
+import { TimeGridSizingController, assignLegacyAllDayRows } from './TimeGridSizingController.js';
 
 @customElement('lms-calendar-day')
 export default class Day extends LitElement {
+    private _today = new CurrentDateController(this);
+
     @state()
     _hours = [...Array(25).keys()];
 
@@ -32,62 +41,15 @@ export default class Day extends LitElement {
     @property({ type: Number })
     firstDayOfWeek: FirstDayOfWeek = 1;
 
-    private _scrollRO?: ResizeObserver;
-    private _lastScrollH = 0;
-
-    /**
-     * Observe the scroll container and derive --minute-height (+ all dependent
-     * tokens) so that exactly 12 hours fills the visible viewport.
-     *
-     * CSS custom properties resolve var() at the element where the property is
-     * SET, not where it's consumed. So overriding --minute-height alone on this
-     * element won't recalculate --hour-height or --day-total-height (those were
-     * already resolved at the lms-calendar host). We must override every
-     * derived token directly.
-     *
-     * Style writes are deferred to the next frame via requestAnimationFrame to
-     * avoid the "ResizeObserver loop completed with undelivered notifications"
-     * error that occurs when synchronous style changes trigger additional
-     * layout observations within the same frame.
-     */
-    override firstUpdated() {
-        const wrapper = this.renderRoot?.querySelector('.wrapper');
-        const header = this.renderRoot?.querySelector('.day-header');
-        if (!wrapper || !header) return;
-
-        // Compute from wrapper − header only, ignoring the all-day section.
-        // This keeps --minute-height identical between day and week views
-        // regardless of whether all-day events are present.
-        const baseHeight = () => wrapper.clientHeight - header.clientHeight;
-
-        // Eager initial sync — clientHeight forces synchronous layout so
-        // the first paint already uses the correct --minute-height.
-        this._applyScrollHeight(baseHeight());
-
-        // ResizeObserver for ongoing size changes (window resize, etc.).
-        // Uses rAF to avoid the benign "ResizeObserver loop completed" error.
-        this._scrollRO = new ResizeObserver(() => {
-            const h = baseHeight();
-            if (h > 0 && Math.abs(h - this._lastScrollH) > 0.5) {
-                requestAnimationFrame(() => this._applyScrollHeight(h));
-            }
-        });
-        this._scrollRO.observe(wrapper);
+    constructor() {
+        super();
+        new TimeGridSizingController(this, '.wrapper', '.day-header');
     }
 
-    private _applyScrollHeight(h: number) {
-        if (h <= 0) return;
-        this._lastScrollH = h;
-        const m = h / 720;
-        this.style.setProperty('--minute-height', `${m}px`);
-        this.style.setProperty('--hour-height', `${m * 60}px`);
-        this.style.setProperty('--day-total-height', `${m * 1440}px`);
-        this.style.setProperty('--half-day-height', `${h}px`);
-    }
-
-    override disconnectedCallback() {
-        super.disconnectedCallback();
-        this._scrollRO?.disconnect();
+    /** Root drill-down focus destination; does not add a permanent tab stop. */
+    public async focusDate(_date?: CalendarDate) {
+        await this.updateComplete;
+        this.renderRoot.querySelector<HTMLElement>('.day-label')?.focus();
     }
 
     static override styles = css`
@@ -105,7 +67,7 @@ export default class Day extends LitElement {
         .wrapper {
             display: flex;
             flex-direction: column;
-            height: var(--view-container-height);
+            height: var(--view-container-height, 100%);
             width: 100%;
             overflow: hidden;
         }
@@ -146,7 +108,6 @@ export default class Day extends LitElement {
             font-size: 0.7em;
             text-transform: uppercase;
             letter-spacing: 0.03em;
-            opacity: 0.7;
         }
 
         .day-header .day-number {
@@ -244,12 +205,13 @@ export default class Day extends LitElement {
         }
 
         .all-day-wrapper {
-            display: grid;
-            grid-template-rows: 1fr;
+            display: block;
+            max-block-size: min(35%, var(--all-day-max-height, 12rem));
+            overflow-y: auto;
+            overscroll-behavior: contain;
             flex-shrink: 0;
             border-bottom: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));
-            /* Isolate repaint from the hour-grid scroller beneath */
-            contain: paint;
+            /* This bounded scroller retains every all-day entry. */
         }
 
         .all-day {
@@ -257,9 +219,37 @@ export default class Day extends LitElement {
             margin-block: 0;
             margin-inline-start: var(--day-all-day-margin-inline-start, 4.25em);
             margin-inline-end: var(--day-all-day-margin-inline-end, 1.25em);
-            overflow: hidden;
             min-height: 0;
             padding: 0.5em 0;
+            display: grid;
+            grid-template-rows: repeat(
+                var(--all-day-rows, 1),
+                var(--all-day-row-height, max(24px, 1.5rem))
+            );
+            grid-auto-rows: var(--all-day-row-height, max(24px, 1.5rem));
+            gap: 4px;
+        }
+        .all-day slot {
+            display: contents;
+        }
+        .all-day ::slotted(lms-calendar-entry) {
+            grid-column: 1 !important;
+            grid-row: calc(var(--all-day-row, var(--legacy-all-day-row, 0)) + 1) !important;
+            position: relative !important;
+            min-height: 24px !important;
+            height: var(--all-day-row-height, max(24px, 1.5rem)) !important;
+            margin-block: 0 !important;
+        }
+        .all-day-wrapper:focus-visible,
+        .day-label:focus-visible {
+            outline: 2px solid currentColor;
+            outline-offset: -2px;
+        }
+        @media (forced-colors: active) {
+            .all-day-wrapper:focus-visible,
+            .day-label:focus-visible {
+                outline-color: Highlight;
+            }
         }
     `;
 
@@ -268,7 +258,7 @@ export default class Day extends LitElement {
     }
 
     private _isCurrentDate() {
-        const today = new Date();
+        const today = this._today.date;
         return (
             this.activeDate.day === today.getDate() &&
             this.activeDate.month === today.getMonth() + 1 &&
@@ -294,7 +284,7 @@ export default class Day extends LitElement {
         return html` <div class="wrapper">
             <div class="day-header">
                 <div class="time-header"></div>
-                <div class="day-label ${classMap({ current: this._isCurrentDate() })}">
+                <div class="day-label ${classMap({ current: this._isCurrentDate() })}" tabindex="-1" role="heading" aria-level="2" aria-label=${formatLocalizedDate(this.activeDate.day, this.activeDate.month, this.activeDate.year, this.locale)} aria-current=${this._isCurrentDate() ? 'date' : 'false'}>
                     <span class="day-name">${getLocalizedWeekdayShort(luxonWeekday, this.locale)}</span>
                     <span class="day-number">${this.activeDate.day}</span>
                 </div>
@@ -302,9 +292,9 @@ export default class Day extends LitElement {
             ${
                 hasAllDay
                     ? html`
-                          <div class="all-day-wrapper">
-                              <div class="all-day">
-                                  <slot name="all-day" id="all-day" class="entry"></slot>
+                          <div class="all-day-wrapper" tabindex="0" role="region" aria-label=${getMessages(this.locale).allDay}>
+                              <div class="all-day" style="--all-day-rows: ${Math.max(1, this.allDayRowCount)}">
+                                  <slot name="all-day" id="all-day" class="entry" @slotchange=${assignLegacyAllDayRows}></slot>
                               </div>
                           </div>
                       `

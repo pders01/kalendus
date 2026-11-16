@@ -6,9 +6,13 @@ import { formatLocalizedTime, getLocalizedWeekdayShort } from '../lib/localizati
 import { getMessages } from '../lib/messages.js';
 import { type FirstDayOfWeek, getWeekDates, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import './Day.js';
+import { CurrentDateController } from './CurrentDateController.js';
+import { dateKey } from './dateNavigation.js';
+import { TimeGridSizingController, assignLegacyAllDayRows } from './TimeGridSizingController.js';
 
 @customElement('lms-calendar-week')
 export default class Week extends LitElement {
+    private _today = new CurrentDateController(this);
     @property({ attribute: false })
     activeDate: CalendarDate = {
         day: new Date().getDate(),
@@ -50,7 +54,7 @@ export default class Week extends LitElement {
         .week-container {
             display: flex;
             flex-direction: column;
-            height: var(--view-container-height);
+            height: var(--view-container-height, 100%);
             overflow: hidden;
             position: relative;
         }
@@ -90,7 +94,6 @@ export default class Week extends LitElement {
             font-size: 0.7em;
             text-transform: uppercase;
             letter-spacing: 0.03em;
-            opacity: 0.7;
         }
 
         .day-number {
@@ -179,15 +182,16 @@ export default class Week extends LitElement {
 
         /* All-day events section */
         .all-day-wrapper {
-            display: grid;
-            grid-template-rows: 1fr;
+            display: block;
+            max-block-size: min(35%, var(--all-day-max-height, 12rem));
+            overflow-y: auto;
+            overscroll-behavior: contain;
             flex-shrink: 0;
             border-bottom: var(--separator-border);
             background: var(--background-color);
             z-index: 2;
             position: relative;
-            /* Isolate repaint from the hour-grid scroller beneath */
-            contain: paint;
+            /* Bounded scroller: the timed grid always retains usable space. */
         }
 
         .all-day-container {
@@ -203,14 +207,27 @@ export default class Week extends LitElement {
             position: relative;
             min-height: 2em;
             padding: 0.25em 0;
-            overflow: hidden;
+            display: grid;
+            grid-template-rows: repeat(
+                var(--all-day-rows, 1),
+                var(--all-day-row-height, max(24px, 1.5rem))
+            );
+            grid-auto-rows: var(--all-day-row-height, max(24px, 1.5rem));
+            gap: 4px;
+        }
+        .all-day-day-column slot {
+            display: contents;
         }
 
         /* Stack all-day events vertically with consistent positioning */
         .all-day-container .all-day-day-column ::slotted(lms-calendar-entry) {
             position: relative !important;
             display: block !important;
-            margin-bottom: 0.25em !important;
+            grid-column: 1 !important;
+            grid-row: calc(var(--all-day-row, var(--legacy-all-day-row, 0)) + 1) !important;
+            min-height: 24px !important;
+            height: var(--all-day-row-height, max(24px, 1.5rem)) !important;
+            margin-block: 0 !important;
             z-index: var(--entry-z-index, 1) !important;
         }
 
@@ -264,7 +281,7 @@ export default class Week extends LitElement {
             justify-content: space-between;
             align-items: center;
             padding: 0 0.25em;
-            height: 1.5em;
+            min-height: 24px;
             flex-shrink: 0;
             border-bottom: var(--separator-border);
         }
@@ -293,6 +310,25 @@ export default class Week extends LitElement {
             background-color: var(--peek-active-bg);
         }
 
+        button {
+            font: inherit;
+            color: inherit;
+            border: none;
+            background: none;
+            min-inline-size: 24px;
+            min-block-size: 24px;
+        }
+        button:focus-visible,
+        .all-day-wrapper:focus-visible {
+            outline: 2px solid currentColor;
+            outline-offset: -2px;
+        }
+        @media (forced-colors: active) {
+            button:focus-visible,
+            .all-day-wrapper:focus-visible {
+                outline-color: Highlight;
+            }
+        }
         .peek-indicator--hidden {
             visibility: hidden;
             pointer-events: none;
@@ -321,7 +357,7 @@ export default class Week extends LitElement {
     }
 
     private _isCurrentDate(date: CalendarDate) {
-        const today = new Date();
+        const today = this._today.date;
         return (
             date.day === today.getDate() &&
             date.month === today.getMonth() + 1 &&
@@ -334,62 +370,17 @@ export default class Week extends LitElement {
         return this.visibleDates !== undefined && this.visibleLength < 7;
     }
 
-    private _scrollRO?: ResizeObserver;
-    private _lastScrollH = 0;
-
-    /**
-     * Observe the scroll container and derive --minute-height (+ all dependent
-     * tokens) so that exactly 12 hours fills the visible viewport.
-     *
-     * CSS custom properties resolve var() at the element where the property is
-     * SET, not where it's consumed. So overriding --minute-height alone on this
-     * element won't recalculate --hour-height or --day-total-height (those were
-     * already resolved at the lms-calendar host). We must override every
-     * derived token directly.
-     *
-     * Style writes are deferred to the next frame via requestAnimationFrame to
-     * avoid the "ResizeObserver loop completed with undelivered notifications"
-     * error that occurs when synchronous style changes trigger additional
-     * layout observations within the same frame.
-     */
-    override firstUpdated() {
-        const wrapper = this.renderRoot?.querySelector('.week-container');
-        const header = this.renderRoot?.querySelector('.week-header');
-        if (!wrapper || !header) return;
-
-        // Compute from wrapper − header only, ignoring the all-day section
-        // and peek indicators. This keeps --minute-height identical between
-        // day and week views regardless of whether all-day events are present.
-        const baseHeight = () => wrapper.clientHeight - header.clientHeight;
-
-        // Eager initial sync — clientHeight forces synchronous layout so
-        // the first paint already uses the correct --minute-height.
-        this._applyScrollHeight(baseHeight());
-
-        // ResizeObserver for ongoing size changes (window resize, etc.).
-        // Uses rAF to avoid the benign "ResizeObserver loop completed" error.
-        this._scrollRO = new ResizeObserver(() => {
-            const h = baseHeight();
-            if (h > 0 && Math.abs(h - this._lastScrollH) > 0.5) {
-                requestAnimationFrame(() => this._applyScrollHeight(h));
-            }
-        });
-        this._scrollRO.observe(wrapper);
+    constructor() {
+        super();
+        new TimeGridSizingController(this, '.week-container', '.week-header');
     }
 
-    private _applyScrollHeight(h: number) {
-        if (h <= 0) return;
-        this._lastScrollH = h;
-        const m = h / 720;
-        this.style.setProperty('--minute-height', `${m}px`);
-        this.style.setProperty('--hour-height', `${m * 60}px`);
-        this.style.setProperty('--day-total-height', `${m * 1440}px`);
-        this.style.setProperty('--half-day-height', `${h}px`);
-    }
-
-    override disconnectedCallback() {
-        super.disconnectedCallback();
-        this._scrollRO?.disconnect();
+    /** Root drill-down/return focus destination. */
+    public async focusDate(date: CalendarDate = this.activeDate) {
+        await this.updateComplete;
+        this.renderRoot
+            .querySelector<HTMLButtonElement>(`button[data-date="${dateKey(date)}"]`)
+            ?.focus();
     }
 
     override render() {
@@ -407,23 +398,21 @@ export default class Week extends LitElement {
                     ${datesToRender.map((date, index) => {
                         const msg = getMessages(this.locale);
                         return html`
-                            <div
+                            <button type="button"
+                                data-date=${dateKey(date)}
                                 class="day-label ${classMap({
                                     current: this._isCurrentDate(date),
                                 })}"
-                                tabindex="0"
-                                role="button"
+                                aria-current=${this._isCurrentDate(date) ? 'date' : 'false'}
                                 aria-label="${msg.switchToDayView} ${getLocalizedWeekdayShort(
                                     weekdayOrder[index],
                                     this.locale,
                                 )}, ${date.day}"
                                 @click=${() => this._handleDayLabelClick(date)}
-                                @keydown=${(e: KeyboardEvent) =>
-                                    this._handleDayLabelKeydown(e, date)}
                             >
                                 <span class="day-name">${getLocalizedWeekdayShort(weekdayOrder[index], this.locale)}</span>
                                 <span class="day-number">${date.day}</span>
-                            </div>
+                            </button>
                         `;
                     })}
                 </div>
@@ -435,22 +424,20 @@ export default class Week extends LitElement {
                               const msg = getMessages(this.locale);
                               return html`
                 <div class="peek-indicators">
-                    <span
+                    <button type="button"
                         class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showLeftPeek })}"
-                        role="button"
+                        ?disabled=${!showLeftPeek}
                         tabindex=${showLeftPeek ? '0' : '-1'}
                         aria-label="${msg.showEarlierDays}"
                         @click=${() => this._handlePeekNavigate('previous')}
-                        @keydown=${(e: KeyboardEvent) => this._handlePeekKeydown(e, 'previous')}
-                    >\u2039 ${msg.more}</span>
-                    <span
+                    >\u2039 ${msg.more}</button>
+                    <button type="button"
                         class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showRightPeek })}"
-                        role="button"
+                        ?disabled=${!showRightPeek}
                         tabindex=${showRightPeek ? '0' : '-1'}
                         aria-label="${msg.showLaterDays}"
                         @click=${() => this._handlePeekNavigate('next')}
-                        @keydown=${(e: KeyboardEvent) => this._handlePeekKeydown(e, 'next')}
-                    >${msg.more} \u203A</span>
+                    >${msg.more} \u203A</button>
                 </div>
                 `;
                           })()
@@ -461,14 +448,15 @@ export default class Week extends LitElement {
                 ${
                     hasAllDay
                         ? html`
-                <div class="all-day-wrapper">
-                    <div class="all-day-container">
+                <div class="all-day-wrapper" tabindex="0" role="region" aria-label=${getMessages(this.locale).allDay}>
+                    <div class="all-day-container" style="--all-day-rows: ${Math.max(1, this.allDayRowCount)}">
                         <div class="all-day-time-header">${getMessages(this.locale).allDay}</div>
                         ${datesToRender.map(
                             (date) => html`
                                 <div class="all-day-day-column">
                                     <slot
                                         name="all-day-${date.year}-${date.month}-${date.day}"
+                                        @slotchange=${assignLegacyAllDayRows}
                                     ></slot>
                                 </div>
                             `,
@@ -520,13 +508,6 @@ export default class Week extends LitElement {
         this.dispatchEvent(event);
     }
 
-    private _handleDayLabelKeydown(e: KeyboardEvent, date: CalendarDate) {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            this._handleDayLabelClick(date);
-        }
-    }
-
     /**
      * Navigate the visible window by shifting the active date by 1 day.
      * The parent's `computeWeekDisplayContext` re-centers the window around the new date.
@@ -549,13 +530,6 @@ export default class Week extends LitElement {
                     composed: true,
                 }),
             );
-        }
-    }
-
-    private _handlePeekKeydown(e: KeyboardEvent, direction: 'previous' | 'next') {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            this._handlePeekNavigate(direction);
         }
     }
 }

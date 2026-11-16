@@ -1,4 +1,5 @@
 import { expect, fixture, html } from '@open-wc/testing';
+
 import '../../../src/components/Menu.ts';
 import type { Menu } from '../../../src/components/Menu.ts';
 
@@ -19,7 +20,7 @@ describe('Menu Component', () => {
     describe('open menu', () => {
         let el: Menu;
 
-        before(async () => {
+        beforeEach(async () => {
             el = await fixture(html`<lms-menu ?open=${true}></lms-menu>`);
         });
 
@@ -27,12 +28,13 @@ describe('Menu Component', () => {
             expect(el.hasAttribute('open')).to.be.true;
         });
 
-        it('should have role="dialog" with aria-modal on the card', () => {
+        it('should expose a named native non-modal dialog', () => {
             const card = el.shadowRoot?.querySelector('.card');
-            expect(card).to.exist;
-            expect(card?.getAttribute('role')).to.equal('dialog');
-            expect(card?.getAttribute('aria-modal')).to.equal('true');
-            expect(card?.getAttribute('aria-label')).to.equal('Event Details');
+            expect(card).to.be.instanceOf(HTMLDialogElement);
+            expect(card?.hasAttribute('aria-modal')).to.be.false;
+            expect(card?.getAttribute('aria-labelledby')).to.equal('event-title');
+            expect(card?.querySelector('#event-title')?.textContent?.trim()).to.equal('No Title');
+            expect(card?.matches(':popover-open')).to.be.true;
         });
 
         it('should display export button', () => {
@@ -61,7 +63,11 @@ describe('Menu Component', () => {
     });
 
     it('should render menu correctly', async () => {
-        const el: Menu = await fixture(html`<lms-menu></lms-menu>`);
+        const el: Menu = await fixture(
+            html`
+                <lms-menu></lms-menu>
+            `,
+        );
 
         expect(el).to.exist;
         expect(el.shadowRoot).to.exist;

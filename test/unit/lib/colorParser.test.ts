@@ -1,7 +1,38 @@
 import { expect } from 'chai';
-import { parseColor, parseColorWithDefault, type RGBTuple } from '../../../src/lib/colorParser.js';
+import { normalizeColor, parseColor, parseColorWithDefault, type RGBTuple } from '../../../src/lib/colorParser.js';
 
 describe('colorParser', () => {
+    const adversarial = [
+        '__proto__', 'constructor', 'toString', 'hasOwnProperty',
+        'red;position:fixed;inset:0', 'red!important', 'url(https://example.com)',
+        'rgb(1 2 3) garbage', 'rgb(1 2 3);background:url(x)', 'rgb(1 2 3',
+        'rgb(1px 2 3)', 'rgb(1foo 2 3)', 'rgb(1 2 3 / nope)', 'rgb(1, 2 3)',
+        'rgb(1, 2, 3 / .5)', 'rgb(1,,2,3)', 'rgb(1 2 3 4)', 'rgba(1 2 3 /)',
+        'hsl(0foo 100% 50%)', 'hsl(0 1 0.5)', 'hsl(0% 100% 50%)',
+        'lab(1e999 0 0)', 'lab(none 0 0)', 'oklab(calc(1) 0 0)',
+        'color(display-p3 1 0 0)', 'color(srgb 1 0 0) trailing',
+        'var(--accent)', 'currentColor', 'rgb(from red r g b)',
+    ];
+    for (const value of adversarial) {
+        it(`rejects the complete unsupported value ${value}`, () => {
+            expect(() => parseColor(value)).not.to.throw();
+            expect(parseColor(value)).to.equal(undefined);
+            expect(parseColorWithDefault(value)).to.deep.equal([25, 118, 210]);
+            expect(normalizeColor(value)).to.equal('rgb(25,118,210)');
+        });
+    }
+    it('normalizes accepted values to declaration-safe opaque RGB only', () => {
+        expect(normalizeColor('rgba(255 0 0 / 0)')).to.equal('rgb(255,0,0)');
+        expect(normalizeColor('#f008')).to.equal('rgb(255,0,0)');
+        expect(normalizeColor('red')).to.equal('rgb(255,0,0)');
+        expect(normalizeColor('unsupported', 'navy')).to.equal('rgb(0,0,128)');
+        expect(normalizeColor('unsupported', 'blue;display:none')).to.equal('rgb(25,118,210)');
+    });
+    it('handles runtime non-string inputs without invoking user coercion', () => {
+        for (const value of [null, 123, {}, [], { toString() { throw new Error('coercion'); } }]) {
+            expect(parseColor(value as unknown as string)).to.equal(undefined);
+        }
+    });
     describe('parseColor – hex', () => {
         it('should parse 6-digit hex with #', () => {
             expect(parseColor('#FF0000')).to.deep.equal([255, 0, 0]);

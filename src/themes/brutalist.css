@@ -10,8 +10,11 @@
 
 lms-calendar {
     /* ── Colors ─────────────────────────────────── */
+    color-scheme: light;
+    color: #000;
+    --text-color: #000;
     --background-color: #fff;
-    --primary-color: #e60000;
+    --primary-color: #c40000;
     --separator-light: #000;
     --separator-mid: #000;
     --separator-dark: #000;
@@ -53,9 +56,9 @@ lms-calendar {
     --transition-speed: 0s;
 
     /* ── Hover / Focus / Active ─────────────────── */
-    --hover-bg: #e60000;
+    --hover-bg: #c40000;
     --hover-color: #fff;
-    --focus-bg: #e60000;
+    --focus-bg: #c40000;
     --peek-active-bg: #000;
     --current-day-hover-opacity: 1;
     --export-hover-opacity: 1;
@@ -88,7 +91,7 @@ lms-calendar {
     --year-heatmap-1: rgba(230, 0, 0, 0.15);
     --year-heatmap-2: rgba(230, 0, 0, 0.35);
     --year-heatmap-3: rgba(230, 0, 0, 0.55);
-    --year-heatmap-4: rgba(230, 0, 0, 0.8);
+    --year-heatmap-4: #c40000;
     --year-dot-color: #e60000;
 
     /* ── Float Text ──────────────────────────────── */

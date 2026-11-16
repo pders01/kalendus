@@ -11,7 +11,9 @@
 lms-calendar {
     /* ── Base text color — must be explicit for dark themes since
        the unstyled base uses `color: inherit` from the page ──── */
-    color: rgba(255, 255, 255, 0.85);
+    color-scheme: dark;
+    color: #e2e3ef;
+    --text-color: #e2e3ef;
 
     /* ── Colors ─────────────────────────────────── */
     --background-color: #1a1b2e;
@@ -23,7 +25,7 @@ lms-calendar {
     /* ── Typography ─────────────────────────────── */
     --system-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
     --monospace-ui: 'JetBrains Mono', 'Fira Code', monospace;
-    --header-text-color: rgba(255, 255, 255, 0.5);
+    --header-text-color: #b8bacf;
     --indicator-color: var(--primary-color);
     --indicator-font-weight: 600;
     --day-label-font-weight: 500;
@@ -60,7 +62,7 @@ lms-calendar {
     --hover-bg: rgba(255, 255, 255, 0.06);
     --focus-bg: rgba(255, 255, 255, 0.08);
     --peek-active-bg: rgba(255, 255, 255, 0.12);
-    --current-day-hover-opacity: 0.85;
+    --current-day-hover-opacity: 1;
     --export-hover-opacity: 0.7;
 
     /* ── Entry ───────────────────────────────────── */
@@ -81,7 +83,7 @@ lms-calendar {
 
     /* ── Year ────────────────────────────────────── */
     --year-month-label-hover-color: var(--primary-color);
-    --year-cw-color: rgba(255, 255, 255, 0.3);
+    --year-cw-color: #b8bacf;
     --cw-hover-color: var(--primary-color);
     --cw-hover-bg: rgba(255, 255, 255, 0.06);
     --current-day-bg: var(--primary-color);
@@ -92,14 +94,14 @@ lms-calendar {
     --year-heatmap-1: rgba(129, 140, 248, 0.12);
     --year-heatmap-2: rgba(129, 140, 248, 0.25);
     --year-heatmap-3: rgba(129, 140, 248, 0.4);
-    --year-heatmap-4: rgba(129, 140, 248, 0.6);
+    --year-heatmap-4: #818cf8;
     --year-dot-color: var(--primary-color);
 
     /* ── Float Text ──────────────────────────────── */
     --float-text-bg: #252640;
 
     /* ── Hour indicator ──────────────────────────── */
-    --hour-indicator-color: rgba(255, 255, 255, 0.35);
+    --hour-indicator-color: #b8bacf;
 
     /* ── Month view ──────────────────────────────── */
     --entry-month-text-color: rgba(255, 255, 255, 0.7);

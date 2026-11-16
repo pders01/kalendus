@@ -10,6 +10,8 @@
  * and grid positioning complexities.
  */
 
+import { isValidCalendarDate, isValidCalendarTime } from './calendarModel.js';
+import { getDisplayDurationMinutes } from './LayoutCalculator.js';
 import { formatLocalizedDate, formatLocalizedTime } from './localization.js';
 import { getMessages } from './messages.js';
 import type { ViewMode } from './ViewStateController.js';
@@ -34,7 +36,8 @@ export interface LayoutDimensions {
     x: number; // Percentage offset (0-100)
     zIndex: number; // Stacking order
     opacity: number; // Transparency
-    height?: number; // For absolute positioning
+    height?: number; // Layout height in the calculator's pixel scale
+    durationMinutes?: number; // Authoritative display duration from LayoutBox
 }
 
 export interface AccessibilityInfo {
@@ -65,6 +68,7 @@ export class SlotManager {
      * Calculate the slot name and positioning for an entry
      */
     public calculatePosition(config: PositionConfig): SlotPosition {
+        this._validateConfig(config);
         const { viewMode, date, time, isAllDay } = config;
 
         switch (viewMode) {
@@ -98,7 +102,11 @@ export class SlotManager {
             // Absolute positioning — replaces 1440-row grid
             const startMinute = time.start.hour * 60 + time.start.minute;
             const endMinute = time.end.hour * 60 + time.end.minute;
-            const duration = Math.max(endMinute - startMinute, 20);
+            const duration =
+                layout.durationMinutes ?? getDisplayDurationMinutes(startMinute, endMinute);
+            if (!Number.isFinite(duration) || duration < endMinute - startMinute || duration < 0) {
+                throw new RangeError('Invalid display duration');
+            }
             return [
                 'position: absolute',
                 `top: calc(${startMinute} * var(--minute-height))`,
@@ -165,6 +173,7 @@ export class SlotManager {
         const dayColumnIndex = weekDates
             ? this.getIndexInDates(date, weekDates)
             : this.getWeekDayIndex(date, activeDate, firstDayOfWeek ?? 1);
+        if (dayColumnIndex < 0) throw new RangeError('Entry date is outside the visible week');
         const gridColumn = dayColumnIndex + 2; // +2 because column 1 is for time indicators
 
         if (isAllDay) {
@@ -204,6 +213,7 @@ export class SlotManager {
      * Month view all-day positioning: uses all-day- prefixed date-based slots
      */
     public calculateMonthAllDayPosition(date: CalendarDate): SlotPosition {
+        if (!isValidCalendarDate(date)) throw new RangeError('Invalid entry date');
         return {
             slotName: `all-day-${date.year}-${date.month}-${date.day}`,
             useDirectGrid: false,
@@ -216,8 +226,9 @@ export class SlotManager {
      * Reads --minute-height from the host element. For future drag/resize interactions.
      */
     public pxToTime(px: number, hostEl: Element): { hour: number; minute: number } {
-        const minuteHeight =
-            parseFloat(getComputedStyle(hostEl).getPropertyValue('--minute-height')) || 0.8;
+        if (!Number.isFinite(px)) throw new RangeError('Pixel offset must be finite');
+        const rawHeight = parseFloat(getComputedStyle(hostEl).getPropertyValue('--minute-height'));
+        const minuteHeight = Number.isFinite(rawHeight) && rawHeight > 0 ? rawHeight : 0.8;
         const totalMinutes = Math.round(px / minuteHeight);
         const clamped = Math.max(0, Math.min(totalMinutes, 1439));
         return { hour: Math.floor(clamped / 60), minute: clamped % 60 };
@@ -243,8 +254,8 @@ export class SlotManager {
         const idx = this._weekIndexCache.map.get(
             `${entryDate.year}-${entryDate.month}-${entryDate.day}`,
         );
-        // Return 0 if not found, to prevent undefined from breaking sorting
-        return idx ?? 0;
+        // Never silently place an offscreen entry in the first column.
+        return idx ?? -1;
     }
 
     /**
@@ -254,20 +265,15 @@ export class SlotManager {
         const idx = dates.findIndex(
             (d) => d.year === date.year && d.month === date.month && d.day === date.day,
         );
-        return idx >= 0 ? idx : 0;
+        return idx;
     }
 
     /**
      * Convert time interval to CSS grid row specification
      */
     private _getGridSlotByTime({ start, end }: CalendarTimeInterval): string {
-        const startRow = start.hour * 60 + (start.minute + 1);
-        const endRow = startRow + (end.hour * 60 + end.minute - startRow);
-
-        if (startRow === endRow) {
-            return `${startRow}/${endRow + 1}`;
-        }
-
+        const startRow = start.hour * 60 + start.minute + 1;
+        const endRow = Math.max(startRow + 1, end.hour * 60 + end.minute + 1);
         return `${startRow}/${endRow}`;
     }
 
@@ -275,30 +281,10 @@ export class SlotManager {
      * Calculate accessibility information including logical tab order
      */
     public calculateAccessibility(config: PositionConfig): AccessibilityInfo {
-        const { viewMode, date, time, isAllDay, firstDayOfWeek } = config;
-
-        let tabIndex = 0;
-
-        if (viewMode === 'week' && time && !isAllDay) {
-            const dayOfWeek = this.getWeekDayIndex(date, config.activeDate!, firstDayOfWeek ?? 1);
-            tabIndex = 10000 + dayOfWeek * 10000 + time.start.hour * 100 + time.start.minute;
-        } else if (viewMode === 'day' && time && !isAllDay) {
-            tabIndex = time.start.hour * 60 + time.start.minute;
-        } else if (isAllDay) {
-            if (viewMode === 'week') {
-                const dayOfWeek = this.getWeekDayIndex(
-                    date,
-                    config.activeDate!,
-                    firstDayOfWeek ?? 1,
-                );
-                tabIndex = 1000 + dayOfWeek;
-            } else {
-                tabIndex = 0;
-            }
-        }
-
+        // Chronological DOM order owns focus order. Positive values jump ahead of
+        // unrelated page controls and are never appropriate for event positioning.
         return {
-            tabIndex,
+            tabIndex: 0,
             role: 'button',
             ariaLabel: this._generateAriaLabel(config),
         };
@@ -334,8 +320,53 @@ export class SlotManager {
         }
     }
 
+    private _validateConfig(config: PositionConfig): void {
+        if (!config || !isValidCalendarDate(config.date))
+            throw new RangeError('Invalid entry date');
+        if (config.activeDate !== undefined && !isValidCalendarDate(config.activeDate))
+            throw new RangeError('Invalid active date');
+        if (
+            config.firstDayOfWeek !== undefined &&
+            (!Number.isInteger(config.firstDayOfWeek) ||
+                config.firstDayOfWeek < 0 ||
+                config.firstDayOfWeek > 6)
+        ) {
+            throw new RangeError('Invalid first day of week');
+        }
+        if (config.time && !config.isAllDay) {
+            const { start, end } = config.time;
+            if (
+                !isValidCalendarTime(start) ||
+                !isValidCalendarTime(end, true) ||
+                end.hour * 60 + end.minute < start.hour * 60 + start.minute
+            ) {
+                throw new RangeError('Invalid time interval');
+            }
+        }
+        if (
+            config.viewMode === 'day' &&
+            config.activeDate &&
+            (config.date.year !== config.activeDate.year ||
+                config.date.month !== config.activeDate.month ||
+                config.date.day !== config.activeDate.day)
+        ) {
+            throw new RangeError('Entry date is outside the active day');
+        }
+        if (config.viewMode === 'week') {
+            if (!isValidCalendarDate(config.activeDate))
+                throw new RangeError('Week view requires an active date');
+            if (
+                config.weekDates &&
+                (config.weekDates.length < 1 ||
+                    config.weekDates.length > 7 ||
+                    config.weekDates.some((date) => !isValidCalendarDate(date)))
+            )
+                throw new RangeError('Invalid visible week dates');
+        }
+    }
+
     /**
-     * Validate that a position configuration is valid
+     * Validate that a position configuration is valid, including its visible window.
      */
     public validatePosition(config: PositionConfig): {
         valid: boolean;

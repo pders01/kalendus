@@ -130,14 +130,15 @@ describe('Week View Row Allocation for Multi-Day Events', () => {
             ];
             const rows = allocateRows(events);
 
-            // Event2 should have the same row for all its days
-            const event2Row = rows.get('Event2');
-            expect(event2Row).to.be.a('number');
-
-            // Simulate checking that Event2 has the same row on all its days
-            const event2Days = [1, 2, 3, 4]; // Tue-Fri
-            const rowsForEvent2Days = event2Days.map(() => event2Row);
-            expect(new Set(rowsForEvent2Days).size).to.equal(1); // All same row
+            // Verify actual occupancy, not a repeated copy of one map value.
+            for (let day = 0; day < 7; day++) {
+                const onDay = events.filter((event) => event.days.includes(day));
+                const occupiedRows = onDay.map((event) => rows.get(event.id));
+                expect(occupiedRows.every((row) => Number.isInteger(row))).to.equal(true);
+                expect(new Set(occupiedRows).size).to.equal(onDay.length);
+            }
+            expect(rows.get('Event2')).to.equal(1);
+            // Pixel row consistency is a separate component integration assertion.
         });
 
         it('should never allow an event to jump rows mid-span', () => {
@@ -177,6 +178,17 @@ describe('Week View Row Allocation for Multi-Day Events', () => {
             expect(rows.get('Event1')).to.equal(0);
             expect(rows.get('Event2')).to.equal(1); // Different row due to overlap on Mon
             expect(rows.get('Event3')).to.equal(0); // Can reuse row 0 on Tue
+        });
+
+        it('reports a row budget covering gapped assignments rather than daily cardinality', () => {
+            const events = [
+                { id: 'A', days: [0, 1], isMultiDay: true },
+                { id: 'B', days: [0, 2], isMultiDay: true },
+                { id: 'C', days: [1, 2], isMultiDay: true },
+            ];
+            const { rowAssignments, totalRows } = allocateAllDayRows(events);
+            expect(totalRows).to.equal(3);
+            expect([...rowAssignments.values()].every((row) => row < totalRows)).to.equal(true);
         });
 
         it('should handle events with gaps', () => {

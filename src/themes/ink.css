@@ -10,6 +10,9 @@
 
 lms-calendar {
     /* ── Colors ─────────────────────────────────── */
+    color-scheme: light;
+    color: #111;
+    --text-color: #111;
     --background-color: #fff;
     --primary-color: #111;
     --separator-light: rgba(0, 0, 0, 0.12);
@@ -86,7 +89,7 @@ lms-calendar {
     --year-heatmap-1: rgba(0, 0, 0, 0.08);
     --year-heatmap-2: rgba(0, 0, 0, 0.2);
     --year-heatmap-3: rgba(0, 0, 0, 0.35);
-    --year-heatmap-4: rgba(0, 0, 0, 0.55);
+    --year-heatmap-4: #111;
     --year-dot-color: #111;
 
     /* ── Float Text ──────────────────────────────── */

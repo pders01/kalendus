@@ -11,6 +11,25 @@ describe('DirectionalCalendarDateCalculator', () => {
         });
     });
 
+    describe('civil arithmetic and strict inputs', () => {
+        it('does not skip a civil day missing from the ambient zone', () => {
+            const previous = process.env.TZ;
+            process.env.TZ = 'Pacific/Apia';
+            try {
+                const calc = new DirectionalCalendarDateCalculator({ date: { year: 2011, month: 12, day: 29 }, direction: 'next' });
+                expect(calc.getDateByDayInDirection()).to.deep.equal({ year: 2011, month: 12, day: 30 });
+                expect(calc.getDateByDayInDirection()).to.deep.equal({ year: 2011, month: 12, day: 31 });
+            } finally {
+                if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+            }
+        });
+
+        it('rejects fractional dates and unsupported runtime directions', () => {
+            expect(() => { calculator.date = { year: 2026, month: 3, day: 1.5 }; }).to.throw();
+            expect(() => { calculator.direction = 'sideways' as 'next'; }).to.throw(RangeError);
+        });
+    });
+
     describe('constructor and setters', () => {
         it('should initialize with empty constructor', () => {
             const calc = new DirectionalCalendarDateCalculator({});

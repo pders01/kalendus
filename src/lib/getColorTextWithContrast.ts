@@ -1,10 +1,27 @@
-import { parseColor } from './colorParser.js';
+import { parseColor, type RGBTuple } from './colorParser.js';
+
+/** WCAG 2 relative luminance of an opaque, gamut-clipped sRGB tuple. */
+export function relativeLuminance(rgb: RGBTuple): number {
+    const linear = rgb.map((channel) => {
+        const s = Math.max(0, Math.min(255, channel)) / 255;
+        return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+export function contrastRatio(a: RGBTuple, b: RGBTuple): number {
+    const x = relativeLuminance(a);
+    const y = relativeLuminance(b);
+    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
 
 /**
  * Calculates the text color and background color based on the given color.
  *
- * @param {string} color - The color to process (hex, rgb, hsl, or named CSS color).
- * @returns {[string, string]} An array containing the text color and background color.
+ * Alpha is intentionally discarded by the parser; this selects for the returned
+ * opaque background, NOT an unknown translucent/composed surface.
+ * Unsupported colors fall back to white/black.
+ * @returns {[string, string]} [opaque background color, contrasting text color].
  */
 export default function getColorTextWithContrast(color?: string): [string, string] {
     const rgb = parseColor(color);
@@ -15,16 +32,9 @@ export default function getColorTextWithContrast(color?: string): [string, strin
 
     const [red, green, blue] = rgb;
 
-    // Calculate brightness of randomized colour
-    const brightness = (red * 299 + green * 587 + blue * 114) / 1000;
-
-    // Calculate brightness of white and black text
-    const lightText = (255 * 299 + 255 * 587 + 255 * 114) / 1000;
-    const darkText = (0 * 299 + 0 * 587 + 0 * 114) / 1000;
-
     const backgroundColor = `rgb(${red},${green},${blue})`;
     const textColor =
-        Math.abs(brightness - lightText) > Math.abs(brightness - darkText)
+        contrastRatio(rgb, [255, 255, 255]) > contrastRatio(rgb, [0, 0, 0])
             ? 'rgb(255, 255, 255)'
             : 'rgb(0, 0, 0)';
 

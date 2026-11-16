@@ -167,6 +167,32 @@ describe('weekDisplayContext', () => {
         });
     });
 
+    describe('invalid CSS token fallback', () => {
+        it('does not silently truncate fractional/garbage counts or reinterpret non-pixel lengths', () => {
+            const host = mockHost({
+                '--week-day-count': '2.5',
+                '--week-mobile-day-count': '2oops',
+                '--week-mobile-breakpoint': '50em',
+            });
+            try {
+                expect(computeWeekDisplayContext(activeDate, firstDayOfWeek, 1024, host).visibleLength).to.equal(7);
+                expect(computeWeekDisplayContext(activeDate, firstDayOfWeek, 400, host).visibleLength).to.equal(3);
+            } finally {
+                cleanup(host);
+            }
+        });
+
+        it('accepts finite fractional pixel breakpoints and bounds invalid counts', () => {
+            const host = mockHost({ '--week-mobile-breakpoint': '500.5px', '--week-mobile-day-count': 'Infinity' });
+            try {
+                expect(computeWeekDisplayContext(activeDate, firstDayOfWeek, 500.25, host).visibleLength).to.equal(3);
+                expect(computeWeekDisplayContext(activeDate, firstDayOfWeek, 500.75, host).visibleLength).to.equal(7);
+            } finally {
+                cleanup(host);
+            }
+        });
+    });
+
     describe('clamping', () => {
         it('should clamp day count of 0 to 1', () => {
             const host = mockHost({ '--week-mobile-day-count': '0' });

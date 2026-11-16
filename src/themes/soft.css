@@ -10,8 +10,11 @@
 
 lms-calendar {
     /* ── Colors ─────────────────────────────────── */
+    color-scheme: light;
+    color: #4a4458;
+    --text-color: #4a4458;
     --background-color: #fefcfb;
-    --primary-color: #7c6beb;
+    --primary-color: #6551c6;
     --separator-light: rgba(124, 107, 235, 0.1);
     --separator-mid: rgba(124, 107, 235, 0.25);
     --separator-dark: #4a4458;
@@ -19,7 +22,7 @@ lms-calendar {
     /* ── Typography ─────────────────────────────── */
     --system-ui: 'Nunito', 'Segoe UI', system-ui, sans-serif;
     --monospace-ui: 'Fira Code', 'Cascadia Code', monospace;
-    --header-text-color: #8b7faa;
+    --header-text-color: #625375;
     --indicator-color: var(--primary-color);
     --indicator-font-weight: 600;
     --day-label-font-weight: 500;
@@ -86,7 +89,7 @@ lms-calendar {
     --year-heatmap-1: rgba(124, 107, 235, 0.1);
     --year-heatmap-2: rgba(124, 107, 235, 0.25);
     --year-heatmap-3: rgba(124, 107, 235, 0.4);
-    --year-heatmap-4: rgba(124, 107, 235, 0.6);
+    --year-heatmap-4: #6551c6;
 
     /* ── Float Text ──────────────────────────────── */
     --float-text-bg: rgba(254, 252, 251, 0.97);

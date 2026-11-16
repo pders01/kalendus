@@ -10,6 +10,44 @@ import {
 } from '../../../src/lib/weekStartHelper.js';
 
 describe('weekStartHelper', () => {
+    describe('civil and runtime invariants', () => {
+        it('retains every date of an ambient-zone skipped week and month', () => {
+            const previous = process.env.TZ;
+            process.env.TZ = 'Pacific/Apia';
+            try {
+                const date = { year: 2011, month: 12, day: 29 };
+                const week = getWeekDates(date, 1);
+                expect(week.map((d) => d.day)).to.deep.equal([26, 27, 28, 29, 30, 31, 1]);
+                const month = getMonthCalendarArray(date, 1);
+                expect(month).to.have.length(42);
+                expect(month.filter((d) => d.month === 12).map((d) => d.day)).to.deep.equal(Array.from({ length: 31 }, (_, i) => i + 1));
+            } finally {
+                if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+            }
+        });
+
+        it('returns seven unique dates for all seven week starts', () => {
+            for (let first = 0; first < 7; first++) {
+                const dates = getWeekDates({ year: 2026, month: 1, day: 1 }, first as FirstDayOfWeek);
+                expect(new Set(dates.map((d) => `${d.year}-${d.month}-${d.day}`)).size).to.equal(7);
+                expect(getWeekdayOrder(first as FirstDayOfWeek)[0] % 7).to.equal(first);
+            }
+        });
+
+        it('rejects invalid runtime date and weekday values', () => {
+            expect(() => getWeekDates({ year: 2026, month: 2, day: 30 }, 1)).to.throw(RangeError);
+            expect(() => getMonthCalendarArray({ year: 2026, month: 2, day: 1 }, 7 as FirstDayOfWeek)).to.throw(RangeError);
+            expect(() => getWeekStartOffset(NaN, 1)).to.throw(RangeError);
+        });
+
+        it('canonicalizes locale casing and does not resolve inherited object properties', () => {
+            expect(getFirstDayForLocale('EN-gb')).to.equal(1);
+            expect(getFirstDayForLocale('PT-br')).to.equal(0);
+            expect(getFirstDayForLocale('constructor')).to.equal(1);
+            expect(getFirstDayForLocale('__proto__')).to.equal(1);
+        });
+    });
+
     describe('getWeekStartOffset', () => {
         it('should return 0 when jsDayOfWeek equals firstDay', () => {
             expect(getWeekStartOffset(1, 1)).to.equal(0); // Monday, Monday-first

@@ -1,13 +1,15 @@
 /**
- * Pure-math CSS color parser. Handles all CSS Color Level 4 formats:
- * hex, rgb(), hsl(), hwb(), lab(), lch(), oklab(), oklch(),
- * color(srgb), color(xyz-d50), color(xyz-d65), and named CSS colors.
- * No DOM dependency — works in both Node and browser environments.
+ * Pure-math parser for a documented numeric subset of CSS colors, not all CSS.
+ * Supports hex, named colors, rgb/hsl/hwb/lab/lch/oklab/oklch and
+ * color(srgb|xyz|xyz-d50|xyz-d65). Legacy bare hex and comma-separated
+ * numeric functions are retained. Alpha is validated but discarded: output is
+ * opaque, gamut-clipped sRGB. No var(), calc(), relative/missing components,
+ * currentColor, system colors, display-p3 or other color spaces. No DOM required.
  */
 
 export type RGBTuple = [number, number, number];
 
-// ── Named CSS colors (all 148 + transparent) ────────────────────────────
+// ── Named CSS colors (148 names; transparent is unsupported) ────────────
 const NAMED_COLORS: Record<string, RGBTuple> = {
     aliceblue: [240, 248, 255],
     antiquewhite: [250, 235, 215],
@@ -498,13 +500,69 @@ function clamp(value: number): number {
 
 // ── Main exported functions ─────────────────────────────────────────────
 
+const NUMBER = '[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:e[+-]?\\d+)?';
+const NUMBER_TOKEN = new RegExp(`^${NUMBER}%?$`);
+const ANGLE_TOKEN = new RegExp(`^${NUMBER}(?:deg|grad|rad|turn)?$`);
+
+/** Validate the entire function before the conversion helpers use parseFloat. */
+function supportedFunction(input: string): boolean {
+    const match = /^(rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\(([^()]*)\)$/.exec(input);
+    if (!match) return false;
+    const name = match[1];
+    let body = match[2].trim();
+    if (name === 'color') {
+        const space = /^(srgb|xyz|xyz-d50|xyz-d65)\s+/.exec(body);
+        if (!space || body.includes(',')) return false;
+        body = body.slice(space[0].length);
+    }
+    let channels: string[];
+    let alpha: string | undefined;
+    if (body.includes(',')) {
+        if (body.includes('/')) return false;
+        const parts = body.split(',').map((part) => part.trim());
+        if (parts.length !== 3 && parts.length !== 4) return false;
+        channels = parts.slice(0, 3);
+        alpha = parts[3];
+    } else {
+        const parts = body.split('/');
+        if (parts.length > 2) return false;
+        channels = parts[0].trim().split(/\s+/);
+        alpha = parts[1]?.trim();
+    }
+    if (channels.length !== 3) return false;
+    if (alpha !== undefined && !NUMBER_TOKEN.test(alpha)) return false;
+    for (const [i, channel] of channels.entries()) {
+        const hue =
+            ((name === 'hsl' || name === 'hsla' || name === 'hwb') && i === 0) ||
+            ((name === 'lch' || name === 'oklch') && i === 2);
+        if (!(hue ? ANGLE_TOKEN : NUMBER_TOKEN).test(channel)) return false;
+        if (
+            (name === 'hsl' || name === 'hsla' || name === 'hwb') &&
+            i > 0 &&
+            !channel.endsWith('%')
+        )
+            return false;
+    }
+    if (
+        body.includes(',') &&
+        (name === 'rgb' || name === 'rgba') &&
+        new Set(channels.map((s) => s.endsWith('%'))).size > 1
+    )
+        return false;
+    // Bound the numeric domain to prevent overflow in cubic/matrix conversion.
+    return [...channels, ...(alpha === undefined ? [] : [alpha])].every(
+        (s) => Number.isFinite(parseFloat(s)) && Math.abs(parseFloat(s)) <= 1e6,
+    );
+}
+
 /**
- * Parse any common CSS color string into an RGB tuple.
- * Returns `undefined` for invalid input or `transparent`.
+ * Parse the supported numeric syntax into opaque sRGB (alpha is discarded).
+ * Returns undefined for invalid/unsupported input, including transparent.
  */
 export function parseColor(input?: string): RGBTuple | undefined {
-    if (!input || !input.trim()) return undefined;
+    if (typeof input !== 'string' || !input.trim() || input.length > 512) return undefined;
     const trimmed = input.trim().toLowerCase();
+    if (trimmed.includes('(') && !supportedFunction(trimmed)) return undefined;
 
     if (trimmed === 'transparent') return undefined;
 
@@ -554,13 +612,22 @@ export function parseColor(input?: string): RGBTuple | undefined {
     }
 
     // 10. Named color lookup
-    const named = NAMED_COLORS[trimmed];
-    if (named) return [...named];
+    if (Object.prototype.hasOwnProperty.call(NAMED_COLORS, trimmed))
+        return [...NAMED_COLORS[trimmed]];
 
     return undefined;
 }
 
 const DEFAULT_ACCENT: RGBTuple = [25, 118, 210];
+
+/** Safe opaque CSS value for event-data boundaries. Never returns authored text.
+ * Unsupported syntax falls back to Material Blue; even the fallback is parsed.
+ * Alpha is intentionally removed, matching parseColor's legacy RGB contract.
+ */
+export function normalizeColor(input?: string, fallback?: string): string {
+    const rgb = parseColor(input) ?? parseColor(fallback) ?? DEFAULT_ACCENT;
+    return `rgb(${rgb.join(',')})`;
+}
 
 /**
  * Parse a CSS color string, returning a fallback if parsing fails.

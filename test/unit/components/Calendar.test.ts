@@ -1,4 +1,5 @@
 import { expect, fixture, html, oneEvent } from '@open-wc/testing';
+
 import { _resetForTesting } from '../../../src/lib/messages.js';
 import '../../../src/lms-calendar.ts';
 import type LMSCalendar from '../../../src/lms-calendar.ts';
@@ -39,7 +40,11 @@ describe('Calendar Component', () => {
         let el: LMSCalendar;
 
         before(async () => {
-            el = await fixture(html`<lms-calendar></lms-calendar>`);
+            el = await fixture(
+                html`
+                    <lms-calendar></lms-calendar>
+                `,
+            );
         });
 
         it('should render calendar correctly', () => {
@@ -59,9 +64,11 @@ describe('Calendar Component', () => {
             expect(header).to.exist;
         });
 
-        it('should render context component', () => {
-            const context = el.shadowRoot?.querySelector('lms-calendar-context');
-            expect(context).to.exist;
+        it('should render seven weekday headers owned by the month grid', async () => {
+            const month = el.shadowRoot?.querySelector('lms-calendar-month');
+            await month?.updateComplete;
+            expect(month?.shadowRoot?.querySelectorAll('[role="columnheader"]')).to.have.length(7);
+            expect(el.shadowRoot?.querySelector('lms-calendar-context')).not.to.exist;
         });
 
         it('should render month component by default', () => {
@@ -91,7 +98,7 @@ describe('Calendar Component', () => {
             const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
 
             expect(header).to.exist;
-            expect(context).to.exist;
+            expect(context, 'month owns its accessible weekday headers').not.to.exist;
             expect(monthEl).to.exist;
 
             // Day and week are conditionally rendered — not in DOM during month view
@@ -351,11 +358,7 @@ describe('Calendar Component', () => {
     it('should provide CSS custom properties', async () => {
         const el: LMSCalendar = await fixture(html`
             <lms-calendar
-                style="
-                --background-color: #f0f0f0;
-                --primary-color: #007bff;
-                --entry-font-size: medium;
-            "
+                style="--background-color: #f0f0f0; --primary-color: #007bff; --entry-font-size: medium"
             ></lms-calendar>
         `);
 
@@ -397,8 +400,10 @@ describe('Calendar Component', () => {
             await el.updateComplete;
 
             // Switch to German — triggers async load
-            setTimeout(() => { el.locale = 'de'; });
-            const ev = await oneEvent(el, 'locale-ready') as CustomEvent;
+            setTimeout(() => {
+                el.locale = 'de';
+            });
+            const ev = (await oneEvent(el, 'locale-ready')) as CustomEvent;
 
             expect(ev.detail.locale).to.equal('de');
         });

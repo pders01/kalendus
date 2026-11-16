@@ -1,4 +1,7 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
+import { DateTime } from 'luxon';
+
+import { addCivilDays, isValidCalendarDate } from './calendarModel.js';
 
 export type ViewMode = 'month' | 'week' | 'day' | 'year';
 
@@ -10,7 +13,6 @@ export class ViewStateController implements ReactiveController {
     constructor(host: ReactiveControllerHost) {
         this._host = host;
         host.addController(this);
-
         const today = new Date();
         this._activeDate = {
             day: today.getDate(),
@@ -26,101 +28,56 @@ export class ViewStateController implements ReactiveController {
     }
 
     get activeDate(): CalendarDate {
-        return this._activeDate;
+        return { ...this._activeDate };
     }
 
     get expandedDate(): CalendarDate | undefined {
-        return this._viewMode === 'day' ? this._activeDate : undefined;
+        return this._viewMode === 'day' ? this.activeDate : undefined;
     }
 
     setViewMode(mode: ViewMode): void {
+        if (!['month', 'week', 'day', 'year'].includes(mode) || mode === this._viewMode) return;
         this._viewMode = mode;
         this._host.requestUpdate();
     }
 
+    /** Invalid inputs leave the last committed state untouched. Equal values are no-ops. */
     setActiveDate(date: CalendarDate): void {
-        this._activeDate = date;
+        if (!isValidCalendarDate(date)) return;
+        const current = this._activeDate;
+        if (current.year === date.year && current.month === date.month && current.day === date.day)
+            return;
+        this._activeDate = { year: date.year, month: date.month, day: date.day };
         this._host.requestUpdate();
     }
 
-    navigateNext(): void {
+    private navigate(direction: 1 | -1): void {
         const current = this._activeDate;
-
-        if (this._viewMode === 'month') {
-            const nextMonth = new Date(current.year, current.month, 1);
-            this.setActiveDate({
-                day: 1,
-                month: nextMonth.getMonth() + 1,
-                year: nextMonth.getFullYear(),
-            });
-        } else if (this._viewMode === 'week') {
-            const currentDateObj = new Date(current.year, current.month - 1, current.day);
-            currentDateObj.setDate(currentDateObj.getDate() + 7);
-            this.setActiveDate({
-                day: currentDateObj.getDate(),
-                month: currentDateObj.getMonth() + 1,
-                year: currentDateObj.getFullYear(),
-            });
-        } else if (this._viewMode === 'day') {
-            const nextDay = new Date(current.year, current.month - 1, current.day + 1);
-            this.setActiveDate({
-                day: nextDay.getDate(),
-                month: nextDay.getMonth() + 1,
-                year: nextDay.getFullYear(),
-            });
-        } else if (this._viewMode === 'year') {
-            const nextYear = new Date(current.year + 1, current.month - 1, 1);
-            const clamped = new Date(nextYear.getFullYear(), current.month - 1, current.day);
-            // Clamp day if it overflows (e.g. Feb 29 → Feb 28 in non-leap year)
-            if (clamped.getMonth() !== current.month - 1) {
-                clamped.setDate(0); // last day of previous month
+        if (this._viewMode === 'week' || this._viewMode === 'day') {
+            try {
+                this.setActiveDate(
+                    addCivilDays(current, direction * (this._viewMode === 'week' ? 7 : 1)),
+                );
+            } catch {
+                // Navigation beyond supported years is a no-op.
             }
-            this.setActiveDate({
-                day: clamped.getDate(),
-                month: clamped.getMonth() + 1,
-                year: clamped.getFullYear(),
-            });
+            return;
         }
+        // UTC is only a civil arithmetic carrier: skipped local dates must not vanish.
+        let date = DateTime.utc(current.year, current.month, current.day);
+        date =
+            this._viewMode === 'month'
+                ? date.startOf('month').plus({ months: direction })
+                : date.plus({ years: direction });
+        this.setActiveDate({ year: date.year, month: date.month, day: date.day });
+    }
+
+    navigateNext(): void {
+        this.navigate(1);
     }
 
     navigatePrevious(): void {
-        const current = this._activeDate;
-
-        if (this._viewMode === 'month') {
-            const prevMonth = new Date(current.year, current.month - 2, 1);
-            this.setActiveDate({
-                day: 1,
-                month: prevMonth.getMonth() + 1,
-                year: prevMonth.getFullYear(),
-            });
-        } else if (this._viewMode === 'week') {
-            const currentDateObj = new Date(current.year, current.month - 1, current.day);
-            currentDateObj.setDate(currentDateObj.getDate() - 7);
-            this.setActiveDate({
-                day: currentDateObj.getDate(),
-                month: currentDateObj.getMonth() + 1,
-                year: currentDateObj.getFullYear(),
-            });
-        } else if (this._viewMode === 'day') {
-            const prevDay = new Date(current.year, current.month - 1, current.day - 1);
-            this.setActiveDate({
-                day: prevDay.getDate(),
-                month: prevDay.getMonth() + 1,
-                year: prevDay.getFullYear(),
-            });
-        } else if (this._viewMode === 'year') {
-            const prevYear = new Date(current.year - 1, current.month - 1, 1);
-            const clamped = new Date(prevYear.getFullYear(), current.month - 1, current.day);
-            // Clamp day if it overflows (e.g. Feb 29 → Feb 28 in non-leap year)
-            if (clamped.getMonth() !== current.month - 1) {
-                clamped.setDate(0);
-            }
-            this.setActiveDate({
-                day: clamped.getDate(),
-                month: clamped.getMonth() + 1,
-                year: clamped.getFullYear(),
-            });
-        }
+        this.navigate(-1);
     }
 
     jumpToToday(): void {

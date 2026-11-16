@@ -14,8 +14,11 @@
 
 lms-calendar {
     /* ── Colors ─────────────────────────────────── */
+    color-scheme: light;
+    color: #1f2937;
+    --text-color: #1f2937;
     --background-color: white;
-    --primary-color: #3b82f6;
+    --primary-color: #1d4ed8;
 
     /* ── Typography ─────────────────────────────── */
     --system-ui:
@@ -89,6 +92,7 @@ lms-calendar {
     --current-day-color: white;
     --current-day-font-weight: 600;
     --current-dot-bg: rgba(255, 255, 255, 0.9);
+    --year-heatmap-4: #1d4ed8;
     --year-heatmap-4-text: white;
 
     /* ── Float Text ──────────────────────────────── */

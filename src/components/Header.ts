@@ -2,9 +2,10 @@ import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { DateTime } from 'luxon';
 
-import { getLocalizedMonth } from '../lib/localization.js';
+import { formatLocalizedDate, getLocalizedMonth } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
 import type { ViewMode } from '../lib/ViewStateController.js';
+import { getWeekDates, type FirstDayOfWeek } from '../lib/weekStartHelper.js';
 
 @customElement('lms-calendar-header')
 export default class Header extends LitElement {
@@ -20,6 +21,13 @@ export default class Header extends LitElement {
     @property({ type: Object })
     expandedDate?: CalendarDate;
 
+    @property({ type: Number })
+    firstDayOfWeek: FirstDayOfWeek = 1;
+
+    /** Optional condensed-week dates, otherwise derived from the configured week start. */
+    @property({ attribute: false })
+    visibleDates?: CalendarDate[];
+
     @property({ type: String })
     locale = 'en';
 
@@ -33,11 +41,14 @@ export default class Header extends LitElement {
         }
 
         .controls {
-            height: var(--header-height, 3.5em);
-            width: 100%;
+            box-sizing: border-box;
+            min-block-size: var(--header-height, 3.5em);
+            inline-size: 100%;
             display: grid;
-            grid-template-columns: 1fr auto 1fr;
+            grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
             align-items: center;
+            gap: 0.5em 0.75em;
+            padding-block: 0.5em;
             border-bottom: 1px solid var(--separator-light);
         }
 
@@ -49,14 +60,13 @@ export default class Header extends LitElement {
             text-align: start;
             display: grid;
             justify-self: stretch;
-            min-width: 0;
-            overflow: hidden;
+            min-inline-size: 0;
+            overflow-wrap: anywhere;
         }
 
-        @container (max-width: 600px) {
+        @container (max-width: 50em) {
             .controls {
-                font-size: small;
-                height: auto;
+                font-size: 0.875em;
                 display: flex;
                 flex-wrap: wrap;
                 justify-content: center;
@@ -65,34 +75,31 @@ export default class Header extends LitElement {
                 gap: 0.25em 0.5em;
             }
             .info {
-                flex-basis: 100%;
+                flex: 1 1 100%;
                 display: flex;
+                flex-wrap: wrap;
                 align-items: baseline;
                 justify-content: center;
                 gap: 0.4em;
                 padding-inline-start: 0;
             }
-            .view-detail {
-                grid-row: unset;
-                grid-column: unset;
-                display: none;
-            }
-            .view-detail.active {
-                display: inline;
-            }
-            .buttons {
+            .controls .buttons {
                 padding-inline-end: 0;
             }
         }
 
+        .calendar-title {
+            margin: 0;
+            font-size: inherit;
+            font-weight: 700;
+        }
+
         .view-detail {
-            grid-row: 2;
-            grid-column: 1;
-            visibility: hidden;
+            display: none;
         }
 
         .view-detail.active {
-            visibility: visible;
+            display: block;
         }
         .day,
         .week,
@@ -101,6 +108,8 @@ export default class Header extends LitElement {
             color: var(--header-text-color, rgba(0, 0, 0, 0.6));
         }
         button {
+            min-inline-size: 24px;
+            min-block-size: 24px;
             padding: 0.4em 0.7em;
             margin: 0;
             border: none;
@@ -122,7 +131,11 @@ export default class Header extends LitElement {
 
         .context {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
+            justify-content: center;
+            max-inline-size: 100%;
+            box-sizing: border-box;
             gap: 0;
             background: var(--context-bg);
             border-radius: var(--border-radius-sm);
@@ -140,15 +153,40 @@ export default class Header extends LitElement {
             box-shadow: var(--active-indicator-shadow);
         }
 
+        @container (max-width: 16em) {
+            .context {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         .buttons {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
+            justify-content: center;
             padding-inline-end: var(
                 --header-buttons-padding-inline-end,
                 var(--header-buttons-padding-right, 1em)
             );
             gap: 0.15em;
             justify-self: end;
+        }
+
+        button:focus-visible {
+            outline: 2px solid currentColor;
+            outline-offset: 2px;
+        }
+        @media (pointer: coarse) {
+            button {
+                min-block-size: 44px;
+                min-inline-size: 44px;
+            }
+        }
+        @media (forced-colors: active) {
+            button:focus-visible {
+                outline-color: Highlight;
+            }
         }
 
         .buttons .separator {
@@ -173,14 +211,17 @@ export default class Header extends LitElement {
     }
 
     override render() {
-        const date = this.activeDate!;
+        const now = new Date();
+        const date = this.activeDate ?? {
+            year: now.getFullYear(),
+            month: now.getMonth() + 1,
+            day: now.getDate(),
+        };
         const msg = getMessages(this.locale);
 
         return html`<div class="controls">
             <div class="info">
-                <span>
-                    <strong>${this.heading || msg.currentMonth}</strong>
-                </span>
+                <h2 class="calendar-title">${this.heading || msg.calendarView}</h2>
                 <div class="view-detail${this.viewMode === 'day' ? ' active' : ''}">
                     <span class="day">${date.day}</span>
                     <span class="month"
@@ -190,16 +231,18 @@ export default class Header extends LitElement {
                 </div>
                 <div class="view-detail${this.viewMode === 'week' ? ' active' : ''}">
                     ${(() => {
-                        const { weekNumber, weekYear } = this._getWeekInfo(date);
+                        const { weekNumber } = this._getWeekInfo(date);
+                        const dates = this.visibleDates?.length
+                            ? this.visibleDates
+                            : getWeekDates(date, this.firstDayOfWeek);
+                        const first = dates[0];
+                        const last = dates[dates.length - 1];
                         return html`
                             <span class="week"
                                 >${msg.calendarWeek}
                                 ${weekNumber}</span
                             >
-                            <span class="month"
-                                >${getLocalizedMonth(date.month, this.locale)}</span
-                            >
-                            <span class="year">${weekYear}</span>
+                            <span class="week-range">${formatLocalizedDate(first.day, first.month, first.year, this.locale)} – ${formatLocalizedDate(last.day, last.month, last.year, this.locale)}</span>
                         `;
                     })()}
                 </div>
@@ -281,12 +324,9 @@ export default class Header extends LitElement {
     }
 
     private _dispatchSwitchDate(e: Event) {
-        const target = e.target;
-        if (!(target instanceof HTMLButtonElement)) {
-            return;
-        }
-
-        const direction = e.target === e.currentTarget ? 'container' : target.name;
+        const target = e.target instanceof Element ? e.target.closest('button') : null;
+        if (!target || !['previous', 'next'].includes(target.name)) return;
+        const direction = target.name;
         const event = new CustomEvent('switchdate', {
             detail: { direction },
             bubbles: true,
@@ -296,12 +336,9 @@ export default class Header extends LitElement {
     }
 
     private _dispatchSwitchView(e: Event) {
-        const target = e.target;
-        if (!(target instanceof HTMLElement)) {
-            return;
-        }
-
-        const view = e.target === e.currentTarget ? 'container' : target.dataset.context;
+        const target = e.target instanceof Element ? e.target.closest('button') : null;
+        const view = target?.dataset.context;
+        if (!view) return;
         const event = new CustomEvent('switchview', {
             detail: { view },
             bubbles: true,

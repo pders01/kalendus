@@ -1,4 +1,5 @@
 import { expect, fixture, html } from '@open-wc/testing';
+
 import '../../../src/components/Entry.ts';
 import type Entry from '../../../src/components/Entry.ts';
 
@@ -62,19 +63,13 @@ describe('Entry Component', () => {
 
     it('should display heading and content in title', async () => {
         const el: Entry = await fixture(html`
-            <lms-calendar-entry
-                heading="Meeting"
-                content="Discuss project status"
-            >
-            </lms-calendar-entry>
+            <lms-calendar-entry heading="Meeting" content="Discuss project status"> </lms-calendar-entry>
         `);
 
         await el.updateComplete;
 
         const mainElement = el.shadowRoot?.querySelector('.main');
-        expect(mainElement?.getAttribute('title')).to.equal(
-            'Meeting: Discuss project status',
-        );
+        expect(mainElement?.getAttribute('title')).to.equal('Meeting: Discuss project status');
     });
 
     it('should display time interval correctly', async () => {
@@ -170,24 +165,18 @@ describe('Entry Component', () => {
 
     it('should set data attributes correctly', async () => {
         const el: Entry = await fixture(html`
-            <lms-calendar-entry heading="Data Event" content="Some content">
-            </lms-calendar-entry>
+            <lms-calendar-entry heading="Data Event" content="Some content"> </lms-calendar-entry>
         `);
 
         await el.updateComplete;
 
         const mainElement = el.shadowRoot?.querySelector('.main');
-        expect(mainElement?.getAttribute('data-full-content')).to.equal(
-            'Some content',
-        );
+        expect(mainElement?.getAttribute('data-full-content')).to.equal('Some content');
     });
 
     it('should truncate long text with ellipsis', async () => {
         const el: Entry = await fixture(html`
-            <lms-calendar-entry
-                heading="Very Long Event Title That Should Be Truncated"
-            >
-            </lms-calendar-entry>
+            <lms-calendar-entry heading="Very Long Event Title That Should Be Truncated"> </lms-calendar-entry>
         `);
 
         await el.updateComplete;
@@ -203,11 +192,7 @@ describe('Entry Component', () => {
         const el: Entry = await fixture(html`
             <lms-calendar-entry
                 heading="Styled Event"
-                style="
-                    --entry-font-size: large;
-                    --entry-padding: 1em;
-                    --entry-border-radius: 8px;
-                "
+                style="--entry-font-size: large; --entry-padding: 1em; --entry-border-radius: 8px"
             >
             </lms-calendar-entry>
         `);
@@ -227,13 +212,12 @@ describe('Entry Component', () => {
 
         await el.updateComplete;
 
-        const mainElement = el.shadowRoot?.querySelector(
-            '.main',
-        ) as HTMLElement;
+        const mainElement = el.shadowRoot?.querySelector('.main') as HTMLElement;
         mainElement.click();
         await el.updateComplete;
 
-        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('data-highlighted')).to.be.true;
+        expect(el.hasAttribute('aria-selected')).to.be.false;
     });
 
     // --- highlight / a11y regression (full lifecycle) ---
@@ -250,7 +234,7 @@ describe('Entry Component', () => {
         expect(el.hasAttribute('data-highlighted')).to.be.true;
     });
 
-    it('should clear both aria-selected and data-highlighted on clearSelection()', async () => {
+    it('should clear its visual highlight without unsupported button selection ARIA', async () => {
         const el: Entry = await fixture(html`
             <lms-calendar-entry heading="Clear Test"></lms-calendar-entry>
         `);
@@ -258,13 +242,13 @@ describe('Entry Component', () => {
 
         el.click();
         await el.updateComplete;
-        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('aria-selected')).to.be.false;
         expect(el.hasAttribute('data-highlighted')).to.be.true;
 
         el.clearSelection();
         await el.updateComplete;
 
-        expect(el.getAttribute('aria-selected')).to.equal('false');
+        expect(el.hasAttribute('aria-selected')).to.be.false;
         expect(el.hasAttribute('data-highlighted')).to.be.false;
     });
 
@@ -277,17 +261,17 @@ describe('Entry Component', () => {
         // First click
         el.click();
         await el.updateComplete;
-        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('data-highlighted')).to.be.true;
 
         // Clear
         el.clearSelection();
         await el.updateComplete;
-        expect(el.getAttribute('aria-selected')).to.equal('false');
+        expect(el.hasAttribute('data-highlighted')).to.be.false;
 
         // Second click should re-highlight
         el.click();
         await el.updateComplete;
-        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('aria-selected')).to.be.false;
         expect(el.hasAttribute('data-highlighted')).to.be.true;
     });
 
@@ -350,7 +334,7 @@ describe('Entry Component', () => {
         el.dispatchEvent(enterEvent);
         await el.updateComplete;
 
-        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('data-highlighted')).to.be.true;
     });
 
     it('should handle keyboard interactions (Space key)', async () => {
@@ -360,11 +344,14 @@ describe('Entry Component', () => {
 
         await el.updateComplete;
 
-        const spaceEvent = new KeyboardEvent('keydown', { key: ' ' });
+        const spaceEvent = new KeyboardEvent('keydown', { key: ' ', cancelable: true });
         el.dispatchEvent(spaceEvent);
+        expect(spaceEvent.defaultPrevented).to.be.true;
+        expect(el.hasAttribute('data-highlighted')).to.be.false;
+        el.dispatchEvent(new KeyboardEvent('keyup', { key: ' ' }));
         await el.updateComplete;
 
-        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('data-highlighted')).to.be.true;
     });
 
     it('should ignore other keyboard keys', async () => {
@@ -388,12 +375,10 @@ describe('Entry Component', () => {
 
         await el.updateComplete;
 
-        const mainElement = el.shadowRoot?.querySelector(
-            '.main',
-        ) as HTMLElement;
+        const mainElement = el.shadowRoot?.querySelector('.main') as HTMLElement;
         mainElement.click();
         await el.updateComplete;
 
-        expect(el.getAttribute('aria-selected')).to.equal('true');
+        expect(el.hasAttribute('data-highlighted')).to.be.true;
     });
 });

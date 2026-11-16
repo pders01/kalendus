@@ -1,9 +1,15 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { DateTime } from 'luxon';
 
-import { formatLocalizedTime, formatLocalizedTimeRange } from '../lib/localization.js';
-import { getMessages } from '../lib/messages.js';
-import type { CalendarDateInterval } from '../lms-calendar';
+import {
+    formatLocalizedDate,
+    formatLocalizedTime,
+    formatLocalizedTimeRange,
+} from '../lib/localization.js';
+import { getMessages, getMessageFormatters } from '../lib/messages.js';
+import type { CalendarDateInterval, CalendarEntry } from '../lms-calendar.js';
+import { isAllDayExport } from './entryExport.js';
 
 /**
  * Calendar entry component with accessibility and interaction support
@@ -25,6 +31,10 @@ export default class Entry extends LitElement {
     isContinuation = false;
 
     @property({ type: Object }) date?: CalendarDateInterval;
+
+    /** The original event, never a displayed day slice. */
+    @property({ attribute: false }) canonicalEntry?: CalendarEntry;
+    @property({ type: String }) eventId?: string;
 
     @property({ type: String, reflect: true, attribute: 'data-density' })
     density: 'compact' | 'standard' | 'full' = 'standard';
@@ -60,6 +70,19 @@ export default class Entry extends LitElement {
         );
     }
 
+    private _isAllDayEntry(): boolean {
+        return this.canonicalEntry
+            ? isAllDayExport(this.canonicalEntry)
+            : this.date
+              ? isAllDayExport({
+                    date: this.date,
+                    time: this.time,
+                    heading: this.heading,
+                    isContinuation: this.isContinuation,
+                })
+              : this.isContinuation || this._isAllDayTime(this.time);
+    }
+
     static override styles = css`
         :host {
             /* Use shared design tokens from root component */
@@ -77,7 +100,7 @@ export default class Entry extends LitElement {
             width: var(--entry-width, 100%);
             margin-inline-start: var(--entry-margin-inline-start, var(--entry-margin-left, 0));
             background-color: var(--entry-background-color);
-            color: var(--entry-color);
+            color: var(--entry-readable-color, var(--text-color, CanvasText));
             border: var(--entry-border, none);
             /* When a handle is present, remove the start border so the
                ::before handle covers the full start edge without bleed */
@@ -90,7 +113,8 @@ export default class Entry extends LitElement {
             opacity: var(--entry-opacity, 1);
             box-sizing: border-box;
             padding-bottom: 1px;
-            min-height: var(--entry-min-height);
+            min-height: max(24px, var(--entry-min-height, 24px));
+            min-inline-size: 24px;
             overflow: hidden;
             position: relative;
         }
@@ -116,7 +140,7 @@ export default class Entry extends LitElement {
 
         .main {
             padding: var(--entry-padding);
-            padding-top: calc(var(--entry-padding-top, 0) + 0.15em);
+            padding-top: calc(var(--entry-padding-top, 0px) + 0.15em);
             border-radius: var(--entry-border-radius);
             text-align: start;
             height: 100%;
@@ -172,6 +196,13 @@ export default class Entry extends LitElement {
             gap: 0.25em;
         }
 
+        /* The band already labels these as all-day. Do not spend scarce day-column
+           width repeating that metadata on every event; the accessible name retains it. */
+        :host([slot='all-day']) .time,
+        :host([slot^='all-day-']) .time {
+            display: none;
+        }
+
         /* Full mode: multi-line with all content */
         .main.full {
             flex-direction: column;
@@ -180,6 +211,7 @@ export default class Entry extends LitElement {
         }
 
         .title {
+            max-inline-size: 100%;
             flex: 1;
             min-width: 0;
             overflow: hidden;
@@ -189,6 +221,9 @@ export default class Entry extends LitElement {
         }
 
         .time {
+            max-inline-size: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
             font-family: var(--entry-font-family, var(--system-ui));
             font-size: var(--entry-time-font-size);
             opacity: var(--entry-time-opacity);
@@ -247,7 +282,10 @@ export default class Entry extends LitElement {
             background: var(--entry-month-background);
             padding: var(--entry-month-padding);
             border-radius: 0;
-            color: var(--entry-month-text-color);
+            color: var(
+                --entry-readable-color,
+                var(--entry-month-text-color, var(--text-color, CanvasText))
+            );
             position: relative;
             z-index: 1;
             width: 100%;
@@ -255,7 +293,7 @@ export default class Entry extends LitElement {
             box-sizing: border-box;
             overflow: visible;
             contain: style;
-            min-height: auto;
+            min-height: 24px;
         }
 
         /* Multi-day events keep their background in month view */
@@ -263,7 +301,7 @@ export default class Entry extends LitElement {
         :host([data-display-mode='month-dot']) .main[data-is-multi-day='true'] {
             background: var(--entry-background-color);
             border-radius: var(--border-radius-sm);
-            color: var(--entry-color);
+            color: var(--entry-readable-color, var(--text-color, CanvasText));
         }
 
         :host([data-display-mode='month-dot']) .main {
@@ -301,16 +339,16 @@ export default class Entry extends LitElement {
             background: var(--entry-background-color);
             border: var(--entry-border, 1px solid transparent);
             border-radius: var(--entry-border-radius, 3px);
-            color: var(--entry-color);
+            color: var(--entry-readable-color, var(--text-color, CanvasText));
             position: relative;
             z-index: 1;
             width: calc(100% + 2px);
             min-width: 0;
             box-sizing: border-box;
             overflow: hidden;
-            height: 1.6em;
-            min-height: 1.6em;
-            max-height: 1.6em;
+            height: var(--all-day-row-height, max(24px, 1.5rem));
+            min-height: 24px;
+            max-height: var(--all-day-row-height, max(24px, 1.5rem));
             font-size: var(--entry-font-size, 0.75rem);
             line-height: 1.6em;
             margin-inline-start: -1px;
@@ -419,14 +457,29 @@ export default class Entry extends LitElement {
             background: var(--entry-highlight-color);
         }
 
-        :host([aria-selected='true']) {
+        :host([data-highlighted]) {
             box-shadow: inset 0 0 0 2px var(--entry-focus-color);
             z-index: 999 !important;
         }
 
         :host(:focus-visible) {
-            box-shadow: inset 0 0 0 2px var(--entry-focus-color);
+            outline: 2px solid var(--entry-focus-color, currentColor);
+            outline-offset: -2px;
             z-index: 999 !important;
+        }
+        .time,
+        :host([data-display-mode='month-dot']) .time {
+            opacity: 1;
+        }
+        @media (forced-colors: active) {
+            :host {
+                border: 1px solid CanvasText;
+            }
+            :host([data-highlighted]),
+            :host(:focus-visible) {
+                outline: 2px solid Highlight;
+                outline-offset: -2px;
+            }
         }
     `;
 
@@ -444,10 +497,8 @@ export default class Entry extends LitElement {
 
         // Month-dot mode: show "All Day" or start time
         if (this.displayMode === 'month-dot') {
-            if (this.isContinuation || this._isAllDayTime(this.time)) {
-                return html`<span class="time">${msg.allDay}</span>`;
-            }
-            if (!this.time) return html`<span class="time">${msg.allDay}</span>`;
+            if (this._isAllDayEntry()) return html`<span class="time">${msg.allDay}</span>`;
+            if (!this.time) return html`<span class="time">${msg.noTime}</span>`;
 
             const startTime = formatLocalizedTime(
                 this.time.start.hour,
@@ -462,9 +513,7 @@ export default class Entry extends LitElement {
             return nothing;
         }
 
-        if (this.isContinuation || this._isAllDayTime(this.time)) {
-            return html`<span class="time">${msg.allDay}</span>`;
-        }
+        if (this._isAllDayEntry()) return html`<span class="time">${msg.allDay}</span>`;
 
         if (!this.time) return nothing;
 
@@ -487,26 +536,34 @@ export default class Entry extends LitElement {
     private _getAriaLabel(): string {
         const msg = getMessages(this.locale);
 
-        const timeInfo = this._isAllDayTime(this.time)
+        const timeInfo = this._isAllDayEntry()
             ? msg.allDay
-            : `${formatLocalizedTime(this.time!.start.hour, this.time!.start.minute, this.locale)} ${msg.to} ${formatLocalizedTime(this.time!.end.hour, this.time!.end.minute, this.locale)}`;
+            : this.time
+              ? formatLocalizedTimeRange(
+                    this.time.start.hour,
+                    this.time.start.minute,
+                    this.time.end.hour,
+                    this.time.end.minute,
+                    this.locale,
+                )
+              : msg.noTime;
 
-        const contentInfo = this.content ? `, ${this.content}` : '';
-
-        return `${msg.calendarEvent}: ${this.heading}${contentInfo}, ${timeInfo}. ${msg.pressToOpen}`;
+        const context = this.accessibility?.ariaLabel?.replace(msg.pressToOpen, '').trim();
+        return context?.includes(this.heading) && this.heading
+            ? context
+            : `${this.heading || msg.noTitle}, ${context || timeInfo}`;
     }
 
     override updated() {
         // Sync interactive attributes to :host so the focus outline wraps the
         // full absolutely-positioned entry, not just the inner .main content.
-        if (!this.floatText) {
-            this.tabIndex = this.accessibility?.tabIndex ?? 0;
-            this.setAttribute('role', 'button');
-            this.setAttribute('aria-label', this.accessibility?.ariaLabel ?? this._getAriaLabel());
-            this.setAttribute('aria-selected', this._highlighted ? 'true' : 'false');
-            // Sync the data attribute so :host([data-highlighted]) CSS activates
-            this.toggleAttribute('data-highlighted', !!this._highlighted);
-        }
+        this.tabIndex = this.accessibility?.tabIndex === -1 ? -1 : 0;
+        this.setAttribute('role', 'button');
+        this.setAttribute('aria-label', this._getAriaLabel());
+        this.setAttribute('aria-haspopup', 'dialog');
+        this.setAttribute('aria-description', getMessages(this.locale).pressToOpen);
+        this.removeAttribute('aria-selected');
+        this.toggleAttribute('data-highlighted', !!this._highlighted);
     }
 
     override render() {
@@ -574,24 +631,19 @@ export default class Entry extends LitElement {
         `;
     }
 
-    private _displayInterval(time?: CalendarTimeInterval) {
-        if (!time || this._isAllDayTime(time)) {
-            return time ? getMessages(this.locale).allDay : nothing;
-        }
-
-        return formatLocalizedTimeRange(
-            time.start.hour,
-            time.start.minute,
-            time.end.hour,
-            time.end.minute,
-            this.locale,
-        );
-    }
-
     constructor() {
         super();
         this.addEventListener('click', this._handleInteraction);
-        this.addEventListener('keydown', this._handleInteraction);
+        this.addEventListener('keydown', (event: KeyboardEvent) => {
+            if (event.key === ' ') {
+                event.preventDefault();
+                return;
+            }
+            this._handleInteraction(event);
+        });
+        this.addEventListener('keyup', (event: KeyboardEvent) => {
+            if (event.key === ' ') this._handleInteraction(event);
+        });
         this.addEventListener('focus', this._handleFocus);
     }
 
@@ -620,31 +672,58 @@ export default class Entry extends LitElement {
         e.preventDefault();
         e.stopPropagation();
 
-        if (!this._highlighted) {
-            this._highlighted = true;
+        this._highlighted = true;
+        if (!this.date && !this.canonicalEntry) return;
 
-            if (!this.date) {
-                return;
-            }
-
-            // Dispatch a custom event to communicate with the calendar
-            const msg = getMessages(this.locale);
-            const eventDetails = {
-                heading: this.heading || msg.noTitle,
-                content: this.content || msg.noContent,
-                time: this.time,
-                displayTime: this.time ? (this._displayInterval(this.time) as string) : msg.noTime,
-                date: this.date?.start,
-                anchorRect: this.getBoundingClientRect(),
-            };
-
-            const openMenuEvent = new CustomEvent('open-menu', {
+        const msg = getMessages(this.locale);
+        const format = getMessageFormatters(this.locale);
+        const entry = this.canonicalEntry ?? {
+            date: this.date!,
+            time: this.time,
+            heading: this.heading,
+            content: this.content,
+            isContinuation: this.isContinuation,
+        };
+        const dateLabel = (date: CalendarDate) =>
+            formatLocalizedDate(date.day, date.month, date.year, this.locale);
+        const firstDate = dateLabel(entry.date.start);
+        const allDay = isAllDayExport(entry);
+        const endDate =
+            !allDay && entry.time?.end.hour === 24
+                ? DateTime.fromObject(entry.date.end, { zone: 'UTC' }).plus({ days: 1 }).toObject()
+                : entry.date.end;
+        const lastDate = dateLabel(endDate as CalendarDate);
+        const displayDate =
+            firstDate === lastDate ? firstDate : format.timeRange(firstDate, lastDate);
+        const time = entry.time;
+        let displayTime = allDay ? msg.allDay : msg.noTime;
+        if (!allDay && time) {
+            const firstTime = formatLocalizedTime(time.start.hour, time.start.minute, this.locale);
+            const lastTime = formatLocalizedTime(time.end.hour % 24, time.end.minute, this.locale);
+            displayTime =
+                firstDate === lastDate
+                    ? format.timeRange(firstTime, lastTime)
+                    : format.timeRange(`${firstDate} ${firstTime}`, `${lastDate} ${lastTime}`);
+            if (entry.timeZone) displayTime += ` (${entry.timeZone})`;
+        }
+        const eventDetails = {
+            heading: entry.heading || msg.noTitle,
+            content: entry.content || msg.noContent,
+            time,
+            displayTime,
+            displayDate,
+            date: entry.date.start,
+            anchorRect: this.getBoundingClientRect(),
+            entry,
+            eventId: this.eventId ?? entry.id,
+        };
+        this.dispatchEvent(
+            new CustomEvent('open-menu', {
                 detail: eventDetails,
+                cancelable: true,
                 bubbles: true,
                 composed: true,
-            });
-
-            this.dispatchEvent(openMenuEvent);
-        }
+            }),
+        );
     }
 }

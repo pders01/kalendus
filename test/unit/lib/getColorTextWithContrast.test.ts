@@ -1,124 +1,38 @@
 import { expect } from 'chai';
-import getColorTextWithContrast from '../../../src/lib/getColorTextWithContrast.js';
+import getColorTextWithContrast, { contrastRatio, relativeLuminance } from '../../../src/lib/getColorTextWithContrast.js';
+import { parseColor } from '../../../src/lib/colorParser.js';
 
 describe('getColorTextWithContrast', () => {
-    describe('hex color format handling', () => {
-        it('should handle 6-digit hex colors', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('#FF0000');
-            expect(bgColor).to.equal('rgb(255,0,0)');
-            expect(textColor).to.equal('rgb(255, 255, 255)'); // Red background should get white text
+    for (const color of ['#FF0000', '#F00', 'FF0000', 'rgb(255, 0, 0)', 'hsl(0, 100%, 50%)', 'red']) {
+        it(`chooses black on red for ${color} (5.25:1 rather than white at 4:1)`, () => {
+            expect(getColorTextWithContrast(color)).to.deep.equal(['rgb(255,0,0)', 'rgb(0, 0, 0)']);
         });
-
-        it('should handle 3-digit hex colors', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('#F00');
-            expect(bgColor).to.equal('rgb(255,0,0)');
-            expect(textColor).to.equal('rgb(255, 255, 255)'); // Red background should get white text
+    }
+    for (const color of ['#000000', '#001234', '#220022', '#123456', 'navy', 'hsl(240, 100%, 20%)', '#800080']) {
+        it(`chooses white for ${color}`, () => {
+            expect(getColorTextWithContrast(color)[1]).to.equal('rgb(255, 255, 255)');
         });
-
-        it('should handle hex colors without #', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('FF0000');
-            expect(bgColor).to.equal('rgb(255,0,0)');
-            expect(textColor).to.equal('rgb(255, 255, 255)');
+    }
+    for (const color of ['#FFFFFF', '#FFFFCC', '#CCCCCC', '#DEDEDE', '#FFFF00', 'white', 'rgba(255, 255, 255, 0.5)']) {
+        it(`chooses black for ${color}`, () => {
+            expect(getColorTextWithContrast(color)[1]).to.equal('rgb(0, 0, 0)');
         });
+    }
+    for (const color of [undefined, '', 'not-a-color', '__proto__', 'constructor', 'transparent']) {
+        it(`uses white/black fallback for ${String(color)}`, () => {
+            expect(getColorTextWithContrast(color)).to.deep.equal(['rgb(255,255,255)', 'rgb(0,0,0)']);
+        });
+    }
+    it('uses linearized sRGB luminance and the WCAG contrast ratio', () => {
+        expect(relativeLuminance([255, 255, 255])).to.be.closeTo(1, 1e-12);
+        expect(relativeLuminance([0, 0, 0])).to.equal(0);
+        expect(relativeLuminance([255, 0, 0])).to.be.closeTo(0.2126, 1e-12);
+        expect(contrastRatio([0, 0, 0], [255, 255, 255])).to.equal(21);
     });
-
-    describe('brightness calculations', () => {
-        it('should return white text for dark backgrounds', () => {
-            const darkColors = ['#000000', '#001234', '#220022', '#123456'];
-            darkColors.forEach((color) => {
-                const [, textColor] = getColorTextWithContrast(color);
-                expect(textColor).to.equal(
-                    'rgb(255, 255, 255)',
-                    `Failed for color ${color}`,
-                );
-            });
-        });
-
-        it('should return black text for light backgrounds', () => {
-            const lightColors = ['#FFFFFF', '#FFFFCC', '#CCCCCC', '#DEDEDE'];
-            lightColors.forEach((color) => {
-                const [, textColor] = getColorTextWithContrast(color);
-                expect(textColor).to.equal(
-                    'rgb(0, 0, 0)',
-                    `Failed for color ${color}`,
-                );
-            });
-        });
-
-        it('should handle mid-brightness colors correctly', () => {
-            // Yellow (#FFFF00) has high brightness
-            const [, yellowText] = getColorTextWithContrast('#FFFF00');
-            expect(yellowText).to.equal('rgb(0, 0, 0)');
-
-            // Purple (#800080) has low brightness
-            const [, purpleText] = getColorTextWithContrast('#800080');
-            expect(purpleText).to.equal('rgb(255, 255, 255)');
-        });
-    });
-
-    describe('rgb() color format handling', () => {
-        it('should handle rgb() colors', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('rgb(255, 0, 0)');
-            expect(bgColor).to.equal('rgb(255,0,0)');
-            expect(textColor).to.equal('rgb(255, 255, 255)');
-        });
-
-        it('should handle rgba() colors', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('rgba(255, 255, 255, 0.5)');
-            expect(bgColor).to.equal('rgb(255,255,255)');
-            expect(textColor).to.equal('rgb(0, 0, 0)');
-        });
-    });
-
-    describe('hsl() color format handling', () => {
-        it('should handle hsl() colors', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('hsl(0, 100%, 50%)');
-            expect(bgColor).to.equal('rgb(255,0,0)');
-            expect(textColor).to.equal('rgb(255, 255, 255)');
-        });
-
-        it('should handle dark hsl() colors', () => {
-            const [, textColor] = getColorTextWithContrast('hsl(240, 100%, 20%)');
-            expect(textColor).to.equal('rgb(255, 255, 255)');
-        });
-    });
-
-    describe('named color format handling', () => {
-        it('should handle named colors', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('red');
-            expect(bgColor).to.equal('rgb(255,0,0)');
-            expect(textColor).to.equal('rgb(255, 255, 255)');
-        });
-
-        it('should handle light named colors', () => {
-            const [, textColor] = getColorTextWithContrast('white');
-            expect(textColor).to.equal('rgb(0, 0, 0)');
-        });
-
-        it('should handle dark named colors', () => {
-            const [, textColor] = getColorTextWithContrast('navy');
-            expect(textColor).to.equal('rgb(255, 255, 255)');
-        });
-    });
-
-    describe('edge cases', () => {
-        it('should handle undefined color', () => {
-            const [bgColor, textColor] = getColorTextWithContrast();
-            expect(bgColor).to.equal('rgb(255,255,255)');
-            expect(textColor).to.equal('rgb(0,0,0)');
-        });
-
-        it('should handle invalid color format', () => {
-            const [bgColor, textColor] =
-                getColorTextWithContrast('not-a-color');
-            expect(bgColor).to.equal('rgb(255,255,255)');
-            expect(textColor).to.equal('rgb(0,0,0)');
-        });
-
-        it('should handle empty string', () => {
-            const [bgColor, textColor] = getColorTextWithContrast('');
-            expect(bgColor).to.equal('rgb(255,255,255)');
-            expect(textColor).to.equal('rgb(0,0,0)');
-        });
+    it('selects a foreground above 4.5:1 across a 4096-color sRGB sample grid', () => {
+        for (let r = 0; r <= 255; r += 17) for (let g = 0; g <= 255; g += 17) for (let b = 0; b <= 255; b += 17) {
+            const [background, foreground] = getColorTextWithContrast(`rgb(${r},${g},${b})`);
+            expect(contrastRatio(parseColor(background)!, parseColor(foreground)!)).to.be.at.least(4.5);
+        }
     });
 });

@@ -23,8 +23,22 @@ export function allocateAllDayRows(events: AllDayEvent[]): AllDayLayoutResult {
     const multiDayEvents: AllDayEvent[] = [];
     const singleDayEvents: AllDayEvent[] = [];
 
+    const seenIds = new Set<string>();
     events.forEach((event) => {
-        if (event.isMultiDay) {
+        if (
+            !event.id ||
+            seenIds.has(event.id) ||
+            event.days.length === 0 ||
+            event.days.length > 7 ||
+            new Set(event.days).size !== event.days.length ||
+            event.days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
+        ) {
+            throw new RangeError(
+                'All-day events need unique IDs and nonempty day indices in [0, 6]',
+            );
+        }
+        seenIds.add(event.id);
+        if (event.isMultiDay || event.days.length > 1) {
             multiDayEvents.push(event);
         } else {
             singleDayEvents.push(event);
@@ -43,18 +57,28 @@ export function allocateAllDayRows(events: AllDayEvent[]): AllDayLayoutResult {
     singleDayEvents.sort((a, b) => {
         const aDay = Math.min(...a.days);
         const bDay = Math.min(...b.days);
-        return aDay - bDay;
+        return aDay - bDay || a.id.localeCompare(b.id);
     });
 
     // Track which rows are occupied on each day
     const rowOccupancy = new Map<number, Set<number>>();
+    const nextFree = new Map<number, number>();
     for (let day = 0; day < 7; day++) {
         rowOccupancy.set(day, new Set());
+        nextFree.set(day, 0);
     }
+    const occupy = (day: number, row: number) => {
+        const rows = rowOccupancy.get(day)!;
+        rows.add(row);
+        let free = nextFree.get(day)!;
+        while (rows.has(free)) free++;
+        nextFree.set(day, free);
+    };
 
     // Assign rows to multi-day events first
     multiDayEvents.forEach((event) => {
-        let assignedRow = 0;
+        // Every earlier row is occupied on at least one of these days.
+        let assignedRow = Math.max(...event.days.map((day) => nextFree.get(day)!));
         let foundRow = false;
 
         while (!foundRow) {
@@ -70,7 +94,7 @@ export function allocateAllDayRows(events: AllDayEvent[]): AllDayLayoutResult {
                 foundRow = true;
                 eventRows.set(event.id, assignedRow);
                 for (const day of event.days) {
-                    rowOccupancy.get(day)?.add(assignedRow);
+                    occupy(day, assignedRow);
                 }
             } else {
                 assignedRow++;
@@ -81,20 +105,16 @@ export function allocateAllDayRows(events: AllDayEvent[]): AllDayLayoutResult {
     // Then assign rows to single-day events
     singleDayEvents.forEach((event) => {
         const day = event.days[0];
-        let assignedRow = 0;
-
-        while (rowOccupancy.get(day)?.has(assignedRow)) {
-            assignedRow++;
-        }
-
+        const assignedRow = nextFree.get(day)!;
         eventRows.set(event.id, assignedRow);
-        rowOccupancy.get(day)?.add(assignedRow);
+        occupy(day, assignedRow);
     });
 
     // Compute total rows needed
     let maxRows = 0;
-    rowOccupancy.forEach((rows) => {
-        maxRows = Math.max(maxRows, rows.size);
+    eventRows.forEach((row) => {
+        // A day can have gaps: set cardinality is not the last occupied row.
+        maxRows = Math.max(maxRows, row + 1);
     });
 
     return { rowAssignments: eventRows, totalRows: maxRows };

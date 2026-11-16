@@ -1,5 +1,6 @@
 import { expect } from 'chai';
 import { SlotManager, type PositionConfig, type LayoutDimensions } from '../../../src/lib/SlotManager.js';
+import { LayoutCalculator } from '../../../src/lib/LayoutCalculator.js';
 
 describe('SlotManager — absolute positioning path', () => {
     let sm: SlotManager;
@@ -141,13 +142,74 @@ describe('SlotManager — absolute positioning path', () => {
         });
     });
 
-    describe('pxToTime helper', () => {
-        it('should exist on SlotManager instances', () => {
-            expect(sm.pxToTime).to.be.a('function');
+    describe('validated geometry and focus order', () => {
+        const date = { year: 2026, month: 3, day: 2 };
+        const time = { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } };
+
+        it('never emits positive tabindex for day, week or all-day entries', () => {
+            for (const viewMode of ['day', 'week', 'month'] as const) {
+                for (const isAllDay of [true, false]) {
+                    expect(sm.calculateAccessibility({ viewMode, date, activeDate: date, time, isAllDay }).tabIndex).to.equal(0);
+                }
+            }
         });
 
-        // pxToTime requires a real DOM element (getComputedStyle).
-        // Full DOM tests belong in test/unit/components/ with @open-wc/testing.
-        // Here we verify the method signature and existence only.
+        it('reports impossible dates, clock values, reversed intervals and missing active weeks', () => {
+            const base: PositionConfig = { viewMode: 'week', date, activeDate: date, time };
+            for (const config of [
+                { ...base, date: { year: 2026, month: 2, day: 30 } },
+                { ...base, time: { start: { hour: 25, minute: 0 }, end: { hour: 26, minute: 0 } } },
+                { ...base, time: { start: time.end, end: time.start } },
+                { ...base, activeDate: undefined },
+                { ...base, firstDayOfWeek: 9 },
+            ]) {
+                expect(sm.validatePosition(config as PositionConfig).valid).to.equal(false);
+            }
+        });
+
+        it('rejects dates outside the full or condensed week instead of using column zero', () => {
+            const outside = { year: 2026, month: 3, day: 10 };
+            expect(sm.getWeekDayIndex(outside, date)).to.equal(-1);
+            expect(sm.getIndexInDates(outside, [date])).to.equal(-1);
+            expect(sm.validatePosition({ viewMode: 'week', date: outside, activeDate: date, time }).valid).to.equal(false);
+            expect(sm.validatePosition({ viewMode: 'week', date: { ...date, day: 3 }, activeDate: date, time, weekDates: [date] }).valid).to.equal(false);
+            expect(sm.validatePosition({ viewMode: 'day', date: outside, activeDate: date, time }).valid).to.equal(false);
+        });
+
+        it('uses the calculator duration authority including non-default scale/minimum', () => {
+            const calculator = new LayoutCalculator({ minuteHeight: 2, eventMinHeight: 60 });
+            const short = { start: { hour: 9, minute: 0 }, end: { hour: 9, minute: 5 } };
+            const box = calculator.calculateLayout([{ id: 'x', heading: '', color: '', startTime: short.start, endTime: short.end }]).boxes[0];
+            const position = sm.calculatePosition({ viewMode: 'day', date, time: short });
+            const css = sm.generatePositionCSS(position, box, short);
+            expect(box.durationMinutes).to.equal(30);
+            expect(css).to.include('height: calc(30 * var(--minute-height))');
+        });
+
+        it('keeps one-based grid line endpoints correct for a full hour and point events', () => {
+            const position = { slotName: 'legacy', useDirectGrid: false };
+            const layout = { width: 100, x: 0, zIndex: 1, opacity: 1 };
+            expect(sm.generatePositionCSS(position, layout, time)).to.include('--start-slot: 541/601');
+            expect(sm.generatePositionCSS(position, layout, { start: time.start, end: time.start })).to.include('--start-slot: 541/542');
+        });
+    });
+
+    describe('pxToTime helper', () => {
+        it('converts and clamps actual offsets and falls back on invalid scale tokens', () => {
+            const original = globalThis.getComputedStyle;
+            const host = {} as Element;
+            let token = '2';
+            globalThis.getComputedStyle = (() => ({ getPropertyValue: () => token }) as unknown as CSSStyleDeclaration) as typeof getComputedStyle;
+            try {
+                expect(sm.pxToTime(120, host)).to.deep.equal({ hour: 1, minute: 0 });
+                expect(sm.pxToTime(-100, host)).to.deep.equal({ hour: 0, minute: 0 });
+                expect(sm.pxToTime(99999, host)).to.deep.equal({ hour: 23, minute: 59 });
+                token = '-1';
+                expect(sm.pxToTime(48, host)).to.deep.equal({ hour: 1, minute: 0 });
+                expect(() => sm.pxToTime(NaN, host)).to.throw(RangeError);
+            } finally {
+                globalThis.getComputedStyle = original;
+            }
+        });
     });
 });

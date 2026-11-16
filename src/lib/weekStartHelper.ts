@@ -3,8 +3,17 @@
  * that was previously duplicated across lms-calendar.ts, Week.ts, Month.ts,
  * and SlotManager.ts.
  *
- * All functions are pure and dependency-free (only JS Date + CalendarDate).
+ * Civil calculations use UTC as an arithmetic carrier, never the ambient time zone.
  */
+import { DateTime } from 'luxon';
+
+import { isValidCalendarDate } from './calendarModel.js';
+
+/** Display padding may cross the input domain by a few days; it is never event data. */
+function addDisplayDays(date: CalendarDate, days: number): CalendarDate {
+    const next = DateTime.utc(date.year, date.month, date.day).plus({ days });
+    return { year: next.year, month: next.month, day: next.day };
+}
 
 /**
  * Supported first-day-of-week values (JS Date convention).
@@ -22,6 +31,15 @@ export type FirstDayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
  * @example getWeekStartOffset(0, 0) // Sunday when Sunday-first → 0
  */
 export function getWeekStartOffset(jsDayOfWeek: number, firstDay: FirstDayOfWeek): number {
+    if (
+        !Number.isInteger(jsDayOfWeek) ||
+        jsDayOfWeek < 0 ||
+        jsDayOfWeek > 6 ||
+        !Number.isInteger(firstDay) ||
+        firstDay < 0 ||
+        firstDay > 6
+    )
+        throw new RangeError('Invalid weekday');
     return (((jsDayOfWeek - firstDay) % 7) + 7) % 7;
 }
 
@@ -30,16 +48,10 @@ export function getWeekStartOffset(jsDayOfWeek: number, firstDay: FirstDayOfWeek
  * starting from `firstDay`.
  */
 export function getWeekDates(activeDate: CalendarDate, firstDay: FirstDayOfWeek): CalendarDate[] {
-    const current = new Date(activeDate.year, activeDate.month - 1, activeDate.day);
-    const offset = getWeekStartOffset(current.getDay(), firstDay);
-    const weekStart = new Date(current);
-    weekStart.setDate(current.getDate() - offset);
-
-    return Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(weekStart);
-        d.setDate(weekStart.getDate() + i);
-        return { day: d.getDate(), month: d.getMonth() + 1, year: d.getFullYear() };
-    });
+    if (!isValidCalendarDate(activeDate)) throw new RangeError('Invalid active date');
+    const weekday = DateTime.utc(activeDate.year, activeDate.month, activeDate.day).weekday % 7;
+    const offset = getWeekStartOffset(weekday, firstDay);
+    return Array.from({ length: 7 }, (_, i) => addDisplayDays(activeDate, i - offset));
 }
 
 /**
@@ -49,7 +61,8 @@ export function getWeekDates(activeDate: CalendarDate, firstDay: FirstDayOfWeek)
  * @example getFirstDayOffset({ year: 2026, month: 1, day: 1 }, 0) // Thu → 4
  */
 export function getFirstDayOffset(date: CalendarDate, firstDay: FirstDayOfWeek): number {
-    const jsDay = new Date(date.year, date.month - 1, 1).getDay();
+    if (!isValidCalendarDate(date)) throw new RangeError('Invalid active date');
+    const jsDay = DateTime.utc(date.year, date.month, 1).weekday % 7;
     return getWeekStartOffset(jsDay, firstDay);
 }
 
@@ -61,6 +74,7 @@ export function getFirstDayOffset(date: CalendarDate, firstDay: FirstDayOfWeek):
  * @example getWeekdayOrder(0) // Sunday-first → [7, 1, 2, 3, 4, 5, 6]
  */
 export function getWeekdayOrder(firstDay: FirstDayOfWeek): number[] {
+    getWeekStartOffset(0, firstDay); // Validate the runtime input.
     // Luxon: 1 = Mon, 2 = Tue, ..., 7 = Sun
     // JS:    0 = Sun, 1 = Mon, ..., 6 = Sat
     const luxonFirst = firstDay === 0 ? 7 : firstDay;
@@ -79,39 +93,9 @@ export function getMonthCalendarArray(
     activeDate: CalendarDate,
     firstDayOfWeek: FirstDayOfWeek,
 ): CalendarDate[] {
-    const daysInMonth = (date: CalendarDate) => new Date(date.year, date.month, 0).getDate() || 0;
-
-    const getDatesInMonth = (date: CalendarDate, sliceArgs: number[]) => {
-        const days = daysInMonth(date);
-        return Array.from(Array(days).keys(), (_, n) => ({
-            year: date.year,
-            month: date.month,
-            day: n + 1,
-        })).slice(...sliceArgs);
-    };
-
-    // Previous month dates
     const offset = getFirstDayOffset(activeDate, firstDayOfWeek);
-    const prevMonthDate: CalendarDate = {
-        day: 1,
-        month: activeDate.month === 1 ? 12 : activeDate.month - 1,
-        year: activeDate.month === 1 ? activeDate.year - 1 : activeDate.year,
-    };
-    const previousMonth = offset > 0 ? getDatesInMonth(prevMonthDate, [-offset]) : [];
-
-    // Active month dates
-    const activeMonth = getDatesInMonth(activeDate, []);
-
-    // Next month dates
-    const nextMonthDate: CalendarDate = {
-        day: 1,
-        month: activeDate.month === 12 ? 1 : activeDate.month + 1,
-        year: activeDate.month === 12 ? activeDate.year + 1 : activeDate.year,
-    };
-    const remainingDays = 42 - (previousMonth.length + activeMonth.length);
-    const nextMonth = remainingDays > 0 ? getDatesInMonth(nextMonthDate, [0, remainingDays]) : [];
-
-    return previousMonth.concat(activeMonth, nextMonth);
+    const first = { year: activeDate.year, month: activeDate.month, day: 1 };
+    return Array.from({ length: 42 }, (_, index) => addDisplayDays(first, index - offset));
 }
 
 /**
@@ -217,16 +201,18 @@ const LOCALE_WEEK_START: Record<string, FirstDayOfWeek> = {
  * @example getFirstDayForLocale('xx')    // 1 (Monday, default)
  */
 export function getFirstDayForLocale(locale: string): FirstDayOfWeek {
-    // Try exact match first
-    if (locale in LOCALE_WEEK_START) {
-        return LOCALE_WEEK_START[locale];
+    let canonical: string;
+    try {
+        canonical = Intl.getCanonicalLocales(locale)[0];
+        if (!canonical) return 1;
+    } catch {
+        return 1;
     }
-
-    // Try language-only fallback (strip region)
-    const lang = locale.split('-')[0];
-    if (lang in LOCALE_WEEK_START) {
+    if (Object.prototype.hasOwnProperty.call(LOCALE_WEEK_START, canonical))
+        return LOCALE_WEEK_START[canonical];
+    const lang = canonical.split('-')[0];
+    if (Object.prototype.hasOwnProperty.call(LOCALE_WEEK_START, lang))
         return LOCALE_WEEK_START[lang];
-    }
 
     // ISO 8601 default
     return 1;
