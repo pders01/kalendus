@@ -7,3 +7,11 @@ dev/
 .storybook/
 scripts/
 expo-bridge/
+dist/
+storybook-static/
+test-results/
+playwright-report/
+coverage/
+docs/internal/
+HANDOFF.md
+screenshots/

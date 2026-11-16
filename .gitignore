@@ -15,14 +15,20 @@ coverage/
 # Profiling trace output
 trace-*.json
 
-# e2e test result output
+# Generated browser-test artifacts
+storybook-static/
+playwright-report/
 test-results/
 
 # Server SQLite data
 server/data/
 
-# Screenshots
+# Screenshots and preserved visual-review source snapshots
 screenshots/
+dev/visual-review/.snapshots/
+
+# Local reviews, reports, and archived tools
+/docs/internal/
 
 # Generated custom elements manifest
 custom-elements.json
