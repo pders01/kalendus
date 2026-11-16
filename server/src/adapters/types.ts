@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 /**
  * Client-side types that mirror the component's global types.
  * These are used by the adapters to produce the correct shape.
@@ -25,6 +27,8 @@ export interface CalendarDateInterval {
 }
 
 export interface CalendarEntry {
+    id: string;
+    calendarId: string;
     date: CalendarDateInterval;
     time: CalendarTimeInterval;
     heading: string;
@@ -72,10 +76,32 @@ export interface SyncMessage {
     data: ApiCalendarEntry | { id: string };
 }
 
-/** Options for the API client */
+/** Public calendar-state-change detail; structurally matches root src/contracts.ts. */
+export interface CalendarState {
+    activeDate: CalendarDate;
+    viewMode: 'day' | 'week' | 'month' | 'year';
+    firstDayOfWeek: number;
+    /** Half-open ISO civil dates, already accounting for responsive/week-start layout. */
+    range: { start: string; end: string };
+}
+
+export interface StreamTransport {
+    addEventListener(type: string, listener: (event: Event) => void): void;
+    close(): void;
+}
+
+/** Options for the API client. Native EventSource cannot attach arbitrary auth headers. */
 export interface KalendusClientOptions {
     baseUrl: string;
     calendarId: string;
+    fetch?: typeof globalThis.fetch;
+    credentials?: RequestCredentials;
+    headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+    /** Supply an authenticated/reconnecting transport for bearer-token SSE. */
+    streamFactory?: (
+        url: string,
+        init: { withCredentials: boolean; credentials: RequestCredentials },
+    ) => StreamTransport;
 }
 
 /** Options for creating events via the API */

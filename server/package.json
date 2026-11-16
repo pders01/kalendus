@@ -46,6 +46,10 @@
             "types": "./dist/adapters/index.d.ts",
             "import": "./dist/adapters/index.js"
         },
+        "./migrate": {
+            "types": "./dist/db/migrate.d.ts",
+            "import": "./dist/db/migrate.js"
+        },
         "./package.json": "./package.json"
     },
     "publishConfig": {
@@ -53,14 +57,17 @@
     },
     "scripts": {
         "dev": "tsx watch src/index.ts",
-        "start": "node --import tsx src/index.ts",
-        "build": "tsc",
+        "start": "node dist/index.js",
+        "build": "tsc && bun scripts/copy-migrations.ts",
+        "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json",
+        "test:package": "bun run build && bun scripts/package-smoke.ts",
         "clean": "rm -rf dist",
         "test": "NODE_OPTIONS='--experimental-vm-modules --import=tsx' mocha",
         "test:watch": "NODE_OPTIONS='--experimental-vm-modules --import=tsx' mocha --watch",
+        "test:browser": "web-test-runner --config web-test-runner.config.js",
         "db:generate": "drizzle-kit generate",
-        "db:migrate": "tsx src/db/migrate.ts",
-        "db:seed": "tsx src/db/seed.ts",
+        "db:migrate": "node dist/db/migrate.js",
+        "db:seed": "node dist/db/seed.js",
         "lint": "oxlint src/",
         "format": "oxfmt --write 'src/**/*.ts' '*.json'",
         "format:check": "oxfmt --check 'src/**/*.ts' '*.json'",

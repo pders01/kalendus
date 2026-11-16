@@ -7,20 +7,23 @@ import type {
     CreateEventPayload,
     EventSummary,
     KalendusClientOptions,
+    StreamTransport,
     SyncMessage,
     UpdateEventPayload,
 } from './types.js';
 
-const ALL_DAY_TIME = {
-    start: { hour: 0, minute: 0 },
-    end: { hour: 23, minute: 59 },
-} as const;
-
-/** Convert an API entry to the component's CalendarEntry shape */
+/** Each mapping owns its nested values, including the legacy all-day sentinel. */
 export function toCalendarEntry(api: ApiCalendarEntry): CalendarEntry {
     return {
-        date: api.date,
-        time: api.time ?? ALL_DAY_TIME,
+        id: api.id,
+        calendarId: api.calendarId,
+        date: { start: { ...api.date.start }, end: { ...api.date.end } },
+        time: api.time
+            ? { start: { ...api.time.start }, end: { ...api.time.end } }
+            : {
+                  start: { hour: 0, minute: 0 },
+                  end: { hour: 23, minute: 59 },
+              },
         heading: api.heading,
         content: api.content ?? '',
         color: api.color,
@@ -28,153 +31,177 @@ export function toCalendarEntry(api: ApiCalendarEntry): CalendarEntry {
     };
 }
 
-/**
- * Vanilla fetch + EventSource wrapper for the Kalendus API.
- * Framework-agnostic — works in any browser or Node 18+ environment.
- */
+/** Authenticated fetch plus an injectable SSE transport; safe to import without a DOM. */
 export class KalendusApiClient {
-    private _baseUrl: string;
-    private _calendarId: string;
-    private _eventSource: EventSource | null = null;
-    private _syncCallbacks: Array<(msg: SyncMessage) => void> = [];
+    private readonly _baseUrl: string;
+    private _eventSource: StreamTransport | null = null;
+    private _syncCallbacks = new Set<(msg: SyncMessage) => void>();
+    private _reconcileCallbacks = new Set<() => void>();
 
-    constructor(options: KalendusClientOptions) {
+    constructor(private options: KalendusClientOptions) {
         this._baseUrl = options.baseUrl.replace(/\/$/, '');
-        this._calendarId = options.calendarId;
     }
 
     get calendarId(): string {
-        return this._calendarId;
+        return this.options.calendarId;
     }
 
-    /** Fetch events for a date range, already mapped to CalendarEntry[] */
-    async fetchEvents(
-        start: string,
-        end: string,
-    ): Promise<CalendarEntry[]> {
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events?start=${start}&end=${end}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`fetchEvents failed: ${res.status}`);
-        const entries = (await res.json()) as ApiCalendarEntry[];
-        return entries.map(toCalendarEntry);
+    private url(path: string): string {
+        return `${this._baseUrl}/api/calendars/${encodeURIComponent(this.calendarId)}${path}`;
     }
 
-    /** Fetch raw API entries (with IDs, for mutation) */
+    private range(start: string, end: string): string {
+        return new URLSearchParams({ start, end }).toString();
+    }
+
+    private async request(path: string, init: RequestInit = {}): Promise<Response> {
+        const configured =
+            typeof this.options.headers === 'function'
+                ? await this.options.headers()
+                : this.options.headers;
+        const headers = new Headers(configured);
+        new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+        const res = await (this.options.fetch ?? globalThis.fetch)(this.url(path), {
+            ...init,
+            headers,
+            credentials: this.options.credentials ?? 'same-origin',
+        });
+        if (!res.ok)
+            throw new Error(
+                `Kalendus ${init.method ?? 'GET'} ${path.split('?')[0]} failed: ${res.status}`,
+            );
+        return res;
+    }
+
+    async fetchEvents(start: string, end: string, signal?: AbortSignal): Promise<CalendarEntry[]> {
+        return (await this.fetchRawEvents(start, end, signal)).map(toCalendarEntry);
+    }
+
     async fetchRawEvents(
         start: string,
         end: string,
+        signal?: AbortSignal,
     ): Promise<ApiCalendarEntry[]> {
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events?start=${start}&end=${end}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`fetchRawEvents failed: ${res.status}`);
-        return (await res.json()) as ApiCalendarEntry[];
+        return (await (
+            await this.request(`/events?${this.range(start, end)}`, { signal })
+        ).json()) as ApiCalendarEntry[];
     }
 
-    /** Fetch per-day event counts */
-    async fetchSummary(
-        start: string,
-        end: string,
-    ): Promise<EventSummary> {
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events/summary?start=${start}&end=${end}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`fetchSummary failed: ${res.status}`);
-        return (await res.json()) as EventSummary;
+    async fetchSummary(start: string, end: string, signal?: AbortSignal): Promise<EventSummary> {
+        return (await (
+            await this.request(`/events/summary?${this.range(start, end)}`, { signal })
+        ).json()) as EventSummary;
     }
 
-    async createEvent(
-        payload: CreateEventPayload,
-    ): Promise<ApiCalendarEntry> {
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events`;
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error(`createEvent failed: ${res.status}`);
-        return (await res.json()) as ApiCalendarEntry;
+    async createEvent(payload: CreateEventPayload): Promise<ApiCalendarEntry> {
+        return (await (
+            await this.request('/events', this.json('POST', payload))
+        ).json()) as ApiCalendarEntry;
     }
 
-    async updateEvent(
-        eventId: string,
-        payload: UpdateEventPayload,
-    ): Promise<ApiCalendarEntry> {
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events/${eventId}`;
-        const res = await fetch(url, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error(`updateEvent failed: ${res.status}`);
-        return (await res.json()) as ApiCalendarEntry;
+    async updateEvent(eventId: string, payload: UpdateEventPayload): Promise<ApiCalendarEntry> {
+        return (await (
+            await this.request(
+                `/events/${encodeURIComponent(eventId)}`,
+                this.json('PATCH', payload),
+            )
+        ).json()) as ApiCalendarEntry;
     }
 
     async deleteEvent(eventId: string): Promise<void> {
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/events/${eventId}`;
-        const res = await fetch(url, { method: 'DELETE' });
-        if (!res.ok) throw new Error(`deleteEvent failed: ${res.status}`);
+        await this.request(`/events/${encodeURIComponent(eventId)}`, { method: 'DELETE' });
     }
 
     async fetchManifest(): Promise<CalendarManifest> {
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/manifest`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`fetchManifest failed: ${res.status}`);
-        return (await res.json()) as CalendarManifest;
+        return (await (await this.request('/manifest')).json()) as CalendarManifest;
     }
 
-    async sendTelemetry(
-        action: string,
-        metadata?: Record<string, unknown>,
-    ): Promise<void> {
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/telemetry`;
-        // Fire-and-forget
-        fetch(url, {
-            method: 'POST',
+    private json(method: string, payload: unknown): RequestInit {
+        return {
+            method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action,
-                calendarId: this._calendarId,
-                metadata,
-            }),
-        }).catch(() => {
-            // Silently ignore telemetry failures
-        });
+            body: JSON.stringify(payload),
+        };
     }
 
-    /** Open SSE connection for real-time sync */
+    async sendTelemetry(action: string, metadata?: Record<string, unknown>): Promise<void> {
+        try {
+            await this.request(
+                '/telemetry',
+                this.json('POST', { action, calendarId: this.calendarId, metadata }),
+            );
+        } catch {
+            /* best effort; never break navigation */
+        }
+    }
+
+    /** Open a reconnecting transport. For header auth, a custom streamFactory is mandatory. */
     connect(): void {
         if (this._eventSource) return;
-
-        const url = `${this._baseUrl}/api/calendars/${this._calendarId}/stream`;
-        this._eventSource = new EventSource(url);
-
-        const handleEvent = (type: string) => (e: Event) => {
-            const data = JSON.parse((e as MessageEvent).data);
-            const msg: SyncMessage = {
-                type: type as SyncMessage['type'],
-                data,
-            };
-            for (const cb of this._syncCallbacks) {
-                cb(msg);
+        const factory =
+            this.options.streamFactory ??
+            ((url, init) => {
+                if (typeof EventSource === 'undefined')
+                    throw new Error('SSE requires EventSource or streamFactory');
+                if (this.options.headers)
+                    throw new Error(
+                        'Header-auth SSE requires streamFactory; native EventSource cannot send headers',
+                    );
+                if (this.options.credentials === 'omit')
+                    throw new Error(
+                        'SSE credentials: omit requires streamFactory; native EventSource sends same-origin cookies',
+                    );
+                return new EventSource(url, { withCredentials: init.withCredentials });
+            });
+        const source = factory(this.url('/stream'), {
+            withCredentials: this.options.credentials === 'include',
+            credentials: this.options.credentials ?? 'same-origin',
+        });
+        this._eventSource = source;
+        source.addEventListener('connected', () => {
+            // Includes initial connect and every reconnect: missed messages have no replay log.
+            for (const callback of [...this._reconcileCallbacks]) {
+                try {
+                    callback();
+                } catch {
+                    /* isolate consumers */
+                }
             }
-        };
-
-        this._eventSource.addEventListener('created', handleEvent('created'));
-        this._eventSource.addEventListener('updated', handleEvent('updated'));
-        this._eventSource.addEventListener('deleted', handleEvent('deleted'));
+        });
+        for (const type of ['created', 'updated', 'deleted'] as const) {
+            source.addEventListener(type, (event) => {
+                let data: SyncMessage['data'];
+                try {
+                    data = JSON.parse((event as MessageEvent).data) as SyncMessage['data'];
+                } catch {
+                    return;
+                }
+                if (!data || typeof data.id !== 'string') return;
+                for (const callback of [...this._syncCallbacks]) {
+                    try {
+                        callback({ type, data });
+                    } catch {
+                        /* isolate consumers */
+                    }
+                }
+            });
+        }
     }
 
-    /** Close SSE connection */
     disconnect(): void {
         this._eventSource?.close();
         this._eventSource = null;
     }
-
-    /** Subscribe to SSE sync events. Returns unsubscribe function. */
     onSync(callback: (msg: SyncMessage) => void): () => void {
-        this._syncCallbacks.push(callback);
+        this._syncCallbacks.add(callback);
         return () => {
-            const idx = this._syncCallbacks.indexOf(callback);
-            if (idx !== -1) this._syncCallbacks.splice(idx, 1);
+            this._syncCallbacks.delete(callback);
+        };
+    }
+    onReconcile(callback: () => void): () => void {
+        this._reconcileCallbacks.add(callback);
+        return () => {
+            this._reconcileCallbacks.delete(callback);
         };
     }
 }

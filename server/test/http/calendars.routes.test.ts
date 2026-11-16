@@ -1,7 +1,8 @@
 import { expect } from 'chai';
-import { createTestDb } from '../helpers/test-db.js';
-import { createCalendar } from '../helpers/fixtures.js';
+
 import { createApp } from '../../src/http/app.js';
+import { createCalendar } from '../helpers/fixtures.js';
+import { createTestDb } from '../helpers/test-db.js';
 
 describe('Calendar Routes', () => {
     let app: ReturnType<typeof createApp>['app'];
@@ -9,7 +10,7 @@ describe('Calendar Routes', () => {
 
     beforeEach(() => {
         db = createTestDb();
-        ({ app } = createApp({ db, enableLogger: false }));
+        ({ app } = createApp({ db, enableLogger: false, mode: 'public' }));
     });
 
     describe('POST /api/calendars', () => {

@@ -8,10 +8,17 @@
 // HTTP
 export { createApp } from './http/app.js';
 export type { AppDeps } from './http/app.js';
+export type {
+    AuthorizationAction,
+    AuthorizationPolicy,
+    AuthorizationRequest,
+} from './http/authorization.js';
 
 // Database
 export { createDb, createInMemoryDb } from './db/connection.js';
 export type { Db } from './db/connection.js';
+export { databasePath } from './db/config.js';
+export { migrateDb } from './db/migrate.js';
 
 // Schema
 export { calendars, events } from './db/schema.js';
@@ -47,3 +54,4 @@ export { CalendarServiceImpl } from './core/calendar.service.js';
 export { EventServiceImpl } from './core/event.service.js';
 export { SyncServiceImpl } from './core/sync.service.js';
 export { TelemetryServiceImpl } from './core/telemetry.service.js';
+export type { TelemetryOptions } from './core/telemetry.service.js';

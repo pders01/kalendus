@@ -1,6 +1,7 @@
+import { nanoid } from 'nanoid';
+
 import { createDb } from './connection.js';
 import { calendars, events } from './schema.js';
-import { nanoid } from 'nanoid';
 
 const db = createDb();
 const now = new Date().toISOString();
@@ -111,3 +112,4 @@ for (const evt of sampleEvents) {
 }
 
 console.log(`Seeded calendar ${calendarId} with ${sampleEvents.length} events.`);
+db.$client.close();

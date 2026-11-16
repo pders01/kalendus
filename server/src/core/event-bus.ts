@@ -1,4 +1,4 @@
-export type EventBusCallback<T = unknown> = (data: T) => void;
+export type EventBusCallback<T = unknown> = (data: T) => unknown;
 
 /**
  * In-process pub/sub for SSE broadcasting.
@@ -27,8 +27,14 @@ export class EventBus {
     publish(channel: string, data: unknown): void {
         const subs = this._channels.get(channel);
         if (!subs) return;
-        for (const cb of subs) {
-            cb(data);
+        // Publishing is post-commit best effort. One failed subscriber cannot change
+        // the mutation outcome or prevent other subscribers from receiving it.
+        for (const cb of [...subs]) {
+            try {
+                Promise.resolve(cb(structuredClone(data))).catch(() => {});
+            } catch {
+                /* isolated subscriber failure */
+            }
         }
     }
 

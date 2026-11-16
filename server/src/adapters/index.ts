@@ -9,10 +9,12 @@ export { KalendusApiClient, toCalendarEntry } from './kalendus-api-client.js';
 
 // Lit ReactiveController adapter
 export { KalendusLitAdapter } from './kalendus-lit-adapter.js';
-export type { KalendusLitAdapterOptions } from './kalendus-lit-adapter.js';
+export type { KalendusLitAdapterOptions, CalendarTarget } from './kalendus-lit-adapter.js';
 
 // Shared adapter types
 export type {
+    CalendarState,
+    StreamTransport,
     CalendarDate,
     CalendarTime,
     CalendarTimeInterval,

@@ -1,8 +1,9 @@
 import { expect } from 'chai';
 import { z } from 'zod';
-import { createTestDb } from '../helpers/test-db.js';
-import { createCalendar, createEvent } from '../helpers/fixtures.js';
+
 import { createApp } from '../../src/http/app.js';
+import { createCalendar, createEvent } from '../helpers/fixtures.js';
+import { createTestDb } from '../helpers/test-db.js';
 
 /**
  * Zod schema that validates the response matches ApiCalendarEntry shape.
@@ -60,7 +61,7 @@ describe('Contract: Response Shape Validation', () => {
 
     beforeEach(() => {
         db = createTestDb();
-        ({ app } = createApp({ db, enableLogger: false }));
+        ({ app } = createApp({ db, enableLogger: false, mode: 'public' }));
         const cal = createCalendar(db);
         calId = cal.id;
     });
@@ -74,8 +75,12 @@ describe('Contract: Response Shape Validation', () => {
 
     it('GET /api/calendars/:id/events returns ApiCalendarEntry[]', async () => {
         createEvent(db, calId, {
-            startYear: 2026, startMonth: 3, startDay: 15,
-            endYear: 2026, endMonth: 3, endDay: 15,
+            startYear: 2026,
+            startMonth: 3,
+            startDay: 15,
+            endYear: 2026,
+            endMonth: 3,
+            endDay: 15,
         });
 
         const res = await app.request(
@@ -92,20 +97,17 @@ describe('Contract: Response Shape Validation', () => {
     });
 
     it('POST /api/calendars/:id/events returns ApiCalendarEntry', async () => {
-        const res = await app.request(
-            `/api/calendars/${calId}/events`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    heading: 'Contract Test',
-                    date: {
-                        start: { year: 2026, month: 3, day: 15 },
-                        end: { year: 2026, month: 3, day: 15 },
-                    },
-                }),
-            },
-        );
+        const res = await app.request(`/api/calendars/${calId}/events`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                heading: 'Contract Test',
+                date: {
+                    start: { year: 2026, month: 3, day: 15 },
+                    end: { year: 2026, month: 3, day: 15 },
+                },
+            }),
+        });
         const body = await res.json();
         const result = apiCalendarEntrySchema.safeParse(body);
         if (!result.success) {
@@ -115,20 +117,17 @@ describe('Contract: Response Shape Validation', () => {
     });
 
     it('all-day event has time: null', async () => {
-        const res = await app.request(
-            `/api/calendars/${calId}/events`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    heading: 'All Day',
-                    date: {
-                        start: { year: 2026, month: 3, day: 15 },
-                        end: { year: 2026, month: 3, day: 15 },
-                    },
-                }),
-            },
-        );
+        const res = await app.request(`/api/calendars/${calId}/events`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                heading: 'All Day',
+                date: {
+                    start: { year: 2026, month: 3, day: 15 },
+                    end: { year: 2026, month: 3, day: 15 },
+                },
+            }),
+        });
         const body = await res.json();
         expect(body.time).to.be.null;
     });
