@@ -10,7 +10,7 @@
  *
  * Prerequisites: ffmpeg must be installed (brew install ffmpeg).
  *
- * Run: pnpm demo:gif
+ * Run: bun run demo:gif
  */
 
 import { chromium } from 'playwright';
@@ -117,7 +117,7 @@ const sampleEntries = JSON.stringify([
     {
         heading: 'Afternoon Focus',
         content: 'Deep work block',
-        color: 'oklch(0.65 0.15 250)',
+        color: '#397cce',
         isContinuation: false,
         date: {
             start: { day: currentDay, month: currentMonth, year: currentYear },
@@ -213,7 +213,7 @@ const sampleEntries = JSON.stringify([
     {
         heading: 'Workshop',
         content: 'Lit workshop',
-        color: 'oklch(0.6 0.2 30)',
+        color: '#ce4534',
         isContinuation: false,
         date: {
             start: { day: d(8), month: currentMonth, year: currentYear },

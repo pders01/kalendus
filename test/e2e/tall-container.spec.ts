@@ -6,7 +6,7 @@ import { test, expect } from 'playwright/test';
  * Reproduces the freeze / severe-perf-degradation when switching to
  * Day or Week view inside a ≥ 1400 px-tall calendar instance.
  *
- * Storybook must be running on localhost:6006 (`pnpm storybook`).
+ * Playwright builds and serves production Storybook on port 6006; keep it free.
  */
 
 const STORY_URL =
@@ -175,7 +175,7 @@ test.describe('Tall Container view switching', () => {
 
             const shadow = calEl.shadowRoot!;
             const container = shadow.querySelector('.calendar-container')!;
-            const main = shadow.querySelector('main')!;
+            const main = shadow.querySelector('[role="region"][data-menu-focus-fallback]')!;
             const dayEl = shadow.querySelector('lms-calendar-day')!;
             const dayShadow = dayEl.shadowRoot!;
             const wrapper = dayShadow.querySelector('.wrapper')!;

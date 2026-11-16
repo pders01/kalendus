@@ -42,6 +42,7 @@ export default defineConfig({
         projects: [
             {
                 extends: true,
+                cacheDir: 'node_modules/.vite-vitest-storybook',
                 plugins: [
                     storybookTest({
                         configDir: path.join(dirname, '.storybook'),

@@ -59,10 +59,15 @@
         "lint:lit-analyzer": "lit-analyzer",
         "format": "oxfmt --write 'src/**/*.{ts,js}' '*.json' '*.md' '.storybook/**/*.ts'",
         "format:check": "oxfmt --check 'src/**/*.{ts,js}' '*.json' '*.md' '.storybook/**/*.ts'",
-        "analyze": "cem analyze --litelement --globs \"src/**/*.ts\" --exclude \"src/**/*.stories.ts\" --exclude \"src/lib/debug/**\"",
+        "analyze": "cem analyze --litelement --globs \"src/**/*.ts\" --exclude \"src/**/*.stories.ts\" --exclude \"src/lib/debug/**\" && oxfmt --write custom-elements.json",
         "analyze:watch": "cem analyze --litelement --globs \"src/**/*.ts\" --exclude \"src/**/*.stories.ts\" --exclude \"src/lib/debug/**\" --watch",
-        "checksize": "cat ./dist/kalendus.js | gzip -9 | wc -c",
-        "prepublishOnly": "npm run clean && npm run build && npm run test && npm run lint && npm run analyze",
+        "checksize": "bun scripts/checksize.mjs",
+        "test:package": "bun scripts/check-package.mjs",
+        "prepublishOnly": "npm run clean && npm run test:release",
+        "test:release": "export TEST_BROWSERS=${TEST_BROWSERS:-chromium,firefox,webkit}; npm run build:all && npm run analyze && npm run test && npm run test:components && npm run test-storybook && npm run test:e2e && npm run test:bridge && npm run test:bridge:inline && npm run lint && npm run format:check && npm run i18n:check && npm run docs:sync:check && npm run docs:build && bun run --cwd server typecheck && bun run --cwd server lint && bun run --cwd server test && bun run --cwd server test:browser && bun run --cwd server build && bun run --cwd server test:package && npm run test:package && npm run checksize",
+        "check:bridge": "bun scripts/check-bridge.mjs",
+        "test:bridge": "bun scripts/check-bridge.mjs --browser",
+        "test:bridge:inline": "npm run build:iife && bun expo-bridge/build-shell.mjs --inline && BRIDGE_TEST_INLINE=1 npm run test:bridge",
         "test": "NODE_OPTIONS=--experimental-vm-modules mocha",
         "test:watch": "NODE_OPTIONS=--experimental-vm-modules mocha --watch",
         "test:components": "web-test-runner",
@@ -74,10 +79,11 @@
         "test:e2e": "playwright test",
         "i18n:extract": "lit-localize extract",
         "i18n:build": "lit-localize build",
+        "i18n:check": "bun scripts/check-locales.mjs",
         "demo:gif": "node scripts/record-demo-gif.mjs",
         "docs:sync": "node scripts/sync-docs.mjs",
         "docs:sync:check": "node scripts/sync-docs.mjs --check",
-        "docs:build": "node scripts/sync-docs.mjs && eleventy",
+        "docs:build": "node scripts/sync-docs.mjs && rimraf _site && eleventy",
         "docs:serve": "eleventy --serve"
     },
     "dependencies": {},
@@ -129,9 +135,9 @@
         "lit": "^3.0.0",
         "luxon": "^3.4.4"
     },
-    "customElements": "custom-elements.json",
     "overrides": {
         "shell-quote": "^1.12.0",
         "tinypool": "^2.2.0"
-    }
+    },
+    "customElements": "custom-elements.json"
 }

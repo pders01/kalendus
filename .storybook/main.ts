@@ -12,6 +12,7 @@ const config: StorybookConfig = {
 
     async viteFinal(config) {
         return mergeConfig(config, {
+            cacheDir: 'node_modules/.vite-storybook',
             build: {
                 sourcemap: true,
             },
