@@ -47,7 +47,7 @@ export type MessageKey =
 export type ResolvedMessages = Readonly<Record<MessageKey, string>>;
 
 // Single source of truth: key ↔ hash ↔ fallback
-const MESSAGE_DEFS: ReadonlyArray<readonly [MessageKey, string, string]> = [
+export const MESSAGE_DEFS: ReadonlyArray<readonly [MessageKey, string, string]> = [
     ['day', 'se0955919920ee87d', 'Day'],
     ['week', 's680f01021b5e339d', 'Week'],
     ['month', 'sb47daaf9e1c4a905', 'Month'],
@@ -85,14 +85,13 @@ const MESSAGE_DEFS: ReadonlyArray<readonly [MessageKey, string, string]> = [
 // Each entry is a thunk returning a dynamic import(). Vite/Rollup
 // will code-split each into a separate chunk.
 // de-DE reuses the de module (files are byte-identical).
-type TemplateModule = { templates: Record<string, string> };
+export type TemplateModule = { templates: Record<string, string> };
 const localeLoaders: Record<string, () => Promise<TemplateModule>> = {
     ar: () => import('../generated/locales/ar.js'),
     bn: () => import('../generated/locales/bn.js'),
     cs: () => import('../generated/locales/cs.js'),
     da: () => import('../generated/locales/da.js'),
     de: () => import('../generated/locales/de.js'),
-    'de-DE': () => import('../generated/locales/de.js'),
     el: () => import('../generated/locales/el.js'),
     es: () => import('../generated/locales/es.js'),
     fi: () => import('../generated/locales/fi.js'),
@@ -116,101 +115,184 @@ const localeLoaders: Record<string, () => Promise<TemplateModule>> = {
     'zh-Hans': () => import('../generated/locales/zh-Hans.js'),
 };
 
-// ── Runtime state ───────────────────────────────────────────────
-/** Templates that have been loaded so far. */
-const loadedTemplates: Record<string, Record<string, string>> = {};
-
-/** In-flight load promises (prevents duplicate fetches). */
-const pendingLoads = new Map<string, Promise<void>>();
-
-const _bundleCache = new Map<string, ResolvedMessages>();
-
-function resolveTemplates(locale: string): Record<string, string> | undefined {
-    if (locale === 'en') return undefined;
-    return loadedTemplates[locale] ?? loadedTemplates[locale.split('-')[0]];
-}
-
-/**
- * Synchronous message resolver. Returns the best available messages
- * for the given locale — English fallbacks until the locale chunk
- * has been loaded via `ensureLocale()`.
- */
-export function getMessages(locale: string): ResolvedMessages {
-    let bundle = _bundleCache.get(locale);
-    if (bundle) return bundle;
-
-    const templates = resolveTemplates(locale);
-    const resolved = {} as Record<MessageKey, string>;
-    for (const [key, hashId, fallback] of MESSAGE_DEFS) {
-        resolved[key] = templates?.[hashId] ?? fallback;
+/** Canonical formatting tag; malformed input deterministically uses English. */
+export function normalizeLocale(locale: string): string {
+    try {
+        return new Intl.Locale(locale).toString();
+    } catch {
+        return 'en';
     }
-    bundle = Object.freeze(resolved);
-    _bundleCache.set(locale, bundle);
-    return bundle;
+}
+
+export interface LocaleLoadResult {
+    readonly requestedLocale: string;
+    readonly locale: string;
+    readonly catalogLocale: string;
+    readonly fallback: boolean;
 }
 
 /**
- * Check whether a locale's templates are already loaded (synchronous).
- * Returns `true` for English (built-in) and any locale whose chunk
- * has already been fetched via `ensureLocale()`.
+ * Independent resolver state, also useful for isolated hosts/tests. Default instances
+ * share immutable catalog downloads, never a mutable global active locale.
  */
-export function isLocaleLoaded(locale: string): boolean {
-    if (locale === 'en') return true;
-    if (loadedTemplates[locale]) return true;
-    const langOnly = locale.split('-')[0];
-    return langOnly !== locale && !!loadedTemplates[langOnly];
-}
+export function createLocaleResolver(loaders = localeLoaders) {
+    const loaded = new Map<string, Readonly<Record<string, string>>>();
+    const pending = new Map<string, Promise<void>>();
+    const bundles = new Map<string, ResolvedMessages>();
+    const resolutions = new Map<string, LocaleLoadResult>();
+    let generation = 0;
 
-/**
- * Ensure a locale's templates are loaded. Returns immediately if
- * the locale is already available. For English, this is a no-op.
- *
- * After the promise resolves, subsequent `getMessages(locale)` calls
- * will return the correct translations.
- */
-export function ensureLocale(locale: string): Promise<void> {
-    // English is built-in — nothing to load
-    if (locale === 'en') return Promise.resolve();
-
-    // Already loaded
-    if (loadedTemplates[locale]) return Promise.resolve();
-
-    // Check language-only fallback (e.g. de-AT → de)
-    const langOnly = locale.split('-')[0];
-    if (langOnly !== locale && loadedTemplates[langOnly]) return Promise.resolve();
-
-    // Already in-flight
-    const pending = pendingLoads.get(locale);
-    if (pending) return pending;
-
-    // Resolve the loader: exact match → language-only fallback
-    const loader = localeLoaders[locale] ?? localeLoaders[langOnly];
-    if (!loader) return Promise.resolve(); // unknown locale — English fallback
-
-    const promise = loader().then((mod) => {
-        loadedTemplates[locale] = mod.templates;
-        // Also register under language-only key for sub-tag fallback
-        if (langOnly !== locale && !loadedTemplates[langOnly]) {
-            loadedTemplates[langOnly] = mod.templates;
+    function resolveLocale(requestedLocale: string): LocaleLoadResult {
+        const cached = resolutions.get(requestedLocale);
+        if (cached) return cached;
+        const locale = normalizeLocale(requestedLocale);
+        const parsed = new Intl.Locale(locale);
+        let catalogLocale = 'en';
+        if (parsed.language !== 'en') {
+            const candidates = [
+                parsed.baseName,
+                `${parsed.language}-${parsed.script}`,
+                parsed.language,
+            ];
+            // Do not silently translate Traditional Chinese with the Simplified catalog.
+            if (parsed.language === 'zh' && parsed.maximize().script === 'Hans')
+                candidates.push('zh-Hans');
+            catalogLocale =
+                candidates.find((key) => Object.prototype.hasOwnProperty.call(loaders, key)) ??
+                'en';
         }
-        // Invalidate cached bundles so getMessages() rebuilds with new templates
-        _bundleCache.delete(locale);
-        _bundleCache.delete(langOnly);
-        pendingLoads.delete(locale);
-    });
+        const result = Object.freeze({
+            requestedLocale,
+            locale,
+            catalogLocale,
+            fallback: catalogLocale === 'en' && parsed.language !== 'en',
+        });
+        // Catalog identities are fixed; arbitrary requested aliases must not grow
+        // caches without limit or repeatedly parse Intl.Locale in dense views.
+        if (resolutions.size >= 64) resolutions.delete(resolutions.keys().next().value!);
+        resolutions.set(requestedLocale, result);
+        return result;
+    }
 
-    pendingLoads.set(locale, promise);
-    return promise;
+    function getMessages(locale: string): ResolvedMessages {
+        const { catalogLocale } = resolveLocale(locale);
+        let bundle = bundles.get(catalogLocale);
+        if (!bundle) {
+            const templates = loaded.get(catalogLocale);
+            const resolved = {} as Record<MessageKey, string>;
+            for (const [key, hashId, fallback] of MESSAGE_DEFS)
+                resolved[key] = templates?.[hashId] ?? fallback;
+            bundle = Object.freeze(resolved);
+            bundles.set(catalogLocale, bundle);
+        }
+        return bundle;
+    }
+
+    function isLocaleLoaded(locale: string): boolean {
+        const { catalogLocale } = resolveLocale(locale);
+        return catalogLocale === 'en' || loaded.has(catalogLocale);
+    }
+
+    function ensureLocale(locale: string): Promise<void> {
+        const { catalogLocale } = resolveLocale(locale);
+        if (catalogLocale === 'en' || loaded.has(catalogLocale)) return Promise.resolve();
+        const existing = pending.get(catalogLocale);
+        if (existing) return existing;
+        const epoch = generation;
+        // Promise.resolve also turns a synchronous loader exception into a rejection.
+        const promise = Promise.resolve()
+            .then(() => loaders[catalogLocale]())
+            .then((mod) => {
+                if (generation !== epoch) return;
+                loaded.set(catalogLocale, Object.freeze({ ...mod.templates }));
+                bundles.delete(catalogLocale);
+            })
+            .finally(() => {
+                if (pending.get(catalogLocale) === promise) pending.delete(catalogLocale);
+            });
+        pending.set(catalogLocale, promise);
+        return promise;
+    }
+
+    /** Rich completion API; rejects on chunk failure, allowing a subsequent retry. */
+    async function loadLocale(locale: string): Promise<LocaleLoadResult> {
+        await ensureLocale(locale);
+        return resolveLocale(locale);
+    }
+
+    function template(locale: string, id: string, fallback: string): string {
+        return loaded.get(resolveLocale(locale).catalogLocale)?.[id] ?? fallback;
+    }
+
+    return {
+        resolveLocale,
+        getMessages,
+        isLocaleLoaded,
+        ensureLocale,
+        loadLocale,
+        template,
+        reset() {
+            generation++;
+            loaded.clear();
+            pending.clear();
+            bundles.clear();
+            resolutions.clear();
+        },
+    };
 }
 
-/**
- * @internal — exposed for testing only.
- * Clears all loaded templates and cached bundles.
- */
-export function _resetForTesting(): void {
-    for (const key of Object.keys(loadedTemplates)) {
-        delete loadedTemplates[key];
-    }
-    pendingLoads.clear();
-    _bundleCache.clear();
+const resolver = createLocaleResolver();
+export const getMessages = resolver.getMessages;
+/** True when the resolved catalog (including an intentional English fallback) is ready. */
+export const isLocaleLoaded = resolver.isLocaleLoaded;
+/** Compatibility API: rejects on failure; pending failures are evicted for retry. */
+export const ensureLocale = resolver.ensureLocale;
+export const loadLocale = resolver.loadLocale;
+export const resolveLocale = resolver.resolveLocale;
+export const _resetForTesting = resolver.reset;
+
+/** Complete phrases. Legacy fragment fields remain available until consumers migrate. */
+export function getMessageFormatters(locale: string) {
+    const canonical = normalizeLocale(locale);
+    const number = new Intl.NumberFormat(canonical);
+    const plural = new Intl.PluralRules(canonical);
+    const interpolate = (id: string, fallback: string, values: Record<string, string>) =>
+        resolver
+            .template(locale, id, fallback)
+            .replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
+    const countPhrase = (count: number) => {
+        if (!Number.isSafeInteger(count) || count < 0)
+            throw new RangeError('Event count must be a nonnegative safe integer');
+        const category = plural.select(count);
+        return interpolate(
+            `eventCount_${category}`,
+            count === 1 ? '{count} event' : '{count} events',
+            { count: number.format(count) },
+        );
+    };
+    return Object.freeze({
+        eventCount: countPhrase,
+        moreEvents: (count: number) => {
+            countPhrase(count); // validate before formatting
+            return interpolate(
+                `moreCount_${plural.select(count)}`,
+                count === 1 ? '{count} more event' : '{count} more events',
+                { count: number.format(count) },
+            );
+        },
+        switchToDayView: (date: string) =>
+            interpolate('openDate', 'Switch to day view for {date}', { date }),
+        showWeek: (week: number) =>
+            interpolate('showWeek', 'Show week {week}', { week: number.format(week) }),
+        viewLabel: (view: string) => interpolate('namedView', '{view} view', { view }),
+        eventLabel: (title: string, date: string, time: string) =>
+            interpolate('eventLabel', '{title}: {date}, {time}', { title, date, time }),
+        dateSummary: (date: string, count: number) =>
+            interpolate('dateSummary', '{date}: {events}. Open day view', {
+                date,
+                events: countPhrase(count),
+            }),
+        timeRange: (start: string, end: string) =>
+            interpolate('timeRange', '{start} – {end}', { start, end }),
+    });
 }

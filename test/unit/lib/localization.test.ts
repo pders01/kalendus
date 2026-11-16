@@ -6,9 +6,40 @@ import {
     formatLocalizedTime,
     formatLocalizedTimeRange,
     formatLocalizedDate,
+    getISOWeek,
+    WEEK_NUMBERING_POLICY,
 } from '../../../src/lib/localization.js';
 
 describe('localization', () => {
+    it('canonicalizes aliases and safely falls back for malformed locale tags', () => {
+        expect(formatLocalizedDate(1, 5, 2026, 'DE-at')).to.equal(formatLocalizedDate(1, 5, 2026, 'de-AT'));
+        for (const locale of ['__proto__', 'constructor', 'not_a_tag', '']) {
+            expect(formatLocalizedDate(1, 5, 2026, locale)).to.equal(formatLocalizedDate(1, 5, 2026, 'en'));
+        }
+    });
+    it('uses civil-date carriers independent of ambient timezone and preserves years below 100', () => {
+        const oldTZ = process.env.TZ;
+        try {
+            process.env.TZ = 'Pacific/Apia';
+            expect(formatLocalizedDate(30, 12, 2011, 'en-US')).to.equal('Dec 30, 2011');
+            expect(formatLocalizedDate(1, 1, 42, 'en-US')).to.equal('Jan 1, 42');
+            expect(getLocalizedDayMonth(30, 12, 2011, 'en-US')).to.equal('Dec 30');
+        } finally {
+            if (oldTZ === undefined) delete process.env.TZ;
+            else process.env.TZ = oldTZ;
+        }
+    });
+    it('rejects impossible civil dates and wall times', () => {
+        expect(() => formatLocalizedDate(30, 2, 2026)).to.throw(RangeError);
+        expect(() => formatLocalizedTime(25, 0)).to.throw(RangeError);
+        expect(() => formatLocalizedTime(24, 1)).to.throw(RangeError);
+    });
+    it('declares ISO week numbering separately from Sunday/Saturday/Monday display starts', () => {
+        expect(WEEK_NUMBERING_POLICY).to.equal('iso8601');
+        expect(getISOWeek(1, 1, 2021)).to.deep.equal({ weekNumber: 53, weekYear: 2020 });
+        expect(getISOWeek(4, 1, 2021)).to.deep.equal({ weekNumber: 1, weekYear: 2021 });
+        expect(getISOWeek(31, 12, 2025)).to.deep.equal({ weekNumber: 1, weekYear: 2026 });
+    });
     describe('getLocalizedMonth', () => {
         it('should return abbreviated month names for English', () => {
             expect(getLocalizedMonth(1, 'en')).to.be.a('string').and.not.be.empty;

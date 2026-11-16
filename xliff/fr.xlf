@@ -1,83 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-<file target-language="fr" source-language="en" original="lit-localize-inputs" datatype="plaintext">
-<body>
-<trans-unit id="se0955919920ee87d">
-  <source>Day</source>
-  <target>Jour</target>
-</trans-unit>
-<trans-unit id="s680f01021b5e339d">
-  <source>Week</source>
-  <target>Semaine</target>
-</trans-unit>
-<trans-unit id="sb47daaf9e1c4a905">
-  <source>Month</source>
-  <target>Mois</target>
-</trans-unit>
-<trans-unit id="s15ba5784a11e0b88">
-  <source>Current Month</source>
-  <target>Mois en cours</target>
-</trans-unit>
-<trans-unit id="s58ab939b42a026a6">
-  <source>All Day</source>
-  <target>Toute la journée</target>
-</trans-unit>
-<trans-unit id="s63d040e37887f17e">
-  <source>Today</source>
-  <target>Aujourd'hui</target>
-</trans-unit>
-<trans-unit id="s98b32ef4a0856c08">
-  <source>No Title</source>
-  <target>Sans titre</target>
-</trans-unit>
-<trans-unit id="s22380c7fc798a44f">
-  <source>No Content</source>
-  <target>Aucun contenu</target>
-</trans-unit>
-<trans-unit id="sfce4bfbe0f911aa7">
-  <source>No Time</source>
-  <target>Aucune heure</target>
-</trans-unit>
-<trans-unit id="sa0fd990c985f24bd">
-  <source>Event Details</source>
-  <target>Détails de l'événement</target>
-</trans-unit>
-<trans-unit id="s2bc4d1196bce49dc">
-  <source>Export as ICS</source>
-  <target>Exporter en ICS</target>
-</trans-unit>
-<trans-unit id="s99f110d27e30b289">
-  <source>Title</source>
-  <target>Titre</target>
-</trans-unit>
-<trans-unit id="s48e186fb300e5464">
-  <source>Time</source>
-  <target>Heure</target>
-</trans-unit>
-<trans-unit id="sac8252732f2edb19">
-  <source>Date</source>
-  <target>Date</target>
-</trans-unit>
-<trans-unit id="s005053d82b712e0a">
-  <source>Notes</source>
-  <target>Notes</target>
-</trans-unit>
-<trans-unit id="s1c109a21525649fd">
-  <source>Minimize</source>
-  <target>Réduire</target>
-</trans-unit>
-<trans-unit id="s5e8250fb85d64c23">
-  <source>Close</source>
-  <target>Fermer</target>
-</trans-unit>
-<trans-unit id="s7264933e3c515250">
-  <source>Drag to move menu</source>
-  <target>Glisser pour déplacer</target>
-</trans-unit>
-<trans-unit id="s090f2107b5a69a7f">
-  <source>CW</source>
-  <target>S</target>
-</trans-unit>
-</body>
-</file>
-</xliff>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2"><file source-language="en" target-language="fr" datatype="plaintext" original="messages"><body>
+  <trans-unit id="se0955919920ee87d"><source>Day</source><target>Jour</target></trans-unit>
+  <trans-unit id="s680f01021b5e339d"><source>Week</source><target>Semaine</target></trans-unit>
+  <trans-unit id="sb47daaf9e1c4a905"><source>Month</source><target>Mois</target></trans-unit>
+  <trans-unit id="s15ba5784a11e0b88"><source>Current Month</source><target>Mois en cours</target></trans-unit>
+  <trans-unit id="s58ab939b42a026a6"><source>All Day</source><target>Toute la journée</target></trans-unit>
+  <trans-unit id="s63d040e37887f17e"><source>Today</source><target>Aujourd&apos;hui</target></trans-unit>
+  <trans-unit id="s98b32ef4a0856c08"><source>No Title</source><target>Sans titre</target></trans-unit>
+  <trans-unit id="s22380c7fc798a44f"><source>No Content</source><target>Aucun contenu</target></trans-unit>
+  <trans-unit id="sfce4bfbe0f911aa7"><source>No Time</source><target>Aucune heure</target></trans-unit>
+  <trans-unit id="sa0fd990c985f24bd"><source>Event Details</source><target>Détails de l&apos;événement</target></trans-unit>
+  <trans-unit id="s2bc4d1196bce49dc"><source>Export as ICS</source><target>Exporter en ICS</target></trans-unit>
+  <trans-unit id="s99f110d27e30b289"><source>Title</source><target>Titre</target></trans-unit>
+  <trans-unit id="s48e186fb300e5464"><source>Time</source><target>Heure</target></trans-unit>
+  <trans-unit id="sac8252732f2edb19"><source>Date</source><target>Date</target></trans-unit>
+  <trans-unit id="s005053d82b712e0a"><source>Notes</source><target>Notes</target></trans-unit>
+  <trans-unit id="s5e8250fb85d64c23"><source>Close</source><target>Fermer</target></trans-unit>
+  <trans-unit id="s090f2107b5a69a7f"><source>CW</source><target>S</target></trans-unit>
+  <trans-unit id="s3c44e22d1af5693e"><source>Year</source><target>Année</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60001"><source>Previous</source><target>Précédent</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60002"><source>Next</source><target>Suivant</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60003"><source>events</source><target>événements</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60004"><source>Calendar event</source><target>Événement du calendrier</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60005"><source>Press Enter or Space to open details</source><target>Appuyez sur Entrée ou Espace pour ouvrir les détails</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60006"><source>to</source><target>à</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60007"><source>Switch to day view for</source><target>Passer à la vue journalière pour</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60008"><source>Show earlier days</source><target>Afficher les jours précédents</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60009"><source>Show later days</source><target>Afficher les jours suivants</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60010"><source>more</source><target>plus</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60011"><source>Calendar view</source><target>Vue du calendrier</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60012"><source>view</source><target>vue</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60013"><source>All-day events for this week</source><target>All-day events for this week</target></trans-unit>
+  <trans-unit id="eventCount_zero"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_zero"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="eventCount_one"><source>{count} event</source><target>{count} event</target></trans-unit>
+  <trans-unit id="moreCount_one"><source>{count} more event</source><target>{count} more event</target></trans-unit>
+  <trans-unit id="eventCount_two"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_two"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="eventCount_few"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_few"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="eventCount_many"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_many"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="eventCount_other"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_other"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="s1c109a21525649fd"><source>Minimize</source><target>Réduire</target></trans-unit>
+  <trans-unit id="s7264933e3c515250"><source>Drag to move menu</source><target>Glisser pour déplacer</target></trans-unit>
+  <trans-unit id="openDate"><source>Switch to day view for {date}</source><target>Switch to day view for {date}</target></trans-unit>
+  <trans-unit id="showWeek"><source>Show week {week}</source><target>Show week {week}</target></trans-unit>
+  <trans-unit id="namedView"><source>{view} view</source><target>{view} view</target></trans-unit>
+  <trans-unit id="eventLabel"><source>{title}: {date}, {time}</source><target>{title}: {date}, {time}</target></trans-unit>
+  <trans-unit id="dateSummary"><source>{date}: {events}. Open day view</source><target>{date}: {events}. Open day view</target></trans-unit>
+  <trans-unit id="timeRange"><source>{start} – {end}</source><target>{start} – {end}</target></trans-unit>
+</body></file></xliff>

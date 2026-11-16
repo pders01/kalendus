@@ -1,6 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
-<file target-language="ko" source-language="en" original="lit-localize-inputs" datatype="plaintext">
-<body/>
-</file>
-</xliff>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2"><file source-language="en" target-language="ko" datatype="plaintext" original="messages"><body>
+  <trans-unit id="se0955919920ee87d"><source>Day</source><target>일</target></trans-unit>
+  <trans-unit id="s680f01021b5e339d"><source>Week</source><target>주</target></trans-unit>
+  <trans-unit id="sb47daaf9e1c4a905"><source>Month</source><target>월</target></trans-unit>
+  <trans-unit id="s15ba5784a11e0b88"><source>Current Month</source><target>이번 달</target></trans-unit>
+  <trans-unit id="s58ab939b42a026a6"><source>All Day</source><target>종일</target></trans-unit>
+  <trans-unit id="s63d040e37887f17e"><source>Today</source><target>오늘</target></trans-unit>
+  <trans-unit id="s98b32ef4a0856c08"><source>No Title</source><target>제목 없음</target></trans-unit>
+  <trans-unit id="s22380c7fc798a44f"><source>No Content</source><target>내용 없음</target></trans-unit>
+  <trans-unit id="sfce4bfbe0f911aa7"><source>No Time</source><target>시간 없음</target></trans-unit>
+  <trans-unit id="sa0fd990c985f24bd"><source>Event Details</source><target>일정 상세</target></trans-unit>
+  <trans-unit id="s2bc4d1196bce49dc"><source>Export as ICS</source><target>ICS로 내보내기</target></trans-unit>
+  <trans-unit id="s99f110d27e30b289"><source>Title</source><target>제목</target></trans-unit>
+  <trans-unit id="s48e186fb300e5464"><source>Time</source><target>시간</target></trans-unit>
+  <trans-unit id="sac8252732f2edb19"><source>Date</source><target>날짜</target></trans-unit>
+  <trans-unit id="s005053d82b712e0a"><source>Notes</source><target>메모</target></trans-unit>
+  <trans-unit id="s5e8250fb85d64c23"><source>Close</source><target>닫기</target></trans-unit>
+  <trans-unit id="s090f2107b5a69a7f"><source>CW</source><target>주</target></trans-unit>
+  <trans-unit id="s3c44e22d1af5693e"><source>Year</source><target>년</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60001"><source>Previous</source><target>이전</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60002"><source>Next</source><target>다음</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60003"><source>events</source><target>일정</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60004"><source>Calendar event</source><target>캘린더 이벤트</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60005"><source>Press Enter or Space to open details</source><target>Enter 또는 Space를 눌러 세부 정보 열기</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60006"><source>to</source><target>부터</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60007"><source>Switch to day view for</source><target>일 보기로 전환</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60008"><source>Show earlier days</source><target>이전 날 표시</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60009"><source>Show later days</source><target>다음 날 표시</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60010"><source>more</source><target>더보기</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60011"><source>Calendar view</source><target>캘린더 보기</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60012"><source>view</source><target>보기</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60013"><source>All-day events for this week</source><target>All-day events for this week</target></trans-unit>
+  <trans-unit id="eventCount_zero"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_zero"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="eventCount_one"><source>{count} event</source><target>{count} event</target></trans-unit>
+  <trans-unit id="moreCount_one"><source>{count} more event</source><target>{count} more event</target></trans-unit>
+  <trans-unit id="eventCount_two"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_two"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="eventCount_few"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_few"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="eventCount_many"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_many"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="eventCount_other"><source>{count} events</source><target>{count} events</target></trans-unit>
+  <trans-unit id="moreCount_other"><source>{count} more events</source><target>{count} more events</target></trans-unit>
+  <trans-unit id="s1c109a21525649fd"><source>Minimize</source><target>Minimize</target></trans-unit>
+  <trans-unit id="s7264933e3c515250"><source>Drag to move menu</source><target>Drag to move menu</target></trans-unit>
+  <trans-unit id="openDate"><source>Switch to day view for {date}</source><target>Switch to day view for {date}</target></trans-unit>
+  <trans-unit id="showWeek"><source>Show week {week}</source><target>Show week {week}</target></trans-unit>
+  <trans-unit id="namedView"><source>{view} view</source><target>{view} view</target></trans-unit>
+  <trans-unit id="eventLabel"><source>{title}: {date}, {time}</source><target>{title}: {date}, {time}</target></trans-unit>
+  <trans-unit id="dateSummary"><source>{date}: {events}. Open day view</source><target>{date}: {events}. Open day view</target></trans-unit>
+  <trans-unit id="timeRange"><source>{start} – {end}</source><target>{start} – {end}</target></trans-unit>
+</body></file></xliff>

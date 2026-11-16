@@ -130,11 +130,11 @@ describe('getMessages', () => {
             expect(a).to.equal(b);
         });
 
-        it('should return different objects for different locales', () => {
+        it('should share objects for locales resolving to the same catalog', () => {
             const en = getMessages('en');
             const unknown = getMessages('zz');
-            // Both English fallback, but different cache entries
-            expect(en).to.not.equal(unknown);
+            // Both resolve to the same built-in catalog.
+            expect(en).to.equal(unknown);
         });
     });
 
@@ -175,8 +175,8 @@ describe('getMessages', () => {
             expect(isLocaleLoaded('de-AT')).to.be.true;
         });
 
-        it('should return false for unknown locale', () => {
-            expect(isLocaleLoaded('xx-YY')).to.be.false;
+        it('should return true for an intentional unknown-locale English fallback', () => {
+            expect(isLocaleLoaded('xx-YY')).to.be.true;
         });
     });
 });

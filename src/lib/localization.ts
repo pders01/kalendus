@@ -1,20 +1,42 @@
 import { DateTime } from 'luxon';
 
-/**
- * Map lit-localize locale codes to Intl/Luxon-compatible BCP47 tags.
- * Some of our locale codes (e.g., `zh-Hans`) use Unicode script subtags
- * that Luxon/Intl may not handle correctly — they need proper region tags.
- */
-const LUXON_LOCALE_MAP: Record<string, string> = {
-    'zh-Hans': 'zh-CN',
-    'zh-Hant': 'zh-TW',
-};
+import { normalizeLocale } from './messages.js';
 
-/**
- * Resolve a locale tag to a Luxon/Intl-compatible BCP47 tag.
+// Intl and Luxon accept script tags. Preserve region/script/numbering preferences;
+// catalog fallback does not change the user's date/number formatting locale.
+const resolveLuxonLocale = normalizeLocale;
+
+/** Civil dates use UTC only as a formatting carrier, never as an event instant. */
+function civilDate(day: number, month: number, year: number): Date {
+    const date = new Date(0);
+    date.setUTCFullYear(year, month - 1, day);
+    date.setUTCHours(0, 0, 0, 0);
+    if (
+        !Number.isInteger(day) ||
+        !Number.isInteger(month) ||
+        !Number.isInteger(year) ||
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() !== month - 1 ||
+        date.getUTCDate() !== day
+    ) {
+        throw new RangeError('Invalid civil date');
+    }
+    return date;
+}
+
+/** Week labels currently use ISO-8601, independent of configured firstDayOfWeek.
+ * Monday is the component default; locale week starts are recommendations only.
  */
-function resolveLuxonLocale(locale: string): string {
-    return LUXON_LOCALE_MAP[locale] || locale;
+export const WEEK_NUMBERING_POLICY = 'iso8601' as const;
+
+export function getISOWeek(
+    day: number,
+    month: number,
+    year: number,
+): Readonly<{ weekNumber: number; weekYear: number }> {
+    civilDate(day, month, year);
+    const date = DateTime.utc(year, month, day);
+    return Object.freeze({ weekNumber: date.weekNumber, weekYear: date.weekYear });
 }
 
 // ── Cached month names (12-element array per locale) ─────────────────
@@ -26,8 +48,7 @@ function getMonthNames(locale: string): readonly string[] {
     if (!arr) {
         arr = Object.freeze(
             Array.from({ length: 12 }, (_, i) =>
-                DateTime.local()
-                    .set({ month: (i + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 })
+                DateTime.utc(2024, i + 1, 1)
                     .setLocale(key)
                     .toFormat('MMM'),
             ),
@@ -46,8 +67,7 @@ function getWeekdayNames(locale: string): readonly string[] {
     if (!arr) {
         arr = Object.freeze(
             Array.from({ length: 7 }, (_, i) =>
-                DateTime.local()
-                    .set({ weekday: (i + 1) as 1 | 2 | 3 | 4 | 5 | 6 | 7 })
+                DateTime.utc(2024, 1, i + 1)
                     .setLocale(key)
                     .toFormat('ccc'),
             ),
@@ -64,7 +84,7 @@ function getDayMonthFormatter(locale: string): Intl.DateTimeFormat {
     const key = resolveLuxonLocale(locale);
     let fmt = _dayMonthFmtCache.get(key);
     if (!fmt) {
-        fmt = new Intl.DateTimeFormat(key, { day: 'numeric', month: 'short' });
+        fmt = new Intl.DateTimeFormat(key, { day: 'numeric', month: 'short', timeZone: 'UTC' });
         _dayMonthFmtCache.set(key, fmt);
     }
     return fmt;
@@ -94,7 +114,7 @@ export function getLocalizedDayMonth(
     year: number,
     locale = 'en',
 ): string {
-    const date = new Date(year, month - 1, day);
+    const date = civilDate(day, month, year);
     return getDayMonthFormatter(locale).format(date);
 }
 
@@ -112,7 +132,7 @@ function getTimeFormatter(locale: string): Intl.DateTimeFormat {
     const key = resolveLuxonLocale(locale);
     let fmt = _timeFmtCache.get(key);
     if (!fmt) {
-        fmt = new Intl.DateTimeFormat(key, { hour: 'numeric', minute: '2-digit' });
+        fmt = new Intl.DateTimeFormat(key, { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
         _timeFmtCache.set(key, fmt);
     }
     return fmt;
@@ -123,7 +143,18 @@ function getTimeFormatter(locale: string): Intl.DateTimeFormat {
  * e.g., "3:30 PM" (en), "15:30" (de), "下午3:30" (zh-CN)
  */
 export function formatLocalizedTime(hour: number, minute: number, locale = 'en'): string {
-    const d = new Date(2000, 0, 1, hour, minute);
+    if (
+        !Number.isInteger(hour) ||
+        hour < 0 ||
+        hour > 24 ||
+        !Number.isInteger(minute) ||
+        minute < 0 ||
+        minute > 59 ||
+        (hour === 24 && minute !== 0)
+    ) {
+        throw new RangeError('Invalid wall time');
+    }
+    const d = new Date(Date.UTC(2000, 0, 1, hour, minute));
     return getTimeFormatter(locale).format(d);
 }
 
@@ -156,10 +187,11 @@ export function formatLocalizedDate(
     locale = 'en',
 ): string {
     const key = resolveLuxonLocale(locale);
-    const d = new Date(year, month - 1, day);
+    const d = civilDate(day, month, year);
     return new Intl.DateTimeFormat(key, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
+        timeZone: 'UTC',
     }).format(d);
 }

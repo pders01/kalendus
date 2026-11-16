@@ -31,6 +31,7 @@
         "zh-Hans"
     ],
     "tsConfig": "./tsconfig.json",
+    "inputFiles": ["./src/locales/source.ts"],
     "output": {
         "mode": "runtime",
         "outputDir": "./src/generated/locales",
