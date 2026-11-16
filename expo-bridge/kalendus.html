@@ -2,238 +2,409 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Kalendus</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: transparent;
-    -webkit-tap-highlight-color: transparent;
-  }
-  #cal {
-    width: 100%;
-    height: 100%;
-  }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
+  #cal { display: block; width: 100%; height: 100%; }
 </style>
 </head>
 <body>
 <lms-calendar id="cal"></lms-calendar>
-
-<!--
-  Load the IIFE bundle. In production, either:
-  1. Inline this script's contents directly in the HTML string, or
-  2. Reference a bundled asset via the Expo asset system.
--->
-<script src="kalendus.iife.js"></script>
-
+<!-- Generated from shell.ts + protocol.ts by build-shell.mjs. Do not edit kalendus.html. -->
 <script>
-(function () {
-  'use strict';
-
-  var cal = document.getElementById('cal');
-
-  // ── Helpers ──────────────────────────────────────────────────────────
-
-  function postToRN(msg) {
-    try {
-      var json = JSON.stringify(msg);
-      if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-        window.ReactNativeWebView.postMessage(json);
-      }
-    } catch (e) {
-      // Silently ignore serialization errors in production
-    }
-  }
-
-  // ── Inbound: RN → WebView ───────────────────────────────────────────
-
-  /** Map camelCase prop names to attribute names where needed */
-  var ATTR_PROPS = {
-    firstDayOfWeek: 'first-day-of-week',
-    yearDrillTarget: 'year-drill-target',
-    yearDensityMode: 'year-density-mode'
-  };
-
-  /** Props that must be set as JS properties (not attributes) */
-  var JS_PROPS = ['entries', 'locale', 'heading', 'color'];
-
-  function applyProps(props) {
-    if (!props || typeof props !== 'object') return;
-    var keys = Object.keys(props);
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      var value = props[key];
-      if (ATTR_PROPS[key]) {
-        cal.setAttribute(ATTR_PROPS[key], String(value));
-      } else if (JS_PROPS.indexOf(key) !== -1) {
-        cal[key] = value;
-      }
-    }
-  }
-
-  function applyTheme(vars) {
-    if (!vars || typeof vars !== 'object') return;
-    var keys = Object.keys(vars);
-    for (var i = 0; i < keys.length; i++) {
-      cal.style.setProperty(keys[i], vars[keys[i]]);
-    }
-  }
-
-  function handleInbound(data) {
-    var msg;
-    try {
-      msg = typeof data === 'string' ? JSON.parse(data) : data;
-    } catch (e) {
-      return;
-    }
-    if (!msg || !msg.type) return;
-
-    switch (msg.type) {
-      case 'setProps':
-        applyProps(msg.props);
-        break;
-      case 'setTheme':
-        applyTheme(msg.vars);
-        break;
-    }
-  }
-
-  // Listen on both window and document for cross-platform compat
-  // (iOS fires on window, Android on document)
-  var lastMessageId = '';
-  function dedupeHandler(e) {
-    var raw = e.data;
-    if (typeof raw !== 'string') return;
-    // Simple dedup: skip if identical to the last message within this tick
-    if (raw === lastMessageId) return;
-    lastMessageId = raw;
-    setTimeout(function () { lastMessageId = ''; }, 0);
-    handleInbound(raw);
-  }
-
-  window.addEventListener('message', dedupeHandler);
-  document.addEventListener('message', dedupeHandler);
-
-  // ── Outbound: WebView → RN ─────────────────────────────────────────
-
-  var FORWARDED_EVENTS = [
-    'open-menu',
-    'expand',
-    'switchview',
-    'switchdate',
-    'jumptoday',
-    'menu-close'
+(() => {
+  // expo-bridge/protocol.ts
+  var VERSION = 1;
+  var MAX_MESSAGE_BYTES = 1048576;
+  var MAX_ENTRIES = 2000;
+  var PROP_KEYS = [
+    "heading",
+    "firstDayOfWeek",
+    "locale",
+    "yearDrillTarget",
+    "yearDensityMode",
+    "entries",
+    "color",
+    "activeDate",
+    "viewMode"
   ];
+  var record = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  var keys = (v, allowed) => Object.keys(v).every((k) => allowed.includes(k));
+  var text = (v, max) => typeof v === "string" && v.length <= max;
+  var integer = (v, min, max) => typeof v === "number" && Number.isInteger(v) && v >= min && v <= max;
+  var choice = (v, values) => typeof v === "string" && values.includes(v);
+  var optional = (v, k, check) => !(k in v) || v[k] === undefined || check(v[k]);
+  var token = (v) => typeof v === "string" && /^[a-zA-Z0-9_-]{8,128}$/.test(v);
+  var view = (v) => choice(v, ["month", "week", "day", "year"]);
+  var drill = (v) => choice(v, ["month", "week", "day"]);
+  var identity = (v) => text(v, 256) && v.length > 0;
+  function isDate(v) {
+    if (!record(v) || !keys(v, ["year", "month", "day"]) || !integer(v.year, 1, 9999) || !integer(v.month, 1, 12) || !integer(v.day, 1, 31))
+      return false;
+    const leap = v.year % 4 === 0 && (v.year % 100 !== 0 || v.year % 400 === 0);
+    return v.day <= [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][v.month - 1];
+  }
+  var dateKey = (v) => Number(v.year) * 1e4 + Number(v.month) * 100 + Number(v.day);
+  var time = (v, end = false) => record(v) && keys(v, ["hour", "minute"]) && integer(v.minute, 0, 59) && (integer(v.hour, 0, 23) || end && v.hour === 24 && v.minute === 0);
+  var times = (v) => record(v) && keys(v, ["start", "end"]) && time(v.start) && time(v.end, true);
+  var dates = (v) => record(v) && keys(v, ["start", "end"]) && isDate(v.start) && isDate(v.end) && record(v.start) && record(v.end) && dateKey(v.start) <= dateKey(v.end);
+  function isoKey(v, upperBoundary = false) {
+    if (upperBoundary && v === "10000-01-01")
+      return 100000101;
+    if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v))
+      return null;
+    const [year, month, day] = v.split("-").map(Number);
+    return isDate({ year, month, day }) ? year * 1e4 + month * 100 + day : null;
+  }
+  var cssValue = (v) => text(v, 512) && !/[;{}<>\\@]/.test(v) && !Array.from(v).some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127) && !/(?:url|expression|image-set|image|cross-fade|paint|element|src)\s*\(|\/\*/i.test(v);
+  var color = (v) => text(v, 128) && v.length > 0 && cssValue(v);
+  var locale = (v) => {
+    if (!text(v, 64) || !/^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$/.test(v))
+      return false;
+    try {
+      return Intl.getCanonicalLocales(v).length === 1;
+    } catch {
+      return false;
+    }
+  };
+  var zone = (v) => {
+    if (!text(v, 128) || v.length === 0)
+      return false;
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: v });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  function timeOrder(v) {
+    if (v.time === undefined || v.kind === "all-day")
+      return true;
+    if (!record(v.time) || !record(v.time.start) || !record(v.time.end) || !record(v.date) || !record(v.date.start) || !record(v.date.end))
+      return false;
+    if (v.kind === "timed" && dateKey(v.date.start) < dateKey(v.date.end))
+      return true;
+    const minutes = (value) => Number(value.hour) * 60 + Number(value.minute);
+    return minutes(v.time.start) <= minutes(v.time.end);
+  }
+  function isEntry(v) {
+    return record(v) && keys(v, [
+      "id",
+      "kind",
+      "timeZone",
+      "date",
+      "time",
+      "heading",
+      "content",
+      "color",
+      "isContinuation",
+      "continuation"
+    ]) && dates(v.date) && text(v.heading, 2048) && optional(v, "content", (x) => text(x, 32768)) && optional(v, "color", color) && optional(v, "id", identity) && optional(v, "kind", (x) => choice(x, ["all-day", "timed"])) && optional(v, "timeZone", zone) && optional(v, "time", times) && (v.kind !== "timed" || times(v.time)) && timeOrder(v) && optional(v, "isContinuation", (x) => typeof x === "boolean") && optional(v, "continuation", (x) => record(x) && keys(x, ["has", "is", "index", "total"]) && typeof x.has === "boolean" && typeof x.is === "boolean" && integer(x.total, 1, 3652059) && integer(x.index, 0, x.total - 1));
+  }
+  function props(v) {
+    return record(v) && keys(v, PROP_KEYS) && optional(v, "heading", (x) => text(x, 2048)) && optional(v, "firstDayOfWeek", (x) => integer(x, 0, 6)) && optional(v, "locale", locale) && optional(v, "yearDrillTarget", drill) && optional(v, "yearDensityMode", (x) => choice(x, ["dot", "heatmap", "count"])) && optional(v, "entries", (x) => Array.isArray(x) && x.length <= MAX_ENTRIES && x.every(isEntry)) && optional(v, "color", color) && optional(v, "activeDate", isDate) && optional(v, "viewMode", view);
+  }
+  function theme(v) {
+    return record(v) && Object.keys(v).length <= 128 && Object.entries(v).every(([k, value]) => /^--[a-z][a-z0-9-]{0,79}$/.test(k) && cssValue(value));
+  }
+  function snapshot(v) {
+    return record(v) && keys(v, ["props", "theme", "capabilities"]) && props(v.props) && theme(v.theme) && record(v.capabilities) && keys(v.capabilities, ["exportICS", "entryActivation"]) && typeof v.capabilities.exportICS === "boolean" && typeof v.capabilities.entryActivation === "boolean";
+  }
+  function request(v) {
+    return record(v) && keys(v, ["entry", "eventId"]) && isEntry(v.entry) && optional(v, "eventId", identity);
+  }
+  function entryPress(v, exporting = false) {
+    return record(v) && keys(v, ["heading", "content", "displayTime", "date", "time", "entry", "eventId"]) && text(v.heading, 2048) && text(v.content, 32768) && text(v.displayTime, 2048) && optional(v, "date", isDate) && optional(v, "time", times) && optional(v, "entry", isEntry) && optional(v, "eventId", identity) && (!exporting || isEntry(v.entry));
+  }
+  function isState(v) {
+    return record(v) && keys(v, ["activeDate", "viewMode", "firstDayOfWeek", "range"]) && isDate(v.activeDate) && view(v.viewMode) && integer(v.firstDayOfWeek, 0, 6) && record(v.range) && keys(v.range, ["start", "end"]) && isoKey(v.range.start) !== null && isoKey(v.range.end, true) !== null && Number(isoKey(v.range.start)) < Number(isoKey(v.range.end, true));
+  }
+  function detail(name, v) {
+    if (!record(v))
+      return false;
+    switch (name) {
+      case "open-menu":
+        return entryPress(v);
+      case "export-ics":
+        return entryPress(v, true);
+      case "entry-activate":
+        return request(v);
+      case "calendar-state-change":
+        return isState(v);
+      case "expand":
+        return keys(v, ["date", "drillTarget"]) && isDate(v.date) && optional(v, "drillTarget", drill);
+      case "switchview":
+        return keys(v, ["view"]) && view(v.view);
+      case "switchdate":
+        return keys(v, ["direction"]) && choice(v.direction, ["next", "previous"]);
+      case "jumptoday":
+        return keys(v, ["date"]) && isDate(v.date);
+      case "menu-close":
+        return keys(v, []);
+      default:
+        return false;
+    }
+  }
+  function envelope(v) {
+    return v.version === VERSION && token(v.session) && token(v.document) && integer(v.seq, 1, Number.MAX_SAFE_INTEGER);
+  }
+  function inbound(v) {
+    if (!record(v))
+      return false;
+    if (v.type === "connect")
+      return keys(v, ["version", "type", "session"]) && v.version === VERSION && token(v.session);
+    return keys(v, ["version", "type", "session", "document", "seq", "snapshot"]) && envelope(v) && v.type === "snapshot" && snapshot(v.snapshot);
+  }
+  function outbound(v) {
+    if (!record(v) || !envelope(v))
+      return false;
+    if (v.type === "ready")
+      return keys(v, ["version", "type", "session", "document", "seq"]);
+    if (v.type === "error")
+      return keys(v, ["version", "type", "session", "document", "seq", "message"]) && text(v.message, 2048);
+    return keys(v, ["version", "type", "session", "document", "seq", "name", "detail"]) && v.type === "event" && detail(v.name, v.detail);
+  }
+  function byteLength(s) {
+    let bytes = 0;
+    for (const char of s) {
+      const cp = char.codePointAt(0);
+      bytes += cp <= 127 ? 1 : cp <= 2047 ? 2 : cp <= 65535 ? 3 : 4;
+    }
+    return bytes;
+  }
+  function decode(raw, validate) {
+    try {
+      if (typeof raw !== "string" || raw.length > MAX_MESSAGE_BYTES || byteLength(raw) > MAX_MESSAGE_BYTES)
+        return null;
+      const value = JSON.parse(raw);
+      return validate(value) ? value : null;
+    } catch {
+      return null;
+    }
+  }
+  var parseInbound = (raw) => decode(raw, inbound);
+  function encode(value, validate) {
+    try {
+      if (!validate(value))
+        return null;
+      const raw = JSON.stringify(value);
+      return raw && raw.length <= MAX_MESSAGE_BYTES && byteLength(raw) <= MAX_MESSAGE_BYTES && validate(JSON.parse(raw)) ? raw : null;
+    } catch {
+      return null;
+    }
+  }
+  var encodeOutbound = (v) => encode(v, outbound);
+  var counter = 0;
+  var newToken = () => `k_${Date.now().toString(36)}_${(++counter).toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
 
-  FORWARDED_EVENTS.forEach(function (eventName) {
-    cal.addEventListener(eventName, function (e) {
-      var detail = {};
-      if (e.detail) {
-        // Clone detail but strip anchorRect (non-serializable DOMRect)
-        var keys = Object.keys(e.detail);
-        for (var i = 0; i < keys.length; i++) {
-          if (keys[i] !== 'anchorRect') {
-            detail[keys[i]] = e.detail[keys[i]];
-          }
-        }
-      }
-      postToRN({ type: 'event', name: eventName, detail: detail });
+  // expo-bridge/shell.ts
+  var element = document.getElementById("cal");
+  if (!element)
+    throw new Error("Missing calendar host");
+  var cal = element;
+  var documentId = newToken();
+  var session = null;
+  var incoming = 0;
+  var outgoing = 0;
+  var rendered = false;
+  var configured = false;
+  var applying = false;
+  var failure = null;
+  var previousProps = {};
+  var previousTheme = {};
+  var capabilities = { exportICS: false, entryActivation: false };
+  var defaults = {};
+  var lastState = "";
+  function send(payload) {
+    if (!session || !window.ReactNativeWebView)
+      return false;
+    const raw = encodeOutbound({
+      ...payload,
+      version: VERSION,
+      session,
+      document: documentId,
+      seq: outgoing + 1
     });
-  });
-
-  // ── ICS export override ─────────────────────────────────────────────
-  // _handleExport is an arrow property on each Menu instance (not on the
-  // prototype), so we must patch it on every <lms-menu> element after
-  // it's created. We use a MutationObserver on the calendar's shadowRoot.
-
-  function patchMenuExport(menuEl) {
-    if (menuEl.__icsPatched) return;
-    menuEl.__icsPatched = true;
-
-    menuEl._handleExport = function () {
-      var details = menuEl.eventDetails;
-      if (!details) return;
-      postToRN({
-        type: 'event',
-        name: 'export-ics',
-        detail: {
-          heading: details.heading || '',
-          content: details.content || '',
-          time: details.time || '',
-          date: details.date
-        }
-      });
+    if (!raw)
+      return false;
+    try {
+      window.ReactNativeWebView.postMessage(raw);
+      outgoing++;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function fail(message) {
+    failure = message.slice(0, 2048);
+    send({ type: "error", message: failure });
+  }
+  function ready() {
+    if (failure)
+      send({ type: "error", message: failure });
+    else if (rendered)
+      send({ type: "ready" });
+  }
+  function state(detail) {
+    if (!configured || applying || !isState(detail))
+      return;
+    const json = JSON.stringify(detail);
+    if (json !== lastState && send({ type: "event", name: "calendar-state-change", detail }))
+      lastState = json;
+  }
+  function readState() {
+    return {
+      activeDate: cal.activeDate,
+      viewMode: cal.viewMode,
+      firstDayOfWeek: cal.firstDayOfWeek,
+      range: cal.visibleRange
     };
   }
-
-  function observeForMenus() {
-    var shadowRoot = cal.shadowRoot;
-    if (!shadowRoot) return;
-
-    // Patch any menus already present
-    var existingMenus = shadowRoot.querySelectorAll('lms-menu');
-    existingMenus.forEach(patchMenuExport);
-
-    // Watch for new menus
-    var observer = new MutationObserver(function (mutations) {
-      for (var i = 0; i < mutations.length; i++) {
-        var added = mutations[i].addedNodes;
-        for (var j = 0; j < added.length; j++) {
-          var node = added[j];
-          if (node.nodeType === 1) {
-            if (node.tagName === 'LMS-MENU' || node.localName === 'lms-menu') {
-              patchMenuExport(node);
-            }
-            // Also check children (e.g. menu inside a wrapper)
-            if (node.querySelectorAll) {
-              var nested = node.querySelectorAll('lms-menu');
-              nested.forEach(patchMenuExport);
-            }
-          }
+  async function apply(snapshot, revision) {
+    applying = true;
+    try {
+      for (const key of PROP_KEYS) {
+        if (key in snapshot.props || key in previousProps) {
+          Reflect.set(cal, key, key in snapshot.props ? snapshot.props[key] : defaults[key]);
         }
       }
-    });
-
-    observer.observe(shadowRoot, { childList: true, subtree: true });
-  }
-
-  // Wait for the component to be defined, then set up the observer
-  customElements.whenDefined('lms-calendar').then(function () {
-    // The shadowRoot may be ready immediately or after first render
-    if (cal.shadowRoot) {
-      observeForMenus();
-    } else {
-      // Fallback: poll briefly for shadowRoot
-      var attempts = 0;
-      var poll = setInterval(function () {
-        if (cal.shadowRoot || attempts > 50) {
-          clearInterval(poll);
-          if (cal.shadowRoot) observeForMenus();
-        }
-        attempts++;
-      }, 50);
+      for (const key of Object.keys(previousTheme))
+        if (!(key in snapshot.theme))
+          cal.style.removeProperty(key);
+      for (const [key, value] of Object.entries(snapshot.theme))
+        cal.style.setProperty(key, value);
+      previousProps = snapshot.props;
+      previousTheme = snapshot.theme;
+      capabilities = snapshot.capabilities;
+      document.documentElement.lang = Intl.getCanonicalLocales(String(Reflect.get(cal, "locale")))[0] || "en";
+      configured = true;
+      await cal.updateComplete;
+      if (revision !== incoming)
+        return;
+      applying = false;
+      state(readState());
+    } catch {
+      applying = false;
+      fail("Unable to apply calendar snapshot");
     }
-  });
-
-  // ── Uncaught error forwarding ───────────────────────────────────────
-
-  window.onerror = function (message) {
-    postToRN({ type: 'error', message: String(message) });
+  }
+  window.__kalendusReceive = (raw) => {
+    const msg = parseInbound(raw);
+    if (!msg)
+      return;
+    if (msg.type === "connect") {
+      if (session && session !== msg.session)
+        return;
+      if (session)
+        return;
+      session = msg.session;
+      ready();
+      return;
+    }
+    if (!rendered || failure || msg.session !== session || msg.document !== documentId || msg.seq <= incoming)
+      return;
+    incoming = msg.seq;
+    apply(msg.snapshot, msg.seq);
   };
-
-  window.addEventListener('unhandledrejection', function (e) {
-    postToRN({ type: 'error', message: String(e.reason) });
+  cal.addEventListener("calendar-state-change", (event) => state(event.detail));
+  for (const name of ["open-menu", "expand", "switchview", "switchdate", "jumptoday", "menu-close"]) {
+    cal.addEventListener(name, (event) => {
+      if (!configured)
+        return;
+      const original = event.detail;
+      const detail = {};
+      if (original && typeof original === "object") {
+        for (const key of [
+          "heading",
+          "content",
+          "displayTime",
+          "date",
+          "time",
+          "entry",
+          "eventId",
+          "drillTarget",
+          "view",
+          "direction"
+        ]) {
+          const value = Reflect.get(original, key);
+          if (value !== undefined)
+            detail[key] = value;
+        }
+      }
+      send({ type: "event", name, detail });
+    });
+  }
+  cal.addEventListener("entry-activate", (event) => {
+    if (!configured || !capabilities.entryActivation || !event.cancelable || event.defaultPrevented)
+      return;
+    if (send({
+      type: "event",
+      name: "entry-activate",
+      detail: event.detail
+    }))
+      event.preventDefault();
   });
-
-  // ── Ready signal ────────────────────────────────────────────────────
-
-  postToRN({ type: 'ready' });
+  cal.addEventListener("export-entry", (event) => {
+    if (!configured || !capabilities.exportICS || !event.cancelable || event.defaultPrevented)
+      return;
+    const detail = event.detail;
+    if (!detail || typeof detail !== "object")
+      return;
+    const entry = Reflect.get(detail, "entry");
+    if (!entry || typeof entry !== "object")
+      return;
+    const date = Reflect.get(entry, "date");
+    const time = Reflect.get(entry, "time");
+    let displayTime = "";
+    if (time && typeof time === "object") {
+      const format = (v) => v && typeof v === "object" ? `${String(Reflect.get(v, "hour")).padStart(2, "0")}:${String(Reflect.get(v, "minute")).padStart(2, "0")}` : "";
+      displayTime = `${format(Reflect.get(time, "start"))}–${format(Reflect.get(time, "end"))}`;
+    }
+    const payload = {
+      entry,
+      eventId: Reflect.get(detail, "eventId") ?? Reflect.get(entry, "id"),
+      heading: Reflect.get(entry, "heading"),
+      content: Reflect.get(entry, "content") ?? "",
+      time,
+      displayTime,
+      date: date && typeof date === "object" ? Reflect.get(date, "start") : undefined
+    };
+    if (send({ type: "event", name: "export-ics", detail: payload }))
+      event.preventDefault();
+  });
+  window.addEventListener("error", () => fail("Calendar script or resource failed to load"), true);
+  window.addEventListener("unhandledrejection", () => fail("Calendar render or asynchronous operation failed"));
+  var timeout = setTimeout(() => fail("Calendar definition/render timed out (check the bundled IIFE)"), 15000);
+  (async () => {
+    try {
+      await customElements.whenDefined("lms-calendar");
+      if (!cal.updateComplete || typeof cal.updateComplete.then !== "function")
+        throw new Error("Missing Lit contract");
+      let complete = false;
+      for (let attempt = 0;attempt < 10 && !complete; attempt++)
+        complete = await cal.updateComplete;
+      if (!complete)
+        throw new Error("Calendar did not settle");
+      if (!isState(readState()))
+        throw new Error("Incompatible public calendar state contract");
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      if (failure)
+        return;
+      defaults = Object.fromEntries(PROP_KEYS.map((key) => [key, Reflect.get(cal, key)]));
+      rendered = true;
+      clearTimeout(timeout);
+      ready();
+    } catch {
+      clearTimeout(timeout);
+      fail("Calendar initial render failed");
+    }
+  })();
 })();
+
 </script>
+<!-- Use --inline for Metro assets: sibling files are NOT automatically bundled. -->
+<script src="kalendus.iife.js"></script>
 </body>
 </html>

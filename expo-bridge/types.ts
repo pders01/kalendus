@@ -1,53 +1,32 @@
-// ── Kalendus Expo WebView Bridge — Message Protocol Types ──────────────
-//
-// These types define the JSON message protocol between React Native and
-// the WebView hosting the <lms-calendar> web component.
-
-// ── Calendar domain types (serializable mirrors of the web component) ──
-
-export type CalendarDate = {
-    day: number;
-    month: number;
-    year: number;
-};
-
-export type CalendarTime = {
-    hour: number;
-    minute: number;
-};
-
-export type CalendarTimeInterval = {
-    start: CalendarTime;
-    end: CalendarTime;
-};
-
-export type CalendarDateInterval = {
-    start: CalendarDate;
-    end: CalendarDate;
-};
-
+/** Serializable mirrors of the public calendar contract; no React Native dependency. */
+export type CalendarDate = { day: number; month: number; year: number };
+export type CalendarTime = { hour: number; minute: number };
+export type CalendarTimeInterval = { start: CalendarTime; end: CalendarTime };
+export type CalendarDateInterval = { start: CalendarDate; end: CalendarDate };
 export type CalendarEntry = {
+    id?: string;
+    kind?: 'all-day' | 'timed';
+    timeZone?: string;
     date: CalendarDateInterval;
-    time: CalendarTimeInterval;
+    time?: CalendarTimeInterval;
     heading: string;
-    content: string;
-    color: string;
-    isContinuation: boolean;
-    continuation?: {
-        has: boolean;
-        is: boolean;
-        index: number;
-        total: number;
-    };
+    content?: string;
+    color?: string;
+    isContinuation?: boolean;
+    continuation?: { has: boolean; is: boolean; index: number; total: number };
 };
-
 export type FirstDayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type ViewMode = 'month' | 'week' | 'day' | 'year';
 export type DrillTarget = 'day' | 'week' | 'month';
 export type DensityMode = 'dot' | 'heatmap' | 'count';
-
-// ── Component props (the 7 input properties of <lms-calendar>) ─────────
-
+export type CalendarState = {
+    activeDate: CalendarDate;
+    viewMode: ViewMode;
+    firstDayOfWeek: FirstDayOfWeek;
+    /** Half-open ISO civil dates, not timestamps. */
+    range: { start: string; end: string };
+};
+export type EntryRequest = { entry: CalendarEntry; eventId?: string };
 export type KalendusProps = {
     heading?: string;
     firstDayOfWeek?: FirstDayOfWeek;
@@ -56,121 +35,68 @@ export type KalendusProps = {
     yearDensityMode?: DensityMode;
     entries?: CalendarEntry[];
     color?: string;
+    activeDate?: CalendarDate;
+    viewMode?: ViewMode;
 };
-
-// ── Theme (CSS custom properties) ──────────────────────────────────────
-
 export type ThemeVars = Record<string, string>;
-
-// ── RN → WebView messages ──────────────────────────────────────────────
-
-export type SetPropsMessage = {
-    type: 'setProps';
-    props: Partial<KalendusProps>;
+export type Snapshot = {
+    props: KalendusProps;
+    theme: ThemeVars;
+    capabilities: { exportICS: boolean; entryActivation: boolean };
 };
-
-export type SetThemeMessage = {
-    type: 'setTheme';
-    vars: ThemeVars;
+export type Envelope = { version: 1; session: string; document: string; seq: number };
+export type ConnectMessage = { version: 1; type: 'connect'; session: string };
+export type InboundMessage = Envelope & { type: 'snapshot'; snapshot: Snapshot };
+export type EntryPressDetail = {
+    heading: string;
+    content: string;
+    displayTime: string;
+    time?: CalendarTimeInterval;
+    date?: CalendarDate;
+    entry?: CalendarEntry;
+    eventId?: string;
 };
-
-export type InboundMessage = SetPropsMessage | SetThemeMessage;
-
-// ── WebView → RN messages ──────────────────────────────────────────────
-
-export type OpenMenuEvent = {
-    type: 'event';
-    name: 'open-menu';
-    detail: {
-        heading: string;
-        content: string;
-        time?: CalendarTimeInterval;
-        displayTime: string;
-        date?: CalendarDate;
-    };
+/** Compatibility fields plus the original, unsliced entry and identity. */
+export type ExportICSDetail = EntryPressDetail & EntryRequest;
+export type EventDetails = {
+    'open-menu': EntryPressDetail;
+    'entry-activate': EntryRequest;
+    'calendar-state-change': CalendarState;
+    expand: { date: CalendarDate; drillTarget?: DrillTarget };
+    switchview: { view: ViewMode };
+    switchdate: { direction: 'next' | 'previous' };
+    jumptoday: { date: CalendarDate };
+    'menu-close': Record<string, never>;
+    'export-ics': ExportICSDetail;
 };
-
-export type ExpandEvent = {
-    type: 'event';
-    name: 'expand';
-    detail: {
-        date: CalendarDate;
-        drillTarget?: DrillTarget;
-    };
-};
-
-export type SwitchViewEvent = {
-    type: 'event';
-    name: 'switchview';
-    detail: {
-        view: string;
-    };
-};
-
-export type SwitchDateEvent = {
-    type: 'event';
-    name: 'switchdate';
-    detail: {
-        direction: string;
-    };
-};
-
-export type JumpTodayEvent = {
-    type: 'event';
-    name: 'jumptoday';
-    detail: {
-        date: CalendarDate;
-    };
-};
-
-export type MenuCloseEvent = {
-    type: 'event';
-    name: 'menu-close';
-    detail: Record<string, never>;
-};
-
-export type ExportICSEvent = {
-    type: 'event';
-    name: 'export-ics';
-    detail: {
-        heading: string;
-        content: string;
-        time?: CalendarTimeInterval;
-        displayTime: string;
-        date?: CalendarDate;
-    };
-};
-
-export type ReadyMessage = {
-    type: 'ready';
-};
-
-export type ErrorMessage = {
-    type: 'error';
-    message: string;
-};
-
+export type BridgeEvent = {
+    [K in keyof EventDetails]: Envelope & { type: 'event'; name: K; detail: EventDetails[K] };
+}[keyof EventDetails];
 export type OutboundMessage =
-    | OpenMenuEvent
-    | ExpandEvent
-    | SwitchViewEvent
-    | SwitchDateEvent
-    | JumpTodayEvent
-    | MenuCloseEvent
-    | ExportICSEvent
-    | ReadyMessage
-    | ErrorMessage;
-
-// ── Callback props for the React Native wrapper ────────────────────────
-
+    | BridgeEvent
+    | (Envelope & { type: 'ready' })
+    | (Envelope & { type: 'error'; message: string });
+// Named aliases retained for existing callback consumers.
+export type OpenMenuEvent = Extract<BridgeEvent, { name: 'open-menu' }>;
+export type ExpandEvent = Extract<BridgeEvent, { name: 'expand' }>;
+export type SwitchViewEvent = Extract<BridgeEvent, { name: 'switchview' }>;
+export type SwitchDateEvent = Extract<BridgeEvent, { name: 'switchdate' }>;
+export type JumpTodayEvent = Extract<BridgeEvent, { name: 'jumptoday' }>;
+export type MenuCloseEvent = Extract<BridgeEvent, { name: 'menu-close' }>;
+export type ExportICSEvent = Extract<BridgeEvent, { name: 'export-ics' }>;
+export type ReadyMessage = Extract<OutboundMessage, { type: 'ready' }>;
+export type ErrorMessage = Extract<OutboundMessage, { type: 'error' }>;
 export type KalendusCallbacks = {
-    onEntryPress?: (detail: OpenMenuEvent['detail']) => void;
-    onDateExpand?: (detail: ExpandEvent['detail']) => void;
-    onViewChange?: (detail: SwitchViewEvent['detail']) => void;
-    onDateChange?: (detail: SwitchDateEvent['detail']) => void;
-    onJumpToday?: (detail: JumpTodayEvent['detail']) => void;
+    onEntryPress?: (detail: EntryPressDetail) => void;
+    /** Installing this handler delegates activation to native (suppresses inspector). */
+    onEntryActivate?: (detail: EntryRequest) => void;
+    onCalendarStateChange?: (detail: CalendarState) => void;
+    onDateExpand?: (detail: EventDetails['expand']) => void;
+    onViewChange?: (detail: EventDetails['switchview']) => void;
+    onDateChange?: (detail: EventDetails['switchdate']) => void;
+    onJumpToday?: (detail: EventDetails['jumptoday']) => void;
     onMenuClose?: () => void;
-    onExportICS?: (detail: ExportICSEvent['detail']) => void;
+    onExportICS?: (detail: ExportICSDetail) => void;
     onReady?: () => void;
     onError?: (message: string) => void;
 };
