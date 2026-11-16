@@ -340,7 +340,7 @@ class DirectionalCalendarDateCalculator {
 
 ### Mini-month grid layout
 
-- `<lms-calendar-year>` renders 12 sub-grids inside `.year-grid`. Container queries reduce the column count from 3 → 2 → 1 using the `--year-grid-columns*` custom properties so the overview adapts to any width.
+- `<lms-calendar-year>` renders 12 sub-grids inside `.year-grid`. Wide layouts fit columns intrinsically from the date-target metrics unless `--year-grid-columns` explicitly pins a count. Font-relative container queries switch to `--year-grid-columns-tablet` / `--year-grid-columns-mobile` (two / one by default), including when text is enlarged. Rows are content-sized, not stretched into half-viewport pages.
 - Each month calculates a `firstDayOffset` via `getFirstDayOffset({ year, month, day: 1 }, firstDayOfWeek)` to prepend empty cells until the desired weekday.
 - Weekday headers rely on `getWeekdayOrder(firstDayOfWeek)` and show locale-specific leading characters from `getLocalizedWeekdayShort`.
 

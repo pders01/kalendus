@@ -8,207 +8,161 @@ section: Usage
 
 # Custom Events Reference
 
-All custom DOM events fired by `<lms-calendar>` and its child components. Every event uses `bubbles: true` and `composed: true`, so you can listen on the `<lms-calendar>` host element from any framework.
+Listen on the `<lms-calendar>` host. The events below bubble and are composed, so they cross shadow boundaries. Use **committed state** for synchronization and **cancelable requests** to replace defaults; legacy action notifications remain for compatibility and analytics.
+
+## `calendar-state-change`
+
+Emitted by the root after its initial render and whenever the committed snapshot changes. This includes owner assignments to `activeDate` / `viewMode`, header/today navigation, date/count/year drill-down, keyboard navigation, week-start policy and responsive visible-window changes. Identical snapshots are not emitted again. It is not cancelable.
+
+```ts
+type CalendarState = {
+    activeDate: { year: number; month: number; day: number };
+    viewMode: 'day' | 'week' | 'month' | 'year';
+    firstDayOfWeek: number; // 0 Sunday ... 6 Saturday; default 1 Monday
+    range: { start: string; end: string }; // ISO YYYY-MM-DD, [start, end)
+};
+```
+
+`range.start` is included and `range.end` is excluded. These are civil dates, **not UTC timestamps**. Month ranges include spillover cells; week ranges reflect the actual visible columns, including condensed weeks; day/year ranges cover one day/the active calendar year. The read-only public `visibleRange` getter exposes the same shape.
 
 ```js
-const calendar = document.querySelector('lms-calendar');
-calendar.addEventListener('switchview', (e) => {
-    console.log('View changed to', e.detail.view);
+calendar.addEventListener('calendar-state-change', (event) => {
+    const { activeDate, viewMode, range } = event.detail;
+    persistNavigation({ activeDate, viewMode });
+    // Your loader must dedupe ranges and abort/ignore stale requests.
+    loadVisibleEntries(range.start, range.end); // loader accepts an exclusive end
+});
+calendar.activeDate = { year: 2026, month: 3, day: 15 };
+calendar.viewMode = 'week';
+```
+
+Install the listener before connection to capture the initial event. If attaching later, initialize from the public getters after `await calendar.updateComplete`. Do not calculate fetch ranges from old `detail.direction` / `detail.view` notifications. The server adapter converts the exclusive end to its legacy inclusive query end; see [API Server Guide](./api-server.md).
+
+## Cancelable entry requests
+
+Both requests carry `CalendarEntryRequest` from the public package types:
+
+```ts
+type CalendarEntryRequest = {
+    entry: CalendarEntry; // canonical original record, not a displayed day slice
+    eventId?: string; // caller ID when supplied, otherwise a fallback identity
+};
+```
+
+The canonical entry retains original multi-day endpoints, `id`, `kind`, `timeZone` and caller metadata. Supply stable caller IDs when identity must survive refetching/reordering. Do not serialize the clicked segment as the whole event.
+
+### `entry-activate`
+
+Dispatched by the root **before** opening the default detail inspector for an activated entry (click, Enter or Space). It has `cancelable: true`.
+
+```js
+calendar.addEventListener('entry-activate', (event) => {
+    event.preventDefault(); // suppress the built-in inspector
+    showCustomPanel(event.detail.entry, event.detail.eventId);
 });
 ```
 
----
+### `export-entry`
 
-## `switchdate`
-
-Fired when the user navigates forward or backward via header buttons.
-
-| Property | Value                                 |
-| -------- | ------------------------------------- |
-| Source   | `<lms-calendar-header>`               |
-| Bubbles  | `true`                                |
-| Composed | `true`                                |
-| Detail   | `{ direction: 'next' \| 'previous' }` |
+Dispatched by `<lms-menu>` **before** ICS generation/download. It has `cancelable: true`.
 
 ```js
-calendar.addEventListener('switchdate', (e) => {
-    analytics.track('calendar_navigate', { direction: e.detail.direction });
+calendar.addEventListener('export-entry', (event) => {
+    event.preventDefault(); // suppress the browser download
+    shareFromApplication(event.detail.entry, event.detail.eventId);
 });
 ```
 
----
+Call `preventDefault()` **synchronously**, before awaiting your application work. `stopPropagation()` does not cancel a default action. Without cancellation the inspector/download remains enabled.
 
-## `switchview`
+The default ICS exporter uses the original endpoints, an identity-derived UID when available, exclusive next-day DATE ends for all-day spans, floating values without a zone, and UTC instants for explicit IANA zones. Invalid/nonexistent/ambiguous zoned endpoints are rejected. A zero-duration timed event exports DTSTART without equal DTEND. External calendar-client import and native sharing still require separate verification.
 
-Fired when the user switches between view modes (day, week, month, year) via header buttons.
+### `export-error`
 
-| Property | Value                                            |
-| -------- | ------------------------------------------------ |
-| Source   | `<lms-calendar-header>`                          |
-| Bubbles  | `true`                                           |
-| Composed | `true`                                           |
-| Detail   | `{ view: 'day' \| 'week' \| 'month' \| 'year' }` |
+Non-cancelable error notification from `<lms-menu>` with `{ error, entry, eventId }` when generation/download setup fails. The inspector also shows an error message. `entry` may be undefined if no exportable record was supplied. Cancellation of `export-entry` is not an error.
 
-```js
-calendar.addEventListener('switchview', (e) => {
-    console.log('Now showing', e.detail.view);
-});
+## Entry diagnostics
+
+### `entries-invalid`
+
+Non-cancelable notification after an `entries` update rejects individual records:
+
+```ts
+{
+    issues: Array<{ index: number; entry: unknown; reason: string }>;
+}
 ```
 
----
+Reasons include invalid civil dates/times, reversed intervals, invalid kind/ID/zone, nonexistent or ambiguous zoned endpoints, duplicate IDs and repeated source objects. The **first valid** record wins for a duplicate caller ID/source object. Valid records continue to render. Treat entry bodies as potentially sensitive; do not log them indiscriminately.
 
-## `jumptoday`
+### `entries-error`
 
-Fired when the user clicks the "Today" button in the header.
+Non-cancelable notification when visible expansion exceeds the segment budget:
 
-| Property | Value                    |
-| -------- | ------------------------ |
-| Source   | `<lms-calendar-header>`  |
-| Bubbles  | `true`                   |
-| Composed | `true`                   |
-| Detail   | `{ date: CalendarDate }` |
-
-```js
-calendar.addEventListener('jumptoday', (e) => {
-    myRouter.navigate(`/schedule/${e.detail.date.year}/${e.detail.date.month}`);
-});
-```
-
----
-
-## `expand`
-
-Fired when the user clicks a day label, day cell, week number, or month label to drill into a more detailed view. The `detail` payload varies by source:
-
-| Source                        | `detail.drillTarget`     | Notes                                   |
-| ----------------------------- | ------------------------ | --------------------------------------- |
-| Month view (day click)        | _not present_            | Only `{ date }` is provided             |
-| Week view (day label click)   | _not present_            | Only `{ date }` is provided             |
-| Year view (day click)         | `this.drillTarget` value | Reflects the `yearDrillTarget` property |
-| Year view (week click)        | `'week'`                 | Always drills to week view              |
-| Year view (month label click) | `'month'`                | Always drills to month view             |
-
-| Property | Value                                                                |
-| -------- | -------------------------------------------------------------------- |
-| Source   | `<lms-calendar-month>`, `<lms-calendar-week>`, `<lms-calendar-year>` |
-| Bubbles  | `true`                                                               |
-| Composed | `true`                                                               |
-| Detail   | `{ date: CalendarDate, drillTarget?: 'day' \| 'week' \| 'month' }`   |
-
-```js
-calendar.addEventListener('expand', (e) => {
-    const { date, drillTarget } = e.detail;
-    if (drillTarget === 'day') {
-        router.push(`/schedule/${date.year}/${date.month}/${date.day}`);
+```ts
+{
+    code: 'segment-budget';
+    message: string;
+    limit: number; // currently 100_000 expanded segments
+    range: {
+        start: string;
+        end: string;
     }
-});
+}
 ```
 
-> **Tip:** Check for the presence of `drillTarget` to distinguish between month/week clicks (no target) and year-view clicks (always has a target).
+The calendar clears its derived entry display instead of partially rendering an arbitrary subset. Supply fewer entries or choose a smaller view/range. The default alert can be replaced with light-DOM content in `<slot name="entries-error">` (assign `slot="entries-error"` on your content). Expansion is bounded to the visible range, not an event's full lifetime.
 
----
+## Locale lifecycle
 
-## `open-menu`
+### `locale-ready`
 
-Fired when a calendar entry is activated (click or keyboard). The built-in `<lms-menu>` overlay listens for this internally.
+Root notification after the current locale's load **or fallback** and root render settle, including built-in English and unsupported-tag fallback:
 
-| Property | Value                                                                                                                                                      |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Source   | `<lms-calendar-entry>` (bubbles through all view components via `composed: true`)                                                                          |
-| Bubbles  | `true`                                                                                                                                                     |
-| Composed | `true`                                                                                                                                                     |
-| Detail   | `{ heading: string, content: string, time: CalendarTimeInterval \| undefined, displayTime: string, date: CalendarDate \| undefined, anchorRect: DOMRect }` |
+```ts
+{
+    locale: string;
+    fallback: boolean;
+    catalogLocale: string;
+}
+```
 
-You can intercept this event to show your own detail panel:
+`locale` is the normalized requested tag; `catalogLocale` is the resolved UI catalog (possibly `en`). It does not certify that every phrase is translated or that all descendant layout has settled. Pending loads hide header/main content; failed loads restore usable English fallback rather than hiding the calendar indefinitely.
+
+### `locale-error`
+
+Root notification with `{ locale: string, error: unknown }` when a current catalog chunk fails. A `locale-ready` fallback notification follows. Superseded loads do not announce stale readiness/errors.
 
 ```js
-calendar.addEventListener('open-menu', (e) => {
-    e.stopPropagation(); // prevent built-in menu
-    showCustomPanel(e.detail);
-});
+calendar.addEventListener('locale-error', () => showTranslationRetry());
+calendar.locale = 'de-AT'; // German catalog, regional date/number preferences retained
+await calendar.localeReady; // current load/fallback and root render, not just an event listener
+// When the user requests a retry:
+await calendar.retryLocale();
 ```
 
-> **Note:** In month view, `<lms-calendar-month>` re-dispatches this event to ensure it crosses the shadow boundary correctly.
+`localeReady` settles even after a failed import/fallback. `retryLocale()` retries the requested locale without requiring a different property value. See [Localization](./library-usage.md#localization).
 
----
+## Legacy action notifications
 
-## `menu-close`
+These describe an input action, **not the committed state or fetch range**. Keep existing analytics listeners if useful, but synchronize from `calendar-state-change`. Unless noted otherwise they are not cancelable.
 
-Fired when the built-in menu overlay is dismissed.
+| Event           | Source                     | Detail                                                                                         |
+| --------------- | -------------------------- | ---------------------------------------------------------------------------------------------- |
+| `switchdate`    | Header previous/next       | `{ direction: 'next' \| 'previous' }`                                                          |
+| `switchview`    | Header view buttons        | `{ view: 'day' \| 'week' \| 'month' \| 'year' }`                                               |
+| `jumptoday`     | Header Today               | `{ date: CalendarDate }`                                                                       |
+| `expand`        | Month/Week/Year drill-down | `{ date: CalendarDate, drillTarget?: 'day' \| 'week' \| 'month' }`                             |
+| `peek-navigate` | Condensed week arrows      | `{ date: CalendarDate, direction: 'next' \| 'previous' }`                                      |
+| `open-menu`     | Entry activation           | `{ heading, content, time?, displayTime, displayDate?, date?, anchorRect?, entry?, eventId? }` |
+| `menu-close`    | Inspector dismissal        | No detail                                                                                      |
 
-| Property | Value        |
-| -------- | ------------ |
-| Source   | `<lms-menu>` |
-| Bubbles  | `true`       |
-| Composed | `true`       |
-| Detail   | _none_       |
+Month/Week `expand` requests omit `drillTarget` and default to day. Year day cells use `yearDrillTarget`; year week numbers request `week`, and month labels request `month`. Keyboard/date navigation can change committed state without a legacy header notification.
 
-```js
-calendar.addEventListener('menu-close', () => {
-    hideCustomSidebar();
-});
-```
+`open-menu` remains a cancelable compatibility request; root handling honors `preventDefault()` before opening the inspector. Prefer `entry-activate` for new code: it offers the canonical record without depending on display labels/geometry. Do not rely on stopping propagation or internal component listeners.
 
----
+## Inspector and internal coordination
 
-## `peek-navigate`
+The built-in inspector is **non-modal**: a top-layer popover where supported, with a body-portal/dialog fallback. It does not trap Tab or make the background inert. Escape, close and light dismissal close it; focus is restored when appropriate without stealing focus from another control selected during light dismissal. This describes implemented behavior, not Safari, device or screen-reader verification.
 
-Fired in condensed week view when the user clicks the peek (arrow) buttons to slide the visible day window.
-
-| Property | Value                                                     |
-| -------- | --------------------------------------------------------- |
-| Source   | `<lms-calendar-week>`                                     |
-| Bubbles  | `true`                                                    |
-| Composed | `true`                                                    |
-| Detail   | `{ date: CalendarDate, direction: 'next' \| 'previous' }` |
-
-```js
-calendar.addEventListener('peek-navigate', (e) => {
-    console.log('Peeked', e.detail.direction, 'to', e.detail.date);
-});
-```
-
-> **Note:** This event only fires when the week view is in condensed mode (fewer columns than 7, typically on mobile). The `date` in the payload is the new target date.
-
----
-
-## `locale-ready`
-
-Fired after a non-English locale's translation chunk has loaded and the component is ready to render with correct UI strings. English never fires this event (translations are built-in and always synchronous).
-
-| Property | Value                |
-| -------- | -------------------- |
-| Source   | `<lms-calendar>`     |
-| Bubbles  | `true`               |
-| Composed | `true`               |
-| Detail   | `{ locale: string }` |
-
-Use this event (or the `localeReady` promise) to avoid showing the calendar before translations are loaded:
-
-```js
-const calendar = document.querySelector('lms-calendar');
-calendar.locale = 'de';
-calendar.addEventListener('locale-ready', (e) => {
-    console.log(`${e.detail.locale} translations loaded`);
-});
-
-// Or use the promise-based API:
-await calendar.localeReady;
-```
-
-> **Note:** The component already hides its header and main content via `visibility: hidden` while loading, so consumers only need this event for custom coordination (e.g., showing a skeleton screen or deferring other work).
-
----
-
-## `clear-other-selections` (internal)
-
-Fired when an entry receives focus, instructing the parent to clear all other selected entries. **This is an internal coordination event** — you generally should not need to listen for it.
-
-| Property | Value                          |
-| -------- | ------------------------------ |
-| Source   | `<lms-calendar-entry>`         |
-| Bubbles  | `true`                         |
-| Composed | `true`                         |
-| Detail   | `{ exceptEntry: HTMLElement }` |
-
-The parent `<lms-calendar>` listens for this and calls `clearSelection()` on all other entry elements. If you're building custom multi-selection UI, you may need to handle this.
+`clear-other-selections` is internal entry-focus coordination with `{ exceptEntry: HTMLElement }`. Application integrations should not use it as a selection API.

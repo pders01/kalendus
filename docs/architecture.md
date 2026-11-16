@@ -13,6 +13,8 @@ section: Internals
 ```
 src/
 ├── lms-calendar.ts              # Main calendar component & global types
+├── contracts.ts                 # Committed state, half-open range, entry requests
+├── locales/                     # Canonical JSON source/catalogs; see its README
 ├── components/
 │   ├── Header.ts                # Navigation and view controls
 │   ├── Month.ts                 # Monthly calendar grid
@@ -23,7 +25,8 @@ src/
 │   ├── Context.ts               # Weekday header row (month view)
 │   └── Menu.ts                  # Event detail popover with ICS export
 ├── lib/
-│   ├── messages.ts              # Per-instance i18n via direct template lookup
+│   ├── calendarModel.ts         # Civil-date validation, identity, bounded expansion
+│   ├── messages.ts              # Per-instance catalog resolution/loading and phrase helpers
 │   ├── localization.ts          # Locale-parameterized date/time formatting
 │   ├── ViewStateController.ts   # Per-instance view mode & date state
 │   ├── LayoutCalculator.ts      # Overlap detection & box layout
@@ -56,9 +59,12 @@ src/
 
 - **Per-instance state** via `ViewStateController` (Lit `ReactiveController`)
 - **Per-instance localization** via direct template hash lookups (bypasses `@lit/localize` singleton)
-- **Event bubbling** for component communication (`switchdate`, `switchview`, `expand`, `open-menu`)
-- **CSS custom properties** for theming (151 tokens)
+- **Public committed state** through owner-controlled `activeDate` / `viewMode`, read-only half-open ISO `visibleRange`, and initial/changed `calendar-state-change` after rendering
+- **Cancelable requests** (`entry-activate`, `export-entry`) carrying canonical original records; `preventDefault()` replaces defaults. Legacy action notifications remain, but are not a fetch-range API
+- **CSS custom properties** for theming
 - **Slot-based composition** for entry placement in view grids
 - **Container queries** for responsive header layout
 
-For deeper internals, see the [Developer Guide](developer-guide.md) and [Rendering Calculations](rendering-calculations.md).
+Entry normalization preserves stable caller IDs, explicit timed/all-day semantics and legacy promotion; expansion is clipped to the visible range and segment budget with diagnostics. Locale catalogs are generated from canonical JSON, never edited directly. The inspector is non-modal, using a top-layer popover with a portal/dialog fallback and no focus trap.
+
+For deeper internals, see the [Developer Guide](developer-guide.md), [Rendering Pipeline](rendering-pipeline.md), and [canonical locale workflow](https://github.com/pders01/kalendus/blob/main/src/locales/README.md). The [Rendering Calculations](rendering-calculations.md) page is historical.

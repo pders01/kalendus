@@ -8,39 +8,24 @@ section: Usage
 
 # Using Kalendus as a Library
 
-This document explains how to consume the `lms-calendar` web component that ships with `@jpahd/kalendus`, with emphasis on package structure, runtime contracts, and integration patterns for application developers embedding the calendar inside their own products.
+`@jpahd/kalendus` provides the `<lms-calendar>` custom element as ESM, with TypeScript declarations and a custom elements manifest. `lit` and `luxon` are peer dependencies. Import the package once to register the element; keep this side-effect import in your bundle.
 
-## Package overview
-
-- **artefacts**: published as pure ESM with `main`/`module` pointing at `dist/kalendus.js` and runtime type definitions exposed through `dist/lms-calendar.d.ts` plus `custom-elements.json` for IDE tooling.
-- **peer dependencies**: `lit` and `luxon` are declared as peers; your application must provide them at compatible versions (see `package.json`). Everything else is bundled.
-- **component tree**: `<lms-calendar>` composes header, month/week/day grids, entry cards, and the contextual `<lms-menu>` overlay. Internal helpers such as `LayoutCalculator`, `SlotManager`, and `ViewStateController` are private but determine layout and state.
-
-## Installation
-
-```bash
-npm install @jpahd/kalendus lit luxon
+```sh
+bun add @jpahd/kalendus lit luxon
 ```
-
-Kalendus targets modern evergreen browsers with native Custom Elements, Shadow DOM, ResizeObserver, and CSS container queries. For legacy browsers you must supply the relevant polyfills yourself.
-
-## Importing and registration
-
-`src/lms-calendar.ts` registers the element via `@customElement('lms-calendar')`, so importing the package once per bundle is enough:
 
 ```ts
-// anywhere in your app entry point
 import '@jpahd/kalendus';
+import type LMSCalendar from '@jpahd/kalendus';
+import type { CalendarEntry, CalendarState } from '@jpahd/kalendus';
 
-// later in templates / JSX / HTML
-const template = html`<lms-calendar></lms-calendar>`;
+const calendar = document.querySelector<LMSCalendar>('lms-calendar')!;
+calendar.entries = entries;
 ```
 
-When tree-shaking, keep the side-effect import (e.g. add it to the `sideEffects` allow list if your bundler strips bare CSS imports).
+The component uses Custom Elements, Shadow DOM, ResizeObserver and CSS container queries. It needs a constrained container height; see [Layout & Positioning](./layout-and-positioning.md). Browser API support is not a claim of Safari, native-device or assistive-technology verification.
 
 ## Data contracts
-
-TypeScript definitions ship with the package, but the essential shapes are below for quick reference:
 
 ```ts
 type CalendarDate = { day: number; month: number; year: number };
@@ -49,213 +34,175 @@ type CalendarTimeInterval = { start: CalendarTime; end: CalendarTime };
 type CalendarDateInterval = { start: CalendarDate; end: CalendarDate };
 
 type CalendarEntry = {
+    id?: string;
+    kind?: 'all-day' | 'timed';
+    timeZone?: string;
     date: CalendarDateInterval;
-    time: CalendarTimeInterval; // span 00:00-23:59 for all-day blocks
+    time?: CalendarTimeInterval;
     heading: string;
-    content: string;
-    color: string; // any valid CSS color
-    isContinuation: boolean; // the component recalculates this
-    continuation?: Continuation; // auto-injected for multi-day entries
+    content?: string;
+    color?: string;
+    isContinuation?: boolean;
+    continuation?: { has: boolean; is: boolean; index: number; total: number };
 };
 ```
 
-Constraints enforced inside `willUpdate`:
+### Explicit temporal semantics (preferred)
 
-1. Entries with invalid date/time ranges (end before start) are dropped using `luxon.Interval` validation.
-2. Arrays are sorted by start time so you do not need to pre-sort.
-3. Multi-day entries are automatically expanded into per-day slices, and continuation metadata is injected for styling.
+- **`kind: 'all-day'`**: `date.start` and `date.end` are inclusive Gregorian civil dates. Omit `time`; any supplied time is ignored.
+- **`kind: 'timed'`**: `time` is required. The date/time pairs are the original endpoints of **one continuous interval**, with an exclusive end. Overnight/multi-day timed entries stay in the timed grid; interior days are split at midnight only for display. An end at midnight on the following date does not create a segment on that date.
+- **Floating**: without `timeZone`, wall-clock values remain floating, not instants inferred from the browser zone. ICS export preserves floating values.
+- **Zoned**: `timeZone` must be a valid IANA zone, such as `Europe/Berlin`. Endpoints are interpreted in that zone. DST gaps and ambiguous repeated wall-clock endpoints are rejected rather than silently shifted or guessed. Display remains the supplied civil/wall-clock schedule; this is not a viewer-zone conversion API. ICS export converts explicit zoned endpoints to UTC instants.
+
+```ts
+const entries: CalendarEntry[] = [
+    {
+        id: 'holiday-2026',
+        kind: 'all-day',
+        heading: 'Holiday',
+        date: { start: { year: 2026, month: 3, day: 15 }, end: { year: 2026, month: 3, day: 17 } },
+    },
+    {
+        id: 'overnight-42',
+        kind: 'timed',
+        heading: 'Maintenance',
+        timeZone: 'Europe/Berlin',
+        date: { start: { year: 2026, month: 3, day: 15 }, end: { year: 2026, month: 3, day: 16 } },
+        time: { start: { hour: 23, minute: 0 }, end: { hour: 2, minute: 0 } },
+    },
+];
+```
+
+Years are `1..9999`, months `1..12`, and dates must exist. Hours are `0..23`, minutes `0..59`; only an **end** boundary may be `24:00`. Reversed intervals are rejected. Zero-duration timed point events are supported with minimum display geometry; server writes have a stricter legacy contract (see [server guide](./api-server.md)).
+
+### Legacy compatibility
+
+Omitting `kind` preserves inclusive date ends and the legacy repeated daily time window. Missing time, a multi-day date span, an end-hour minus start-hour of at least 23, or `isContinuation: true` promotes a legacy entry to all-day. This is intentionally not applied to explicit timed entries. Prefer explicit kinds rather than constructing `00:00–23:59` sentinels.
+
+### Identity, validation and bounded work
+
+Supply a nonempty, stable `id` from your application, especially across refetches. For duplicate caller IDs or repeated source objects, the **first valid** record wins. Distinct objects without IDs remain distinct; their fallback identity is not a persistent backend identifier. Caller records/arrays are not sorted or expanded in place.
+
+Invalid records are dropped individually and reported through `entries-invalid` with `{ issues: [{ index, entry, reason }] }`. Valid entries are normalized, sorted and expanded **only within the visible range**. A 100,000-segment cap prevents unbounded visible expansion. Exceeding it clears derived entries and reports `entries-error` with `{ code: 'segment-budget', message, limit, range }`, plus a default alert (replaceable via content assigned to `slot="entries-error"`). It does not silently truncate. Supply fewer records or select a smaller view.
+
+Canonical original records are retained separately from display slices, so activation/export does not lose original dates, times or metadata. See [Events Reference](./events.md).
 
 ## `<lms-calendar>` API surface
 
 ### Public properties
 
-| Property          | Attribute           | Type                            | Default               | Notes                                                                                            |
-| ----------------- | ------------------- | ------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
-| `heading`         | `heading`           | `string`                        | `undefined`           | Optional text rendered in the header.                                                            |
-| `activeDate`      | –                   | `CalendarDate`                  | today                 | Getter/setter proxying `ViewStateController`. Assigning triggers navigation.                     |
-| `entries`         | –                   | `CalendarEntry[]`               | `[]`                  | Main data source. Provide a new array when mutating so Lit detects the change.                   |
-| `color`           | `color`             | `string`                        | `'#000000'`           | Primary accent used by header buttons and gradients.                                             |
-| `locale`          | `locale`            | `string`                        | `<html lang>` \\ `en` | Controls UI strings plus date formatting. All supported codes are listed under _Localization_.   |
-| `firstDayOfWeek`  | `first-day-of-week` | `0`–`6`                         | `1`                   | Changes ISO week alignment; reflected attribute enables declarative authoring.                   |
-| `yearDrillTarget` | `year-drill-target` | `'day' \| 'month'`              | `'month'`             | Determines which view opens after clicking a day in the year overview.                           |
-| `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`               | Selects the per-day density visualization in the year overview.                                  |
-| `dir`             | `dir`               | `'ltr' \| 'rtl' \| 'auto'`      | `'auto'`              | Text direction; auto-detected from locale (RTL for `ar`, `he`, etc.). Override to force LTR/RTL. |
+| Property          | Attribute           | Type                                   | Default                    | Notes                                                                            |
+| ----------------- | ------------------- | -------------------------------------- | -------------------------- | -------------------------------------------------------------------------------- |
+| `heading`         | `heading`           | `string`                               | unset                      | Header title.                                                                    |
+| `activeDate`      | —                   | `CalendarDate`                         | today                      | Owner can assign a date to navigate.                                             |
+| `viewMode`        | `view-mode`         | `'day' \| 'week' \| 'month' \| 'year'` | `'month'`                  | Owner can assign the displayed view.                                             |
+| `entries`         | —                   | `CalendarEntry[]`                      | `[]`                       | Use a new array reference for changes.                                           |
+| `color`           | `color`             | `string`                               | `'#000000'`                | Accent using the supported safe color formats below.                             |
+| `locale`          | `locale`            | BCP 47 `string`                        | page `<html lang>` or `en` | Per-instance formatting and catalog resolution.                                  |
+| `firstDayOfWeek`  | `first-day-of-week` | `0..6`                                 | `1`                        | Sunday = 0; Monday default is **not locale-derived**. Invalid values reset to 1. |
+| `yearDrillTarget` | `year-drill-target` | `'day' \| 'month'`                     | `'month'`                  | View opened by year day cells.                                                   |
+| `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'`        | `'dot'`                    | Per-day density visualization.                                                   |
+| `dir`             | `dir`               | `'ltr' \| 'rtl' \| 'auto'`             | `'auto'`                   | Getter retains requested mode; host attribute exposes resolved direction.        |
 
-### Methods & Getters
+Objects/arrays belong on JavaScript properties, not serialized HTML attributes. Assign new entries/objects instead of mutating them in place.
 
-- `openMenu(eventDetails)` opens the built-in `lms-menu` overlay with `{ heading, content, time?, displayTime, date?, anchorRect? }`. Use this to integrate your own action surfaces (e.g., call `openMenu` when a host-side list item is clicked so the same menu renders).
-- `localeReady: Promise<void>` — resolves when the current locale's translations are loaded. For English this resolves immediately. Use it to gate downstream work that depends on translated UI strings.
+### Methods and getters
 
-### Reactive updates
+- **`visibleRange`** (read-only): `{ start, end }` in ISO `YYYY-MM-DD`, half-open `[start, end)`. Includes month spillover and actual condensed-week columns. Day/year ranges cover one day/the active year. These are dates, not UTC timestamps.
+- **`localeReady: Promise<void>`**: waits for the current load/fallback and root render. It settles even on a failed catalog import; it does not assert every translation or descendant layout is complete.
+- **`retryLocale(): Promise<void>`**: retries the requested locale after a load failure without toggling the property.
+- **`openMenu(details)`**: opens the built-in inspector with `{ heading, content, displayTime, time?, date?, anchorRect?, entry?, eventId? }`. Supply the canonical `entry` and stable `eventId` for correct multi-day export. A display-only call without a date/entry cannot export an event.
 
-- Reassign the `entries` array to trigger updates (`calendar.entries = [...calendar.entries, newEntry]`). Mutating in place without reassignment will not notify Lit.
-- `activeDate` is mutable; consider persisting it in application state if deep-linking.
-- The component maintains an internal `viewMode` state (`month | week | day | year`). Currently this is not exposed as a property; respond to the DOM events below if you need to stay in sync with user actions.
+## Committed state and requests
 
-## Custom DOM events
+The component updates its public navigation properties through interaction; an owner can set them and persist the reported state. The root emits an initial **`calendar-state-change`** after rendering and changed committed snapshots:
 
-All events bubble and are composed, so you can listen directly on `<lms-calendar>` in any framework.
+```ts
+type CalendarState = {
+    activeDate: CalendarDate;
+    viewMode: 'day' | 'week' | 'month' | 'year';
+    firstDayOfWeek: number;
+    range: { start: string; end: string };
+};
+```
 
-| Event                    | Detail payload                                                     | Fired by                                                                 | Typical use                                                                                 |
-| ------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| `switchdate`             | `{ direction: 'next' \| 'previous' }`                              | Header nav buttons                                                       | Mirror navigation in your app bar or analytics.                                             |
-| `switchview`             | `{ view: 'day' \| 'week' \| 'month' \| 'year' }`                   | Header context buttons                                                   | Track the active zoom level.                                                                |
-| `jumptoday`              | `{ date: CalendarDate }`                                           | Header “Today” button                                                    | Reset external filters to today.                                                            |
-| `expand`                 | `{ date: CalendarDate; drillTarget?: 'day' \| 'week' \| 'month' }` | Clicking a day label in month/week grid or any cell in the year overview | Switch your surrounding UI (e.g., load day-specific details) when the calendar drills down. |
-| `open-menu`              | `{ heading, content, time, date?, anchorRect }`                    | Entry cards                                                              | Intercept to show a custom panel or cancel the built-in one.                                |
-| `menu-close`             | none                                                               | Menu close button                                                        | Hide mirrored overlays when the built-in menu closes.                                       |
-| `peek-navigate`          | `{ date: CalendarDate, direction: 'next' \| 'previous' }`          | Condensed week peek arrows                                               | Track peek navigation in condensed week mode.                                               |
-| `locale-ready`           | `{ locale: string }`                                               | After locale chunk loads                                                 | Coordinate with translated UI; hide skeletons or defer dependent work.                      |
-| `clear-other-selections` | `{ exceptEntry: HTMLElement }`                                     | Entry focus events                                                       | Internal. Keep multi-surface selections in sync.                                            |
+Use `event.detail.range` for data loading. Dedupe unchanged ranges, abort superseded requests and ignore stale fulfillment **and** rejection. A late-attached listener can initialize from the public getters after `updateComplete`. Do not reconstruct windows from legacy `switchdate.detail.direction` or `switchview.detail.view`.
 
-> **Note:** The `expand` event payload varies by source — Month and Week views omit `drillTarget`, while Year view always includes it. See the [Events Reference](./events.md) for full details.
+```js
+calendar.addEventListener('calendar-state-change', ({ detail }) => {
+    saveNavigation(detail.activeDate, detail.viewMode);
+    refreshVisibleRange(detail.range); // application loader accepts a half-open range
+});
+calendar.viewMode = 'week';
+calendar.activeDate = { year: 2026, month: 3, day: 15 };
 
-You can stop propagation to replace built-in behavior. For example, intercept `open-menu`, call `event.preventDefault()`, and show your own drawer while leaving the rest of the component untouched.
+calendar.addEventListener('entry-activate', (event) => {
+    event.preventDefault(); // replace the default inspector
+    showApplicationDetails(event.detail.entry, event.detail.eventId);
+});
+calendar.addEventListener('export-entry', (event) => {
+    event.preventDefault(); // replace the default ICS download
+    exportFromApplication(event.detail.entry, event.detail.eventId);
+});
+```
 
-For complete event documentation including payload types, source components, and code examples, see the **[Events Reference](./events.md)**.
+Both requests are cancelable and carry canonical original `{ entry, eventId? }`, not a rendered segment. Cancel synchronously with **`preventDefault()`**, not `stopPropagation()`. `export-error` reports generation failures. Legacy `switchdate`, `switchview`, `jumptoday`, `expand`, `peek-navigate`, `open-menu` and `menu-close` remain available. See [Events Reference](./events.md) for payloads, diagnostics and locale events.
 
-## Year view integration
+## Entry layout and year controls
 
-- The `<lms-calendar-year>` child receives a pre-computed `entrySumByDay` map (keys such as `2026-04-21`) so density indicators remain O(1) per cell, even with thousands of entries.
-- `year-density-mode` toggles how that count is rendered (dot, heatmap buckets, or explicit counts). Pair this with the CSS tokens described in `README.md` if you need brand-specific palettes.
-- `year-drill-target` switches the default navigation when a user clicks any day: `day` jumps straight to the 24-hour view, `month` zooms into the grid of that month. Month headers in the year view always set `drillTarget: 'month'`.
-- Listen for the `expand` event to synchronize external routers or analytics: `event.detail.drillTarget` mirrors the target you configured, so you can differentiate day-level vs. month-level navigation in your host app.
+Timed entries use minute-based absolute positioning with overlap layout calculated from effective grid scale/minimum geometry; they are not fixed at one pixel per minute. All-day entries use row allocation. Narrow month layouts use compact indicators; condensed weeks use the actual visible window for both rendering and range reporting.
 
-## Entry ingestion and layout
-
-1. **Validation**: `willUpdate` rejects entries whose `date` or `time` ranges are invalid per `luxon Interval`. Feed valid ISO-like data only.
-2. **Day splitting**: `_expandEntryMaybe` uses `DateTime.plus({ days: index })` to clone multi-day events. Continuation metadata is added so entry chips can indicate start, middle, or end segments.
-3. **All-day detection**: Any entry without `time`, or whose time interval runs 00:00–23:59, is rendered in the dedicated all-day row using `allocateAllDayRows` logic.
-4. **Responsive month mode**: if the observed width is `<768px`, month cells collapse to aggregated dots (`displayMode = 'month-dot'`). Above that threshold, full entry chips render inside each day.
-5. **Week/day stacking**: `LayoutCalculator` and `SlotManager` determine vertical positioning (`minuteHeight = 1` pixel) and horizontal cascading with progressive width reduction and offset. Overlapping events share column slots with opacity adjustments.
+`year-density-mode` selects dots, heatmap buckets or counts. `year-drill-target` controls year day-cell navigation; month labels always open month, and week numbers open week. Use committed state for routing/fetches; legacy `expand` remains useful for action analytics.
 
 ## Styling and theming
 
-The element exposes 151 CSS custom properties. Common entry points:
+Import a built-in theme or override CSS custom properties on the host:
 
-| Token                                                         | Purpose                                                          |
-| ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `--background-color`                                          | Base surface color; default `Canvas` (adapts to OS dark mode).   |
-| `--primary-color`                                             | Primary accent used in menu buttons and highlights.              |
-| `--header-height`, `--header-text-color`                      | Header sizing and typography.                                    |
-| `--border-radius-sm/md/lg`                                    | Rounded corners applied across entries, menu, and context chips. |
-| `--time-column-width`                                         | Width of the schedule gutter in week/day view.                   |
-| `--entry-font-size`, `--entry-line-height`, `--entry-padding` | Entry typography.                                                |
-| `--entry-handle-width/color`                                  | Handle strip on timed entries in week/day view.                  |
-| `--entry-dot-size`                                            | Dot indicators in compact month rendering.                       |
-| `--shadow-sm/md/lg/hv`                                        | Box shadows for cards and overlays.                              |
-
-Apply tokens on the host element:
+```js
+import '@jpahd/kalendus/themes/default.css';
+```
 
 ```css
 lms-calendar {
     --primary-color: #1976d2;
     --background-color: #fefefe;
     --entry-font-size: 0.85rem;
+    --week-mobile-day-count: 3;
 }
 ```
 
-All styles live inside the component’s shadow root, so global CSS will not leak in unless you override the provided tokens.
+Both root/entry `color` **properties** accept the supported hex, named, `rgb()`/`rgba()` and `hsl()`/`hsla()` forms. Alpha is validated and discarded; rendering uses opaque colors. Unsupported/malformed values use a safe fallback. **OKLCH, arbitrary CSS expressions and `var(--custom-color)` are outside the documented property contract.** CSS theme tokens are a separate styling surface; browser CSS support does not extend that contract. See [Theming](./theming.md) and [CSS Tokens](./css-tokens.md).
 
 ## Localization
 
-- Set `locale` per instance to any of the built-in codes: `en`, `ar`, `bn`, `cs`, `da`, `de`, `de-DE`, `el`, `es`, `fi`, `fr`, `he`, `hi`, `id`, `it`, `ja`, `ko`, `nb`, `nl`, `pl`, `pt`, `ru`, `sv`, `th`, `tr`, `uk`, `vi`, `zh-Hans`.
-- The component auto-detects from `<html lang>` when `locale` is unset.
-- Day and month names come from Luxon/Intl; UI strings come from `src/lib/messages.ts`.
-- Override the week structure via `firstDayOfWeek` (0=Sunday … 6=Saturday) to match local conventions independently of locale.
-- **No flash-of-English**: when a non-English locale is set, the component hides its UI chrome (`visibility: hidden`) until the translation chunk loads, preventing a flash of English fallback text. The `locale-ready` event and `localeReady` promise let you coordinate with this loading if needed. English is zero-cost — translations are built-in, so no hiding or async loading occurs.
+Catalog codes are listed in the [README](https://github.com/pders01/kalendus/blob/main/README.md#supported-locales). Formatting preserves regional/script/numbering preferences independently of catalog fallback: `de-AT`/`de-DE` use German, English variants use built-in English, Simplified Chinese aliases resolve to `zh-Hans`, and Traditional Chinese does not silently use Simplified Chinese. Unsupported tags use English; malformed tags safely normalize to `en`.
 
-## Accessibility behavior
+Each instance starts from page `<html lang>` unless explicitly configured. The root manages host `lang` (including English fallback) and automatic RTL direction for `ar`, `he`, `fa`, `ur`, `yi`; explicit `dir` overrides are supported. The whole layout, including day flow/time axis, follows the resolved direction.
 
-- Header controls use semantic `<button>` elements with ARIA labels and `aria-pressed` states for the current view.
-- Entry chips expose `role="button"`, `aria-selected`, and keyboard handlers for Space/Enter activation.
-- Focus management: when an entry opens the menu, focus moves into `<lms-menu>`; closing the menu restores focus to the triggering entry.
-- `aria-live="polite"` wraps the main content so screen readers announce view changes.
+`firstDayOfWeek` is always an explicit policy with default **1 Monday**, independent of locale. Week numbering is ISO-8601, also independent of that policy.
 
-## Integration patterns
+Header/main content is hidden while a catalog is pending. Failed imports report `locale-error`, show retry/fallback UX, and settle `localeReady`; `locale-ready` includes `{ locale, catalogLocale, fallback }`, including English/fallback loads. Some new phrases deliberately use English pending native-speaker translation review. There is no guarantee of complete linguistic translation.
 
-### Vanilla JS
+Contributors must edit canonical JSON, **not generated templates/XLIFF**. See [translation source of truth](https://github.com/pders01/kalendus/blob/main/src/locales/README.md):
 
-```js
-const calendar = document.querySelector('lms-calendar');
-calendar.entries = buildEntriesFromApi(data);
-calendar.addEventListener('switchview', (event) => {
-    console.log('View changed to', event.detail.view);
-});
+```sh
+bun scripts/check-locales.mjs --write
+bun run i18n:check
 ```
 
-### React wrapper
+## Keyboard and inspector behavior
 
-```tsx
-import { useEffect, useRef } from 'react';
-import '@jpahd/kalendus';
+Header controls are semantic labeled buttons with view state. Date grids implement keyboard navigation; entry controls support Enter/Space. The root has a concise polite range announcement rather than making the full entry tree a live region.
 
-export function Calendar({ entries }: { entries: CalendarEntry[] }) {
-    const ref = useRef<HTMLElement>(null);
+The inspector is **non-modal**, using a top-layer popover where supported and a body-portal/dialog fallback. Tab can leave it; the background is not inert. Opening focuses its close control; Escape, close and light dismissal dismiss it. Focus restoration avoids stealing focus from a control chosen during light dismissal. These are implementation behaviors, not full-accessibility certification; Safari, real-device, reflow and screen-reader checks remain separate verification.
 
-    useEffect(() => {
-        if (ref.current) {
-            ref.current.entries = entries;
-        }
-    }, [entries]);
+## Integration and testing
 
-    return <lms-calendar ref={ref as React.RefObject<any>} heading="Schedule" />;
-}
-```
+- In Lit, use `.entries=${entries}`, `.activeDate=${date}` and `.viewMode=${view}`; bind custom events with `@calendar-state-change` / `@entry-activate` as appropriate. No `unsafeStatic` is needed for a literal tag.
+- In React or Vue, use a typed element ref for object properties and native `addEventListener`/cleanup when needed. Angular integrations should configure custom-element support in the host application. See [Integration Guide](./integration-guide.md).
+- Prefer public properties and real controls in tests over dispatching fabricated internal events. `updateComplete` waits for the root, not its entire descendant tree; await `localeReady` for locale settlement and appropriate frames/child updates for layout.
+- Filter remote data by the canonical visible range rather than sending an entire database. Assign immutable arrays after refresh.
+- Optional backend: [API Server Guide](./api-server.md) and authoritative [server README](https://github.com/pders01/kalendus/blob/main/server/README.md) cover private authorization, exact-origin CORS, inclusive server queries and the committed-state adapter.
+- Optional native source integration: [Expo bridge](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) covers IIFE/inline build, bridge checks, separate Expo typecheck and unverified device gates. Do not use its development shell as a standalone Metro HTML asset.
 
-### Vue 3 example
-
-```vue
-<template>
-    <lms-calendar ref="calendar" :heading="heading" />
-</template>
-
-<script setup lang="ts">
-import { onMounted, watch, ref } from 'vue';
-import '@jpahd/kalendus';
-
-const calendar = ref<HTMLElement | null>(null);
-const entries = ref<CalendarEntry[]>([]);
-
-watch(entries, (value) => {
-    if (calendar.value) calendar.value.entries = value;
-});
-
-onMounted(() => {
-    calendar.value?.addEventListener('open-menu', (event) => {
-        // sync with Vue state
-    });
-});
-</script>
-```
-
-For Angular or Lit apps, treat `<lms-calendar>` as any other custom element; Angular 14+ supports standalone custom elements automatically, and Lit components can include it via `unsafeStatic('lms-calendar')` if needed.
-
-## Performance and state tips
-
-- **Immutable updates**: always assign new arrays/objects so Lit notices changes.
-- **Chunked data**: when streaming hundreds of events, pre-group by day server side to limit client work. The component handles large lists but layout work scales linearly with expanded entries.
-- **All-day events**: omit the `time` block entirely for true all-day spans; this skips unnecessary minute grid calculations.
-- **Menu override**: intercept `open-menu` for bulk updates instead of reading DOM to figure out which event was clicked.
-- **Resize awareness**: the calendar uses `ResizeObserver`; keep it in a visible container so the observer can measure actual width.
-
-## Testing hooks
-
-- Import `@jpahd/kalendus` inside your test harness once, then use `@open-wc/testing` fixtures to instantiate the element.
-- Assert properties rather than DOM text when possible (e.g., `expect(el.activeDate.year).to.equal(2026);`).
-- Dispatch DOM events to simulate navigation (`el.shadowRoot.querySelector('lms-calendar-header')?.dispatchEvent(new CustomEvent('switchview', { detail: { view: 'week' }, bubbles: true, composed: true }));`).
-
-## Troubleshooting
-
-- **Nothing renders**: confirm `lit` and `luxon` peer deps are resolved once; duplicate copies can break instanceof checks.
-- **Entries not updating**: ensure you reassign `calendar.entries` instead of mutating the existing array.
-- **Menu stuck open**: check for listeners that swallow `menu-close`. If you replace the built-in menu, call `clearSelection()` on the triggering `<lms-calendar-entry>` to reset ARIA state.
-- **Incorrect locale**: pass `locale` explicitly when embedding calendars inside documents whose `<html lang>` differs from the desired language.
-
-## Further Reading
-
-- **[Events Reference](./events.md)** — complete event documentation with payload types and code examples.
-- **[CSS Token Reference](./css-tokens.md)** — all 151 CSS custom properties.
-- **[Layout & Positioning](./layout-and-positioning.md)** — height requirements, responsive behavior, all-day events.
-- **[Troubleshooting](./troubleshooting.md)** — solutions for common issues.
-- **[Rendering Calculations](./rendering-calculations.md)** — slot math that powers week/day positioning.
+For missing entries, locale loading or layout issues, see [Troubleshooting](./troubleshooting.md).

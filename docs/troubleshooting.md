@@ -21,10 +21,10 @@ Common issues and solutions when using `<lms-calendar>`.
 1. **Missing peer dependencies** — `lit` and `luxon` must be installed alongside `@jpahd/kalendus`. Duplicate copies can break `instanceof` checks.
 
     ```bash
-    npm install @jpahd/kalendus lit luxon
+    bun add @jpahd/kalendus lit luxon
     ```
 
-    Verify a single copy: `npm ls lit luxon`
+    Inspect installed versions with `bun pm ls --all`; avoid duplicate Lit/Luxon copies.
 
 2. **Module not imported** — The component must be imported once for its custom element to register.
 
@@ -74,7 +74,7 @@ lms-calendar {
     calendar.entries = [...calendar.entries, newEntry];
     ```
 
-2. **Invalid date/time ranges** — Entries where `end` is before `start` are silently dropped during validation.
+2. **Invalid date/time ranges** — Invalid records are dropped individually and reported by `entries-invalid` with `{ issues: [{ index, entry, reason }] }`. This includes impossible dates, reversed intervals, duplicate IDs (first valid wins), invalid zones and DST gaps/ambiguous endpoints.
 
     ```js
     // ❌ Dropped: end date before start
@@ -91,7 +91,11 @@ lms-calendar {
     { day: 15, month: 1, year: 2026 }
     ```
 
-4. **Entries are on a different month/day** — Navigate to the correct date or set `activeDate` to match.
+4. **Entries are on a different month/day** — Navigate to the correct date or set `activeDate` to match. `visibleRange` is half-open ISO dates and includes the actual rendered window.
+
+5. **Expansion budget exceeded** — `entries-error` with `code: 'segment-budget'` clears derived entries and shows an alert instead of truncating them. Supply fewer records or choose a smaller view/range. Expansion is already clipped to the visible range.
+
+6. **Unexpected all-day promotion** — Prefer explicit `kind: 'timed'` for continuous timed spans (requires `time`) or `kind: 'all-day'` for inclusive civil dates. Omitting `kind` preserves legacy multi-day/full-day/continuation promotion. See [data contracts](./library-usage.md#data-contracts).
 
 ---
 
@@ -101,19 +105,21 @@ lms-calendar {
 
 **Causes & fixes:**
 
-1. **Using attribute instead of property** — For dynamic locale changes, use property binding:
+1. **Wrong value or missing update** — Both the `locale` attribute and property work; property binding is convenient for dynamic updates:
 
     ```js
     calendar.locale = 'de'; // ✅ Property assignment
     ```
 
-    In Lit templates: `.locale=${'de'}` (not `locale="de"` — though the attribute works for static values).
+    In Lit templates: `.locale=${selectedLocale}` or `locale=${selectedLocale}`.
 
-2. **Unsupported locale code** — <!-- GENERATED:LOCALE_LIST_INLINE:START -->Only these 28 codes are supported: `en`, `ar`, `bn`, `cs`, `da`, `de`, `de-DE`, `el`, `es`, `fi`, `fr`, `he`, `hi`, `id`, `it`, `ja`, `ko`, `nb`, `nl`, `pl`, `pt`, `ru`, `sv`, `th`, `tr`, `uk`, `vi`, `zh-Hans`.<!-- GENERATED:LOCALE_LIST_INLINE:END -->
+2. **Catalog resolution/fallback** — <!-- GENERATED:LOCALE_LIST_INLINE:START -->The 28 built-in catalog codes are: `en`, `ar`, `bn`, `cs`, `da`, `de`, `de-DE`, `el`, `es`, `fi`, `fr`, `he`, `hi`, `id`, `it`, `ja`, `ko`, `nb`, `nl`, `pl`, `pt`, `ru`, `sv`, `th`, `tr`, `uk`, `vi`, `zh-Hans`. Regional aliases may resolve to these catalogs; unsupported tags use English fallback.<!-- GENERATED:LOCALE_LIST_INLINE:END -->
 
 3. **`<html lang>` mismatch** — If `locale` is not set, the component reads `document.documentElement.lang`. Ensure this matches your desired locale.
 
-> **Note:** The calendar hides its UI chrome (`visibility: hidden`) while loading a non-English locale chunk. If you need to know when translations are ready, listen for the `locale-ready` event or await `calendar.localeReady`. See the [Events Reference](./events.md#locale-ready) for details.
+> **Note:** Await `calendar.localeReady` for the current load/fallback and root render. Pending catalogs hide header/main content; failed imports emit `locale-error`, restore usable English fallback and expose retry UX (`await calendar.retryLocale()`). `locale-ready` includes `catalogLocale` and `fallback`, even for English/unsupported tags. Some new phrases deliberately remain English pending review. See [Events Reference](./events.md#locale-ready).
+
+Regional aliases retain formatting preferences (`de-AT` resolves to German); Simplified Chinese aliases use `zh-Hans`, while Traditional Chinese does not silently use Simplified Chinese. The root manages host `lang` and automatic RTL. Week starts are separate: `firstDayOfWeek` defaults to **1 Monday**, never language-derived. For translation changes edit canonical JSON and follow [src/locales/README.md](https://github.com/pders01/kalendus/blob/main/src/locales/README.md), not generated templates/XLIFF.
 
 ---
 
@@ -123,17 +129,18 @@ lms-calendar {
 
 **Causes & fixes:**
 
-1. **Event listener swallowing `menu-close`** — If you listen on `menu-close` and call `stopPropagation()`, the internal close handler won't fire.
+1. **Custom menu replacement** — Use cancelable `entry-activate` and call `preventDefault()` synchronously; do not depend on propagation order or clear internal selection manually:
 
-2. **Custom menu replacement** — If you intercept `open-menu` to show a custom panel, call `clearSelection()` on the triggering `<lms-calendar-entry>` to reset ARIA state:
     ```js
-    calendar.addEventListener('open-menu', (e) => {
-        e.stopPropagation();
-        // After showing your custom UI:
-        const entry = e.composedPath().find((el) => el.tagName === 'LMS-CALENDAR-ENTRY');
-        entry?.clearSelection();
+    calendar.addEventListener('entry-activate', (event) => {
+        event.preventDefault();
+        showCustomPanel(event.detail.entry, event.detail.eventId);
     });
     ```
+
+2. **Externally reopening the menu** — Check owner code calling `openMenu()` on every update or mirroring a legacy notification back into the component. Observe `menu-close` without swallowing it.
+
+The inspector is non-modal: Tab may leave it and background controls remain usable. Light dismissal should not steal focus from the control just chosen. This is not a focus-trapping modal.
 
 ---
 
@@ -193,11 +200,11 @@ If the container doesn't support container queries (very old browsers), the grid
     // ✅ Correct
     document.querySelector('lms-calendar').addEventListener('switchview', handler);
 
-    // ❌ Won't work: events don't propagate past the component boundary unless composed
-    document.addEventListener('switchview', handler); // works, but may be unintentional
+    // Also works through bubbling/composition, but observes every calendar:
+    document.addEventListener('switchview', handler);
     ```
 
-2. **Framework event binding syntax** — In React, use `ref` + `addEventListener` since React's synthetic events don't support custom elements. In Vue, use `@switchview.native` or `ref` approach.
+2. **Framework event binding syntax** — Native listeners through a ref work across framework versions; remove them on teardown. Vue 3 can bind custom events directly (for example `@calendar-state-change`); no `.native` modifier is needed.
 
 3. **Calling `stopPropagation` elsewhere** — Another listener earlier in the chain may be stopping propagation.
 
@@ -218,7 +225,7 @@ If the container doesn't support container queries (very old browsers), the grid
 
 ## Native Dependency Build Fails on macOS (Node 25+)
 
-**Symptoms:** `bun install` or `npm install` fails with `fatal error: 'climits' file not found` when building `better-sqlite3` or other native addons.
+**Symptoms:** `bun install` fails with `fatal error: 'climits' file not found` when building `better-sqlite3` or other native addons.
 
 **Cause:** Node 25.x's node-gyp does not pass the correct macOS SDK include path to the compiler.
 

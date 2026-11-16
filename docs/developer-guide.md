@@ -12,13 +12,13 @@ This guide documents the internal mechanisms of Kalendus so contributors can dia
 
 ## Architecture Snapshot
 
-| Layer                | Responsibility                                                       | Key files                                                                          |
-| -------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Reactive controllers | Per-instance state (`viewMode`, `activeDate`) and navigation helpers | `src/lib/ViewStateController.ts`                                                   |
-| Entry processing     | Validate, expand, and cache entries whenever `.entries` changes      | `src/lms-calendar.ts` (`willUpdate`, `_computeEntryCaches`)                        |
-| Layout pipeline      | Convert expanded entries into visual boxes for each view             | `src/lib/LayoutCalculator.ts`, `src/lib/allDayLayout.ts`, `src/lib/SlotManager.ts` |
-| Rendering shells     | View-specific components (Header, Week, Month, Day, Year)            | `src/components/*.ts`                                                              |
-| Localization         | Message bundle + generated locale templates                          | `src/lib/messages.ts`, `src/generated/locales/*.ts`                                |
+| Layer                | Responsibility                                                         | Key files                                                                          |
+| -------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Reactive controllers | Per-instance state (`viewMode`, `activeDate`) and navigation helpers   | `src/lib/ViewStateController.ts`                                                   |
+| Entry processing     | Normalize on `.entries` changes; expand/cache on visible-range changes | `src/lib/calendarModel.ts`, `src/lms-calendar.ts`                                  |
+| Layout pipeline      | Convert expanded entries into visual boxes for each view               | `src/lib/LayoutCalculator.ts`, `src/lib/allDayLayout.ts`, `src/lib/SlotManager.ts` |
+| Rendering shells     | View-specific components (Header, Week, Month, Day, Year)              | `src/components/*.ts`                                                              |
+| Localization         | Message bundle + generated locale templates                            | `src/lib/messages.ts`, `src/generated/locales/*.ts`                                |
 
 ### Typical render flow
 
@@ -32,9 +32,10 @@ This guide documents the internal mechanisms of Kalendus so contributors can dia
 
 ### Entry validation & expansion
 
-- `willUpdate` treats missing `time` as all-day, so consumers can omit `time` for all-day blocks.
-- `_expandEntryMaybe` splits multi-day entries into per-day slices and annotates `continuation` metadata (`index`, `total`, `has`, `is`).
-- `_entrySumByDay` keeps ISO (`YYYY-M-D`) keys. The Year view, mobile “month-dot” badges, and responsive indicators consume this map directly.
+- `normalizeEntries()` in `calendarModel.ts` validates civil dates, time endpoints, IDs and IANA zones without mutating caller records. Explicit `kind` controls all-day/timed semantics; omitted `kind` retains legacy promotion. DST gaps/ambiguous zoned endpoints are rejected.
+- `expandEntries()` intersects normalized entries with the half-open `visibleRange`, retaining canonical source records and identity separately from per-day segments/continuation metadata. It enforces a segment budget rather than expanding entire lifetimes.
+- The root emits `entries-invalid` and `entries-error` diagnostics; preserve these paths when modifying ingestion.
+- `_entrySumByDay` keeps canonical ISO (`YYYY-MM-DD`) keys for year density and compact indicators.
 - `_expandedByISODate` is the authoritative lookup for day/week queries. Always prefer reading from it instead of re-splitting the raw entry array.
 
 ### Layout pipeline
@@ -49,7 +50,7 @@ This guide documents the internal mechanisms of Kalendus so contributors can dia
 
 - `visibleDates`, `visibleStartIndex`, `visibleLength`: used by `<lms-calendar-week>` to render 3-day peeks (or any other configured size).
 - `gridColumns`: CSS string applied to the week component (`var(--time-column-width) repeat(n, 1fr)`).
-- `isCondensed`: instructs navigation handlers to emit `peek-navigate` events, shifting the window left/right without changing the active date.
+- `isCondensed`: enables peek navigation. The root assigns the target active date and reports the resulting visible window in committed state.
 
 To customize behavior, override CSS tokens on the host component:
 
@@ -63,34 +64,41 @@ lms-calendar {
 
 ### Localization workflow
 
-- Message keys live in `src/lib/messages.ts`. Add new keys there, then run `bun run i18n:extract` / `bun run i18n:build` to update `src/generated/locales/*.ts`.
-- Consumers can override UI text by providing new target locales or by translating the generated template files.
-- Common a11y strings (`previous`, `next`, `events`, `viewLabel`) are part of the message bundle. Prefer retrieving them via `getMessages(locale)`.
-- **Locale loading gating**: `isLocaleLoaded(locale)` checks synchronously whether a locale's chunk is available. The calendar's `willUpdate` sets `_localeReady = false` for unloaded locales, hiding UI chrome via `visibility: hidden` until the chunk loads. A `_localeVersion` counter then increments, busting Lit's dirty-check on all child components so `getMessages()` returns correct translations on re-render. English is always loaded (zero-cost).
+- **[src/locales/README.md](https://github.com/pders01/kalendus/blob/main/src/locales/README.md) is authoritative.** Edit English `src/locales/source.json` and translations in `src/locales/catalogs/<locale>.json`; never translate generated TypeScript or XLIFF.
+- Run `bun scripts/check-locales.mjs --write`, then `bun run i18n:check`. The check validates completeness, placeholders, preservation and extraction/build roundtrips in a disposable fixture. Raw `i18n:extract` / `i18n:build` are derivative tooling, not the normal source workflow.
+- Retrieve legacy fields through `getMessages(locale)` and complete phrases/plurals through `getMessageFormatters(locale)` during render. Preserve stable IDs and all original translations; structural checks do not establish linguistic quality.
+- The resolver retains formatting preferences while resolving aliases/catalog fallback. The root owns the current load promise/generation guard, `localeReady`, `retryLocale()`, `locale-error`/`locale-ready`, fallback UX and host `lang`/requested-versus-resolved `dir`. Failed imports settle with usable fallback and remain retryable; stale loads must not update the current instance.
+- Monday (`firstDayOfWeek = 1`) is the explicit default, independent of locale. Recommended week starts are not automatic policy.
 
 ### Common Use Cases / Troubleshooting
 
-| Scenario                                    | Recommended steps                                                                                                                                                                                                                                         |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Add a new locale**                        | 1) Append code to `lit-localize.json`. 2) Run `bun run i18n:extract`. 3) Translate strings in `src/generated/locales/<code>.ts`. 4) Register the template map in `src/lib/messages.ts` and `lit-localize.json`. 5) Add sample Storybook locale if needed. |
-| **Different condensed-window sizes**        | Override `--week-mobile-day-count` or `--week-day-count`. The controller automatically clamps between 1 and 7 days and re-centers around the active date.                                                                                                 |
-| **All-day events overlap incorrectly**      | Ensure entries without `time` remain all-day; avoid providing `time` ranges shorter than 24 hours for all-day blocks. Inspect `allocateAllDayRows` inputs by logging `allDayLayoutEvents`.                                                                |
-| **Performance spikes with huge entry sets** | Verify that layout caches are reused. When adding new derived data, store per-entry metadata during `_expandEntryMaybe` to avoid re-hashing in inner loops.                                                                                               |
-| **Custom analytics on view changes**        | Listen for `switchview`, `switchdate`, `peek-navigate`, and `expand` events on `<lms-calendar>`. Drill targets (e.g., `'day'` vs `'month'`) are included in the `expand` detail payload.                                                                  |
+| Scenario                                    | Recommended steps                                                                                                                                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Add a new locale**                        | Follow the canonical catalog workflow below; never edit generated templates.                                                                                                             |
+| **Different condensed-window sizes**        | Override `--week-mobile-day-count` or `--week-day-count`. The controller automatically clamps between 1 and 7 days and re-centers around the active date.                                |
+| **All-day events overlap incorrectly**      | Prefer `kind: 'all-day'`; inspect bounded `allocateAllDayRows` inputs and stable IDs, not sentinel time heuristics.                                                                      |
+| **Performance spikes with huge entry sets** | Keep visible-range expansion bounded in `calendarModel.ts` and reuse normalized records/caches. Preserve segment-budget diagnostics.                                                     |
+| **Custom analytics on view changes**        | Listen for `switchview`, `switchdate`, `peek-navigate`, and `expand` events on `<lms-calendar>`. Drill targets (e.g., `'day'` vs `'month'`) are included in the `expand` detail payload. |
 
 ### Testing Tips
 
-- Unit tests live under `test/unit/`. Use `bun test` for the full suite or `NODE_OPTIONS=--experimental-vm-modules mocha path/to/file.test.ts` for targeted runs.
+- Unit tests live under `test/unit/`. Use `bun run test` for the Mocha suite or `bun run test -- path/to/file.test.ts` for a targeted run.
 - Week/day layout logic has dedicated tests in `test/unit/lib/allDayLayout.test.ts`, `test/unit/lib/ViewStateController.test.ts`, `test/unit/LayoutCalculator.test.ts`, and `test/unit/week-row-allocation.test.ts`.
 - When modifying CSS token behavior or condensed-week logic, add/extend tests in `test/unit/lib/weekDisplayContext.test.ts` (create this file if missing) to ensure the context math stays stable.
 
 ## Adding a New Locale
 
-1. Add the locale code to `lit-localize.json` target locales
-2. Run `bunx lit-localize extract` to generate the template file
-3. Translate strings in `src/generated/locales/<locale>.ts`
-4. Add a loader entry in `src/lib/messages.ts` (`localeLoaders` map)
-5. Optionally add a `LUXON_LOCALE_MAP` entry in `localization.ts` if the locale code differs from Intl/Luxon conventions
+1. Read [the canonical catalog guide](https://github.com/pders01/kalendus/blob/main/src/locales/README.md) and use its stable source IDs/placeholders.
+2. Add the catalog code to `lit-localize.json` target locales and create `src/locales/catalogs/<locale>.json` with complete keys; explicitly retain English fallback where translation is pending review.
+3. Register the loader/resolution in `src/lib/messages.ts` as needed without changing other instances' active locale.
+4. Run `bun scripts/check-locales.mjs --write` and `bun run i18n:check`; do not copy derivative output over canonical dictionaries or edit preservation snapshots.
+5. Run `bun run docs:sync`, add relevant component/resolver tests and obtain native-speaker review. ISO week numbering stays independent of the explicit week-start policy.
+
+## Public integration contracts
+
+`src/contracts.ts` defines committed state and entry requests. Keep `activeDate` / `viewMode` owner controls, half-open ISO `visibleRange`, and initial/changed post-render `calendar-state-change` aligned. Do not use legacy header action details to drive adapters. Activation/export requests must remain cancelable before their defaults, carry canonical entries and stable IDs, and honor `preventDefault()`.
+
+The inspector is non-modal (top-layer popover with fallback), with no Tab trap/background inertness. Automated component checks do not establish Safari/device/screen-reader success. See [Events Reference](./events.md), [server README](https://github.com/pders01/kalendus/blob/main/server/README.md) and [native bridge build/check guide](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) for downstream contracts and remaining manual gates.
 
 ## Staying Consistent
 

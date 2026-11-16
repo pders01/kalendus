@@ -40,7 +40,8 @@ Practical recipes for embedding `<lms-calendar>` in different environments.
 
 ### Tips
 
-- Set `document.documentElement.lang` so the default locale matches your site. Override per instance with the `locale` property.
+- Set `document.documentElement.lang` so the default locale matches your site. Override per instance with `locale`; the root manages host `lang`/automatic RTL and exposes `localeReady` / `retryLocale()` for loading/fallback. `firstDayOfWeek` defaults to **1 Monday**, not a locale-derived value.
+- Give the calendar a constrained height (for example `height: 600px`); see [Layout & Positioning](./layout-and-positioning.md).
 - Use CSS variables (`--primary-color`, `--week-mobile-day-count`, etc.) on the `<lms-calendar>` element to theme per instance.
 
 ## React
@@ -55,12 +56,12 @@ export function Calendar({ entries, onOpenMenu }) {
     const ref = useRef(null);
 
     useEffect(() => {
-        if (ref.current) {
-            ref.current.entries = entries;
-            const handler = (event) => onOpenMenu?.(event.detail);
-            ref.current.addEventListener('open-menu', handler);
-            return () => ref.current.removeEventListener('open-menu', handler);
-        }
+        const calendar = ref.current;
+        if (!calendar) return;
+        calendar.entries = entries;
+        const handler = (event) => onOpenMenu?.(event.detail);
+        calendar.addEventListener('open-menu', handler); // compatibility notification
+        return () => calendar.removeEventListener('open-menu', handler);
     }, [entries, onOpenMenu]);
 
     return <lms-calendar ref={ref} color="#0d47a1" />;
@@ -120,15 +121,15 @@ lms-calendar.theme-ocean {
 
 Listen on the element for user actions:
 
-| Event           | Detail payload                                                          | When it fires              |
-| --------------- | ----------------------------------------------------------------------- | -------------------------- |
-| `switchview`    | <code>{ view: 'day' &#124; 'week' &#124; 'month' &#124; 'year' }</code> | Header view buttons        |
-| `switchdate`    | <code>{ direction: 'next' &#124; 'previous' }</code>                    | Header navigation          |
-| `peek-navigate` | <code>{ direction: 'next' &#124; 'previous' }</code>                    | Condensed week peek arrows |
-| `expand`        | `{ date, drillTarget }`                                                 | Month/Week/Year day clicks |
-| `open-menu`     | `{ heading, content, time, date, anchorRect }`                          | Entry selection            |
-| `locale-ready`  | `{ locale: string }`                                                    | Locale chunk loaded        |
-| `menu-close`    | _none_                                                                  | Menu dismiss               |
+| Event           | Detail payload                                                          | When it fires                                        |
+| --------------- | ----------------------------------------------------------------------- | ---------------------------------------------------- |
+| `switchview`    | <code>{ view: 'day' &#124; 'week' &#124; 'month' &#124; 'year' }</code> | Header view buttons                                  |
+| `switchdate`    | <code>{ direction: 'next' &#124; 'previous' }</code>                    | Header navigation                                    |
+| `peek-navigate` | <code>{ date, direction: 'next' &#124; 'previous' }</code>              | Condensed week peek arrows                           |
+| `expand`        | `{ date, drillTarget }`                                                 | Month/Week/Year day clicks                           |
+| `open-menu`     | `{ heading, content, time, date, anchorRect }`                          | Entry selection                                      |
+| `locale-ready`  | `{ locale, catalogLocale, fallback }`                                   | Current locale load/fallback and root render settled |
+| `menu-close`    | _none_                                                                  | Menu dismiss                                         |
 
 > **Note:** The `expand` event's `drillTarget` is only present when fired from the year view. See the [Events Reference](./events.md) for full payload details.
 
@@ -140,9 +141,15 @@ calendar.addEventListener('switchview', (event) => {
 });
 ```
 
+## State synchronization and replacing defaults
+
+Assign public `activeDate` and `viewMode` to control navigation. Use **`calendar-state-change`** for initial and changed committed `{ activeDate, viewMode, firstDayOfWeek, range }`; `range` is half-open ISO civil dates. Month spillover and condensed weeks are included correctly. Legacy action notifications in the analytics table are not resulting state: do not derive a fetch window from `detail.direction` or `detail.view`.
+
+To replace the default inspector/download, listen for cancelable `entry-activate` / `export-entry` and call **`preventDefault()` synchronously**, not `stopPropagation()`. Both carry the canonical original `{ entry, eventId }`, preserving multi-day endpoints and caller identity. See [Events Reference](./events.md).
+
 ## Connecting to the Kalendus API server
 
-The server package (`@jpahd/kalendus-server`) exposes REST + SSE endpoints under `/api/calendars`. Use the shipped client wrappers to hydrate `<lms-calendar>` instances.
+The optional server exposes REST + SSE under `/api/calendars`. It is **private-deny by default**: the host must inject `authorize`, including reads/streams/telemetry. Public mode is an explicit unauthenticated demo choice. Cross-origin use needs exact allowed origins; CORS is not authorization. Prefer same-origin authenticated deployment. [server/README.md](https://github.com/pders01/kalendus/blob/main/server/README.md) is authoritative; see [API Server Guide](./api-server.md) for setup and security boundaries.
 
 ### Vanilla client
 
@@ -150,10 +157,12 @@ The server package (`@jpahd/kalendus-server`) exposes REST + SSE endpoints under
 import { KalendusApiClient } from '@jpahd/kalendus-server/client';
 
 const client = new KalendusApiClient({
-    baseUrl: 'https://api.example.com',
-    calendarId: 'demo',
+    baseUrl: '',
+    calendarId: 'your-calendar-id',
+    credentials: 'same-origin',
 });
 
+// Legacy API query ends are inclusive (not visibleRange.end).
 // Fetch a range and push into the component
 client.fetchEvents('2026-03-01', '2026-03-31').then((entries) => {
     document.querySelector('lms-calendar').entries = entries;
@@ -164,7 +173,10 @@ client.onSync((msg) => {
     console.log('SSE update', msg.type, msg.data);
 });
 client.connect();
+// On teardown, unsubscribe listeners and call client.disconnect().
 ```
+
+Header-authenticated SSE requires an injected authenticated reconnecting `streamFactory` (native EventSource cannot send arbitrary headers), or disable sync. Reconcile the visible range on every initial/reconnected connection; SSE is in-process invalidation, not durable replay. Direct-client loaders own cancellation/generation checks and error UI; see the server README.
 
 ### Lit adapter
 
@@ -173,8 +185,9 @@ import { KalendusLitAdapter } from '@jpahd/kalendus-server/lit';
 
 class RemoteCalendar extends LitElement {
     adapter = new KalendusLitAdapter(this, {
-        baseUrl: 'https://api.example.com',
-        calendarId: 'demo',
+        baseUrl: '',
+        calendarId: 'your-calendar-id',
+        credentials: 'same-origin',
         enableSync: true,
         enableTelemetry: true,
     });
@@ -190,7 +203,7 @@ class RemoteCalendar extends LitElement {
 }
 ```
 
-The adapter listens to `switchview`/`switchdate`, computes the appropriate date window, fetches data, and (optionally) sends telemetry events back to the API.
+The adapter consumes the public `calendar-state-change`/getter contract, converts the half-open end to an inclusive server query end, deduplicates ranges and suppresses stale requests/results. It does not infer windows from legacy header events. Owners still bind `.entries` and render `adapter.loading` / `adapter.error`; `adapter.refresh()` retries a current range. Configure an explicit target for multiple calendars or non-queryable hosts. Telemetry is optional and must not contain secrets or event bodies.
 
 ## Common Recipes
 
@@ -227,6 +240,7 @@ calendar.openMenu({
     content: 'Details rendered externally',
     time: { start: { hour: 8, minute: 0 }, end: { hour: 9, minute: 0 } },
     displayTime: '08:00 – 09:00',
+    // Supply canonical entry/eventId for export, or at least a date for a single-day item.
 });
 ```
 
@@ -253,7 +267,7 @@ fetch('/api/events')
 
 **How do I lazy-load event data?**
 
-Listen to `switchdate` and `expand` events, then fetch data for the new date range before updating `entries`.
+Listen to initial/changed `calendar-state-change` and fetch its half-open `detail.range`, then assign a new `entries` array. Dedupe ranges and abort/ignore stale fulfillment and rejection. If your backend uses inclusive ends, convert the exclusive end by one civil day, not timestamp arithmetic. The shipped Lit adapter does this for the legacy server API.
 
 **Can I render multiple calendars with different locales?**
 
@@ -266,6 +280,10 @@ Override the menu CSS custom properties on the `<lms-calendar>` element (e.g., `
 **Does Kalendus work with Shadow DOM encapsulation?**
 
 Yes. The component ships as a custom element with its own shadow root. Consumers can use standard custom-element patterns (attributes/properties/events) regardless of framework.
+
+## Native integration
+
+The optional Expo/React Native bridge is source integration, not a separately published native package. See [expo-bridge/README.md](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) for `bun run build:iife`, inline HTML/string generation and `bun scripts/check-bridge.mjs`. Its development shell is not a self-contained Metro asset. Expo app TSX checking, release-device behavior, native sharing and VoiceOver/TalkBack remain separate gates, not implied by browser/VM checks.
 
 ## Further Reading
 

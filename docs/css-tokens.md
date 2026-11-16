@@ -275,16 +275,18 @@ These tokens are read at runtime by `computeWeekDisplayContext`. Below the break
 | `--menu-detail-label-font-size` | `0.8125em`   | Font size for detail labels     |
 | `--menu-detail-gap`             | `0.5em`      | Gap between detail rows         |
 
+Shared all-day rows use `--all-day-row-height: max(24px, 1.5rem)` by default. The rem-relative height enlarges with document text size; custom fonts and row overrides should preserve complete text lines as well as the minimum target size.
+
 ## Year View — Grid & Layout
 
-| Token                          | Default   | Description                       |
-| ------------------------------ | --------- | --------------------------------- |
-| `--year-grid-columns`          | `3`       | Number of month columns (desktop) |
-| `--year-grid-columns-tablet`   | `2`       | Number of month columns (tablet)  |
-| `--year-grid-columns-mobile`   | `1`       | Number of month columns (mobile)  |
-| `--year-month-label-font-size` | `0.875em` | Font size for month name labels   |
-| `--year-day-font-size`         | `0.7em`   | Font size for day numbers         |
-| `--year-cell-size`             | `1.8em`   | Width/height of day cells         |
+| Token                          | Default    | Description                                                       |
+| ------------------------------ | ---------- | ----------------------------------------------------------------- |
+| `--year-grid-columns`          | `auto-fit` | Optional wide-layout column count; otherwise fits readable months |
+| `--year-grid-columns-tablet`   | `2`        | Number of month columns (tablet)                                  |
+| `--year-grid-columns-mobile`   | `1`        | Number of month columns (mobile)                                  |
+| `--year-month-label-font-size` | `0.875em`  | Font size for month name labels                                   |
+| `--year-day-font-size`         | `0.8125em` | Font size for day numbers                                         |
+| `--year-cell-size`             | `1.8em`    | Width/height of day cells                                         |
 
 ## Year View — Density Indicators
 

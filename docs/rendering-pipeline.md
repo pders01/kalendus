@@ -8,19 +8,19 @@ section: Internals
 
 # Rendering Pipeline
 
-End-to-end documentation of how calendar entries move from raw data to positioned DOM elements. Every formula and constant in this document is drawn from the source.
+Overview of how calendar entries move from raw data to positioned DOM elements. The source modules are authoritative for current formulas and constants; public ingestion/state contracts are documented in [Library Usage](./library-usage.md).
 
 ## Overview
 
 The rendering pipeline has five stages:
 
-1. **Entry Expansion** — Multi-day entries are split into one `ExpandedCalendarEntry` per day they span.
+1. **Normalization and bounded expansion** — Validate civil endpoints/identity, then split only the visible intersection into per-day segments.
 2. **Layout Calculation** — Overlapping timed entries are grouped and assigned depth, width, and offset.
-3. **All-Day Row Allocation** — All-day and multi-day events are packed into rows with a greedy first-fit algorithm.
+3. **All-Day Row Allocation** — Explicit all-day and legacy-promoted records are packed into rows. Explicit timed multi-day records stay timed.
 4. **Position CSS Generation** — `SlotManager` converts layout data into absolute-positioning styles.
 5. **DOM Rendering** — Day/Week components mount entries into named slots inside `position: relative` containers.
 
-Stages 1–4 are pure functions called from `lms-calendar.ts` during `render()`. Stage 5 is handled by the Lit component tree.
+The root normalizes when `entries` changes and computes range-dependent caches in `willUpdate()`. Layout results are cached and consumed by render helpers; the Lit component tree mounts the results. Public committed state is emitted after the root render, including the initial snapshot.
 
 ---
 
@@ -28,22 +28,24 @@ Stages 1–4 are pure functions called from `lms-calendar.ts` during `render()`.
 
 ### `_computeEntryCaches()`
 
-Called in `willUpdate()` whenever the `entries` property changes. It:
+Called in `willUpdate()` when entries or the committed visible range/view/week-start key changes. It:
 
-- Expands entries via `_expandEntryMaybe()`.
+- Expands normalized entries via `expandEntries()` in `src/lib/calendarModel.ts`, clipped to `visibleRange`. Invalid records report `entries-invalid`; a visible segment-budget failure clears caches and reports `entries-error` rather than truncating.
 - Groups results into `_expandedByISODate` (`Map<string, ExpandedCalendarEntry[]>`) keyed by `YYYY-MM-DD` for O(1) per-day lookups.
 - Pre-computes `_monthViewSorted` (sorted + color-annotated) and `_entrySumByDay` (per-day event counts for mobile badges).
 - Clears `_layoutCache` and `_allDayLayoutCache` so stale layouts are recomputed.
 
-### `_expandEntryMaybe()`
+### `normalizeEntries()` / `expandEntries()`
 
-Given a `CalendarEntry` that spans N days, produces N `ExpandedCalendarEntry` objects — one per calendar day — each with its `date.start/end` adjusted to that day.
+The model validates civil dates, time endpoints, explicit kind and IANA zone, rejecting DST gaps/ambiguous endpoints. Stable caller IDs are authoritative; duplicate IDs/source objects use the first valid record. Caller objects are retained as canonical records, not mutated.
+
+For an entry spanning N days, expansion creates only segments intersecting the half-open visible range, with segment `date.start/end` adjusted to the displayed day. Explicit timed entries represent one continuous interval; interior segments use midnight boundaries, and an exclusive midnight end does not create another day. Canonical original endpoints remain available for activation/ICS export.
 
 Each expanded entry carries a `continuation` object:
 
 ```typescript
 {
-    has: boolean; // true if the original entry spans multiple days
+    has: boolean; // true if the entry continues after this segment
     is: boolean; // true for the second day onward (index > 0)
     index: number; // 0-based day offset within the span
     total: number; // total number of days the original entry covers
@@ -58,55 +60,34 @@ The map key for each expanded entry is the ISO date of its start day (`YYYY-MM-D
 
 ### `_isEffectivelyAllDay()`
 
-Returns `true` when any of these hold:
+Uses the normalized all-day decision. Explicit `kind: 'all-day'` wins; explicit `kind: 'timed'` never becomes all-day merely because it crosses dates. Without `kind`, missing time, multi-day dates, an end-hour minus start-hour of at least 23, or `isContinuation: true` preserves legacy promotion.
 
-- The entry has no `time` property.
-- The entry's duration is ≥ 23 hours.
-- The entry is part of a multi-day continuation (`continuation.has || continuation.is`).
-
-This determines whether an entry goes into the all-day section or the timed grid.
+All-day date ends remain inclusive; explicit timed endpoints have an exclusive end. See [data contracts](./library-usage.md#data-contracts) rather than relying on sentinel time windows.
 
 ---
 
 ## 3. Overlap Layout (LayoutCalculator)
 
-`LayoutCalculator` is a stateless class that converts a list of timed entries into positioned boxes. Three stages:
+`LayoutCalculator.calculateLayout()` converts validated timed entries into positioned boxes. It accepts the effective `minuteHeight` and `eventMinHeight`, so collision intervals include the rendered minimum height rather than only semantic duration. Point/short events therefore participate in collision handling without changing their canonical endpoints.
 
-### `eventsToIntervals()`
+Entries are sorted deterministically by start, descending duration, identity and input index. A sweep groups connected overlap components; heaps reuse foreground depths as intervals end. The longest event remains the full-width depth-0 background. Equal endpoints do not collide unless minimum display geometry extends them.
 
-Converts each entry's start/end time to a minute-of-day offset:
-
-```
-startMinute = hour * 60 + minute
-endMinute   = hour * 60 + minute
-```
-
-### `calculateGrading()`
-
-Groups overlapping intervals using transitive-closure overlap detection (`findOverlapGroups()`). Within each group:
-
-- The longest event gets **depth 0**.
-- Remaining events are assigned incrementing depths (1, 2, 3, …).
-- Single-event groups get depth 0 trivially.
-
-### `calculateBoxes()`
-
-Converts gradings into `LayoutBox` records with concrete positioning:
+The resulting `LayoutBox` records use these cascade rules:
 
 | Property  | Depth 0 (primary) | Depth > 0 (overlapping)                         |
 | --------- | ----------------- | ----------------------------------------------- |
 | `x`       | `0`               | `(depth / maxDepth) * (100 - minReadableWidth)` |
 | `width`   | `100`             | `100 - x`                                       |
 | `opacity` | `0.95`            | `max(0.85, 0.95 - depth * 0.05)`                |
-| `zIndex`  | `100`             | `100 + depth`                                   |
+| `zIndex`  | `100`             | `101 + chronological paint index`               |
 
 **`minReadableWidth = 65`** — overlapping events are always at least 65% wide. The remaining 35% (`maxRange`) is distributed across depth levels via cascading offset so deeper events peek out from behind the primary.
 
-A single-event group always gets `x = 0, width = 100`.
+A single-event group always gets `x = 0, width = 100`. The opacity values above remain calculator metadata; root rendering overrides opacity to `1` and uses an opaque theme surface to prevent competing text bleeding through. Reusing a horizontal lane never reuses an earlier paint index. Cascade occlusion itself remains a usability limitation, not a fully solved dense-layout policy.
 
 ### Caching
 
-Results are cached in `_layoutCache` keyed by ISO date (`YYYY-MM-DD`). The cache is cleared when `entries` changes.
+Results are cached in `_layoutCache` keyed by ISO date (`YYYY-MM-DD`). The cache is cleared when entries, the visible range/view key or effective grid scale/minimum geometry changes.
 
 ---
 
@@ -156,14 +137,13 @@ Results are cached in `_allDayLayoutCache` with a composite key that includes th
 position: absolute;
 top: calc(${startMinute} * var(--minute-height));
 height: calc(${durationMinutes} * var(--minute-height));
-min-height: calc(20 * var(--minute-height));          /* 20-minute minimum */
 width: ${layoutBox.width}%;
 inset-inline-start: ${layoutBox.x}%;
 z-index: ${layoutBox.zIndex};
 opacity: ${layoutBox.opacity};
 ```
 
-The `top` and `height` formulas use the `--minute-height` CSS custom property set by the ResizeObserver in Day/Week components.
+The `top` and `height` formulas use the `--minute-height` token set by the shared sizing controller. `durationMinutes` comes from layout's effective minimum display geometry, not a separate CSS-only duration clamp. Offscreen week dates are rejected rather than silently placed in the first column.
 
 ### All-day entries (slot-based positioning)
 
@@ -181,46 +161,41 @@ All-day entries don't use absolute positioning. They flow inside slot containers
 
 ### Accessibility
 
-`calculateAccessibility()` produces `tabIndex`, `role`, and `aria-label` for each entry:
-
-- **Week timed:** `10000 + dayOfWeek * 10000 + hour * 100 + minute` (navigation order: left-to-right, then top-to-bottom).
-- **Day timed:** `hour * 60 + minute`.
-- **All-day week:** `1000 + dayOfWeek`.
-- **All-day day:** `0`.
+`calculateAccessibility()` produces `tabIndex: 0`, `role: 'button'` and a localized label. Chronological DOM order owns sequential focus; positive tabindex formulas are not used. Date-grid roving focus is handled separately by the view components. These semantics still require real browser/assistive-technology verification.
 
 ---
 
 ## 6. Time Grid Sizing
 
-Day.ts and Week.ts share the same ResizeObserver pattern to make the time grid fill the viewport.
+Day.ts and Week.ts use `TimeGridSizingController` to observe wrapper/header geometry, coalesce frame writes, reconnect observation and cancel queued work on disconnect.
 
 ### The `--minute-height` calculation
 
-In `firstUpdated()` and on resize:
+On connection and observed resize:
 
 ```
-viewportHeight = scrollContainer.clientHeight
-minuteHeight = viewportHeight / 720
+viewportHeight = wrapper.clientHeight - header.clientHeight
+minuteHeight = max(viewportHeight / 720, hostFontSize * 2.75 / 60)
 ```
 
-**Why 720?** 720 minutes = 12 hours. This ensures exactly 12 hours fill the visible viewport, which is a comfortable default — the user sees half a day without scrolling.
+**Why 720?** 720 minutes = 12 hours. At ordinary sizes this targets a half-day viewport. A font-relative hour floor preserves readable event text in short embeds and at enlarged text sizes, trading visible hours for scrolling. Root layout measures a full text line plus padding/borders, the second time line and gaps, and available inline title space; narrow columns reserve enough display height to stack both without changing canonical endpoints.
 
 ### Derived tokens
 
 All four tokens are set explicitly on the host element:
 
-| Token                | Value                 | Purpose                        |
-| -------------------- | --------------------- | ------------------------------ |
-| `--minute-height`    | `${m}px`              | Base unit for all positioning  |
-| `--hour-height`      | `${m * 60}px`         | Hour label spacing, grid lines |
-| `--day-total-height` | `${m * 1440}px`       | Total scrollable height (24h)  |
-| `--half-day-height`  | `${viewportHeight}px` | Matches the actual viewport    |
+| Token                | Value           | Purpose                         |
+| -------------------- | --------------- | ------------------------------- |
+| `--minute-height`    | `${m}px`        | Base unit for all positioning   |
+| `--hour-height`      | `${m * 60}px`   | Hour label spacing, grid lines  |
+| `--day-total-height` | `${m * 1440}px` | Total scrollable height (24h)   |
+| `--half-day-height`  | `${m * 720}px`  | Twelve hours at effective scale |
 
 These are set as inline styles rather than calculated with `calc()` in CSS because CSS custom property resolution scope means a child component cannot reliably read a `calc()`-based token set on a parent — each value must be a resolved length.
 
 ### Scroll snap
 
-Hour labels at hours 0, 12, and 24 carry `scroll-snap-align: start`. On initial render the container scrolls to the noon snap target so the working day is immediately visible.
+Hour labels at hours 0, 12, and 24 carry `scroll-snap-align: start` for half-day scrolling. Do not rely on an automatic initial scroll-to-noon API.
 
 ---
 
@@ -281,7 +256,7 @@ Hour labels use absolute positioning: `top: calc(${hour} * var(--hour-height))`.
             └─ <slot name="timed-YYYY-M-D">
 ```
 
-Each `.day-column` is a `position: relative` container. Entries slotted into `timed-YYYY-M-D` are absolutely positioned within their column. The same ResizeObserver pattern as Day.ts computes `--minute-height` from `.week-scroll.clientHeight`.
+Each `.day-column` is a `position: relative` container. Entries slotted into `timed-YYYY-M-D` are absolutely positioned within their column. The shared sizing controller computes the scale from wrapper/header geometry, while the root reads effective scale/minimum entry geometry to invalidate timed layout.
 
 ---
 
@@ -369,13 +344,13 @@ Two layout caches avoid redundant computation:
 - **Key:** `YYYY-MM-DD`
 - **Value:** `LayoutResult` (the `boxes` array from `LayoutCalculator`)
 - **Lookup:** Before calling `LayoutCalculator.calculateLayout()`, check if the day's result is already cached.
-- **Invalidation:** Cleared in `_computeEntryCaches()` when `entries` changes.
+- **Invalidation:** Cleared on entry/range/view changes and effective grid scale/minimum geometry changes.
 
 ### `_allDayLayoutCache` (composite key)
 
 - **Key:** Composite string including visible day offsets (so full-week and condensed layouts are cached separately).
 - **Value:** `{ rowAssignments, mergedEvents, totalRows }`
-- **Invalidation:** Cleared alongside `_layoutCache` on entry changes.
+- **Invalidation:** Cleared with range-dependent entry caches on entry/range/view changes.
 
 Both caches are `Map` instances on the component, so they are garbage-collected with the element.
 
@@ -383,14 +358,16 @@ Both caches are `Map` instances on the component, so they are garbage-collected 
 
 ## Related Files
 
-| File                                   | Role                                                |
-| -------------------------------------- | --------------------------------------------------- |
-| `src/lms-calendar.ts`                  | Entry expansion, cache management, render dispatch  |
-| `src/lib/SlotManager.ts`               | Position CSS generation, slot naming, accessibility |
-| `src/lib/LayoutCalculator.ts`          | Overlap detection, box layout (width/offset/z)      |
-| `src/lib/allDayLayout.ts`              | Row allocation for all-day events                   |
-| `src/lib/computeWeekDisplayContext.ts` | Condensed week algorithm                            |
-| `src/lib/ViewStateController.ts`       | Per-instance view mode and active date              |
-| `src/components/Day.ts`                | Day view DOM, ResizeObserver, time grid             |
-| `src/components/Week.ts`               | Week view DOM, condensed layout, all-day styling    |
-| `src/components/Entry.ts`              | Entry rendering, density modes, color handle        |
+| File                                         | Role                                                           |
+| -------------------------------------------- | -------------------------------------------------------------- |
+| `src/lms-calendar.ts`                        | Entry expansion, cache management, render dispatch             |
+| `src/lib/SlotManager.ts`                     | Position CSS generation, slot naming, accessibility            |
+| `src/lib/LayoutCalculator.ts`                | Overlap detection, box layout (width/offset/z)                 |
+| `src/lib/allDayLayout.ts`                    | Row allocation for all-day events                              |
+| `src/lib/weekDisplayContext.ts`              | Condensed week algorithm                                       |
+| `src/lib/ViewStateController.ts`             | Per-instance view mode and active date                         |
+| `src/lib/calendarModel.ts`                   | Civil endpoints, identity, normalization and bounded expansion |
+| `src/components/TimeGridSizingController.ts` | Reconnect-safe grid sizing                                     |
+| `src/components/Day.ts`                      | Day view DOM and time grid                                     |
+| `src/components/Week.ts`                     | Week view DOM, condensed layout, all-day styling               |
+| `src/components/Entry.ts`                    | Entry rendering, density modes, color handle                   |

@@ -8,119 +8,113 @@ section: Reference
 
 # API Server Guide
 
-Kalendus ships with an optional Node.js server that exposes REST and Server-Sent Events (SSE) endpoints for calendars and events. It gives products a ready-made backend for persisting entries, broadcasting real-time updates, and collecting telemetry without building a bespoke API.
+The optional `@jpahd/kalendus-server` package provides a Hono/SQLite REST API, in-process SSE invalidation and browser/Lit adapters. **[server/README.md](https://github.com/pders01/kalendus/blob/main/server/README.md) is the authoritative API and deployment guide**, including authorization policy context, limits, migrations, cookie/header transports, telemetry and package checks.
 
-## Architecture
+## Breaking security defaults
 
-- **Framework**: [Hono](https://hono.dev/) with middleware for CORS, logging, and Zod-powered validation.
-- **Database**: SQLite (via `better-sqlite3`) with [Drizzle ORM](https://orm.drizzle.team/) schema/migrations. Dates are decomposed into `startYear/startMonth/...` columns for efficient range queries.
-- **Services**: `CalendarService`, `EventService`, `SyncService` (in-process event bus), and `TelemetryService` encapsulate business logic.
-- **Adapters**:
-    - `KalendusApiClient` – vanilla fetch + EventSource wrapper.
-    - `KalendusLitAdapter` – Lit `ReactiveController` that binds `<lms-calendar>` navigation events to API calls.
+- **Private-deny by default:** `createApp({ db })` returns 403 on every `/api/calendars` route unless the host injects an `authorize` policy. This includes creation, event reads/writes, summary, manifest, telemetry and SSE. `/health` remains public.
+- The host authenticates real sessions/tokens and checks trusted per-calendar permissions on **every** request. Calendar IDs are not credentials. A configured policy takes precedence over public mode; policy errors never grant access.
+- `mode: 'public'` is an explicit unauthenticated demo choice, not a private deployment shortcut. The CLI stays closed unless `KALENDUS_PUBLIC_DEMO=true`; it binds to `127.0.0.1` unless deliberately changed.
+- There is no wildcard CORS default. Cross-origin browser access requires exact `allowedOrigins`; credentialed CORS also requires `allowCredentials: true`. CORS is not authentication, authorization or CSRF validation. Same-origin/nonbrowser clients still require authorization.
 
-## Running locally
+```ts
+import { createApp, createDb, migrateDb } from '@jpahd/kalendus-server';
 
-```bash
-# Install deps (once)
-npm install
-
-# From the server directory
-cd server
-
-# Generate database artifacts (stored in server/src/migrations)
-npm run db:generate
-
-# Apply migrations & seed demo data
-npm run db:migrate
-npm run db:seed
-
-# Start the dev server with TSX hot reload
-npm run dev
+const db = createDb();
+migrateDb(db); // deliberate deployment step
+const { app } = createApp({
+    db,
+    authorize: hostAuthorizationPolicy, // validates identity and calendar permissions
+    allowedOrigins: ['https://calendar.example'],
+    allowCredentials: true, // only if browser cookies are intended
+});
+// Mount app.fetch in your host HTTP server.
 ```
 
-Environment variables:
+The policy and host CSRF/session implementation are application-owned, not provided by this snippet. Use the complete policy/deployment discussion in the [server README](https://github.com/pders01/kalendus/blob/main/server/README.md#host-authorization-boundary).
 
-| Variable       | Default              | Description      |
-| -------------- | -------------------- | ---------------- |
-| `PORT`         | `3000`               | HTTP port        |
-| `DATABASE_URL` | `./data/kalendus.db` | SQLite file path |
+## Local demo and build
 
-## REST endpoints (all rooted at `/api/calendars`)
+From the checkout, using Bun:
 
-| Method & path                                             | Description                                                                |
-| --------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `GET /:calendarId`                                        | Fetch calendar manifest (name, locale, theme tokens).                      |
-| `POST /`                                                  | Create calendar.                                                           |
-| `PATCH /:calendarId`                                      | Update calendar metadata.                                                  |
-| `DELETE /:calendarId`                                     | Remove calendar (cascades events).                                         |
-| `GET /:calendarId/events?start=YYYY-MM-DD&end=YYYY-MM-DD` | List events in range.                                                      |
-| `GET /:calendarId/events/summary?start=...&end=...`       | Per-day counts for mobile/month badges.                                    |
-| `POST /:calendarId/events`                                | Create event (JSON body validated by Zod).                                 |
-| `PATCH /:calendarId/events/:eventId`                      | Update event.                                                              |
-| `DELETE /:calendarId/events/:eventId`                     | Remove event.                                                              |
-| `GET /:calendarId/manifest`                               | Lightweight manifest for client bootstrapping.                             |
-| `POST /:calendarId/telemetry`                             | Fire-and-forget analytics events.                                          |
-| `GET /:calendarId/stream`                                 | SSE channel broadcasting `{type, event}` payloads on create/update/delete. |
+```sh
+cd server
+bun install
+bun run build
+DATABASE_URL=./data/demo.db bun run db:migrate
+DATABASE_URL=./data/demo.db bun run db:seed # optional demo data, after migration
+# All reads/writes intentionally public; local demo only:
+KALENDUS_PUBLIC_DEMO=true DATABASE_URL=./data/demo.db bun run dev
+```
 
-Additional utility route: `GET /health` returns `{ status: 'ok' }`.
+Do not generate new database migrations merely to start the existing demo. `DATABASE_URL` accepts a filename, `file:` URL or `:memory:`; relative filenames resolve against caller cwd. Migration assets resolve relative to the module and are included in the server build. See the server guide for installed-package migration usage and shutdown.
 
-## Real-time sync & telemetry
+## Data and range boundaries
 
-`SyncService` publishes `created`, `updated`, and `deleted` messages through `/stream`. `KalendusApiClient.connect()` opens the SSE channel and `onSync` subscribers receive structured payloads. Heartbeats fire every 30s to keep proxies alive.
+The server retains its **legacy inclusive date-end/floating-time API**; it is not the root component's explicit temporal model. Dates must be real Gregorian dates in `1970..2100`; same-day timed writes require a strictly positive interval. Overnight writes need a later end date. Unknown write fields and client-supplied IDs are rejected, and PATCH validates the complete resulting record.
 
-Telemetry posts (e.g., navigation actions) are accepted asynchronously and intentionally return `202 Accepted` so clients can fire-and-forget.
+Range/summary queries accept inclusive `start`/`end` civil dates and are limited to 366 days and 5000 matching entries. Over-limit requests fail rather than silently truncating. Adapters preserve persistent IDs and independent nested date/time copies. See the server README for all validation/body/telemetry limits and status codes.
 
-## Using the client adapters
+## Browser client
 
-### Vanilla client
+Prefer same-origin authenticated deployment. Every client fetch uses configured fetch/headers/credentials:
 
 ```ts
 import { KalendusApiClient } from '@jpahd/kalendus-server/client';
 
 const client = new KalendusApiClient({
-    baseUrl: 'http://localhost:3000',
-    calendarId: 'demo',
+    baseUrl: '',
+    calendarId: 'your-calendar-id',
+    credentials: 'same-origin',
 });
-
-const entries = await client.fetchEvents('2026-03-01', '2026-03-31');
-calendar.entries = entries; // bind to <lms-calendar>
-
-client.onSync((msg) => {
-    console.log('SSE update', msg);
-});
-client.connect();
+const controller = new AbortController();
+const entries = await client.fetchEvents('2026-03-01', '2026-03-31', controller.signal);
+calendar.entries = entries; // inclusive API end, not visibleRange.end
+// On teardown: controller.abort(); client.disconnect();
 ```
 
-### Lit ReactiveController
+A host owns request-generation checks and loading/error UI when using the client directly. `onSync` provides mutation notifications; `onReconcile` signals full visible-range reconciliation on each initial/reconnected stream connection. Both return unsubscribe callbacks.
+
+Native EventSource cannot attach arbitrary bearer/CSRF headers. Header-authenticated apps must inject an authenticated reconnecting `streamFactory`, or disable sync; the client does not silently downgrade to unauthenticated SSE. Cross-origin cookie SSE needs deliberate credentials/CORS/cookie policy. Do not put secrets in stream URLs. See the authoritative [transport guidance](https://github.com/pders01/kalendus/blob/main/server/README.md#safe-browser-cookie-and-sse-deployment).
+
+## Lit adapter and committed state
 
 ```ts
+import { LitElement, html } from 'lit';
+import '@jpahd/kalendus';
 import { KalendusLitAdapter } from '@jpahd/kalendus-server/lit';
 
 class RemoteCalendar extends LitElement {
     adapter = new KalendusLitAdapter(this, {
-        baseUrl: 'http://localhost:3000',
-        calendarId: 'demo',
+        baseUrl: '',
+        calendarId: 'your-calendar-id',
         enableSync: true,
+        credentials: 'same-origin',
     });
-
     render() {
-        return html` <lms-calendar .entries=${this.adapter.entries}></lms-calendar> `;
+        return html`<lms-calendar .entries=${this.adapter.entries}></lms-calendar>`;
     }
 }
 ```
 
-The adapter listens to `switchdate`/`switchview`, fetches the relevant range, and optionally emits telemetry.
+The adapter consumes **only public committed state**: `activeDate`, `viewMode`, `firstDayOfWeek`, `visibleRange` and `calendar-state-change`. The root emits an initial snapshot plus changed snapshots after rendering. The adapter does **not** derive windows from `switchdate.detail.direction` / `switchview.detail.view`, private `_viewState`, a hardcoded Monday or a fixed six-week grid.
 
-## Testing the server
+It converts half-open ISO `range.end` to the preceding **civil date** for inclusive server queries. Identical ranges dedupe; refreshes abort predecessors and suppress stale fulfillment/rejection. Reconnected SSE triggers full reconciliation. `refresh()` retries/refetches a current range. Multiple calendars or non-queryable hosts should use an explicit `target`, `initialState` or `setState(snapshot)` as documented in the server README. Owners still bind `.entries` and render `loading`/`error` state.
 
-```bash
+See [Events Reference](./events.md#calendar-state-change) for the canonical snapshot payload.
+
+## Operational limits and verification
+
+SSE is best-effort **in-process invalidation**, not durable replay or cross-process pub/sub. Connections expire after five minutes to rerun authorization; revocation is not immediate on an already open stream. Slow consumers are bounded/disconnected. Production edge quotas, reverse-proxy buffering/timeouts, external identity, CSRF, durable telemetry and multiprocess reconciliation remain host responsibilities.
+
+```sh
 cd server
-npm test                # 54 tests
-npm run lint            # oxlint
-npm run format:check
+bun run test
+bun run typecheck
+bun run lint
+bun run build
+bun run test:package
+bun run test:browser # optional workspace browser integration
 ```
 
-Contract tests keep API shapes aligned with the Zod schemas in `server/src/http/middleware/validator.ts` and the TypeScript types consumed by the adapters.
-
-For production deployments, front a process manager (e.g., PM2) or container runtime, persist the SQLite file (or swap in another Drizzle-supported driver), and secure the `/telemetry` endpoint as needed.
+These are commands to run, not a claim that this documentation update executed them or verified a production deployment. Native integration has separate build/check and device gates in [expo-bridge/README.md](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md).

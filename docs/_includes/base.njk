@@ -47,8 +47,8 @@
     .site-header {
       position: fixed; top: 0; left: 0; right: 0;
       z-index: 100;
-      height: var(--header-h);
-      display: flex; align-items: center; gap: 12px;
+      min-height: 56px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
       padding: 0 20px;
       background: var(--clr-surface);
       border-bottom: 1px solid var(--clr-border);
@@ -105,35 +105,36 @@
       padding: 16px 12px 4px;
     }
 
-    /* ── Mobile toggle ───────────────────────────── */
-    #sidebar-toggle { display: none; }
-    .toggle-label {
-      display: none;
+    /* Native button disclosure; without JS navigation remains visible in flow. */
+    [hidden] { display: none !important; }
+    .nav-toggle {
+      font: inherit;
+      padding: 8px 12px;
+      min-block-size: 44px;
+      color: var(--clr-text);
+      background: var(--clr-bg);
+      border: 1px solid var(--clr-border);
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 22px;
-      line-height: 1;
-      user-select: none;
+    }
+    :where(a, button):focus-visible {
+      outline: 3px solid var(--clr-accent);
+      outline-offset: 2px;
     }
 
     @media (max-width: 768px) {
-      .toggle-label { display: block; }
       .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
+        position: static;
+        width: auto;
+        padding-top: calc(var(--header-h) + 20px);
       }
-      #sidebar-toggle:checked ~ .sidebar {
-        transform: translateX(0);
+      .js-nav .sidebar {
+        position: fixed;
+        padding-top: 20px;
+        width: min(100%, var(--sidebar-w));
+        max-height: calc(100dvh - var(--header-h));
       }
-      #sidebar-toggle:checked ~ .backdrop {
-        display: block;
-      }
-      .main { margin-left: 0 !important; }
-      .backdrop {
-        display: none;
-        position: fixed; inset: 0;
-        z-index: 80;
-        background: rgba(0,0,0,0.3);
-      }
+      .main { margin-left: 0 !important; padding: 24px 16px 48px; }
     }
 
     /* ── Main content ────────────────────────────── */
@@ -212,25 +213,21 @@
   </style>
 </head>
 <body>
-  <input type="checkbox" id="sidebar-toggle">
-
   <header class="site-header">
-    <label class="toggle-label" for="sidebar-toggle" aria-label="Toggle navigation">&#9776;</label>
+    <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="docs-sidebar" hidden>Navigation</button>
     <a href="{{ '/' | url }}">Kalendus</a>
     <a class="gh-link" href="https://github.com/pders01/kalendus">GitHub</a>
   </header>
 
-  <label class="backdrop" for="sidebar-toggle"></label>
-
-  <aside class="sidebar">
-    <nav>
+  <aside class="sidebar" id="docs-sidebar">
+    <nav aria-label="Documentation">
       {%- set currentSection = "" %}
       {%- for doc in collections.docs %}
         {%- if doc.data.section != currentSection %}
           {%- set currentSection = doc.data.section %}
           <div class="nav-section">{{ currentSection }}</div>
         {%- endif %}
-        <a href="{{ doc.url | url }}" {% if doc.url == page.url %}class="active"{% endif %}>
+        <a href="{{ doc.url | url }}" {% if doc.url == page.url %}class="active" aria-current="page"{% endif %}>
           {{ doc.data.title }}
         </a>
       {%- endfor %}
@@ -240,5 +237,35 @@
   <main class="main">
     {{ content | safe }}
   </main>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const sidebar = document.getElementById('docs-sidebar');
+    const narrow = matchMedia('(max-width: 768px)');
+    function setOpen(open) {
+      if (!open && sidebar.contains(document.activeElement)) toggle.focus();
+      sidebar.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+    }
+    function syncLayout() {
+      // Move focus before hiding the disclosure during a desktop transition.
+      if (!narrow.matches && document.activeElement === toggle) sidebar.querySelector('a')?.focus();
+      toggle.hidden = !narrow.matches;
+      setOpen(!narrow.matches);
+    }
+    document.documentElement.classList.add('js-nav');
+    toggle.addEventListener('click', () => setOpen(sidebar.hidden));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && narrow.matches && !sidebar.hidden) {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+    narrow.addEventListener('change', syncLayout);
+    syncLayout();
+    // A wrapped/enlarged header must not cover the navigation or main content.
+    new ResizeObserver(([entry]) => {
+      document.documentElement.style.setProperty('--header-h', `${entry.target.getBoundingClientRect().height}px`);
+    }).observe(document.querySelector('.site-header'));
+  </script>
 </body>
 </html>

@@ -27,11 +27,13 @@ import '@jpahd/kalendus/themes/midnight.css';
 // …etc.
 ```
 
-Each theme sets all tokens listed in the [CSS Token Reference](./css-tokens.md). You can import a theme as a starting point and override individual properties afterward.
+Each theme supplies opinionated token values. Import one as a starting point and override individual properties afterward; see the [CSS Token Reference](./css-tokens.md).
 
 ### Color Format Support
 
-The `color` property on `CalendarEntry` accepts any valid CSS color: hex (`#1976d2`), named (`steelblue`), `rgb()`, `hsl()`, `oklch()`, and all CSS Color Level 4 formats.
+The documented safe contract for root `color` and `CalendarEntry.color` is limited to hex (`#1976d2`), named (`steelblue`), `rgb()`/`rgba()` and `hsl()`/`hsla()` forms. Alpha is validated and discarded; rendered colors are opaque. Malformed or unsupported values use a safe fallback. OKLCH, arbitrary CSS expressions and `var(--custom-color)` are outside this documented property contract; do not rely on browser CSS parsing to extend it.
+
+CSS custom properties used by themes are a separate styling surface. A browser accepting a token value does not make it a supported JavaScript `color` property input.
 
 ## CSS Custom Properties
 
