@@ -49,5 +49,13 @@
     "namedView": "{view} view",
     "eventLabel": "{title}: {date}, {time}",
     "dateSummary": "{date}: {events}. Open day view",
-    "timeRange": "{start} – {end}"
+    "timeRange": "{start} – {end}",
+    "A": "Show all",
+    "F": "Show fewer",
+    "S": "Show events",
+    "H": "Hide events",
+    "agenda": "Agenda",
+    "timed": "Timed",
+    "description": "Description",
+    "downloadIcs": "Download .ics"
 }

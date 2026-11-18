@@ -9,7 +9,7 @@ const ALL_KEYS: MessageKey[] = [
     'previous', 'next', 'events',
     'calendarEvent', 'pressToOpen', 'to', 'switchToDayView',
     'showEarlierDays', 'showLaterDays', 'more', 'calendarView', 'viewLabel',
-    'allDayEventsWeek',
+    'allDayEventsWeek', 'agenda', 'timed', 'description', 'downloadIcs',
 ];
 
 describe('getMessages', () => {
@@ -18,7 +18,7 @@ describe('getMessages', () => {
     });
 
     describe('English fallbacks', () => {
-        it('should return English fallbacks for all 30 keys', () => {
+        it('should return English fallbacks for all message keys', () => {
             const msg = getMessages('en');
             expect(Object.keys(msg)).to.have.lengthOf(ALL_KEYS.length);
             for (const key of ALL_KEYS) {
@@ -49,6 +49,10 @@ describe('getMessages', () => {
             expect(msg.more).to.equal('more');
             expect(msg.calendarView).to.equal('Calendar view');
             expect(msg.viewLabel).to.equal('view');
+            expect(msg.agenda).to.equal('Agenda');
+            expect(msg.timed).to.equal('Timed');
+            expect(msg.description).to.equal('Description');
+            expect(msg.downloadIcs).to.equal('Download .ics');
         });
     });
 

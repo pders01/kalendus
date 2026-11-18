@@ -86,7 +86,10 @@ for (const locale of config.targetLocales) {
         `Incomplete keys: ${locale}`,
     );
     const original = await read(`src/locales/preserved/src/generated/locales/${locale}.ts.txt`);
-    for (const [, id, value] of original.matchAll(/(\w+): `([^`]*)`/g))
+    const originalRuntime = new Map(
+        [...original.matchAll(/(\w+): `([^`]*)`/g)].map(([, id, value]) => [id, value]),
+    );
+    for (const [id, value] of originalRuntime)
         assert.equal(templates[id], value, `Lost original translation: ${locale}/${id}`);
     const originalXlf = await read(`src/locales/preserved/xliff/${locale}.xlf.txt`);
     for (const [, id, value] of originalXlf.matchAll(
@@ -109,7 +112,15 @@ for (const locale of config.targetLocales) {
         );
     }
     catalogs.set(locale, templates);
-    await artifact(`src/generated/locales/${locale}.ts`, moduleText(templates));
+    // These obsolete inspector actions were XLIFF-only, never original runtime
+    // keys. Keep their values in the authoritative catalogs and regenerated XLIFF,
+    // but do not ship unused text. No original runtime key may be removed.
+    const runtime = { ...templates };
+    for (const id of ['s1c109a21525649fd', 's7264933e3c515250'])
+        if (!originalRuntime.has(id)) delete runtime[id];
+    for (const [id, value] of originalRuntime)
+        assert.equal(runtime[id], value, `Lost original runtime value: ${locale}/${id}`);
+    await artifact(`src/generated/locales/${locale}.ts`, moduleText(runtime));
     await artifact(`xliff/${locale}.xlf`, xlfText(locale, templates));
 }
 if (write) {

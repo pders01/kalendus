@@ -39,19 +39,22 @@ these snapshots.
 - Every one of the **810 original runtime dictionary values** is unchanged.
 - **16 additional translations**, across eight locales, existed only in XLIFF for
   the retired `Minimize` and `Drag to move menu` IDs. They are retained in canonical
-  JSON, extraction, and runtime artifacts too, even though they have no current UI
-  consumer.
-- Every locale now has **51 IDs**. The previously missing legacy
-  `allDayEventsWeek` label is explicitly backfilled with English pending translation.
-- New complete phrases/plurals are supplied for English, German, Arabic, Russian
-  and Polish. Other new phrases explicitly use English fallback rather than falsely
-  claiming complete translation. **New translations require native-speaker review**;
-  roundtrip/key checks prove preservation and structure, not linguistic correctness.
+  JSON, extraction and regenerated XLIFF. The published runtime omits these two
+  unused actions only when they were not original runtime keys. The generator and
+  a separate regression check retain all 810 original runtime values explicitly.
+- Every canonical locale has **59 IDs**; active runtime modules have **57**. The `allDayEventsWeek` label, complete contextual/count phrases, and the four added Agenda labels have values in every catalog.
+- The UI correction translates only post-preservation English seeds, never the
+  original translations or already translated complete phrases.
+  **New translations require native-speaker review**; roundtrip/key checks prove
+  preservation and structure, not linguistic correctness.
 
 ## Complete phrases and number/date policy
 
 `getMessageFormatters(locale)` adds `eventCount`, `moreEvents`, `dateSummary`,
-`switchToDayView`, `showWeek`, `viewLabel`, `eventLabel` and `timeRange`. Every phrase
+`switchToDayView`, `showWeek`, `viewLabel`, `eventLabel`, `timeRange` and
+`agendaAction(expanded, preview)`. The four list-action IDs `A/F/S/H` mean Show all,
+Show fewer, Show events and Hide events. The superseded uncommitted `showAll`
+count-bearing phrase/formatter was removed; this does not remove a legacy message. Every phrase
 can be reordered by translators with named placeholders. Count messages select
 `zero/one/two/few/many/other` with `Intl.PluralRules`, and use `Intl.NumberFormat`.
 Counts must be nonnegative safe integers. Legacy fragment fields remain compatible
@@ -64,8 +67,9 @@ resolve to the ready built-in English dictionary. Malformed tags safely use `en`
 Simplified Chinese aliases resolve to `zh-Hans`; Traditional Chinese does not
 silently resolve to Simplified Chinese.
 
-Date-only formatting uses a UTC civil-date carrier (not an event instant), including
-historically skipped local dates and years below 100. Week numbering is explicitly
+Date-only formatting uses an explicit Gregorian calendar and UTC civil-date carrier
+(not an event instant), including historically skipped local dates and years below 100. Locale order and requested numbering systems are retained; WebKit's Gregorian
+ASCII-digit fallback is reconciled with the locale's number formatter. Week numbering is explicitly
 **ISO-8601** and independent of `firstDayOfWeek`. The component's default remains
 Monday; locale-specific starts are recommendations, not automatic defaults.
 

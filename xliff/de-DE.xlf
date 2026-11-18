@@ -30,7 +30,7 @@
   <trans-unit id="sa1b2c3d4e5f60010"><source>more</source><target>mehr</target></trans-unit>
   <trans-unit id="sa1b2c3d4e5f60011"><source>Calendar view</source><target>Kalenderansicht</target></trans-unit>
   <trans-unit id="sa1b2c3d4e5f60012"><source>view</source><target>Ansicht</target></trans-unit>
-  <trans-unit id="sa1b2c3d4e5f60013"><source>All-day events for this week</source><target>All-day events for this week</target></trans-unit>
+  <trans-unit id="sa1b2c3d4e5f60013"><source>All-day events for this week</source><target>Ganztägige Termine dieser Woche</target></trans-unit>
   <trans-unit id="eventCount_zero"><source>{count} events</source><target>{count} Termine</target></trans-unit>
   <trans-unit id="moreCount_zero"><source>{count} more events</source><target>{count} weitere Termine</target></trans-unit>
   <trans-unit id="eventCount_one"><source>{count} event</source><target>{count} Termin</target></trans-unit>
@@ -51,4 +51,12 @@
   <trans-unit id="eventLabel"><source>{title}: {date}, {time}</source><target>{title}: {date}, {time}</target></trans-unit>
   <trans-unit id="dateSummary"><source>{date}: {events}. Open day view</source><target>{date}: {events}. Tagesansicht öffnen</target></trans-unit>
   <trans-unit id="timeRange"><source>{start} – {end}</source><target>{start} – {end}</target></trans-unit>
+  <trans-unit id="A"><source>Show all</source><target>Alle anzeigen</target></trans-unit>
+  <trans-unit id="F"><source>Show fewer</source><target>Weniger anzeigen</target></trans-unit>
+  <trans-unit id="S"><source>Show events</source><target>Termine anzeigen</target></trans-unit>
+  <trans-unit id="H"><source>Hide events</source><target>Termine ausblenden</target></trans-unit>
+  <trans-unit id="agenda"><source>Agenda</source><target>Tagesliste</target></trans-unit>
+  <trans-unit id="timed"><source>Timed</source><target>Mit Uhrzeit</target></trans-unit>
+  <trans-unit id="description"><source>Description</source><target>Beschreibung</target></trans-unit>
+  <trans-unit id="downloadIcs"><source>Download .ics</source><target>.ics herunterladen</target></trans-unit>
 </body></file></xliff>

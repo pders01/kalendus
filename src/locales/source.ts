@@ -52,4 +52,12 @@ export const messages = [
     msg('{title}: {date}, {time}', { id: 'eventLabel' }),
     msg('{date}: {events}. Open day view', { id: 'dateSummary' }),
     msg('{start} – {end}', { id: 'timeRange' }),
+    msg('Show all', { id: 'A' }),
+    msg('Show fewer', { id: 'F' }),
+    msg('Show events', { id: 'S' }),
+    msg('Hide events', { id: 'H' }),
+    msg('Agenda', { id: 'agenda' }),
+    msg('Timed', { id: 'timed' }),
+    msg('Description', { id: 'description' }),
+    msg('Download .ics', { id: 'downloadIcs' }),
 ];

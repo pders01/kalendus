@@ -29,7 +29,7 @@
     "sa1b2c3d4e5f60010": "ещё",
     "sa1b2c3d4e5f60011": "Вид календаря",
     "sa1b2c3d4e5f60012": "вид",
-    "sa1b2c3d4e5f60013": "All-day events for this week",
+    "sa1b2c3d4e5f60013": "События на весь день на этой неделе",
     "eventCount_zero": "{count} событий",
     "moreCount_zero": "Ещё {count} событий",
     "eventCount_one": "{count} событие",
@@ -49,5 +49,13 @@
     "namedView": "Вид: {view}",
     "eventLabel": "{title}: {date}, {time}",
     "dateSummary": "{date}: {events}. Открыть день",
-    "timeRange": "{start} – {end}"
+    "timeRange": "{start} – {end}",
+    "A": "Показать все",
+    "F": "Показать меньше",
+    "S": "Показать события",
+    "H": "Скрыть события",
+    "agenda": "Повестка дня",
+    "timed": "С указанием времени",
+    "description": "Описание",
+    "downloadIcs": "Скачать .ics"
 }

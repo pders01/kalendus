@@ -29,7 +29,7 @@
     "sa1b2c3d4e5f60010": "المزيد",
     "sa1b2c3d4e5f60011": "عرض التقويم",
     "sa1b2c3d4e5f60012": "عرض",
-    "sa1b2c3d4e5f60013": "All-day events for this week",
+    "sa1b2c3d4e5f60013": "أحداث طوال اليوم لهذا الأسبوع",
     "eventCount_zero": "{count} أحداث",
     "moreCount_zero": "{count} أحداث إضافية",
     "eventCount_one": "{count} حدث",
@@ -49,5 +49,13 @@
     "namedView": "عرض {view}",
     "eventLabel": "{title}: {date}, {time}",
     "dateSummary": "{date}: {events}. عرض اليوم",
-    "timeRange": "{start} – {end}"
+    "timeRange": "{start} – {end}",
+    "A": "عرض الكل",
+    "F": "عرض أقل",
+    "S": "عرض الأحداث",
+    "H": "إخفاء الأحداث",
+    "agenda": "جدول الأعمال",
+    "timed": "محددة الوقت",
+    "description": "الوصف",
+    "downloadIcs": "تنزيل ‎.ics"
 }
