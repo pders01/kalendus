@@ -73,9 +73,10 @@ async function inspector({
         : el.shadowRoot!;
     const card = root.querySelector<HTMLDialogElement>('.card')!;
     const notes = card.querySelector<HTMLElement>('.notes')!;
+    const body = card.querySelector<HTMLElement>('.body')!;
     const close = card.querySelector<HTMLButtonElement>('.close-btn')!;
     const exportButton = card.querySelector<HTMLButtonElement>('.export-btn')!;
-    return { wrapper, el, root, card, notes, close, exportButton, invoker };
+    return { wrapper, el, root, card, body, notes, close, exportButton, invoker };
 }
 
 describe('Inspector visual geometry and keyboard regressions', () => {
@@ -104,36 +105,39 @@ describe('Inspector visual geometry and keyboard regressions', () => {
         { width: 320, height: 360, rtl: true, fallback: false },
         { width: 320, height: 360, rtl: true, fallback: true },
     ]) {
-        it(`keeps close/export outside scrolling notes at ${JSON.stringify(dimensions)}`, async () => {
+        it(`keeps close/export outside the scrolling details body at ${JSON.stringify(dimensions)}`, async () => {
             await setViewport({ width: dimensions.width, height: dimensions.height });
-            const { el, card, notes, close, exportButton, root, invoker, wrapper } =
+            const { el, card, body, notes, close, exportButton, root, invoker, wrapper } =
                 await inspector(dimensions);
             contained(bounds(card), new DOMRect(0, 0, dimensions.width, dimensions.height));
             contained(bounds(close), bounds(card));
             contained(bounds(exportButton), bounds(card));
             expect(card.scrollWidth).to.be.at.most(card.clientWidth + 1);
             expect(notes.scrollWidth).to.be.at.most(notes.clientWidth + 1);
-            expect(notes.scrollHeight).to.be.greaterThan(notes.clientHeight);
-            expect(notes.clientHeight).to.be.greaterThan(40);
-            expect(notes.getAttribute('aria-label')).to.equal(
-                getMessages(dimensions.rtl ? 'ar' : 'en').notes,
+            expect(body.scrollHeight).to.be.greaterThan(body.clientHeight);
+            expect(body.clientHeight).to.be.greaterThan(40);
+            expect(body.getAttribute('aria-label')).to.equal(
+                getMessages(dimensions.rtl ? 'ar' : 'en').eventDetails,
             );
-            expect(notes.tabIndex).to.equal(0);
+            expect(body.tabIndex).to.equal(0);
             expect(card.hasAttribute('aria-modal')).to.equal(false);
             expect(document.body.inert).to.equal(false);
             expect(root.activeElement === close, 'close receives initial focus').to.equal(true);
             if (dimensions.rtl)
                 expect(bounds(close).right).to.be.lessThan(
-                    bounds(card.querySelector('.title')!).left,
+                    bounds(card).left + bounds(card).width / 2,
                 );
 
             const closeBefore = bounds(close);
             const exportBefore = bounds(exportButton);
             await sendKeys({ press: tabKey });
-            expect(root.activeElement === notes, 'Tab reaches scrollable notes').to.equal(true);
-            expect(getComputedStyle(notes).outlineStyle).not.to.equal('none');
+            expect(
+                root.activeElement === body,
+                `Tab reaches scrollable details (open=${el.open}, active=${root.activeElement?.tagName}.${root.activeElement?.className}, document=${document.activeElement?.tagName})`,
+            ).to.equal(true);
+            expect(getComputedStyle(body).outlineStyle).not.to.equal('none');
             await sendKeys({ press: 'End' });
-            await waitUntil(() => notes.scrollTop > 0);
+            await waitUntil(() => body.scrollTop > 0);
             expect(bounds(close).top).to.be.closeTo(closeBefore.top, 1);
             expect(bounds(exportButton).top).to.be.closeTo(exportBefore.top, 1);
             expect(card.scrollTop).to.equal(0);
@@ -155,7 +159,13 @@ describe('Inspector visual geometry and keyboard regressions', () => {
             expect(document.activeElement === background, 'background remains focusable').to.equal(
                 true,
             );
-            close.focus();
+            await settle();
+            expect(el.open, 'background keyboard focus dismisses the surface').to.equal(false);
+            expect(document.activeElement).to.equal(background);
+            invoker.focus();
+            el.open = true;
+            await el.updateComplete;
+            await settle();
             let closes = 0;
             el.addEventListener('menu-close', () => closes++);
             await sendKeys({ press: 'Escape' });
@@ -177,7 +187,7 @@ describe('Inspector visual geometry and keyboard regressions', () => {
     })) {
         it(`uses one header inset and theme controls in ${name}`, async () => {
             await setViewport({ width: 1184, height: 824 });
-            const { el, card, notes, close, exportButton } = await inspector({
+            const { el, card, body, notes, close, exportButton } = await inspector({
                 theme,
                 long: false,
             });
@@ -186,7 +196,7 @@ describe('Inspector visual geometry and keyboard regressions', () => {
             expect(bounds(title).left).to.be.closeTo(bounds(meta).left, 1);
             expect(bounds(title).left - bounds(card).left).to.be.closeTo(17, 1);
             expect(bounds(notes).left).to.be.closeTo(bounds(meta).left, 1);
-            expect(notes.hasAttribute('tabindex')).to.equal(false);
+            expect(body.hasAttribute('tabindex')).to.equal(false);
             expect(bounds(card).height).to.be.lessThan(270);
             for (const button of [close, exportButton]) {
                 contained(bounds(button), bounds(card));

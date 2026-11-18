@@ -194,7 +194,7 @@ bun run i18n:check
 
 Header controls are semantic labeled buttons with view state. Date grids implement keyboard navigation; entry controls support Enter/Space. The root has a concise polite range announcement rather than making the full entry tree a live region.
 
-The inspector is **non-modal**, using a top-layer popover where supported and a body-portal/dialog fallback. Tab can leave it; the background is not inert. Opening focuses its close control; Escape, close and light dismissal dismiss it. Focus restoration avoids stealing focus from a control chosen during light dismissal. These are implementation behaviors, not full-accessibility certification; Safari, real-device, reflow and screen-reader checks remain separate verification.
+The inspector is **non-modal**, using a top-layer popover where supported and a body-portal/dialog fallback. A short title and close control share one row. The title, temporal metadata and notes can scroll in the adjacent body column while close and export remain reachable; long content is not truncated to preserve the header. Tab can leave it; the background is not inert. Opening focuses its close control; Escape, close and light dismissal dismiss it. Focus restoration avoids stealing focus from a control chosen during light dismissal. These are implementation behaviors, not full-accessibility certification; Safari, real-device, reflow and screen-reader checks remain separate verification.
 
 ## Integration and testing
 

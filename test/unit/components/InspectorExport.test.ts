@@ -41,13 +41,13 @@ describe('Non-modal event inspector interactions', () => {
         expect(rect.right).to.be.at.most(window.innerWidth);
         expect(rect.top).to.be.at.least(0);
         expect(rect.bottom).to.be.at.most(window.innerHeight);
-        const notes = card.querySelector<HTMLElement>('.notes')!;
-        expect(notes.scrollHeight).to.be.greaterThan(notes.clientHeight);
+        const body = card.querySelector<HTMLElement>('.body')!;
+        expect(body.scrollHeight).to.be.greaterThan(body.clientHeight);
         expect(card.scrollHeight).to.be.at.most(card.clientHeight + 1);
-        await waitUntil(() => notes.tabIndex === 0);
-        notes.focus();
+        await waitUntil(() => body.tabIndex === 0);
+        body.focus();
         await sendKeys({ press: 'PageDown' });
-        await waitUntil(() => notes.scrollTop > 0);
+        await waitUntil(() => body.scrollTop > 0);
         expect(card.scrollTop).to.equal(0);
         for (const button of card.querySelectorAll('button')) {
             const buttonRect = button.getBoundingClientRect();
@@ -81,8 +81,15 @@ describe('Non-modal event inspector interactions', () => {
         await sendKeys({ press: 'Tab' });
         expect(el.shadowRoot!.activeElement).not.to.equal(card.querySelector('.close-btn'));
         after.focus();
+        await settle();
         expect(document.activeElement).to.equal(after);
-        card.querySelector<HTMLButtonElement>('.close-btn')!.focus();
+        expect(el.open, 'leaving the non-modal surface dismisses without stealing focus').to.be
+            .false;
+        invoker.focus();
+        el.open = true;
+        await el.updateComplete;
+        await settle();
+        expect(el.shadowRoot!.activeElement).to.equal(card.querySelector('.close-btn'));
         await sendKeys({ press: 'Escape' });
         await settle();
         expect(el.open).to.be.false;
@@ -245,8 +252,9 @@ describe('Non-modal event inspector interactions', () => {
         await settle();
         expect(error).to.be.instanceOf(Error);
         expect(el.shadowRoot!.querySelector('[role="alert"]')!.textContent).to.include('date');
-        expect(el.shadowRoot!.querySelector<HTMLButtonElement>('.export-btn')!.disabled).to.be
-            .false;
+        expect(el.shadowRoot!.querySelector('.export-btn')!.getAttribute('aria-disabled')).to.equal(
+            'false',
+        );
     });
 });
 

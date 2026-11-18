@@ -1177,7 +1177,7 @@ export default class LMSCalendar extends LitElement {
                 </header>
 
                 <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${this._rangeDescription()}</p>
-                <section class="calendar-view" role="region" data-menu-focus-fallback tabindex="-1" aria-label=${this._rangeDescription()}>
+                <section class="calendar-view" role="region" data-menu-focus-fallback tabindex="-1" aria-label=${this._rangeDescription()} @open-menu=${this._handleOpenMenu}>
                     ${this._entriesError ? html`<slot name="entries-error"><p role="alert" lang="en">${this._entriesError}</p></slot>` : nothing}
                     ${
                         viewMode === 'month'
@@ -1186,7 +1186,6 @@ export default class LMSCalendar extends LitElement {
                                   @expand=${this._handleExpand}
                                   @date-summary=${this._handleExpand}
                                   @date-navigate=${this._handleDateNavigate}
-                                  @open-menu=${this._handleOpenMenu}
                                   @clear-other-selections=${this._handleClearOtherSelections}
                                   .activeDate=${currentActiveDate}
                                   .firstDayOfWeek=${this.firstDayOfWeek}
@@ -1217,7 +1216,6 @@ export default class LMSCalendar extends LitElement {
                                       <lms-calendar-week
                                           @expand=${this._handleExpand}
                                           @peek-navigate=${this._handlePeekNavigate}
-                                          @open-menu=${this._handleOpenMenu}
                                           @clear-other-selections=${this._handleClearOtherSelections}
                                           .activeDate=${currentActiveDate}
                                           .allDayRowCount=${result.allDayRowCount}
@@ -1243,7 +1241,6 @@ export default class LMSCalendar extends LitElement {
                                   const result = this._renderEntriesByDate();
                                   return html`
                                       <lms-calendar-day
-                                          @open-menu=${this._handleOpenMenu}
                                           @clear-other-selections=${this._handleClearOtherSelections}
                                           .allDayRowCount=${result.allDayRowCount}
                                           .activeDate=${currentActiveDate}
@@ -1346,9 +1343,16 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _handleOpenMenu(e: CustomEvent) {
-        const clickedEntry = e
-            .composedPath()
-            .find((target): target is LMSCalendarEntry => target instanceof LMSCalendarEntry);
+        const path = e.composedPath();
+        const clickedEntry = path.find(
+            (target): target is LMSCalendarEntry => target instanceof LMSCalendarEntry,
+        );
+        const invoker =
+            clickedEntry ??
+            path.find(
+                (target): target is HTMLElement =>
+                    target instanceof HTMLElement && target.hasAttribute('data-entry-request'),
+            );
         // Ancestor listeners must see the original request before its default
         // action. A handler on an internal view runs before host bubbling.
         queueMicrotask(() => {
@@ -1359,17 +1363,7 @@ export default class LMSCalendar extends LitElement {
             const canonical = e.detail.entry ?? clickedEntry?.canonicalEntry;
             if (
                 canonical &&
-                !this.dispatchEvent(
-                    new CustomEvent('entry-activate', {
-                        bubbles: true,
-                        composed: true,
-                        cancelable: true,
-                        detail: {
-                            entry: canonical,
-                            eventId: e.detail.eventId ?? clickedEntry?.eventId,
-                        },
-                    }),
-                )
+                !this._allowEntryActivation(canonical, e.detail.eventId ?? clickedEntry?.eventId)
             ) {
                 clickedEntry?.clearSelection();
                 return;
@@ -1377,9 +1371,20 @@ export default class LMSCalendar extends LitElement {
             this.shadowRoot?.querySelectorAll('lms-calendar-entry').forEach((entry) => {
                 if (entry !== clickedEntry) entry.clearSelection();
             });
-            this._menuTriggerEntry = clickedEntry;
+            this._menuTriggerEntry = invoker;
             this.openMenu({ ...e.detail, entry: canonical });
         });
+    }
+
+    private _allowEntryActivation(entry: CalendarEntry, eventId?: string) {
+        return this.dispatchEvent(
+            new CustomEvent('entry-activate', {
+                bubbles: true,
+                composed: true,
+                cancelable: true,
+                detail: { entry, eventId },
+            }),
+        );
     }
 
     private _handleClearOtherSelections(e: CustomEvent) {
@@ -1397,8 +1402,8 @@ export default class LMSCalendar extends LitElement {
         this._menuEventDetails = undefined;
         // Clear the trigger entry's highlight before returning focus,
         // so it can be clicked again immediately.
-        if (this._menuTriggerEntry) {
-            (this._menuTriggerEntry as LMSCalendarEntry).clearSelection();
+        if (this._menuTriggerEntry instanceof LMSCalendarEntry) {
+            this._menuTriggerEntry.clearSelection();
         }
         // Menu owns focus restoration. In particular, a non-modal light dismiss
         // must not steal focus back from another control the user just chose.

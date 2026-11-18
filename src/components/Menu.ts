@@ -1,13 +1,12 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
-import { styleMap } from 'lit/directives/style-map.js';
 import { DateTime } from 'luxon';
 
 import { formatLocalizedDate, formatLocalizedTimeRange } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
 import type { CalendarDate, CalendarEntry } from '../lms-calendar.js';
-import { generateEntryIcs, isAllDayExport } from './entryExport.js';
+import { downloadEntryIcs, isAllDayExport } from './entryExport.js';
 
 export interface EventDetails {
     heading: string;
@@ -20,8 +19,6 @@ export interface EventDetails {
     eventId?: string;
 }
 
-const legacyUids = new WeakMap<object, string>();
-let nextLegacyUid = 0;
 const openInspectors: Menu[] = [];
 
 /** A deliberately non-modal, light-dismissible event inspector. */
@@ -34,19 +31,22 @@ export class Menu extends LitElement {
         displayTime: '',
     };
     @property({ attribute: false }) anchorRect?: DOMRect;
+    /** Standalone inspectors stay anchored; calendar owners can opt into a stable trailing rail. */
+    @property({ type: String }) placement: 'anchor' | 'edge' = 'anchor';
+    /** Visible calendar-view bounds, without changing its layout or range. */
+    @property({ attribute: false }) containment?: HTMLElement;
     /** Logical fallback when the invoker was removed while the inspector was open. */
     @property({ attribute: false }) returnFocusTarget?: HTMLElement;
     @property({ type: String }) locale = 'en';
     @property({ type: Number }) localeVersion = 0;
-    private _cardTop = 8;
-    private _cardLeft = 8;
     @state() private _exportError = '';
     @state() private _exporting = false;
-    @state() private _notesScrollable = false;
+    @state() private _bodyScrollable = false;
     private _wasOpen = false;
     private _returnFocus?: HTMLElement;
     private _portal?: HTMLElement;
     private _frame = 0;
+    private _focusFrame = 0;
     private _resizeObserver?: ResizeObserver;
     private _card?: HTMLDialogElement;
     private get _hasPopover() {
@@ -82,10 +82,9 @@ export class Menu extends LitElement {
             max-inline-size: min(var(--menu-max-width, 22em), calc(100vw - 16px));
             max-block-size: calc(100vh - 16px);
             max-block-size: calc(100dvh - 16px);
-            display: flex;
             flex-direction: column;
-            /* Keep emergency overflow available for unusually large titles/text zoom. */
-            overflow: auto;
+            /* Only the body scrolls: neither long headings nor notes can displace actions. */
+            overflow: hidden;
             overscroll-behavior: contain;
             background: var(--background-color, Canvas);
             color: var(--text-color, CanvasText);
@@ -95,23 +94,38 @@ export class Menu extends LitElement {
             font-family: var(--system-ui, system-ui);
             padding: 0;
         }
-        .header {
+        .card:is([open], :popover-open) {
             display: flex;
-            align-items: flex-start;
-            gap: var(--menu-detail-gap, 0.5em);
-            flex: 0 0 auto;
+        }
+        .header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            flex: 1 1 auto;
+            min-block-size: 0;
+        }
+        .toolbar {
+            grid-area: 1 / 2;
+            align-self: start;
+            display: flex;
             padding: var(--menu-padding, var(--menu-header-padding, 0.875em 1em));
+            padding-inline-start: 0;
+            padding-block-end: 0;
         }
         .body {
-            display: flex;
-            flex-direction: column;
-            flex: 0 1 auto;
+            grid-area: 1 / 1;
+            min-inline-size: 0;
             min-block-size: 0;
+            overflow: auto;
+            overscroll-behavior: contain;
+        }
+        .content {
             padding: var(--menu-padding, var(--menu-content-padding, 0.875em 1em));
             padding-block: 0;
         }
+        .heading {
+            padding: var(--menu-padding, var(--menu-header-padding, 0.875em 1em));
+        }
         .title {
-            flex: 1;
             min-inline-size: 0;
             font-size: var(--menu-title-font-size, 1em);
             margin: 0;
@@ -127,7 +141,7 @@ export class Menu extends LitElement {
             min-inline-size: 24px;
             border-radius: var(--border-radius-sm, 4px);
         }
-        :is(button, .notes):focus-visible {
+        :is(button, .body):focus-visible {
             outline: 2px solid currentColor;
             outline-offset: 2px;
         }
@@ -147,16 +161,12 @@ export class Menu extends LitElement {
             background: var(--hover-bg, #8882);
         }
         .meta {
-            flex: 0 0 auto;
             overflow-wrap: anywhere;
             font-size: var(--menu-content-font-size, 0.875em);
             color: inherit;
             line-height: 1.5;
         }
         .notes {
-            min-block-size: 0;
-            overflow: auto;
-            overscroll-behavior: contain;
             margin-block-start: 0.5em;
             padding-block-start: 0.625em;
             border-block-start: 1px solid var(--separator-light, GrayText);
@@ -165,7 +175,7 @@ export class Menu extends LitElement {
             white-space: pre-wrap;
             line-height: 1.4;
         }
-        .notes:focus-visible {
+        .body:focus-visible {
             outline-offset: -2px;
         }
         .actions {
@@ -184,7 +194,7 @@ export class Menu extends LitElement {
         .export-btn:hover {
             text-decoration: underline;
         }
-        .export-btn:disabled {
+        .export-btn[aria-disabled='true'] {
             cursor: wait;
             opacity: 0.65;
         }
@@ -204,7 +214,7 @@ export class Menu extends LitElement {
             .card {
                 border: 1px solid CanvasText;
             }
-            :is(button, .notes):focus-visible {
+            :is(button, .body):focus-visible {
                 outline-color: Highlight;
             }
         }
@@ -237,9 +247,18 @@ export class Menu extends LitElement {
         this._card ??= this.renderRoot.querySelector<HTMLDialogElement>('.card')!;
         if (this.open && !this._wasOpen) this._show();
         else if (!this.open && this._wasOpen) this._hide(true);
+        if (this.open && changed.has('containment')) {
+            const previous = changed.get('containment') as HTMLElement | undefined;
+            if (previous) this._resizeObserver?.unobserve(previous);
+            if (this.containment) this._resizeObserver?.observe(this.containment);
+        }
+        if (this.open && changed.has('eventDetails'))
+            this._card.querySelector<HTMLElement>('.body')!.scrollTop = 0;
         if (
             this.open &&
-            (changed.has('anchorRect') ||
+            (changed.has('placement') ||
+                changed.has('containment') ||
+                changed.has('anchorRect') ||
                 changed.has('eventDetails') ||
                 changed.has('locale') ||
                 changed.has('localeVersion'))
@@ -275,10 +294,16 @@ export class Menu extends LitElement {
             root.append(style, card);
             document.body.append(portal);
             this._portal = portal;
-            card.show();
+            // A non-modal open dialog; manage focus ourselves, as WebKit's
+            // close() can restore its invoker even after focus moved outside.
+            card.open = true;
         }
         this._resizeObserver = new ResizeObserver(this._schedulePosition);
         this._resizeObserver.observe(card);
+        this._resizeObserver.observe(card.querySelector('.body')!);
+        this._resizeObserver.observe(card.querySelector('.title')!);
+        this._resizeObserver.observe(card.querySelector('.content')!);
+        if (this.containment) this._resizeObserver.observe(this.containment);
         this._computePosition();
         card.querySelector<HTMLButtonElement>('.close-btn')?.focus({ preventScroll: true });
     }
@@ -288,13 +313,15 @@ export class Menu extends LitElement {
         const index = openInspectors.indexOf(this);
         if (index >= 0) openInspectors.splice(index, 1);
         cancelAnimationFrame(this._frame);
+        cancelAnimationFrame(this._focusFrame);
         this._frame = 0;
+        this._focusFrame = 0;
         this._resizeObserver?.disconnect();
         const active = this._deepActiveElement();
         const hadFocus = !!active && !!this._card?.contains(active);
         if (this._hasPopover && this._card?.matches(':popover-open')) this._card.hidePopover();
         if (this._portal) {
-            this._card?.close();
+            if (this._card) this._card.open = false;
             this.renderRoot.append(this._card!);
             this._portal.remove();
             this._portal = undefined;
@@ -330,6 +357,20 @@ export class Menu extends LitElement {
         if (this.open && !this._hasPopover && !event.composedPath().includes(this._card!))
             this._handleClose(false);
     };
+    private _focusLeft = () => {
+        // Tab can also leave for browser chrome, without a document focusin.
+        // Wait for the complete focus transition, not the intermediate body focus.
+        cancelAnimationFrame(this._focusFrame);
+        this._focusFrame = requestAnimationFrame(() => {
+            this._focusFrame = 0;
+            if (
+                this.open &&
+                this._wasOpen &&
+                !this._card?.contains(this._deepActiveElement() ?? null)
+            )
+                this._handleClose(false);
+        });
+    };
     private _schedulePosition = () => {
         if (!this.open || this._frame || !this.isConnected) return;
         this._frame = requestAnimationFrame(() => {
@@ -355,17 +396,50 @@ export class Menu extends LitElement {
         const height = viewport?.height ?? window.innerHeight;
         const x = viewport?.offsetLeft ?? 0;
         const y = viewport?.offsetTop ?? 0;
-        card.style.minWidth = `min(var(--menu-min-width, 16em), var(--menu-max-width, 22em), ${Math.max(0, width - 16)}px)`;
-        card.style.maxWidth = `min(var(--menu-max-width, 22em), ${Math.max(0, width - 16)}px)`;
-        card.style.maxHeight = `${Math.max(0, height - 16)}px`;
-        const rect = card.getBoundingClientRect();
+        const rtl = getComputedStyle(this).direction === 'rtl';
+        const viewportBounds = {
+            left: x + 8,
+            right: x + width - 8,
+            top: y + 8,
+            bottom: y + height - 8,
+        };
+        let bounds = viewportBounds;
+        if (this.placement === 'edge' && this.containment?.isConnected) {
+            const container = this.containment.getBoundingClientRect();
+            const intersection = {
+                left: Math.max(viewportBounds.left, container.left + 8),
+                right: Math.min(viewportBounds.right, container.right - 8),
+                top: Math.max(viewportBounds.top, container.top + 8),
+                bottom: Math.min(viewportBounds.bottom, container.bottom - 8),
+            };
+            // A wholly offscreen/empty owner has no usable intersection.
+            if (intersection.right > intersection.left && intersection.bottom > intersection.top)
+                bounds = intersection;
+        }
+        const availableInline = Math.max(0, bounds.right - bounds.left);
+        const availableBlock = Math.max(0, bounds.bottom - bounds.top);
+        card.style.minInlineSize = `min(var(--menu-min-width, 16em), var(--menu-max-width, 22em), ${availableInline}px)`;
+        card.style.maxInlineSize = `min(var(--menu-max-width, 22em), ${availableInline}px)`;
+        card.style.maxBlockSize = `${availableBlock}px`;
+        card.style.inlineSize = '';
+        card.style.blockSize = '';
+        if (this.placement === 'edge') {
+            const preferredInline = card.getBoundingClientRect().width;
+            // Do not leave a sliver of background beside a sheet in a compact embed.
+            if (availableInline < preferredInline * 1.5 || availableBlock < 400) {
+                card.style.maxInlineSize = `${availableInline}px`;
+                card.style.inlineSize = `${availableInline}px`;
+            }
+            card.style.blockSize = `${availableBlock}px`;
+        }
+        let rect = card.getBoundingClientRect();
         // Layout-derived focusability cannot be known in willUpdate. Reconcile
         // after the current render finishes, rather than scheduling an update
         // from inside updated() when the inspector first opens.
         queueMicrotask(() => {
             if (!this.isConnected || !this.open) return;
-            const notes = this._card?.querySelector<HTMLElement>('.notes');
-            this._notesScrollable = !!notes && notes.scrollHeight > notes.clientHeight;
+            const body = this._card?.querySelector<HTMLElement>('.body');
+            this._bodyScrollable = !!body && body.scrollHeight > body.clientHeight;
         });
         const anchor =
             this.anchorRect &&
@@ -375,21 +449,53 @@ export class Menu extends LitElement {
                 : this.anchorRect;
         let left = x + (width - rect.width) / 2;
         let top = y + (height - rect.height) / 2;
-        if (anchor) {
-            const rtl = getComputedStyle(this).direction === 'rtl';
-            left = rtl ? anchor.left - rect.width - 8 : anchor.right + 8;
-            if (left < x + 8 || left + rect.width > x + width - 8)
-                left = rtl ? anchor.right + 8 : anchor.left - rect.width - 8;
-            // If neither side fits, center instead of pinning an otherwise
-            // narrow card asymmetrically against a phone's viewport edge.
-            if (left < x + 8 || left + rect.width > x + width - 8)
-                left = x + (width - rect.width) / 2;
+        if (this.placement === 'edge') {
+            left = rtl ? bounds.left : bounds.right - rect.width;
+            top = bounds.top;
+        } else if (anchor && availableInline >= rect.width * 1.5) {
+            // Compact viewports deliberately use the centered, bounded
+            // nonmodal dialog instead of a nearly full-width anchored overlay.
+            const room = {
+                left: Math.max(0, anchor.left - 8 - bounds.left),
+                right: Math.max(0, bounds.right - anchor.right - 8),
+                above: Math.max(0, anchor.top - 8 - bounds.top),
+                below: Math.max(0, bounds.bottom - anchor.bottom - 8),
+            };
+            const preferred = rtl ? 'left' : 'right';
+            const other = rtl ? 'right' : 'left';
+            let side: 'left' | 'right' | 'above' | 'below' | undefined;
+            if (room[preferred] >= rect.width) side = preferred;
+            else if (room[other] >= rect.width) side = other;
+            else if (room.below >= rect.height) side = 'below';
+            else if (room.above >= rect.height) side = 'above';
+            else {
+                // A long inspector can still leave its event visible. Bound only
+                // the scrolling body, never stretch short content into a rail.
+                const horizontal = room[preferred] >= room[other] ? preferred : other;
+                const vertical = room.below >= room.above ? 'below' : 'above';
+                const minimumInline = parseFloat(getComputedStyle(card).minInlineSize);
+                if (room[horizontal] >= minimumInline && room[horizontal] > 0) {
+                    side = horizontal;
+                    card.style.maxInlineSize = `${room[horizontal]}px`;
+                } else if (room[vertical] >= 160) {
+                    side = vertical;
+                    card.style.maxBlockSize = `${room[vertical]}px`;
+                }
+                rect = card.getBoundingClientRect();
+            }
+            left = anchor.left + (anchor.width - rect.width) / 2;
             top = anchor.top + (anchor.height - rect.height) / 2;
+            if (side === 'left') left = anchor.left - rect.width - 8;
+            if (side === 'right') left = anchor.right + 8;
+            if (side === 'above') top = anchor.top - rect.height - 8;
+            if (side === 'below') top = anchor.bottom + 8;
+            // If no usable side exists, a viewport-bounded overlay is unavoidable.
+            // It stays non-modal; the close control and background remain usable.
         }
-        this._cardLeft = Math.max(x + 8, Math.min(left, x + width - rect.width - 8));
-        this._cardTop = Math.max(y + 8, Math.min(top, y + height - rect.height - 8));
-        card.style.left = `${this._cardLeft}px`;
-        card.style.top = `${this._cardTop}px`;
+        left = Math.max(bounds.left, Math.min(left, bounds.right - rect.width));
+        top = Math.max(bounds.top, Math.min(top, bounds.bottom - rect.height));
+        card.style.insetInlineStart = `${rtl ? window.innerWidth - left - rect.width : left}px`;
+        card.style.insetBlockStart = `${top}px`;
     }
     private _handleClose = (restoreFocus: boolean | Event = true) => {
         if (!this.open) return;
@@ -398,6 +504,7 @@ export class Menu extends LitElement {
         this.dispatchEvent(new CustomEvent('menu-close', { bubbles: true, composed: true }));
     };
     private _handleExport = async () => {
+        if (this._exporting) return;
         const details = this.eventDetails;
         const entry =
             details.entry ??
@@ -413,36 +520,23 @@ export class Menu extends LitElement {
         this._exportError = '';
         try {
             if (!entry) throw new Error('An event date is required for export');
-            const request = new CustomEvent('export-entry', {
-                detail: { entry, eventId: details.eventId ?? entry.id },
-                cancelable: true,
-                bubbles: true,
-                composed: true,
-            });
-            if (!this.dispatchEvent(request)) return;
-            const identity = details.entry ?? details;
-            if (!legacyUids.has(identity))
-                legacyUids.set(identity, `legacy-${Date.now()}-${++nextLegacyUid}@lms-calendar`);
-            const ics = await generateEntryIcs(entry, details.eventId, legacyUids.get(identity));
-            const url = URL.createObjectURL(
-                new Blob([ics], { type: 'text/calendar;charset=utf-8' }),
+            await downloadEntryIcs(
+                this,
+                entry,
+                details.eventId,
+                details.heading,
+                details.entry ?? details,
             );
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${(details.heading || 'event').replace(/[\\/:*?"<>|]/g, '-')}.ics`;
-            document.body.append(link);
-            link.click();
-            link.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 0);
         } catch (error) {
             this._exportError = error instanceof Error ? error.message : String(error);
-            this.dispatchEvent(
-                new CustomEvent('export-error', {
-                    detail: { error, entry, eventId: details.eventId },
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
+            if (!entry)
+                this.dispatchEvent(
+                    new CustomEvent('export-error', {
+                        detail: { error, entry, eventId: details.eventId },
+                        bubbles: true,
+                        composed: true,
+                    }),
+                );
         } finally {
             this._exporting = false;
         }
@@ -475,19 +569,23 @@ export class Menu extends LitElement {
         const msg = getMessages(this.locale);
         const hasNotes = this.eventDetails.content && this.eventDetails.content !== msg.noContent;
         const dateDescription = this._dateDescription();
-        return html`<dialog class="card" aria-labelledby="event-title" @toggle=${this._handleToggle}
-            style=${styleMap({ top: `${this._cardTop}px`, left: `${this._cardLeft}px` })}>
-            <div class="header"><h2 id="event-title" class="title">${this.eventDetails.heading || msg.noTitle}</h2>
-                <button type="button" class="close-btn" @click=${this._handleClose} aria-label=${msg.close} autofocus>&times;</button>
-            </div>
-            <div class="body">
-                <div class="meta">${this._timeDescription()}</div>
-                ${dateDescription ? html`<div class="meta">${dateDescription}</div>` : nothing}
-                ${hasNotes ? html`<div class="notes" role="region" aria-label=${msg.notes} tabindex=${ifDefined(this._notesScrollable ? 0 : undefined)}>${this.eventDetails.content}</div>` : nothing}
+        return html`<dialog class="card" aria-labelledby="event-title" @toggle=${this._handleToggle} @focusout=${this._focusLeft}>
+            <div class="header">
+                <div class="toolbar">
+                    <button type="button" class="close-btn" @click=${this._handleClose} aria-label=${msg.close} autofocus>&times;</button>
+                </div>
+                <div class="body" role="region" aria-label=${msg.eventDetails} tabindex=${ifDefined(this._bodyScrollable ? 0 : undefined)}>
+                    <div class="heading"><h2 id="event-title" class="title">${this.eventDetails.heading || msg.noTitle}</h2></div>
+                    <div class="content">
+                        <div class="meta">${this._timeDescription()}</div>
+                        ${dateDescription ? html`<div class="meta">${dateDescription}</div>` : nothing}
+                        ${hasNotes ? html`<div class="notes">${this.eventDetails.content}</div>` : nothing}
+                        ${this._exportError ? html`<p class="error" role="alert">${this._exportError}</p>` : nothing}
+                    </div>
+                </div>
             </div>
             <div class="actions">
-                <button type="button" class="export-btn" @click=${this._handleExport} ?disabled=${this._exporting}>${msg.exportAsICS}</button>
-                ${this._exportError ? html`<p class="error" role="alert">${this._exportError}</p>` : nothing}
+                <button type="button" class="export-btn" @click=${this._handleExport} aria-disabled=${this._exporting ? 'true' : 'false'}>${msg.exportAsICS}</button>
             </div>
         </dialog>`;
     }
