@@ -343,12 +343,15 @@ describe('Security and validation boundaries', () => {
             (await send({ action: 'nav', calendarId: id, metadata: { huge: 'x'.repeat(5000) } }))
                 .status,
         ).to.equal(400);
-        expect((await send({ action: 'nav', calendarId: id })).status).to.equal(202);
+        const metadata = { view: 'week', context: { range: [1, 7], compact: true } };
+        expect((await send({ action: 'nav', calendarId: id, metadata })).status).to.equal(202);
         expect((await send({ action: 'nav', calendarId: id })).status).to.equal(202);
         const limited = await send({ action: 'nav', calendarId: id });
         expect(limited.status).to.equal(429);
         expect(limited.headers.get('Retry-After')).to.equal('60');
-        expect(telemetryService.getEvents()).to.have.length(2);
+        const recorded = telemetryService.getEvents();
+        expect(recorded).to.have.length(2);
+        expect(recorded[0].metadata).to.deep.equal(metadata);
         expect(
             (
                 await app.request(

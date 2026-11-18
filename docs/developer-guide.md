@@ -111,6 +111,12 @@ Screenshots are for review, not pixel baselines or device certification.
 4. Run `bun scripts/check-locales.mjs --write` and `bun run i18n:check`; do not copy derivative output over canonical dictionaries or edit preservation snapshots.
 5. Run `bun run docs:sync`, add relevant component/resolver tests and obtain native-speaker review. ISO week numbering stays independent of the explicit week-start policy.
 
+## Dependency audits
+
+Run `bun run audit:production` from the workspace root. It checks the locked production dependency graph at all severities and blocks CI packaging and the root release suite on a nonzero exit. The server's publish hook also checks its production graph. These checks need access to the registry advisory service; a failed check is not a clean result.
+
+CI also uploads the full `dependency-audit` report, including development tools. It is informational, not an exemption from triage. Use `bun pm why <package>` to trace findings, check whether the affected behavior is used, and prefer targeted upgrades with a frozen-lockfile test run. A clean production audit does not certify runtime security or cover other lockfiles used by consumers.
+
 ## Public integration contracts
 
 `src/contracts.ts` defines committed state and entry requests. Keep `activeDate` / `viewMode` owner controls, half-open ISO `visibleRange`, and initial/changed post-render `calendar-state-change` aligned. Do not use legacy header action details to drive adapters. Activation/export requests must remain cancelable before their defaults, carry canonical entries and stable IDs, and honor `preventDefault()`.

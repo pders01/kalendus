@@ -139,7 +139,7 @@ export const telemetrySchema = z
         action: z.string().min(1).max(100),
         calendarId: idSchema,
         metadata: z
-            .record(z.unknown())
+            .record(z.string(), z.unknown())
             .optional()
             .refine(
                 boundedMetadata,

@@ -112,10 +112,28 @@ jobs:
             - run: bun run --cwd server build
             - run: bun run --cwd server test:package
 
+    dependency-audit:
+        name: Production dependency audit
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: oven-sh/setup-bun@v2
+            # Audit the checked-in workspace lockfile without installing dependencies.
+            - run: bun run audit:production
+            - name: Capture full dependency advisories for triage
+              if: ${{ !cancelled() }}
+              run: bun audit --json > dependency-audit.json
+              continue-on-error: true
+            - uses: actions/upload-artifact@v4
+              if: ${{ !cancelled() }}
+              with:
+                  name: dependency-audit
+                  path: dependency-audit.json
+
     build:
         name: Packages & size budgets
         runs-on: ubuntu-latest
-        needs: [lint, unit-tests, component-tests, storybook-e2e, server]
+        needs: [lint, unit-tests, component-tests, storybook-e2e, server, dependency-audit]
         steps:
             - uses: actions/checkout@v4
             - uses: oven-sh/setup-bun@v2
@@ -127,10 +145,3 @@ jobs:
             - run: bun run analyze
             - run: bun run test:package
             - run: bun run checksize
-            - name: Capture dependency advisories for reviewed triage
-              run: bun audit --json > dependency-audit.json
-              continue-on-error: true
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: dependency-audit
-                  path: dependency-audit.json

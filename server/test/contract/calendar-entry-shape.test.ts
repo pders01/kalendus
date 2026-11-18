@@ -49,7 +49,7 @@ const apiCalendarSchema = z.object({
     locale: z.string(),
     firstDayOfWeek: z.number(),
     color: z.string(),
-    themeTokens: z.record(z.string()).nullable(),
+    themeTokens: z.record(z.string(), z.string()).nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
 });
@@ -71,6 +71,23 @@ describe('Contract: Response Shape Validation', () => {
         const body = await res.json();
         const result = apiCalendarSchema.safeParse(body);
         expect(result.success).to.be.true;
+    });
+
+    it('round-trips populated calendar theme tokens and accepts clearing them', async () => {
+        const themeTokens = { '--accent-color': '#223344', '--week-min-day-width': '9em' };
+        const url = `/api/calendars/${calId}`;
+        const patch = (tokens: typeof themeTokens | null) =>
+            app.request(url, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ themeTokens: tokens }),
+            });
+        expect((await patch(themeTokens)).status).to.equal(200);
+        const stored = apiCalendarSchema.parse(await (await app.request(url)).json());
+        expect(stored.themeTokens).to.deep.equal(themeTokens);
+        const cleared = await patch(null);
+        expect(cleared.status).to.equal(200);
+        expect(apiCalendarSchema.parse(await cleared.json()).themeTokens).to.equal(null);
     });
 
     it('GET /api/calendars/:id/events returns ApiCalendarEntry[]', async () => {
