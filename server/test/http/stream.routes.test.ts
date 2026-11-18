@@ -5,8 +5,43 @@ import { createApp } from '../../src/http/app.js';
 import { createCalendar } from '../helpers/fixtures.js';
 import { createTestDb } from '../helpers/test-db.js';
 
+type App = ReturnType<typeof createApp>['app'];
+
+async function read(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        const chunk = await Promise.race([
+            reader.read(),
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error('SSE delivery timeout')), 1000);
+            }),
+        ]);
+        if (chunk.done) throw new Error('SSE stream closed before notification');
+        return new TextDecoder().decode(chunk.value);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+const invalidation = 'event: invalidated\ndata: {}\n\n';
+const eventData = {
+    heading: 'SSE event',
+    content: 'Private event notes',
+    date: {
+        start: { year: 2026, month: 3, day: 15 },
+        end: { year: 2026, month: 3, day: 15 },
+    },
+};
+const json = (method: string, body: unknown): RequestInit => ({
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+});
+const post = (app: App, calId: string) =>
+    app.request(`/api/calendars/${calId}/events`, json('POST', eventData));
+
 describe('Stream Routes', () => {
-    let app: ReturnType<typeof createApp>['app'];
+    let app: App;
     let db: ReturnType<typeof createTestDb>;
     let eventBus: EventBus;
     let calId: string;
@@ -23,61 +58,109 @@ describe('Stream Routes', () => {
         db.$client.close();
     });
 
-    it('delivers committed mutations only to their calendar and cleans up both readers', async () => {
+    it('invalidates only the affected calendar after create, update and delete', async () => {
         const secondId = createCalendar(db).id;
         const first = await app.request(`/api/calendars/${calId}/stream`);
         const second = await app.request(`/api/calendars/${secondId}/stream`);
-        const readers = [first.body!.getReader(), second.body!.getReader()];
-        const read = async (index: number): Promise<string> => {
-            let timer: ReturnType<typeof setTimeout> | undefined;
-            try {
-                const chunk = await Promise.race([
-                    readers[index].read(),
-                    new Promise<never>((_, reject) => {
-                        timer = setTimeout(() => reject(new Error('SSE delivery timeout')), 1000);
-                    }),
-                ]);
-                return new TextDecoder().decode(chunk.value);
-            } finally {
-                if (timer) clearTimeout(timer);
-            }
-        };
-        const post = (calendarId: string) =>
-            app.request(`/api/calendars/${calendarId}/events`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    heading: 'SSE event',
-                    date: {
-                        start: { year: 2026, month: 3, day: 15 },
-                        end: { year: 2026, month: 3, day: 15 },
-                    },
-                }),
-            });
+        const readers = [first.body!.getReader(), second.body!.getReader()] as const;
         try {
-            expect(await read(0)).to.include('event: connected');
-            expect(await read(1)).to.include('event: connected');
-            const created = await post(calId);
+            expect(await read(readers[0])).to.include('event: connected');
+            expect(await read(readers[1])).to.include('event: connected');
+            let secondNotified = false;
+            const nextOnSecond = read(readers[1]).then((message) => {
+                secondNotified = true;
+                return message;
+            });
+            // Keep cleanup from surfacing an unhandled reader rejection if an assertion fails.
+            void nextOnSecond.catch(() => {});
+            const created = await post(app, calId);
             expect(created.status).to.equal(201);
-            const entry = (await created.json()) as { id: string };
-            const message = await read(0);
-            expect(message).to.include('event: created');
-            expect(message).to.include(entry.id);
-            const other = await post(secondId);
-            expect(other.status).to.equal(201);
-            const otherEntry = (await other.json()) as { id: string };
-            const otherMessage = await read(1);
-            expect(otherMessage).to.include(otherEntry.id);
-            expect(otherMessage).not.to.include(entry.id);
-            await app.request(`/api/calendars/${calId}/events/${entry.id}`, { method: 'DELETE' });
-            const deleted = await read(0);
-            expect(deleted).to.include('event: deleted');
-            expect(deleted).not.to.include(otherEntry.id);
+            const { id } = (await created.json()) as { id: string };
+            expect(await read(readers[0])).to.equal(invalidation);
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            expect(secondNotified).to.equal(false);
+
+            expect((await post(app, secondId)).status).to.equal(201);
+            expect(await nextOnSecond).to.equal(invalidation);
+            const entryUrl = `/api/calendars/${calId}/events/${id}`;
+            expect(
+                (await app.request(entryUrl, json('PATCH', { heading: 'Updated' }))).status,
+            ).to.equal(200);
+            expect(await read(readers[0])).to.equal(invalidation);
+            expect((await app.request(entryUrl, { method: 'DELETE' })).status).to.equal(200);
+            expect(await read(readers[0])).to.equal(invalidation);
         } finally {
             await Promise.all(readers.map((reader) => reader.cancel()));
         }
         expect(eventBus.subscriberCount(`calendar:${calId}`)).to.equal(0);
         expect(eventBus.subscriberCount(`calendar:${secondId}`)).to.equal(0);
+    });
+
+    it('keeps event details private unless a separate whole-calendar grant is given', async () => {
+        const checked: string[] = [];
+        const protectedApp = createApp({
+            db,
+            eventBus,
+            authorize: ({ request, action, calendarId }) => {
+                const role = request.headers.get('X-Test-Role');
+                return (
+                    calendarId === calId &&
+                    (role === 'whole-calendar' ||
+                        (role === 'notification-only' && action === 'stream'))
+                );
+            },
+            authorizeStreamDetails: async ({ request, calendarId }) => {
+                const role = request.headers.get('X-Test-Role') ?? '';
+                checked.push(role);
+                return calendarId === calId && role === 'whole-calendar';
+            },
+        }).app;
+        const url = `/api/calendars/${calId}`;
+        const headers = (role: string) => ({ headers: { 'X-Test-Role': role } });
+        expect((await protectedApp.request(`${url}/stream`, headers('blocked'))).status).to.equal(
+            403,
+        );
+        expect(checked).to.deep.equal([]);
+        expect(
+            (
+                await protectedApp.request(
+                    `${url}/events?start=2026-03-15&end=2026-03-15`,
+                    headers('notification-only'),
+                )
+            ).status,
+        ).to.equal(403);
+
+        const limited = await protectedApp.request(`${url}/stream`, headers('notification-only'));
+        const full = await protectedApp.request(`${url}/stream`, headers('whole-calendar'));
+        const readers = [limited.body!.getReader(), full.body!.getReader()] as const;
+        try {
+            expect(checked).to.deep.equal(['notification-only', 'whole-calendar']);
+            expect(await read(readers[0])).to.include('event: connected');
+            expect(await read(readers[1])).to.include('event: connected');
+            const created = await post(app, calId);
+            expect(created.status).to.equal(201);
+            const entry = await created.json();
+            expect(await read(readers[0])).to.equal(invalidation);
+            expect(await read(readers[1])).to.equal(
+                `event: created\ndata: ${JSON.stringify(entry)}\n\n`,
+            );
+        } finally {
+            await Promise.all(readers.map((reader) => reader.cancel()));
+        }
+    });
+
+    it('does not open a stream when the details policy throws', async () => {
+        const { app } = createApp({
+            db,
+            eventBus,
+            authorize: () => true,
+            authorizeStreamDetails: () => {
+                throw new Error('Host policy unavailable');
+            },
+        });
+        const response = await app.request(`/api/calendars/${calId}/stream`);
+        expect(response.status).to.equal(500);
+        expect(eventBus.subscriberCount(`calendar:${calId}`)).to.equal(0);
     });
 
     it('responds with SSE content-type', async () => {

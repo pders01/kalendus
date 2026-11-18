@@ -1,9 +1,34 @@
 import { expect } from 'chai';
 
-import { toCalendarEntry } from '../../src/adapters/kalendus-api-client.js';
+import { KalendusApiClient, toCalendarEntry } from '../../src/adapters/kalendus-api-client.js';
 import type { ApiCalendarEntry } from '../../src/adapters/types.js';
 
 describe('KalendusApiClient', () => {
+    it('separates change notifications from record delivery and reconnect', () => {
+        const stream = Object.assign(new EventTarget(), { close() {} });
+        const client = new KalendusApiClient({
+            baseUrl: '',
+            calendarId: 'cal1',
+            streamFactory: () => stream,
+        });
+        const calls: string[] = [];
+        const off = client.onInvalidate(() => calls.push('refresh'));
+        client.onReconcile(() => calls.push('reconcile'));
+        client.onSync(({ type, data }) => calls.push(`${type}:${data.id}`));
+        client.connect();
+        stream.dispatchEvent(new MessageEvent('invalidated', { data: '{}' }));
+        expect(calls).to.deep.equal(['refresh']);
+        stream.dispatchEvent(new MessageEvent('updated', { data: '{"id":"legacy"}' }));
+        stream.dispatchEvent(new MessageEvent('updated', { data: '{}' }));
+        stream.dispatchEvent(new MessageEvent('connected'));
+        expect(calls).to.deep.equal(['refresh', 'updated:legacy', 'refresh', 'reconcile']);
+        off();
+        stream.dispatchEvent(new MessageEvent('invalidated', { data: '{}' }));
+        client.disconnect();
+        stream.dispatchEvent(new MessageEvent('connected'));
+        expect(calls).to.have.length(4);
+    });
+
     describe('toCalendarEntry', () => {
         it('maps a timed event correctly', () => {
             const api: ApiCalendarEntry = {

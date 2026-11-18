@@ -12,6 +12,7 @@ export type {
     AuthorizationAction,
     AuthorizationPolicy,
     AuthorizationRequest,
+    StreamDetailsPolicy,
 } from './http/authorization.js';
 
 // Database

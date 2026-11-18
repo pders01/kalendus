@@ -257,10 +257,14 @@ describe('Adapter public state contract (nonbrowser)', () => {
         adapter.hostConnected();
         await flush();
         expect(requests).to.equal(4);
+        streams[0].connected();
+        streams[0].dispatchEvent(new MessageEvent('invalidated', { data: '{}' }));
+        await flush();
+        expect(requests).to.equal(4);
         adapter.hostDisconnected();
     });
 
-    it('coalesces synchronous sync bursts into a full current-range reconciliation', async () => {
+    it('coalesces mixed default and legacy invalidation bursts into one current-range refresh', async () => {
         const host = new Host();
         const target = new Target(state('2024-03-10', '2024-03-11', 'day'));
         const stream = new Stream();
@@ -275,10 +279,12 @@ describe('Adapter public state contract (nonbrowser)', () => {
         });
         adapter.hostConnected();
         await flush();
-        for (let i = 0; i < 100; i++)
+        for (let i = 0; i < 50; i++) {
+            stream.dispatchEvent(new MessageEvent('invalidated', { data: '{}' }));
             stream.dispatchEvent(
                 new MessageEvent('updated', { data: JSON.stringify(api(String(i))) }),
             );
+        }
         await flush();
         expect(requests).to.equal(2);
         expect(adapter.entries[0].id).to.equal('burst-2');

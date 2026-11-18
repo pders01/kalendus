@@ -76,7 +76,7 @@ export class KalendusLitAdapter implements ReactiveController {
     private _error: Error | null = null;
     private _target: CalendarTarget | null = null;
     private _connected = false;
-    private _unsubSync?: () => void;
+    private _unsubInvalidate?: () => void;
     private _unsubReconcile?: () => void;
     private _controller?: AbortController;
     private _generation = 0;
@@ -122,7 +122,7 @@ export class KalendusLitAdapter implements ReactiveController {
         this.hostUpdated();
         if (!this._target && this.options.initialState) this.setState(this.options.initialState);
         if (this.options.enableSync) {
-            this._unsubSync = this._client.onSync(this._queueRefresh);
+            this._unsubInvalidate = this._client.onInvalidate(this._queueRefresh);
             this._unsubReconcile = this._client.onReconcile(this._queueRefresh);
             try {
                 this._client.connect();
@@ -166,7 +166,7 @@ export class KalendusLitAdapter implements ReactiveController {
         );
         this._target?.removeEventListener('calendar-state-change', this._onState);
         this._target = null;
-        this._unsubSync?.();
+        this._unsubInvalidate?.();
         this._unsubReconcile?.();
         this._client.disconnect();
         this._generation++;

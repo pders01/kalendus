@@ -14,6 +14,7 @@ The optional `@jpahd/kalendus-server` package provides a Hono/SQLite REST API, i
 
 - **Private-deny by default:** `createApp({ db })` returns 403 on every `/api/calendars` route unless the host injects an `authorize` policy. This includes creation, event reads/writes, summary, manifest, telemetry and SSE. `/health` remains public.
 - The host authenticates real sessions/tokens and checks trusted per-calendar permissions on **every** request. Calendar IDs are not credentials. A configured policy takes precedence over public mode; policy errors never grant access.
+- SSE sends payload-free invalidations by default. Full event details require a separate `authorizeStreamDetails` grant for readers with access to every event in the calendar. Stream permission never bypasses REST authorization.
 - `mode: 'public'` is an explicit unauthenticated demo choice, not a private deployment shortcut. The CLI stays closed unless `KALENDUS_PUBLIC_DEMO=true`; it binds to `127.0.0.1` unless deliberately changed.
 - There is no wildcard CORS default. Cross-origin browser access requires exact `allowedOrigins`; credentialed CORS also requires `allowCredentials: true`. CORS is not authentication, authorization or CSRF validation. Same-origin/nonbrowser clients still require authorization.
 
@@ -73,7 +74,7 @@ calendar.entries = entries; // inclusive API end, not visibleRange.end
 // On teardown: controller.abort(); client.disconnect();
 ```
 
-A host owns request-generation checks and loading/error UI when using the client directly. `onSync` provides mutation notifications; `onReconcile` signals full visible-range reconciliation on each initial/reconnected stream connection. Both return unsubscribe callbacks.
+A host owns request-generation checks and loading/error UI when using the client directly. Subscribe with `onInvalidate` for changes and `onReconcile` to refetch the visible range on every initial or reconnected stream. Both return unsubscribe callbacks. `onSync` is reserved for compatibility with record-bearing streams and does not fire for default invalidations. Deploy the updated client before enabling the new server default.
 
 Native EventSource cannot attach arbitrary bearer/CSRF headers. Header-authenticated apps must inject an authenticated reconnecting `streamFactory`, or disable sync; the client does not silently downgrade to unauthenticated SSE. Cross-origin cookie SSE needs deliberate credentials/CORS/cookie policy. Do not put secrets in stream URLs. See the authoritative [transport guidance](https://github.com/pders01/kalendus/blob/main/server/README.md#safe-browser-cookie-and-sse-deployment).
 

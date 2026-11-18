@@ -168,12 +168,11 @@ client.fetchEvents('2026-03-01', '2026-03-31').then((entries) => {
     document.querySelector('lms-calendar').entries = entries;
 });
 
-// Subscribe to real-time changes
-client.onSync((msg) => {
-    console.log('SSE update', msg.type, msg.data);
-});
+// Notifications contain no event IDs or details by default. Refetch via REST.
+const stopChanges = client.onInvalidate(refreshVisibleRange);
+const stopReconnect = client.onReconcile(refreshVisibleRange);
 client.connect();
-// On teardown, unsubscribe listeners and call client.disconnect().
+// On teardown: stopChanges(); stopReconnect(); client.disconnect();
 ```
 
 Header-authenticated SSE requires an injected authenticated reconnecting `streamFactory` (native EventSource cannot send arbitrary headers), or disable sync. Reconcile the visible range on every initial/reconnected connection; SSE is in-process invalidation, not durable replay. Direct-client loaders own cancellation/generation checks and error UI; see the server README.

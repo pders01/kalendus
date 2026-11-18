@@ -84,7 +84,13 @@ For cross-origin credentialed cookies, configure both exact allowed origin and `
 
 Native `EventSource` cannot send arbitrary Authorization/CSRF headers. Cookie-authenticated SSE uses its same-origin cookies or `withCredentials` for explicit cross-origin credentials. Bearer-token apps must inject a reconnecting `streamFactory` implemented with an authenticated fetch stream or another suitable SSE implementation; authenticate each connection. Do not silently fall back from header-auth fetch to unauthenticated native SSE. The client throws if header configuration is present and no custom stream transport is provided. `credentials: 'omit'` also requires a custom stream transport because native EventSource cannot omit same-origin cookies.
 
-SSE is a best-effort, in-process invalidation channel, not durable replay. Each initial/reconnected `connected` event causes full visible-range reconciliation in the adapter. Configure proxies not to buffer event streams and maintain an appropriate idle timeout. Connections end after five minutes so reconnection reruns the host policy; **revocation is not instantaneous for an existing stream**. A slow consumer is disconnected at 32 pending writes. Multiprocess deployments need external pub/sub or another reconciliation strategy; no cross-process replay guarantee is claimed.
+SSE is a best-effort, in-process invalidation channel, not durable replay. By default every committed mutation sends `event: invalidated` with `data: {}`. A stream grant lets the client observe **when the calendar changes**, not the mutation kind, event ID, or event details. Refetch through independently authorized REST routes. Deny stream access if even the timing of changes is sensitive.
+
+For legacy consumers that need record-bearing messages, configure the optional `authorizeStreamDetails({ request, calendarId })` policy on `createApp`. It runs **after** ordinary `authorize` has allowed the stream. Return `true` only for principals allowed to read **every event in the calendar**; never grant it to a principal with event-scoped permissions. Missing or false grants keep the stream invalidation-only. The grant applies for the lifetime of the connection and is checked again on reconnect.
+
+**Upgrade order:** deploy clients that use `onInvalidate` (or the updated Lit adapter) before switching servers. Older clients listening only for `created`, `updated`, or `deleted` will not refresh on default invalidations. Keep `onSync` only for callers with the explicit details grant.
+
+Each initial/reconnected `connected` event causes full visible-range reconciliation in the adapter. Configure proxies not to buffer event streams and maintain an appropriate idle timeout. Connections end after five minutes so reconnection reruns the host policy; **revocation is not instantaneous for an existing stream**. A slow consumer is disconnected at 32 pending writes. Multiprocess deployments need external pub/sub or another reconciliation strategy; no cross-process replay guarantee is claimed.
 
 ## Browser client
 
@@ -103,7 +109,7 @@ const entries = await client.fetchEvents('2026-03-01', '2026-03-31', controller.
 // API query ends are inclusive.
 ```
 
-Every fetch path (queries, CRUD, manifest and telemetry) uses the supplied fetch, dynamic headers and credentials. `streamFactory(url, { withCredentials, credentials })` returns `{ addEventListener(type, listener), close() }`; its named events include `connected` after **every** successful connection, and `created`, `updated`, `deleted` with JSON `MessageEvent.data`. It must implement reconnect/cleanup itself. `client.onReconcile()` and `client.onSync()` return unsubscribe callbacks. Dispose with `disconnect()`.
+Every fetch path (queries, CRUD, manifest and telemetry) uses the supplied fetch, dynamic headers and credentials. `streamFactory(url, { withCredentials, credentials })` returns `{ addEventListener(type, listener), close() }`; it must deliver named events including `connected` after **every** successful connection, `invalidated` for payload-free changes, and compatibility `created`, `updated`, `deleted` events with JSON `MessageEvent.data` when present. It must implement reconnect/cleanup itself. `client.onInvalidate()` listens to both default and compatibility changes; `client.onReconcile()` signals a fresh connection; `client.onSync()` receives only record-bearing messages. All return unsubscribe callbacks. Dispose with `disconnect()`.
 
 ## Lit adapter and canonical state contract
 
@@ -142,7 +148,7 @@ Initialization works when an existing child is found in the host's `renderRoot`/
 
 Identical visible ranges dedupe and same-turn SSE bursts coalesce into one refresh; `refresh()` explicitly retries/refetches after a current error. `fetchRange(start, inclusiveEnd, force?)` remains a manual legacy-query escape hatch. A new request aborts its predecessor and a generation guard suppresses **both stale fulfillment and stale rejection**, even if custom transports ignore cancellation. Disconnect aborts work and releases listeners/streams; reattachment initializes again. `entries`, `loading`, `error` are public render state; the host decides loading/error UI. With bearer auth, pass both an authorized fetch setup and an authenticated streamFactory, or disable sync.
 
-React/non-Lit hosts can use `KalendusApiClient` directly with their own effect cleanup/AbortController and generation check, and `onReconcile` for missed-update recovery. The package does not add React as a dependency or provide a React hook.
+React/non-Lit hosts can use `KalendusApiClient` directly with their own effect cleanup/AbortController and generation check, and `onInvalidate` plus `onReconcile` for refreshes and missed-update recovery. The package does not add React as a dependency or provide a React hook.
 
 ## Limits and telemetry
 

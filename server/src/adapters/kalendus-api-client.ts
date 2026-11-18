@@ -33,11 +33,25 @@ export function toCalendarEntry(api: ApiCalendarEntry): CalendarEntry {
     };
 }
 
+function notify<Args extends unknown[]>(
+    callbacks: ReadonlySet<(...args: Args) => void>,
+    ...args: Args
+) {
+    for (const callback of [...callbacks]) {
+        try {
+            callback(...args);
+        } catch {
+            /* isolate consumers */
+        }
+    }
+}
+
 /** Authenticated fetch plus an injectable SSE transport; safe to import without a DOM. */
 export class KalendusApiClient {
     private readonly _baseUrl: string;
     private _eventSource: StreamTransport | null = null;
     private _syncCallbacks = new Set<(msg: SyncMessage) => void>();
+    private _invalidateCallbacks = new Set<() => void>();
     private _reconcileCallbacks = new Set<() => void>();
 
     constructor(private options: KalendusClientOptions) {
@@ -160,18 +174,17 @@ export class KalendusApiClient {
             credentials: this.options.credentials ?? 'same-origin',
         });
         this._eventSource = source;
+        const invalidate = () => {
+            if (this._eventSource === source) notify(this._invalidateCallbacks);
+        };
+        source.addEventListener('invalidated', invalidate);
         source.addEventListener('connected', () => {
             // Includes initial connect and every reconnect: missed messages have no replay log.
-            for (const callback of [...this._reconcileCallbacks]) {
-                try {
-                    callback();
-                } catch {
-                    /* isolate consumers */
-                }
-            }
+            if (this._eventSource === source) notify(this._reconcileCallbacks);
         });
         for (const type of ['created', 'updated', 'deleted'] as const) {
             source.addEventListener(type, (event) => {
+                if (this._eventSource !== source) return;
                 let data: SyncMessage['data'];
                 try {
                     data = JSON.parse((event as MessageEvent).data) as SyncMessage['data'];
@@ -179,27 +192,34 @@ export class KalendusApiClient {
                     return;
                 }
                 if (!data || typeof data.id !== 'string') return;
-                for (const callback of [...this._syncCallbacks]) {
-                    try {
-                        callback({ type, data });
-                    } catch {
-                        /* isolate consumers */
-                    }
-                }
+                notify(this._syncCallbacks, { type, data });
+                // Current clients can refresh against both old and new servers.
+                invalidate();
             });
         }
     }
 
     disconnect(): void {
-        this._eventSource?.close();
+        const source = this._eventSource;
         this._eventSource = null;
+        source?.close();
     }
+
+    /** Compatibility: only record-bearing mutation events, never default invalidations. */
     onSync(callback: (msg: SyncMessage) => void): () => void {
         this._syncCallbacks.add(callback);
         return () => {
             this._syncCallbacks.delete(callback);
         };
     }
+    /** Refresh for either a default invalidation or a legacy mutation message. */
+    onInvalidate(callback: () => void): () => void {
+        this._invalidateCallbacks.add(callback);
+        return () => {
+            this._invalidateCallbacks.delete(callback);
+        };
+    }
+
     onReconcile(callback: () => void): () => void {
         this._reconcileCallbacks.add(callback);
         return () => {

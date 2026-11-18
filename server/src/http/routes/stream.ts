@@ -2,14 +2,18 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 
 import type { SyncServiceImpl } from '../../core/sync.service.js';
-import type { SseEvent } from '../../core/types.js';
+import type { StreamDetailsPolicy } from '../authorization.js';
 
 /** In-memory invalidations, not a durable replay log. Every connection requires reconciliation. */
-export function streamRoutes(syncService: SyncServiceImpl) {
+export function streamRoutes(syncService: SyncServiceImpl, authorizeDetails?: StreamDetailsPolicy) {
     const app = new Hono();
 
-    app.get('/:calendarId/stream', (c) => {
+    app.get('/:calendarId/stream', async (c) => {
         const calendarId = c.req.param('calendarId');
+        // createApp has already enforced stream access. A second, explicit grant
+        // is needed to disclose records. Check before opening the response stream.
+        const includeDetails =
+            (await authorizeDetails?.({ request: c.req.raw, calendarId })) === true;
         return streamSSE(c, async (stream) => {
             let pending = 0;
             let closed = false;
@@ -33,8 +37,8 @@ export function streamRoutes(syncService: SyncServiceImpl) {
                     pending--;
                 }
             };
-            const unsubscribe = syncService.subscribe(calendarId, (event: SseEvent) =>
-                write(event.type, event.event),
+            const unsubscribe = syncService.subscribe(calendarId, (event) =>
+                includeDetails ? write(event.type, event.event) : write('invalidated', {}),
             );
             const heartbeat = setInterval(() => {
                 if (!pending) void write('heartbeat', { time: new Date().toISOString() });

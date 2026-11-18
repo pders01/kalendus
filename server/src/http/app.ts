@@ -12,7 +12,11 @@ import type { TelemetryOptions } from '../core/telemetry.service.js';
 import { TelemetryServiceImpl } from '../core/telemetry.service.js';
 import { idSchema, validate } from '../core/validation.js';
 import type { Db } from '../db/connection.js';
-import type { AuthorizationPolicy, AuthorizationRequest } from './authorization.js';
+import type {
+    AuthorizationPolicy,
+    AuthorizationRequest,
+    StreamDetailsPolicy,
+} from './authorization.js';
 import { boundedBody } from './middleware/body-limit.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { RateLimiter } from './middleware/rate-limit.js';
@@ -29,6 +33,8 @@ export interface AppDeps {
     /** Private is the default and denies all API access without authorize. */
     mode?: 'private' | 'public';
     authorize?: AuthorizationPolicy;
+    /** Optional extra grant for full-calendar event details. Streams otherwise send only invalidations. */
+    authorizeStreamDetails?: StreamDetailsPolicy;
     /** Exact browser origins, never '*'. Empty by default; same-origin remains supported. */
     allowedOrigins?: string[];
     allowCredentials?: boolean;
@@ -140,7 +146,7 @@ export function createApp(deps: AppDeps) {
     // Routes — all under /api/calendars
     app.route('/api/calendars', calendarRoutes(calendarService));
     app.route('/api/calendars', eventRoutes(eventService, syncService));
-    app.route('/api/calendars', streamRoutes(syncService));
+    app.route('/api/calendars', streamRoutes(syncService, deps.authorizeStreamDetails));
     app.route('/api/calendars', telemetryRoutes(telemetryService));
     app.route('/api/calendars', manifestRoutes(calendarService));
 
