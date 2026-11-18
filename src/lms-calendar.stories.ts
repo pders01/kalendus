@@ -94,8 +94,9 @@ const meta: Meta<LMSCalendar> = {
         color: '#1976d2',
         firstDayOfWeek: 1,
         locale: 'en',
+        // The supplied sample events start on the 15th, not necessarily today.
         activeDate: {
-            day: new Date().getDate(),
+            day: 15,
             month: new Date().getMonth() + 1,
             year: new Date().getFullYear(),
         },
@@ -604,8 +605,8 @@ export const CustomTheming: Story = {
 
 // Theme stories consume the exact shipped stylesheets, scoped to avoid docs bleed.
 const createThemeStory = (name: string, themeCSS: string, opts: { bg?: string } = {}): Story => {
-    const scopeClass = `theme-${name.toLowerCase().replace(/\\s+/g, '-')}`;
-    const scopedCSS = themeCSS.replace(/lms-calendar(?=\\s*\\{)/g, `.${scopeClass} lms-calendar`);
+    const scopeClass = `theme-${name.toLowerCase().replace(/\s+/g, '-')}`;
+    const scopedCSS = themeCSS.replace(/^lms-calendar(?=\s*\{)/gm, `.${scopeClass} lms-calendar`);
     return {
         name: storyName(STORY_GROUPS.OVERVIEW, name),
         args: { entries: sampleEntries },
@@ -645,7 +646,7 @@ export const MobileView: Story = {
         },
     },
     render: (args) => html`
-        <div style="width: 375px; height: 667px;">
+        <div style="width: 375px; max-width: 100%; height: 667px;">
             <lms-calendar
                 .heading=${args.heading}
                 .activeDate=${args.activeDate}
@@ -1609,7 +1610,7 @@ export const WeekStartComparison: Story = {
         entries: sampleEntries,
     },
     render: (args) => html`
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em; height: 720px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); grid-auto-rows: minmax(720px, auto); gap: 1em; align-items: start;">
             <lms-calendar
                 .heading=${'Monday First (ISO)'}
                 .activeDate=${args.activeDate}
@@ -1617,7 +1618,7 @@ export const WeekStartComparison: Story = {
                 .color=${args.color}
                 .locale=${args.locale}
                 .firstDayOfWeek=${1}
-                style="height: 100%; display: block;"
+                style="height: 720px; display: block;"
             ></lms-calendar>
             <lms-calendar
                 .heading=${'Sunday First (US)'}
@@ -1626,7 +1627,7 @@ export const WeekStartComparison: Story = {
                 .color=${args.color}
                 .locale=${args.locale}
                 .firstDayOfWeek=${0}
-                style="height: 100%; display: block;"
+                style="height: 720px; display: block;"
             ></lms-calendar>
         </div>
     `,
@@ -1645,7 +1646,7 @@ export const TallContainer: Story = {
         entries: sampleEntries,
     },
     render: (args) => html`
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em; height: 1400px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1em; align-items: start;">
             <lms-calendar
                 .heading=${'720px (default)'}
                 .activeDate=${args.activeDate}
@@ -1662,7 +1663,7 @@ export const TallContainer: Story = {
                 .color=${args.color}
                 .firstDayOfWeek=${args.firstDayOfWeek}
                 .locale=${args.locale}
-                style="height: 100%; display: block;"
+                style="height: 1400px; display: block;"
             ></lms-calendar>
         </div>
     `,
@@ -1675,6 +1676,28 @@ export const TallContainer: Story = {
     },
 };
 
+// Deliberately constrained stress case, separate from readable comparisons.
+export const TinyEmbed: Story = {
+    name: storyName(STORY_GROUPS.STRESS, 'Tiny Embed (220px)'),
+    args: {
+        entries: sampleEntries,
+    },
+    render: (args) => html`
+        <p>Intentionally tiny embed: inspect overflow and reachability, not a recommended size.</p>
+        <div style="width: 220px; max-width: 100%; height: 360px; border: 1px dashed #ccc; box-sizing: border-box;">
+            <lms-calendar
+                .heading=${args.heading}
+                .activeDate=${args.activeDate}
+                .entries=${args.entries}
+                .color=${args.color}
+                .firstDayOfWeek=${args.firstDayOfWeek}
+                .locale=${args.locale}
+                style="height: 100%; display: block;"
+            ></lms-calendar>
+        </div>
+    `,
+};
+
 // --- Condensed week view stories ---
 
 export const CondensedWeekView: Story = {
@@ -1684,7 +1707,7 @@ export const CondensedWeekView: Story = {
         entries: sampleEntries,
     },
     render: (args) => html`
-        <div style="width: 400px; height: 720px; margin: 0 auto; border: 1px dashed #ccc;">
+        <div style="width: 400px; max-width: 100%; box-sizing: border-box; height: 720px; margin: 0 auto; border: 1px dashed #ccc;">
             <lms-calendar
                 .heading=${args.heading}
                 .activeDate=${args.activeDate}
@@ -1730,7 +1753,7 @@ export const CondensedWeekModes: Story = {
         entries: sampleEntries,
     },
     render: (args) => html`
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr; gap: 1em; height: 720px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); grid-auto-rows: minmax(720px, auto); gap: 1em;">
             <lms-calendar
                 .heading=${'1-Day Peek'}
                 .activeDate=${args.activeDate}
@@ -1738,7 +1761,7 @@ export const CondensedWeekModes: Story = {
                 .color=${args.color}
                 .firstDayOfWeek=${args.firstDayOfWeek}
                 .locale=${args.locale}
-                style="height: 100%; display: block; --week-mobile-day-count: 1; --week-mobile-breakpoint: 9999px;"
+                style="height: 720px; display: block; --week-mobile-day-count: 1; --week-mobile-breakpoint: 9999px;"
             ></lms-calendar>
             <lms-calendar
                 .heading=${'2-Day Peek'}
@@ -1747,7 +1770,7 @@ export const CondensedWeekModes: Story = {
                 .color=${args.color}
                 .firstDayOfWeek=${args.firstDayOfWeek}
                 .locale=${args.locale}
-                style="height: 100%; display: block; --week-mobile-day-count: 2; --week-mobile-breakpoint: 9999px;"
+                style="height: 720px; display: block; --week-mobile-day-count: 2; --week-mobile-breakpoint: 9999px;"
             ></lms-calendar>
             <lms-calendar
                 .heading=${'3-Day Peek'}
@@ -1756,7 +1779,7 @@ export const CondensedWeekModes: Story = {
                 .color=${args.color}
                 .firstDayOfWeek=${args.firstDayOfWeek}
                 .locale=${args.locale}
-                style="height: 100%; display: block; --week-mobile-day-count: 3; --week-mobile-breakpoint: 9999px;"
+                style="height: 720px; display: block; --week-mobile-day-count: 3; --week-mobile-breakpoint: 9999px;"
             ></lms-calendar>
             <lms-calendar
                 .heading=${'5-Day Peek'}
@@ -1765,7 +1788,7 @@ export const CondensedWeekModes: Story = {
                 .color=${args.color}
                 .firstDayOfWeek=${args.firstDayOfWeek}
                 .locale=${args.locale}
-                style="height: 100%; display: block; --week-mobile-day-count: 5; --week-mobile-breakpoint: 9999px;"
+                style="height: 720px; display: block; --week-mobile-day-count: 5; --week-mobile-breakpoint: 9999px;"
             ></lms-calendar>
         </div>
     `,
@@ -1783,6 +1806,10 @@ export const CondensedWeekModes: Story = {
                 if (weekButton) {
                     await userEvent.click(weekButton);
                     await new Promise((resolve) => setTimeout(resolve, 200));
+                    // An auto-growing comparison row must not make a 100%-height
+                    // timeline feed its intrinsic day height back into that row.
+                    await expect(calendar.getBoundingClientRect().height).toBeLessThanOrEqual(721);
+                    await expect(calendar.getBoundingClientRect().height).toBeGreaterThan(600);
                 }
             }
         }
@@ -1994,7 +2021,7 @@ export const LocaleShowcase: Story = {
             Each calendar independently renders its own locale — UI strings, weekday names,
             and date formatting are all per-instance. No global locale switching needed.
         </p>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 0.5em; height: 2400px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); grid-auto-rows: minmax(720px, auto); gap: 1em;">
             ${(
                 [
                     'de',
@@ -2061,7 +2088,7 @@ export const LocaleShowcase: Story = {
                         .color=${args.color}
                         .locale=${locale}
                         .firstDayOfWeek=${getFirstDayForLocale(locale) as FirstDayOfWeek}
-                        style="height: 100%; display: block;"
+                        style="height: 720px; display: block;"
                     ></lms-calendar>
                 `;
             })}
@@ -2070,7 +2097,7 @@ export const LocaleShowcase: Story = {
     parameters: {
         docs: {
             description: {
-                story: 'Showcase of all 26 non-English locales in a 4-column grid. Each calendar uses its own locale for UI strings and date formatting, plus locale-appropriate firstDayOfWeek. All calendars render independently on the same page — no global locale switching.',
+                story: 'Showcase of all 26 non-English locales in a responsive grid with usable calendar widths. Each calendar uses its own locale for UI strings and date formatting, plus locale-appropriate firstDayOfWeek. All calendars render independently on the same page — no global locale switching.',
             },
         },
     },
@@ -2089,7 +2116,7 @@ export const RTLShowcase: Story = {
             time column moves to the right, day columns flow right-to-left, text and entry
             handles follow the writing direction. Use <code>dir="ltr"</code> to override.
         </p>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1em; height: 720px; padding: 0 1em;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); grid-auto-rows: minmax(720px, auto); gap: 1em;">
             <lms-calendar
                 .heading=${'العربية (Arabic)'}
                 .activeDate=${args.activeDate}
@@ -2097,7 +2124,7 @@ export const RTLShowcase: Story = {
                 .color=${'#1976d2'}
                 .locale=${'ar'}
                 .firstDayOfWeek=${getFirstDayForLocale('ar') as FirstDayOfWeek}
-                style="height: 100%; display: block;"
+                style="height: 720px; display: block;"
             ></lms-calendar>
             <lms-calendar
                 .heading=${'עברית (Hebrew)'}
@@ -2106,7 +2133,7 @@ export const RTLShowcase: Story = {
                 .color=${'#1976d2'}
                 .locale=${'he'}
                 .firstDayOfWeek=${getFirstDayForLocale('he') as FirstDayOfWeek}
-                style="height: 100%; display: block;"
+                style="height: 720px; display: block;"
             ></lms-calendar>
         </div>
     `,
@@ -2244,7 +2271,7 @@ export const YearViewDensityModes: Story = {
         entries: yearEntries,
     },
     render: (args) => html`
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1em; height: 720px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); grid-auto-rows: minmax(720px, auto); gap: 1em;">
             <lms-calendar
                 .heading=${'Dot Mode'}
                 .activeDate=${args.activeDate}
@@ -2253,7 +2280,7 @@ export const YearViewDensityModes: Story = {
                 .firstDayOfWeek=${args.firstDayOfWeek}
                 .locale=${args.locale}
                 .yearDensityMode=${'dot'}
-                style="height: 100%; display: block;"
+                style="height: 720px; display: block;"
             ></lms-calendar>
             <lms-calendar
                 .heading=${'Heatmap Mode'}
@@ -2263,7 +2290,7 @@ export const YearViewDensityModes: Story = {
                 .firstDayOfWeek=${args.firstDayOfWeek}
                 .locale=${args.locale}
                 .yearDensityMode=${'heatmap'}
-                style="height: 100%; display: block;"
+                style="height: 720px; display: block;"
             ></lms-calendar>
             <lms-calendar
                 .heading=${'Count Mode'}
@@ -2273,7 +2300,7 @@ export const YearViewDensityModes: Story = {
                 .firstDayOfWeek=${args.firstDayOfWeek}
                 .locale=${args.locale}
                 .yearDensityMode=${'count'}
-                style="height: 100%; display: block;"
+                style="height: 720px; display: block;"
             ></lms-calendar>
         </div>
     `,

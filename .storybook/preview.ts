@@ -78,6 +78,12 @@ const preview: Preview = {
                             ['Year Overview', 'Year Density Modes', 'Year Drill-Down'],
                         ],
                     },
+                    'Visual review',
+                    [
+                        'Viewport matrix',
+                        ['Matrix', 'Day', 'Week', 'Month', 'Agenda', 'Year'],
+                        'Library scenarios',
+                    ],
                 ],
             },
         },
@@ -85,7 +91,7 @@ const preview: Preview = {
     decorators: [
         (Story) => html`
             <div
-                style="width: 100%; height: 720px; padding: 16px; box-sizing: border-box; background: #f6f7f9;"
+                style="width: 100%; padding: 16px; box-sizing: border-box; background: #f6f7f9;"
             >
                 ${Story()}
             </div>

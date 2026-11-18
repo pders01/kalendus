@@ -86,6 +86,23 @@ lms-calendar {
 - Week/day layout logic has dedicated tests in `test/unit/lib/allDayLayout.test.ts`, `test/unit/lib/ViewStateController.test.ts`, `test/unit/LayoutCalculator.test.ts`, and `test/unit/week-row-allocation.test.ts`.
 - When modifying CSS token behavior or condensed-week logic, add/extend tests in `test/unit/lib/weekDisplayContext.test.ts` (create this file if missing) to ensure the context math stays stable.
 
+### Review calendar layouts
+
+In Storybook, open **Visual review → Viewport matrix** to compare Day, Week,
+Month, Agenda, and Year with the same date and event fixture. The matrix covers
+starting states; **Library scenarios** shows longer journeys and embed layouts.
+
+```bash
+bun run test:e2e -- test/e2e/calendar-review.spec.ts
+REVIEW_CAPTURE=1 bun run test:e2e -- --browser=webkit test/e2e/calendar-review.spec.ts
+```
+
+These tests use a production Storybook build and check the Month → Agenda →
+Week journey and a dense all-day drill-down in shallow Week. Set
+`REVIEW_CAPTURE=1` to save screenshots alongside the ignored Playwright results.
+Use `--output` with a new directory under `screenshots/` to retain a run.
+Screenshots are for review, not pixel baselines or device certification.
+
 ## Adding a New Locale
 
 1. Read [the canonical catalog guide](https://github.com/pders01/kalendus/blob/main/src/locales/README.md) and use its stable source IDs/placeholders.
