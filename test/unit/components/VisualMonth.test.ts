@@ -71,7 +71,9 @@ describe('Month visual geometry and density', () => {
         expect(
             calendar.shadowRoot!.querySelector('.calendar-view')!.getBoundingClientRect().bottom,
         ).to.be.at.least(grid.getBoundingClientRect().bottom);
-        expect(month.querySelectorAll('lms-calendar-entry')).to.have.length(6);
+        const mounted = month.querySelectorAll('lms-calendar-entry').length;
+        expect(mounted).to.be.greaterThan(0).and.lessThan(6);
+        expect(summary(month).querySelector('slot')!.textContent).to.equal(`+${6 - mounted}`);
         expect(month.shadowRoot!.querySelectorAll('button.indicator')).to.have.length(42);
         summary(month).focus();
         await sendKeys({ press: 'Enter' });
@@ -86,6 +88,117 @@ describe('Month visual geometry and density', () => {
                 (card) => card.dataset.eventId,
             ),
         ).to.deep.equal(entryList(6).map((entry) => entry.id));
+    });
+
+    it('mounts only fitting previews for a thousand events and keeps the full date list reachable', async () => {
+        const entries = entryList(1000);
+        const calendar =
+            await fixture<Calendar>(html`<lms-calendar .activeDate=${{ ...date, day: 14 }}
+            .entries=${entries} .monthAgendaPresentation=${'accordion'}
+            style="width:900px;font-size:16px"></lms-calendar>`);
+        await settleCalendar(calendar);
+        const month = calendar.shadowRoot!.querySelector<Month>('lms-calendar-month')!;
+        const mounted = [...month.querySelectorAll<HTMLElement>('lms-calendar-entry')];
+        expect(mounted.length).to.be.within(1, 3);
+        expect(mounted.map((entry) => entry.dataset.eventId)).to.deep.equal(
+            entries.slice(0, mounted.length).map((entry) => entry.id),
+        );
+        expect(summary(month).querySelector('slot')!.textContent).to.equal(
+            `+${new Intl.NumberFormat('en').format(entries.length - mounted.length)}`,
+        );
+        expect(
+            month.shadowRoot!.getElementById(`summary-description-${key}`)!.textContent,
+        ).to.include(getMessageFormatters('en').eventCount(entries.length));
+        summary(month).click();
+        await calendar.updateComplete;
+        const root = calendar.shadowRoot!;
+        expect(root.querySelectorAll('.agenda-event')).to.have.length(50);
+        expect(root.querySelectorAll('.agenda-title')[49].textContent).to.equal('Event 50');
+        root.querySelector<HTMLButtonElement>('.agenda-more')!.click();
+        await calendar.updateComplete;
+        expect(root.querySelectorAll('.agenda-title')[99].textContent).to.equal('Event 100');
+        let activated: string | undefined;
+        calendar.addEventListener(
+            'entry-activate',
+            (event) => {
+                activated = (event as CustomEvent<{ eventId: string }>).detail.eventId;
+                event.preventDefault();
+            },
+            { once: true },
+        );
+        root.querySelectorAll<HTMLButtonElement>('.agenda-event')[99].click();
+        expect(activated).to.equal('visual-99');
+        expect(calendar.entries).to.equal(entries);
+    });
+
+    it('recomputes previews after a row-token change and returns displaced focus to the disclosure', async () => {
+        const calendar = await fixture<Calendar>(html`<lms-calendar .activeDate=${date}
+            .entries=${entryList(4)} style="width:900px;font-size:16px;--month-week-height:12em"></lms-calendar>`);
+        await settleCalendar(calendar);
+        const month = calendar.shadowRoot!.querySelector<Month>('lms-calendar-month')!;
+        const cards = () => [...month.querySelectorAll<Entry>('lms-calendar-entry')];
+        const initial = cards();
+        expect(initial).to.have.length(4);
+        expect(summary(month).hidden).to.equal(true);
+        initial[3].focus();
+        expect(calendar.shadowRoot!.activeElement).to.equal(initial[3]);
+        calendar.style.setProperty('--all-day-row-height', '3rem');
+        await waitUntil(() => month.shadowRoot!.activeElement === summary(month));
+        expect(cards().length).to.be.within(1, 3);
+        expect(cards()[0]).to.equal(initial[0]);
+        expect(initial[3].isConnected).to.equal(false);
+        expect(summary(month).querySelector('slot')!.textContent).to.equal(
+            `+${4 - cards().length}`,
+        );
+        calendar.style.removeProperty('--all-day-row-height');
+        await waitUntil(() => summary(month).hidden && cards().length === 4);
+        expect(cards()[0]).to.equal(initial[0]);
+        expect(month.shadowRoot!.activeElement).to.equal(
+            month.shadowRoot!.querySelector(`.indicator[data-date="${key}"]`),
+        );
+    });
+
+    it('counts events rather than empty span lanes and restores the same row placements on growth', async () => {
+        const end = { ...date, day: 17 };
+        const allDay = (id: string, endDay: number): CalendarEntry => ({
+            id,
+            kind: 'all-day',
+            heading: id,
+            date: { start: date, end: { ...date, day: endDay } },
+        });
+        const entries = [
+            allDay('a', 16),
+            allDay('b', 16),
+            allDay('c', 16),
+            allDay('d', 17),
+            { ...entryList(1)[0], date: { start: end, end } },
+        ];
+        const calendar = await fixture<Calendar>(html`<lms-calendar .activeDate=${date}
+            .entries=${entries} style="width:900px;font-size:16px"></lms-calendar>`);
+        await settleCalendar(calendar);
+        const month = calendar.shadowRoot!.querySelector<Month>('lms-calendar-month')!;
+        const lastDate = '2026-6-17';
+        const footer = month.shadowRoot!.querySelector<HTMLButtonElement>(
+            `.summary[data-date="${lastDate}"]`,
+        )!;
+        const cards = () => [
+            ...month.querySelectorAll<Entry>(`lms-calendar-entry[slot="${lastDate}"]`),
+        ];
+        expect(cards()).to.have.length(0);
+        expect(footer.hidden).to.equal(false);
+        expect(footer.querySelector('slot')!.textContent).to.equal('+2');
+        calendar.style.setProperty('--month-week-height', '14em');
+        await waitUntil(() => footer.hidden && cards().length === 2);
+        expect(
+            cards().map((card) => [
+                card.dataset.eventId,
+                card.style.getPropertyValue('--all-day-row'),
+            ]),
+        ).to.deep.equal([
+            ['d', '3'],
+            ['visual-0', '4'],
+        ]);
+        expect(cards()[0].classList.contains('last-day')).to.equal(true);
     });
 
     it('uses an explicit readable week budget rather than an unconditional two-row cap or redundant footer', async () => {

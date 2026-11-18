@@ -287,21 +287,20 @@ describe('Real-root automatic accessibility regressions', function () {
                     const rendered = Array.from(
                         month.querySelectorAll<HTMLElement>('lms-calendar-entry'),
                     );
-                    expect(rendered.length).to.be.greaterThan(8);
-                    expect(rendered.map((entry) => entry.dataset.eventId).sort()).to.deep.equal(
-                        [
-                            ...Array(4).fill('conference'),
-                            'holiday',
-                            'planning',
-                            ...Array.from({ length: 7 }, (_, index) => `dense-${index}`),
-                        ].sort(),
+                    const onDate = rendered.filter((entry) => entry.slot === key);
+                    expect(onDate.length).to.be.greaterThan(0).and.lessThan(10);
+                    expect(
+                        rendered.filter((entry) => entry.dataset.eventId === 'conference'),
+                    ).to.have.length(4);
+                    expect(
+                        rendered.every((entry) => getComputedStyle(entry).display !== 'none'),
+                    ).to.equal(true);
+                    const footer = month.shadowRoot!.querySelector(
+                        `.day[data-date="${key}"] .summary`,
+                    )!;
+                    expect(footer.querySelector('slot')!.textContent).to.equal(
+                        `+${10 - onDate.length}`,
                     );
-                    expect(
-                        rendered.some((entry) => getComputedStyle(entry).display === 'none'),
-                    ).to.equal(true);
-                    expect(
-                        rendered.some((entry) => getComputedStyle(entry).display !== 'none'),
-                    ).to.equal(true);
                     await scan(calendar);
                 },
             );

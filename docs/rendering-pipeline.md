@@ -32,7 +32,7 @@ Called in `willUpdate()` when entries or the committed visible range/view/week-s
 
 - Expands normalized entries via `expandEntries()` in `src/lib/calendarModel.ts`, clipped to `visibleRange`. Invalid records report `entries-invalid`; a visible segment-budget failure clears caches and reports `entries-error` rather than truncating.
 - Groups results into `_expandedByISODate` (`Map<string, ExpandedCalendarEntry[]>`) keyed by `YYYY-MM-DD` for O(1) per-day lookups.
-- Pre-computes `_monthViewSorted` (sorted + color-annotated) and `_entrySumByDay` (per-day event counts for mobile badges).
+- Prepares Month rows by date, preserving gaps in multi-day span lanes. Month measures cell capacity before the owner creates preview elements. `_entrySumByDay` retains full per-date counts, including entries not mounted in the grid.
 - Clears `_layoutCache` and `_allDayLayoutCache` so stale layouts are recomputed.
 
 ### `normalizeEntries()` / `expandEntries()`

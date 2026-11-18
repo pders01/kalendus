@@ -82,11 +82,11 @@ describe('Experimental presentation variants', () => {
                         .overflowY,
                 ).to.equal('visible');
                 if (mode === 'previews') {
-                    const all = [...month.querySelectorAll<HTMLElement>('[slot="2026-11-17"]')];
-                    const visible = all.filter(
-                        (entry) => !entry.hasAttribute('data-month-overflow'),
-                    );
-                    const hidden = all.length - visible.length;
+                    const visible = [...month.querySelectorAll<HTMLElement>('[slot="2026-11-17"]')];
+                    const hidden = supplied.length - visible.length;
+                    expect(
+                        visible.every((entry) => !entry.hasAttribute('data-month-overflow')),
+                    ).to.equal(true);
                     expect(visible.length).to.be.greaterThan(0);
                     expect(hidden).to.be.greaterThan(0);
                     expect(

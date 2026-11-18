@@ -5,6 +5,7 @@ import { styleMap } from 'lit/directives/style-map.js';
 import { DateTime } from 'luxon';
 
 import LMSCalendarContext from './components/Context.js';
+import { dateKey } from './components/dateNavigation.js';
 import LMSCalendarDay from './components/Day.js';
 import LMSCalendarEntry from './components/Entry.js';
 import { downloadEntryIcs } from './components/entryExport.js';
@@ -75,6 +76,10 @@ type ExpandedCalendarEntry = ModelExpandedEntry & {
 };
 
 type EntryRender = { key: string; template: TemplateResult<1> };
+type MonthPreview = {
+    entry: ExpandedCalendarEntry;
+    spanClass?: ReturnType<typeof computeSpanClass>;
+};
 const civilDateKey = ({ year, month, day }: CalendarDate) =>
     `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
@@ -87,13 +92,7 @@ function groupByDate(entries: ExpandedCalendarEntry[]) {
 function sortMonthEntries(entries: ExpandedCalendarEntry[]) {
     const order = (entry: ExpandedCalendarEntry) =>
         entry.originalIndex - (entry.continuation.has ? 1000 : 0);
-    return entries
-        .sort((a, b) => order(a) - order(b))
-        .map((entry) => ({
-            entry,
-            background: getColorTextWithContrast(entry.color)[0],
-            originalIndex: entry.originalIndex,
-        }));
+    return entries.sort((a, b) => order(a) - order(b));
 }
 
 /** Auto keeps compact Month context inline; day preserves the legacy drill action. */
@@ -328,26 +327,12 @@ export default class LMSCalendar extends LitElement {
     /** All entries expanded across their date spans (shared by every view). */
     private _expandedEntries: ExpandedCalendarEntry[] = [];
 
-    /** Month view: sorted + color-annotated, ready for _renderEntries. */
-    private _monthViewSorted: Array<{
-        entry: ExpandedCalendarEntry;
-        background: string;
-        originalIndex: number;
-    }> = [];
+    /** Each date's array is indexed by preview row, preserving gaps in span lanes. */
+    private _monthPreviews: Record<string, Array<MonthPreview | undefined>> = {};
+    @state() private _monthCapacity: Record<string, number> = {};
 
     /** Per-day cardinality for accessible date labels and contextual headings. */
     private _entrySumByDay: Record<string, number> = {};
-
-    /** Month view: cached all-day layout data per week row. */
-    private _monthAllDayLayoutCache: Array<{
-        weekEntries: Array<{
-            entry: ExpandedCalendarEntry;
-            background: string;
-            originalIndex: number;
-        }>;
-        rowAssignments: Map<string, number>;
-        mergedEvents: Map<string, AllDayEvent>;
-    }> = [];
 
     /** Day/week view: expanded entries grouped by ISO date for O(1) lookup. */
     private _expandedByISODate = new Map<string, ExpandedCalendarEntry[]>();
@@ -1023,7 +1008,10 @@ export default class LMSCalendar extends LitElement {
             const destination =
                 entry && getComputedStyle(entry).display !== 'none'
                     ? entry
-                    : this.shadowRoot?.querySelector<HTMLElement>('[data-menu-focus-fallback]');
+                    : (this.shadowRoot
+                          ?.querySelector('lms-calendar-month')
+                          ?.previewFocusTarget(focus.slot) ??
+                      this.shadowRoot?.querySelector<HTMLElement>('[data-menu-focus-fallback]'));
             destination?.focus({ preventScroll: true });
         }
         this._observeTimeGrid();
@@ -1308,6 +1296,11 @@ export default class LMSCalendar extends LitElement {
             civilDateKey(this._densityReturn.activeDate) !== civilDateKey(this.activeDate)
         )
             this._densityReturn = undefined;
+        if (
+            (this.viewMode !== 'month' || this._inMonthAgenda) &&
+            Object.keys(this._monthCapacity).length
+        )
+            this._monthCapacity = {};
         const agendaKey = `${this.viewMode}:${civilDateKey(this.activeDate)}:${this.monthAgendaPresentation}:${this._densityReturn?.key ?? ''}`;
         if (agendaKey !== this._agendaKey) {
             this._agendaKey = agendaKey;
@@ -1378,8 +1371,7 @@ export default class LMSCalendar extends LitElement {
 
     private _clearEntryCaches() {
         this._expandedEntries = [];
-        this._monthViewSorted = [];
-        this._monthAllDayLayoutCache = [];
+        this._monthPreviews = {};
         this._monthSpans = [];
         this._entrySumByDay = {};
         this._expandedByISODate.clear();
@@ -1424,22 +1416,12 @@ export default class LMSCalendar extends LitElement {
             bucket.push(entry);
         }
 
-        // 3. Month view: partition into all-day vs timed, then sort + compute colors
-        const monthAllDay: ExpandedCalendarEntry[] = [];
-        const monthTimed: ExpandedCalendarEntry[] = [];
-        for (const entry of this._expandedEntries) {
-            if (entry.isAllDay) {
-                monthAllDay.push(entry);
-            } else {
-                monthTimed.push(entry);
-            }
-        }
-
-        this._monthViewSorted = sortMonthEntries(monthTimed);
-
-        // 4. Month view: compute all-day row allocations per week (includes sorting)
-        this._monthAllDayLayoutCache =
-            this.viewMode === 'month' ? this._computeMonthAllDayLayout(monthAllDay) : [];
+        if (
+            this.viewMode === 'month' &&
+            !this._inMonthAgenda &&
+            this.monthPresentation !== 'presence'
+        )
+            this._monthPreviews = this._computeMonthPreviews();
         this._monthSpans =
             this.viewMode === 'month' && this.monthPresentation === 'presence'
                 ? buildMonthSpans(
@@ -1460,82 +1442,57 @@ export default class LMSCalendar extends LitElement {
         this._allDayLayoutCache.clear();
     }
 
-    /**
-     * Compute per-week all-day layout for month view.
-     * Returns an array of 6 elements (one per week row) with row assignments.
-     */
-    private _computeMonthAllDayLayout(allDayEntries: ExpandedCalendarEntry[]) {
-        if (allDayEntries.length === 0) return [];
+    private _computeMonthPreviews() {
+        const previews: Record<string, Array<MonthPreview | undefined>> = {};
+        const allDay: ExpandedCalendarEntry[] = [];
+        const timed: ExpandedCalendarEntry[] = [];
+        for (const entry of this._expandedEntries) (entry.isAllDay ? allDay : timed).push(entry);
 
-        const activeDate = this._viewState.activeDate;
-        if (!activeDate) return [];
-
-        const calendarArray = getMonthCalendarArray(activeDate, this.firstDayOfWeek);
-        if (!calendarArray?.length) return [];
-
-        // Sort entries (multi-day first, then by original index) and compute colors
-        const sorted = sortMonthEntries(allDayEntries);
-
-        type WeekEntry = (typeof sorted)[number];
-        const result: Array<{
-            weekEntries: WeekEntry[];
-            rowAssignments: Map<string, number>;
-            mergedEvents: Map<string, AllDayEvent>;
-        }> = [];
-
-        for (let weekStart = 0; weekStart < calendarArray.length; weekStart += 7) {
-            const weekDates = calendarArray.slice(weekStart, weekStart + 7);
-
-            // Find all-day entries that start on any day of this week
-            const weekEntries = sorted.filter(({ entry }) =>
-                weekDates.some(
-                    (d) =>
-                        d.year === entry.date.start.year &&
-                        d.month === entry.date.start.month &&
-                        d.day === entry.date.start.day,
-                ),
-            );
-
-            if (weekEntries.length === 0) {
-                result.push({
-                    weekEntries: [],
-                    rowAssignments: new Map(),
-                    mergedEvents: new Map(),
-                });
-                continue;
-            }
-
-            // Build AllDayEvent array for row allocation
-            const events: AllDayEvent[] = weekEntries.map(({ entry }) => {
-                const dayIndex = weekDates.findIndex(
-                    (d) =>
-                        d.year === entry.date.start.year &&
-                        d.month === entry.date.start.month &&
-                        d.day === entry.date.start.day,
-                );
-                return {
-                    id: entry.occurrenceId,
-                    days: [dayIndex >= 0 ? dayIndex : 0],
-                    isMultiDay: entry.continuation?.has || entry.continuation?.is || false,
-                };
-            });
-
-            // Merge multi-day events
-            const mergedEvents = new Map<string, AllDayEvent>();
-            for (const event of events) {
-                const existing = mergedEvents.get(event.id);
-                if (existing) {
-                    existing.days.push(...event.days);
-                } else {
-                    mergedEvents.set(event.id, { ...event, days: [...event.days] });
-                }
-            }
-
-            const { rowAssignments } = allocateAllDayRows(Array.from(mergedEvents.values()));
-            result.push({ weekEntries, rowAssignments, mergedEvents });
+        const dates = getMonthCalendarArray(this.activeDate, this.firstDayOfWeek);
+        const indices = new Map(dates.map((date, index) => [dateKey(date), index]));
+        const weeks: Array<Array<{ entry: ExpandedCalendarEntry; column: number; key: string }>> =
+            Array.from({ length: 6 }, () => []);
+        for (const entry of sortMonthEntries(allDay)) {
+            const key = dateKey(entry.date.start);
+            const index = indices.get(key);
+            if (index !== undefined)
+                weeks[Math.floor(index / 7)].push({ entry, column: index % 7, key });
         }
 
-        return result;
+        for (const week of weeks) {
+            const events = new Map<string, AllDayEvent>();
+            for (const { entry, column } of week) {
+                let event = events.get(entry.occurrenceId);
+                if (!event) {
+                    event = {
+                        id: entry.occurrenceId,
+                        days: [],
+                        isMultiDay: entry.continuation.total > 1,
+                    };
+                    events.set(event.id, event);
+                }
+                event.days.push(column);
+            }
+            const { rowAssignments } = allocateAllDayRows([...events.values()]);
+            for (const { entry, column, key } of week) {
+                const days = events.get(entry.occurrenceId)!.days;
+                const spanClass = computeSpanClass({
+                    continuationIndex: column,
+                    totalDays: entry.continuation.total,
+                    visibleStartIndex: Math.min(...days),
+                    visibleEndIndex: Math.max(...days),
+                });
+                (previews[key] ??= [])[rowAssignments.get(entry.occurrenceId)!] = {
+                    entry,
+                    spanClass,
+                };
+            }
+        }
+
+        // Timed rows start after the last occupied span lane, not the all-day count.
+        for (const entry of sortMonthEntries(timed))
+            (previews[dateKey(entry.date.start)] ??= []).push({ entry });
+        return previews;
     }
 
     /** Retry a failed locale download without changing the requested locale. */
@@ -2013,11 +1970,6 @@ export default class LMSCalendar extends LitElement {
         return 'standard';
     }
 
-    /**
-     * Render all entries for month view (both all-day and timed).
-     * All-day entries use connected bar styling, timed entries use dot indicators.
-     * All entries go into the same per-day slots.
-     */
     private get _inlineMonth() {
         return (
             this.monthPresentation !== 'auto' ||
@@ -2048,6 +2000,9 @@ export default class LMSCalendar extends LitElement {
             <lms-calendar-month
                 @expand=${this._handleMonthDate}
                 @date-summary=${this._handleMonthDate}
+                @preview-capacity-change=${(event: CustomEvent<Record<string, number>>) => {
+                    this._monthCapacity = event.detail;
+                }}
                 @date-navigate=${this._handleDateNavigate}
                 @clear-other-selections=${this._handleClearOtherSelections}
                 .activeDate=${this.activeDate}
@@ -2056,6 +2011,7 @@ export default class LMSCalendar extends LitElement {
                 .localeVersion=${this._localeVersion}
                 .entryCounts=${this._entrySumByDay}
                 .compact=${compact}
+                .previewRows=${compact ? undefined : this._monthPreviews}
                 .spans=${this.monthPresentation === 'presence' ? this._monthSpans : []}
                 .selectedDate=${this._inlineMonth || this._hasMonthAgenda ? this.activeDate : undefined}
                 .trace=${trace}
@@ -2324,86 +2280,37 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _renderMonthEntries() {
-        const allElements: EntryRender[] = [];
-        const nextRows = new Map<string, number>();
-
-        // 1. Render all-day entries using cached layout
-        const activeDate = this._viewState.activeDate;
-        if (activeDate && this._monthAllDayLayoutCache.length > 0) {
-            const calendarArray = getMonthCalendarArray(activeDate, this.firstDayOfWeek);
-
-            for (let weekIndex = 0; weekIndex < this._monthAllDayLayoutCache.length; weekIndex++) {
-                const { weekEntries, rowAssignments, mergedEvents } =
-                    this._monthAllDayLayoutCache[weekIndex];
-
-                if (weekEntries.length === 0) continue;
-
-                const weekDates = calendarArray.slice(weekIndex * 7, weekIndex * 7 + 7);
-
-                for (const { entry, originalIndex } of weekEntries) {
-                    const eventId = entry.occurrenceId;
-                    const row = rowAssignments.get(eventId) ?? 0;
-                    const dateKey = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
-                    nextRows.set(dateKey, Math.max(nextRows.get(dateKey) ?? 0, row + 1));
-                    const mergedEvent = mergedEvents.get(eventId);
-                    const visibleDays = mergedEvent?.days ?? [];
-                    const sortedDays = [...visibleDays].sort((a, b) => a - b);
-                    const dayIndex = weekDates.findIndex(
-                        (d) =>
-                            d.year === entry.date.start.year &&
-                            d.month === entry.date.start.month &&
-                            d.day === entry.date.start.day,
-                    );
-
-                    const spanClass = computeSpanClass({
-                        continuationIndex: dayIndex,
-                        totalDays: entry.continuation?.total ?? 1,
-                        visibleStartIndex: sortedDays[0] ?? dayIndex,
-                        visibleEndIndex: sortedDays[sortedDays.length - 1] ?? dayIndex,
-                    });
-
-                    // Use light background with accent color for text (matching week view style)
+        const visible: EntryRender[] = [];
+        for (const [slot, rows] of Object.entries(this._monthPreviews)) {
+            const capacity = Math.min(rows.length, this._monthCapacity[slot] ?? 0);
+            for (let row = 0; row < capacity; row++) {
+                const preview = rows[row];
+                if (!preview) continue;
+                const { entry, spanClass } = preview;
+                const index = entry.originalIndex;
+                let style: string;
+                if (entry.isAllDay) {
                     const [r, g, b] = parseColorWithDefault(entry.color);
-                    const bgColor = `rgba(${r}, ${g}, ${b}, 0.12)`;
-                    const borderColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
-
-                    allElements.push(
-                        this._composeEntry({
-                            index: originalIndex,
-                            slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-                            inlineStyle: `--entry-color: ${this._safeEntryColor(entry.color)}; --entry-background-color: ${bgColor}; --entry-border: 1px solid ${borderColor}; --all-day-row: ${row}; order: ${row}; z-index: ${100 + row}`,
-                            entry,
-                            density: 'compact',
-                            displayMode: 'month-span',
-                            spanClass,
-                        }),
-                    );
+                    style = `--entry-color: ${this._safeEntryColor(entry.color)}; --entry-background-color: rgba(${r}, ${g}, ${b}, 0.12); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.3); order: ${row}; z-index: ${100 + row}`;
+                } else {
+                    const [color] = getColorTextWithContrast(entry.color);
+                    style = `--entry-color: ${color}; --entry-background-color: ${color}; z-index: ${100 + index}`;
                 }
+                visible.push(
+                    this._composeEntry({
+                        index,
+                        slot,
+                        inlineStyle: `${style}; --all-day-row: ${row}`,
+                        entry,
+                        density: entry.isAllDay ? 'compact' : this._determineDensity(entry),
+                        displayMode: entry.isAllDay ? 'month-span' : 'month-dot',
+                        spanClass,
+                    }),
+                );
             }
         }
-
-        // 2. Render timed entries
-        if (this._monthViewSorted.length > 0) {
-            const timedElements = this._monthViewSorted.map(
-                ({ entry, background, originalIndex }) => {
-                    const key = `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`;
-                    const row = nextRows.get(key) ?? 0;
-                    nextRows.set(key, row + 1);
-                    return this._composeEntry({
-                        index: originalIndex,
-                        slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-                        inlineStyle: `--entry-color: ${background}; --entry-background-color: ${background}; --all-day-row: ${row}; z-index: ${100 + originalIndex}`,
-                        entry,
-                        density: this._determineDensity(entry),
-                        displayMode: 'month-dot',
-                    });
-                },
-            );
-            allElements.push(...timedElements);
-        }
-
         return repeat(
-            allElements,
+            visible,
             (item) => item.key,
             (item) => item.template,
         );

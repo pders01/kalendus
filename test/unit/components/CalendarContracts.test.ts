@@ -393,6 +393,8 @@ describe('Calendar public contracts and audit regressions', () => {
                 time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
             }),
         ]);
+        el.style.setProperty('--month-week-height', '10em');
+        await waitUntil(() => !!el.shadowRoot!.querySelector('[data-event-id="row-timed"]'));
         const spans = [...el.shadowRoot!.querySelectorAll<HTMLElement>('[data-event-id="row-b"]')];
         expect(spans).to.have.length(2);
         expect(

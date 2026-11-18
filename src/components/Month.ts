@@ -33,6 +33,8 @@ export default class Month extends LitElement {
     @property({ type: Number }) maxVisibleRows?: number;
     /** Counts for dates represented by summaries rather than slotted entries. */
     @property({ attribute: false }) entryCounts: Readonly<Record<string, number>> = {};
+    /** @internal Sparse preview rows from the owner. Only occupancy is read; entryCounts supplies totals. */
+    @property({ attribute: false }) previewRows?: Readonly<Record<string, readonly unknown[]>>;
     /** Compact date units use presence markers; the owner renders contextual events. */
     @property({ type: Boolean, reflect: true }) compact = false;
     @property({ attribute: false }) selectedDate?: CalendarDate;
@@ -47,6 +49,7 @@ export default class Month extends LitElement {
     private _today = new CurrentDateController(this);
     private _resizeObserver?: ResizeObserver;
     private _frame = 0;
+    private _capacityKey = '{}';
 
     static override styles = css`
         :host {
@@ -56,7 +59,16 @@ export default class Month extends LitElement {
             min-inline-size: 0;
         }
         .month-strip {
+            position: relative;
             overflow-x: auto;
+        }
+        .row-metrics {
+            position: absolute;
+            inset-block-start: 0;
+            inset-inline-start: 0;
+            visibility: hidden;
+            inline-size: min(100%, var(--month-day-gap, 1px));
+            block-size: max(24px, var(--all-day-row-height, 1.5rem));
         }
         .month {
             height: auto;
@@ -340,6 +352,9 @@ export default class Month extends LitElement {
         this._resizeObserver.observe(this);
         const grid = this.renderRoot.querySelector('.month');
         if (grid) this._resizeObserver.observe(grid);
+        // Row-height and gap tokens can change without resizing the outer grid.
+        const rowMetrics = this.renderRoot.querySelector('.row-metrics');
+        if (rowMetrics) this._resizeObserver.observe(rowMetrics);
         this._scheduleEntries();
     }
     override updated() {
@@ -356,75 +371,116 @@ export default class Month extends LitElement {
         const counts: Record<string, number> = {};
         const summaries: Record<string, boolean> = {};
         const hiddenCounts: Record<string, number> = {};
+        const capacities: Record<string, number> = {};
+        const writes: Array<() => void> = [];
+        const managed = this.previewRows;
+        const ceiling = Number.isFinite(this.maxVisibleRows)
+            ? Math.max(0, Math.floor(this.maxVisibleRows!))
+            : Number.POSITIVE_INFINITY;
         for (const cell of this.renderRoot.querySelectorAll<HTMLElement>('.day')) {
             const key = cell.dataset.date!;
             const slots = cell.querySelectorAll('slot');
-            const entries = slots[0]
-                .assignedElements()
-                .filter((el): el is HTMLElement => el instanceof HTMLElement);
-            const area = cell.querySelector<HTMLElement>('.entries')!;
-            const rowHeight = parseFloat(getComputedStyle(area).gridAutoRows) || 24;
-            const gap = parseFloat(getComputedStyle(area).rowGap) || 0;
+            const entries = managed
+                ? []
+                : slots[0]
+                      .assignedElements()
+                      .filter((el): el is HTMLElement => el instanceof HTMLElement);
+            const previews = managed?.[key];
+            const count = managed ? (this.entryCounts[key] ?? 0) : entries.length;
             const projectedSummary = slots[1]
                 .assignedNodes()
                 .some((node) => node.nodeType === Node.ELEMENT_NODE || !!node.textContent?.trim());
+            counts[key] = count;
+            summaries[key] = projectedSummary;
             if (this.compact) {
-                counts[key] = entries.length;
-                hiddenCounts[key] = 0;
-                summaries[key] = projectedSummary;
-                for (const entry of entries) entry.removeAttribute('data-month-overflow');
+                if (entries.length)
+                    writes.push(() => {
+                        for (const entry of entries) entry.removeAttribute('data-month-overflow');
+                    });
                 continue;
             }
+            if (!count && !projectedSummary) continue;
+
             const rows = entries.map((entry, index) => {
-                const explicit = entry.style.getPropertyValue('--all-day-row');
-                const legacyOrder = entry.style.order;
-                const value = explicit
-                    ? Number(explicit)
-                    : legacyOrder
-                      ? Number(legacyOrder)
-                      : index;
-                return Number.isFinite(value) && value >= 0 ? Math.floor(value) : index;
+                const explicit = entry.style.getPropertyValue('--all-day-row') || entry.style.order;
+                const row = explicit ? Number(explicit) : index;
+                return Number.isFinite(row) && row >= 0 ? Math.floor(row) : index;
             });
+            const area = getComputedStyle(cell.querySelector('.entries')!);
+            const rowHeight = parseFloat(area.gridAutoRows) || 24;
+            const gap = parseFloat(area.rowGap) || 0;
             const indicator = cell.querySelector<HTMLElement>('.indicator')!;
             const summary = cell.querySelector<HTMLElement>('.summary')!;
-            const indicatorStyle = getComputedStyle(indicator);
-            const summaryStyle = getComputedStyle(summary);
             const margins = (style: CSSStyleDeclaration) =>
                 (parseFloat(style.marginBlockStart) || 0) + (parseFloat(style.marginBlockEnd) || 0);
-            const available = Math.max(
-                0,
-                cell.clientHeight - indicator.offsetHeight - margins(indicatorStyle),
-            );
-            const ceiling = Number.isFinite(this.maxVisibleRows)
-                ? Math.max(0, Math.floor(this.maxVisibleRows!))
-                : Number.POSITIVE_INFINITY;
+            const available =
+                cell.clientHeight - indicator.offsetHeight - margins(getComputedStyle(indicator));
             const fit = (height: number) =>
                 Math.max(0, Math.min(ceiling, Math.floor((height + gap) / (rowHeight + gap))));
             // Decide overflow before reserving a footer. Measuring the flexed entries
             // area would create a feedback loop as the footer appears/disappears.
             let capacity = fit(available);
-            if (projectedSummary || rows.some((row) => row >= capacity)) {
-                const footerHeight =
-                    Math.max(summary.offsetHeight, parseFloat(summaryStyle.minBlockSize) || 24) +
-                    margins(summaryStyle);
-                capacity = fit(available - footerHeight);
+            if (
+                projectedSummary ||
+                (previews?.length ?? 0) > capacity ||
+                rows.some((row) => row >= capacity)
+            ) {
+                const style = getComputedStyle(summary);
+                capacity = fit(
+                    available -
+                        Math.max(summary.offsetHeight, parseFloat(style.minBlockSize) || 24) -
+                        margins(style),
+                );
             }
-            let hidden = 0;
-            entries.forEach((entry, index) => {
-                entry.style.setProperty('--month-entry-row', String(rows[index]));
-                const overflow = rows[index] >= capacity;
-                entry.toggleAttribute('data-month-overflow', overflow);
-                if (overflow) hidden++;
-            });
-            counts[key] = entries.length;
-            hiddenCounts[key] = hidden;
-            summaries[key] = projectedSummary;
+
+            if (managed) {
+                capacities[key] = capacity;
+                let visible = 0;
+                if (previews) {
+                    for (let row = 0; row < Math.min(capacity, previews.length); row++)
+                        if (previews[row] !== undefined) visible++;
+                }
+                hiddenCounts[key] = count - visible;
+            } else {
+                hiddenCounts[key] = rows.filter((row) => row >= capacity).length;
+                writes.push(() => {
+                    entries.forEach((entry, index) => {
+                        entry.style.setProperty('--month-entry-row', String(rows[index]));
+                        entry.toggleAttribute('data-month-overflow', rows[index] >= capacity);
+                    });
+                });
+            }
+        }
+        // Keep reads ahead of slot writes so a dense date doesn't invalidate the
+        // layout measured for the next date. Managed previews never need slot writes.
+        for (const write of writes) write();
+        const focused = this.shadowRoot?.activeElement;
+        if (focused instanceof HTMLElement && focused.matches('.summary')) {
+            const key = focused.dataset.date!;
+            if (!hiddenCounts[key] && !summaries[key])
+                this.renderRoot
+                    .querySelector<HTMLElement>(`.indicator[data-date="${key}"]`)
+                    ?.focus({ preventScroll: true });
         }
         if (JSON.stringify(counts) !== JSON.stringify(this._counts)) this._counts = counts;
         if (JSON.stringify(summaries) !== JSON.stringify(this._summaries))
             this._summaries = summaries;
         if (JSON.stringify(hiddenCounts) !== JSON.stringify(this._hiddenCounts))
             this._hiddenCounts = hiddenCounts;
+        const capacityKey = JSON.stringify(capacities);
+        if (capacityKey !== this._capacityKey) {
+            this._capacityKey = capacityKey;
+            this.dispatchEvent(new CustomEvent('preview-capacity-change', { detail: capacities }));
+        }
+    }
+
+    /** @internal Focus target when the preview for a focused entry no longer fits. */
+    public previewFocusTarget(key: string) {
+        return (
+            this.renderRoot.querySelector<HTMLElement>(
+                `.summary[data-date="${key}"]:not([hidden])`,
+            ) ?? this.renderRoot.querySelector<HTMLElement>(`.indicator[data-date="${key}"]`)
+        );
     }
 
     public async focusDate(date: CalendarDate = this.activeDate) {
@@ -470,7 +526,7 @@ export default class Month extends LitElement {
         const countsOnly =
             this.compact && this.spans.some((week) => week.some((span) => span.row > 1));
         return html`${this.trace.length ? html`<span class="sr-only" id="traced-event">${this.trace[0].heading || getMessages(this.locale).noTitle}</span>` : nothing}
-        <div class="month-strip"><div class="month" data-span-presentation=${countsOnly ? 'counts' : 'individual'} role="grid" aria-label=${formatLocalizedDate(1, (this._displayDate ?? this.activeDate).month, (this._displayDate ?? this.activeDate).year, this.locale)}>
+        <div class="month-strip"><div class="row-metrics" aria-hidden="true"></div><div class="month" data-span-presentation=${countsOnly ? 'counts' : 'individual'} role="grid" aria-label=${formatLocalizedDate(1, (this._displayDate ?? this.activeDate).month, (this._displayDate ?? this.activeDate).year, this.locale)}>
             <div class="weekdays" role="row">${getWeekdayOrder(this.firstDayOfWeek).map((day) => html`<span class="weekday" role="columnheader">${getLocalizedWeekdayShort(day, this.locale)}</span>`)}</div>
             ${Array.from(
                 { length: 6 },
