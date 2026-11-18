@@ -28,7 +28,6 @@ export default {
                     'lit/directives/keyed.js',
                     'luxon',
                     'remeda',
-                    'ts-ics',
                 ],
             },
         }),

@@ -1,11 +1,13 @@
 import { expect, fixture, html, nextFrame, waitUntil } from '@open-wc/testing';
 import { sendKeys, sendMouse } from '@web/test-runner-commands';
 import { convertIcsCalendar } from 'ts-ics';
-const parseIcsCalendar = (source: string) => convertIcsCalendar(undefined, source);
+
 import '../../../src/components/Menu.ts';
 import { generateEntryIcs } from '../../../src/components/entryExport.ts';
 import type { Menu } from '../../../src/components/Menu.ts';
 import type { CalendarEntry } from '../../../src/lms-calendar.js';
+
+const parseIcsCalendar = (source: string) => convertIcsCalendar(undefined, source);
 
 const settle = async () => {
     await nextFrame();
@@ -271,6 +273,33 @@ describe('Canonical RFC 5545 export content', () => {
         expect(parsed.events![0].summary).to.equal('Original event');
         expect(parsed.events![0].start.type).to.equal('DATE');
     });
+    it('round-trips mixed newline styles and escaped punctuation as calendar text', async () => {
+        const heading = 'Notes, by date; now';
+        const content = 'First\r\nSecond\rThird\nFourth, with a comma; and a backslash: \\.';
+        const result = await generateEntryIcs({ ...allDay, heading, content });
+        expect(result.replaceAll('\r\n', '')).not.to.match(/[\r\n]/);
+        const [parsed] = parseIcsCalendar(result).events!;
+        expect(parsed.summary).to.equal(heading);
+        expect(parsed.description).to.equal(content.replace(/\r\n?/g, '\n'));
+    });
+
+    it('folds UTF-8 physical lines without splitting Unicode code points', async () => {
+        const heading = 'Kalenderüberblick 📅 日本語 '.repeat(8).trimEnd();
+        const content = 'Résumé — 📌 لقاء — 日本語 '.repeat(20).trimEnd();
+        const result = await generateEntryIcs({ ...allDay, heading, content });
+        const lines = result.split('\r\n');
+        expect(lines.some((line) => line.startsWith(' '))).to.be.true;
+        const encoder = new TextEncoder();
+        for (const line of lines) {
+            const bytes = encoder.encode(line);
+            expect(bytes.byteLength, line).to.be.at.most(75);
+            expect(new TextDecoder('utf-8', { fatal: true }).decode(bytes)).to.equal(line);
+        }
+        const [parsed] = parseIcsCalendar(result).events!;
+        expect(parsed.summary).to.equal(heading);
+        expect(parsed.description).to.equal(content);
+    });
+
     it('preserves documented legacy multi-day promotion while explicit timed kinds retain timestamps', async () => {
         const entry = {
             ...allDay,

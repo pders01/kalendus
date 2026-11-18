@@ -29,6 +29,8 @@ export interface CalendarDateInterval {
 export interface CalendarEntry {
     id: string;
     calendarId: string;
+    /** Returned by the adapter; optional for legacy caller-constructed entries. */
+    kind?: 'all-day' | 'timed';
     date: CalendarDateInterval;
     time: CalendarTimeInterval;
     heading: string;

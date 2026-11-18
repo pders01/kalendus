@@ -1,36 +1,37 @@
 import { expect, fixture, html, nextFrame } from '@open-wc/testing';
 import { LitElement } from 'lit';
 
+import type Entry from '../../../src/components/Entry.js';
+import { generateEntryIcs } from '../../../src/components/entryExport.js';
+import type { CalendarEntryRequest } from '../../../src/contracts.js';
 import type LMSCalendar from '../../../src/lms-calendar.js';
 import '../../../src/lms-calendar.js';
 import { KalendusApiClient } from '../../src/adapters/kalendus-api-client.js';
 import { KalendusLitAdapter } from '../../src/adapters/kalendus-lit-adapter.js';
+import type { ApiCalendarEntry } from '../../src/adapters/types.js';
+
+const day = (day: number) => ({ year: 2026, month: 3, day });
+const persistentEvent: ApiCalendarEntry = {
+    id: 'persistent-event',
+    calendarId: 'persisted-calendar',
+    heading: 'Identified',
+    content: '',
+    color: '#1976d2',
+    date: { start: day(15), end: day(15) },
+    time: null,
+    createdAt: '',
+    updatedAt: '',
+};
 
 class AdapterHost extends LitElement {
     requests: URL[] = [];
+    records = [persistentEvent];
     adapter = new KalendusLitAdapter(this, {
         baseUrl: 'https://calendar.example',
         calendarId: 'persisted-calendar',
         fetch: async (url) => {
             this.requests.push(new URL(String(url)));
-            return new Response(
-                JSON.stringify([
-                    {
-                        id: 'persistent-event',
-                        calendarId: 'persisted-calendar',
-                        heading: 'Identified',
-                        content: '',
-                        color: '#1976d2',
-                        date: {
-                            start: { year: 2026, month: 3, day: 15 },
-                            end: { year: 2026, month: 3, day: 15 },
-                        },
-                        time: null,
-                        createdAt: '',
-                        updatedAt: '',
-                    },
-                ]),
-            );
+            return Response.json(this.records);
         },
     });
     render() {
@@ -98,6 +99,81 @@ describe('Real Lit calendar/adapter integration', () => {
         host.requestUpdate();
         await settle(host);
         expect(host.requests.length).to.equal(1);
+    });
+
+    it('renders server overnight intervals as timed slices and exports their original endpoints', async () => {
+        const overnight: ApiCalendarEntry = {
+            ...persistentEvent,
+            id: 'overnight',
+            heading: 'Night shift',
+            date: { start: day(15), end: day(16) },
+            time: { start: { hour: 22, minute: 30 }, end: { hour: 6, minute: 0 } },
+        };
+        const midnight: ApiCalendarEntry = {
+            ...persistentEvent,
+            id: 'midnight',
+            heading: 'Ends at midnight',
+            date: { start: day(16), end: day(17) },
+            time: { start: { hour: 23, minute: 30 }, end: { hour: 0, minute: 0 } },
+        };
+        const host = await fixture<AdapterHost>(
+            html`<server-adapter-contract-host .records=${[overnight, midnight]}></server-adapter-contract-host>`,
+        );
+        await settle(host);
+        host.calendar.viewMode = 'day';
+        await settle(host);
+        const timed = (id: string) =>
+            host.calendar.shadowRoot!.querySelector<Entry>(`[slot="timed"][data-event-id="${id}"]`);
+        expect(timed('overnight')?.time).to.deep.equal({
+            start: overnight.time!.start,
+            end: { hour: 24, minute: 0 },
+        });
+
+        // Update the owner's bound date so the fetch-triggered render retains it.
+        host.initialDate = day(16);
+        host.requestUpdate();
+        await settle(host);
+        expectRange(host);
+        const continuation = timed('overnight');
+        expect(continuation?.time).to.deep.equal({
+            start: { hour: 0, minute: 0 },
+            end: overnight.time!.end,
+        });
+        const midnightSlice = timed('midnight');
+        expect(midnightSlice?.time?.end).to.deep.equal({ hour: 24, minute: 0 });
+        for (const [card, record, from, to] of [
+            [continuation, overnight, '20260315T223000', '20260316T060000'],
+            [midnightSlice, midnight, '20260316T233000', '20260317T000000'],
+        ] as const) {
+            card!.click();
+            await settle(host);
+            const menu = host.calendar.shadowRoot!.querySelector('lms-menu')!;
+            let request: CalendarEntryRequest | undefined;
+            host.calendar.addEventListener(
+                'export-entry',
+                (event) => {
+                    event.preventDefault();
+                    request = event.detail;
+                },
+                { once: true },
+            );
+            menu.shadowRoot!.querySelector<HTMLButtonElement>('.export-btn')!.click();
+            expect(request, 'the inspector requests export of the original event').to.exist;
+            const { entry, eventId } = request!;
+            expect(eventId).to.equal(record.id);
+            expect(entry.date).to.deep.equal(record.date);
+            expect(entry.time).to.deep.equal(record.time);
+            const ics = await generateEntryIcs(entry, eventId);
+            expect(ics).to.include(`DTSTART:${from}\r\n`);
+            expect(ics).to.include(`DTEND:${to}\r\n`);
+            menu.shadowRoot!.querySelector<HTMLButtonElement>('.close-btn')!.click();
+            await settle(host);
+        }
+        host.initialDate = day(17);
+        host.requestUpdate();
+        await settle(host);
+        expectRange(host);
+        expect(timed('midnight')).to.equal(null);
     });
 
     it('tracks real next/previous/today and every view button using committed ranges', async () => {

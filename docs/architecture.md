@@ -52,7 +52,7 @@ src/
 - **TypeScript**: Type-safe development with strict mode
 - **Luxon**: Robust date/time manipulation and locale-aware formatting
 - **Remeda**: Functional programming utilities (named imports only for tree-shaking)
-- **ts-ics**: ICS calendar file generation for event export (lazy-loaded on click)
+- **iCalendar export**: the single-event RFC 5545 serializer loads on demand; browser tests parse its files with `ts-ics`.
 - **@lit/localize** (build-time only): Template extraction and generation via `lit-localize` CLI
 
 ## Design Patterns

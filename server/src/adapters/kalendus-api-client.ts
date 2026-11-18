@@ -17,6 +17,8 @@ export function toCalendarEntry(api: ApiCalendarEntry): CalendarEntry {
     return {
         id: api.id,
         calendarId: api.calendarId,
+        // Non-null server times are one floating interval, not legacy daily windows.
+        kind: api.time ? 'timed' : 'all-day',
         date: { start: { ...api.date.start }, end: { ...api.date.end } },
         time: api.time
             ? { start: { ...api.time.start }, end: { ...api.time.end } }

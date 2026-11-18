@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+
 import { toCalendarEntry } from '../../src/adapters/kalendus-api-client.js';
 import type { ApiCalendarEntry } from '../../src/adapters/types.js';
 
@@ -24,6 +25,7 @@ describe('KalendusApiClient', () => {
             };
 
             const entry = toCalendarEntry(api);
+            expect(entry.kind).to.equal('timed');
             expect(entry.heading).to.equal('Meeting');
             expect(entry.content).to.equal('Daily sync');
             expect(entry.color).to.equal('#1976d2');
@@ -34,7 +36,7 @@ describe('KalendusApiClient', () => {
             });
         });
 
-        it('defaults null time to all-day sentinel', () => {
+        it('marks null time as all-day and retains the compatibility sentinel', () => {
             const api: ApiCalendarEntry = {
                 id: 'evt2',
                 calendarId: 'cal1',
@@ -51,6 +53,7 @@ describe('KalendusApiClient', () => {
             };
 
             const entry = toCalendarEntry(api);
+            expect(entry.kind).to.equal('all-day');
             expect(entry.time).to.deep.equal({
                 start: { hour: 0, minute: 0 },
                 end: { hour: 23, minute: 59 },
