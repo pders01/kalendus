@@ -6,9 +6,7 @@ export const calendars = sqliteTable('calendars', {
     locale: text('locale').default('en').notNull(),
     firstDayOfWeek: integer('first_day_of_week').default(1).notNull(),
     color: text('color').default('#000000').notNull(),
-    themeTokens: text('theme_tokens', { mode: 'json' }).$type<
-        Record<string, string>
-    >(),
+    themeTokens: text('theme_tokens', { mode: 'json' }).$type<Record<string, string>>(),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
 });

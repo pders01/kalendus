@@ -1,4 +1,5 @@
 import { expect, fixture, html } from '@open-wc/testing';
+
 import '../../../src/components/Year.ts';
 import type Year from '../../../src/components/Year.ts';
 

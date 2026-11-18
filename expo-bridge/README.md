@@ -167,7 +167,7 @@ BRIDGE_TEST_INLINE=1 bun run web-test-runner --config expo-bridge/web-test-runne
 
 The root package now provides `bun run check:bridge`, `bun run test:bridge`, and `bun run test:bridge:inline`. CI runs the source and production-inline browser checks in its Chromium/Firefox/WebKit matrix; this configuration is not a claim that every browser passed locally. The root unit glob also includes protocol/VM regressions. Regenerate/check the shell on protocol/shell changes. Before packaging an Expo app, rebuild the IIFE and regenerate inline artifacts; actual Expo typechecking and release-device testing remain separate gates.
 
-### Evidence recorded for S10–S12
+### Earlier checkpoint for S10–S12 (before the native typechecks below)
 
 | Finding | Implemented evidence                                                                                                                                                                                               | Still open                                                                              |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
@@ -185,7 +185,30 @@ The pure checks deliberately exclude `KalendusWebView.tsx`: the root has no `rea
 bunx tsc --noEmit --project tsconfig.json
 ```
 
-Native TSX is source-reviewed and syntax-bundled here, not claimed native-typechecked/device-tested. Source review specifically checks the real Expo asset/localUri path, source lifetime/remount behavior, latest-props refs, `onLoadStart` reset, load/HTTP/process errors, bounded decoded callbacks, explicit capabilities and pinned navigation. `react-native-webview` 13.16's published types exclude numbers from `WebViewSource` even though its runtime resolves modules; the Expo local-URI path also avoids that type mismatch without a cast.
+The strict typecheck passed in disposable projects created from Expo's official blank TypeScript template with SDK-compatible dependencies:
+
+| Expo SDK | React Native | WebView | Expo Asset | TypeScript |
+| -------- | ------------ | ------- | ---------- | ---------- |
+| 57.0.33 | 0.86.3 | 13.16.1 | 57.0.21 | 6.0.3 |
+| 58.0.26 | 0.88.1 | 14.0.1 | 58.0.21 | 6.0.3 |
+
+To repeat the SDK 58 check from the Kalendus root (use `blank-typescript@57.0.35` for SDK 57):
+
+```sh
+fixture=$(mktemp -d "${TMPDIR:-/tmp}/kalendus-expo.XXXXXX")
+bunx create-expo-app@5.0.0 "$fixture/app" --template blank-typescript@58.0.35 --no-install --no-agents-md --yes
+mkdir "$fixture/app/expo-bridge"
+cp expo-bridge/KalendusWebView.tsx expo-bridge/protocol.ts expo-bridge/types.ts "$fixture/app/expo-bridge/"
+(
+    cd "$fixture/app" &&
+    bun install &&
+    bunx --no-install expo install react-native-webview expo-asset --bun &&
+    bunx --no-install expo install --check &&
+    bunx --no-install tsc --noEmit --project tsconfig.json
+)
+```
+
+Use the Node version supported by your chosen Expo SDK. Keep the fixture's lockfile if you need exact reruns; Expo's compatible versions can change. A fixture pass checks the wrapper against actual published declarations, not Metro packaging, a WebView launch, native callbacks, or device accessibility.
 
 ### Release-device gate — still open
 

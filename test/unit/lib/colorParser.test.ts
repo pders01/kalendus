@@ -1,17 +1,43 @@
 import { expect } from 'chai';
-import { normalizeColor, parseColor, parseColorWithDefault, type RGBTuple } from '../../../src/lib/colorParser.js';
+
+import {
+    normalizeColor,
+    parseColor,
+    parseColorWithDefault,
+    type RGBTuple,
+} from '../../../src/lib/colorParser.js';
 
 describe('colorParser', () => {
     const adversarial = [
-        '__proto__', 'constructor', 'toString', 'hasOwnProperty',
-        'red;position:fixed;inset:0', 'red!important', 'url(https://example.com)',
-        'rgb(1 2 3) garbage', 'rgb(1 2 3);background:url(x)', 'rgb(1 2 3',
-        'rgb(1px 2 3)', 'rgb(1foo 2 3)', 'rgb(1 2 3 / nope)', 'rgb(1, 2 3)',
-        'rgb(1, 2, 3 / .5)', 'rgb(1,,2,3)', 'rgb(1 2 3 4)', 'rgba(1 2 3 /)',
-        'hsl(0foo 100% 50%)', 'hsl(0 1 0.5)', 'hsl(0% 100% 50%)',
-        'lab(1e999 0 0)', 'lab(none 0 0)', 'oklab(calc(1) 0 0)',
-        'color(display-p3 1 0 0)', 'color(srgb 1 0 0) trailing',
-        'var(--accent)', 'currentColor', 'rgb(from red r g b)',
+        '__proto__',
+        'constructor',
+        'toString',
+        'hasOwnProperty',
+        'red;position:fixed;inset:0',
+        'red!important',
+        'url(https://example.com)',
+        'rgb(1 2 3) garbage',
+        'rgb(1 2 3);background:url(x)',
+        'rgb(1 2 3',
+        'rgb(1px 2 3)',
+        'rgb(1foo 2 3)',
+        'rgb(1 2 3 / nope)',
+        'rgb(1, 2 3)',
+        'rgb(1, 2, 3 / .5)',
+        'rgb(1,,2,3)',
+        'rgb(1 2 3 4)',
+        'rgba(1 2 3 /)',
+        'hsl(0foo 100% 50%)',
+        'hsl(0 1 0.5)',
+        'hsl(0% 100% 50%)',
+        'lab(1e999 0 0)',
+        'lab(none 0 0)',
+        'oklab(calc(1) 0 0)',
+        'color(display-p3 1 0 0)',
+        'color(srgb 1 0 0) trailing',
+        'var(--accent)',
+        'currentColor',
+        'rgb(from red r g b)',
     ];
     for (const value of adversarial) {
         it(`rejects the complete unsupported value ${value}`, () => {
@@ -29,7 +55,17 @@ describe('colorParser', () => {
         expect(normalizeColor('unsupported', 'blue;display:none')).to.equal('rgb(25,118,210)');
     });
     it('handles runtime non-string inputs without invoking user coercion', () => {
-        for (const value of [null, 123, {}, [], { toString() { throw new Error('coercion'); } }]) {
+        for (const value of [
+            null,
+            123,
+            {},
+            [],
+            {
+                toString() {
+                    throw new Error('coercion');
+                },
+            },
+        ]) {
             expect(parseColor(value as unknown as string)).to.equal(undefined);
         }
     });

@@ -111,6 +111,12 @@ Screenshots are for review, not pixel baselines or device certification.
 4. Run `bun scripts/check-locales.mjs --write` and `bun run i18n:check`; do not copy derivative output over canonical dictionaries or edit preservation snapshots.
 5. Run `bun run docs:sync`, add relevant component/resolver tests and obtain native-speaker review. ISO week numbering stays independent of the explicit week-start policy.
 
+## Formatting and types
+
+Run `bun run format` to format maintained source, tests, scripts, the Expo bridge TSX, and repository configuration. `bun run format:check` checks the same files in CI. Historical review notes, generated bridge artifacts, and SQLite migration metadata are not formatter inputs.
+
+`bun run typecheck` checks root TypeScript, including Storybook stories. The server uses `bun run --cwd server typecheck`. The Expo wrapper needs the native SDK declarations; follow the [Expo typecheck instructions](https://github.com/pders01/kalendus/tree/main/expo-bridge#native-tsx-typecheck-gate-separate-not-simulated) instead of installing those packages into the workspace.
+
 ## Dependency audits
 
 Run `bun run audit:production` from the workspace root. It checks the locked production dependency graph at all severities and blocks CI packaging and the root release suite on a nonzero exit. The server's publish hook also checks its production graph. These checks need access to the registry advisory service; a failed check is not a clean result.

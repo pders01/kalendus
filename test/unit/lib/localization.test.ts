@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+
 import {
     getLocalizedMonth,
     getLocalizedWeekdayShort,
@@ -12,9 +13,13 @@ import {
 
 describe('localization', () => {
     it('canonicalizes aliases and safely falls back for malformed locale tags', () => {
-        expect(formatLocalizedDate(1, 5, 2026, 'DE-at')).to.equal(formatLocalizedDate(1, 5, 2026, 'de-AT'));
+        expect(formatLocalizedDate(1, 5, 2026, 'DE-at')).to.equal(
+            formatLocalizedDate(1, 5, 2026, 'de-AT'),
+        );
         for (const locale of ['__proto__', 'constructor', 'not_a_tag', '']) {
-            expect(formatLocalizedDate(1, 5, 2026, locale)).to.equal(formatLocalizedDate(1, 5, 2026, 'en'));
+            expect(formatLocalizedDate(1, 5, 2026, locale)).to.equal(
+                formatLocalizedDate(1, 5, 2026, 'en'),
+            );
         }
     });
     it('uses civil-date carriers independent of ambient timezone and preserves years below 100', () => {

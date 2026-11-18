@@ -9,8 +9,7 @@ import { test, expect } from 'playwright/test';
  * Playwright builds and serves production Storybook on port 6006; keep it free.
  */
 
-const STORY_URL =
-    '/iframe.html?id=components-kalendus--tall-container&viewMode=story';
+const STORY_URL = '/iframe.html?id=components-kalendus--tall-container&viewMode=story';
 
 /* ── helpers ─────────────────────────────────────────────────── */
 
@@ -25,9 +24,7 @@ async function switchView(
     view: 'day' | 'week' | 'month' | 'year',
 ) {
     // Pierce two shadow roots: lms-calendar → lms-calendar-header → button
-    const btn = calendar.locator(
-        `lms-calendar-header >> button[data-context="${view}"]`,
-    );
+    const btn = calendar.locator(`lms-calendar-header >> button[data-context="${view}"]`);
     await btn.click();
 }
 
@@ -35,10 +32,7 @@ async function switchView(
  * Wait for the view component to appear inside the calendar's `<main>`.
  * Returns the locator so callers can assert against it.
  */
-function viewComponent(
-    calendar: import('playwright/test').Locator,
-    view: 'day' | 'week',
-) {
+function viewComponent(calendar: import('playwright/test').Locator, view: 'day' | 'week') {
     const tag = view === 'day' ? 'lms-calendar-day' : 'lms-calendar-week';
     return calendar.locator(tag);
 }
@@ -51,9 +45,7 @@ test.describe('Tall Container view switching', () => {
         // Wait for both calendars to be in the DOM and hydrated
         await expect(page.locator('lms-calendar')).toHaveCount(2);
         // Ensure the tall calendar has finished its first render
-        await tallCalendar(page).evaluate((el) =>
-            (el as any).updateComplete,
-        );
+        await tallCalendar(page).evaluate((el) => (el as any).updateComplete);
     });
 
     test('switches to Day view without freezing', async ({ page }) => {
@@ -89,9 +81,7 @@ test.describe('Tall Container view switching', () => {
         expect(count).toBeGreaterThanOrEqual(3);
     });
 
-    test('Day view: --minute-height scales to tall container', async ({
-        page,
-    }) => {
+    test('Day view: --minute-height scales to tall container', async ({ page }) => {
         const cal = tallCalendar(page);
         await switchView(cal, 'day');
 
@@ -112,9 +102,7 @@ test.describe('Tall Container view switching', () => {
         expect(minuteHeight).toBeGreaterThan(1.2);
     });
 
-    test('Week view: --minute-height scales to tall container', async ({
-        page,
-    }) => {
+    test('Week view: --minute-height scales to tall container', async ({ page }) => {
         const cal = tallCalendar(page);
         await switchView(cal, 'week');
 
@@ -129,9 +117,7 @@ test.describe('Tall Container view switching', () => {
         expect(minuteHeight).toBeGreaterThan(1.2);
     });
 
-    test('round-trip: Day → Week → Month does not freeze', async ({
-        page,
-    }) => {
+    test('round-trip: Day → Week → Month does not freeze', async ({ page }) => {
         const cal = tallCalendar(page);
 
         // Day
@@ -150,9 +136,7 @@ test.describe('Tall Container view switching', () => {
         await expect(month).toBeVisible({ timeout: 2_000 });
     });
 
-    test('Day view: scroll container has correct dimensions', async ({
-        page,
-    }) => {
+    test('Day view: scroll container has correct dimensions', async ({ page }) => {
         const cal = tallCalendar(page);
         await switchView(cal, 'day');
 

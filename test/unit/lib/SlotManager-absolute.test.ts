@@ -1,6 +1,11 @@
 import { expect } from 'chai';
-import { SlotManager, type PositionConfig, type LayoutDimensions } from '../../../src/lib/SlotManager.js';
+
 import { LayoutCalculator } from '../../../src/lib/LayoutCalculator.js';
+import {
+    SlotManager,
+    type PositionConfig,
+    type LayoutDimensions,
+} from '../../../src/lib/SlotManager.js';
 
 describe('SlotManager — absolute positioning path', () => {
     let sm: SlotManager;
@@ -149,7 +154,15 @@ describe('SlotManager — absolute positioning path', () => {
         it('never emits positive tabindex for day, week or all-day entries', () => {
             for (const viewMode of ['day', 'week', 'month'] as const) {
                 for (const isAllDay of [true, false]) {
-                    expect(sm.calculateAccessibility({ viewMode, date, activeDate: date, time, isAllDay }).tabIndex).to.equal(0);
+                    expect(
+                        sm.calculateAccessibility({
+                            viewMode,
+                            date,
+                            activeDate: date,
+                            time,
+                            isAllDay,
+                        }).tabIndex,
+                    ).to.equal(0);
                 }
             }
         });
@@ -171,15 +184,31 @@ describe('SlotManager — absolute positioning path', () => {
             const outside = { year: 2026, month: 3, day: 10 };
             expect(sm.getWeekDayIndex(outside, date)).to.equal(-1);
             expect(sm.getIndexInDates(outside, [date])).to.equal(-1);
-            expect(sm.validatePosition({ viewMode: 'week', date: outside, activeDate: date, time }).valid).to.equal(false);
-            expect(sm.validatePosition({ viewMode: 'week', date: { ...date, day: 3 }, activeDate: date, time, weekDates: [date] }).valid).to.equal(false);
-            expect(sm.validatePosition({ viewMode: 'day', date: outside, activeDate: date, time }).valid).to.equal(false);
+            expect(
+                sm.validatePosition({ viewMode: 'week', date: outside, activeDate: date, time })
+                    .valid,
+            ).to.equal(false);
+            expect(
+                sm.validatePosition({
+                    viewMode: 'week',
+                    date: { ...date, day: 3 },
+                    activeDate: date,
+                    time,
+                    weekDates: [date],
+                }).valid,
+            ).to.equal(false);
+            expect(
+                sm.validatePosition({ viewMode: 'day', date: outside, activeDate: date, time })
+                    .valid,
+            ).to.equal(false);
         });
 
         it('uses the calculator duration authority including non-default scale/minimum', () => {
             const calculator = new LayoutCalculator({ minuteHeight: 2, eventMinHeight: 60 });
             const short = { start: { hour: 9, minute: 0 }, end: { hour: 9, minute: 5 } };
-            const box = calculator.calculateLayout([{ id: 'x', heading: '', color: '', startTime: short.start, endTime: short.end }]).boxes[0];
+            const box = calculator.calculateLayout([
+                { id: 'x', heading: '', color: '', startTime: short.start, endTime: short.end },
+            ]).boxes[0];
             const position = sm.calculatePosition({ viewMode: 'day', date, time: short });
             const css = sm.generatePositionCSS(position, box, short);
             expect(box.durationMinutes).to.equal(30);
@@ -189,8 +218,12 @@ describe('SlotManager — absolute positioning path', () => {
         it('keeps one-based grid line endpoints correct for a full hour and point events', () => {
             const position = { slotName: 'legacy', useDirectGrid: false };
             const layout = { width: 100, x: 0, zIndex: 1, opacity: 1 };
-            expect(sm.generatePositionCSS(position, layout, time)).to.include('--start-slot: 541/601');
-            expect(sm.generatePositionCSS(position, layout, { start: time.start, end: time.start })).to.include('--start-slot: 541/542');
+            expect(sm.generatePositionCSS(position, layout, time)).to.include(
+                '--start-slot: 541/601',
+            );
+            expect(
+                sm.generatePositionCSS(position, layout, { start: time.start, end: time.start }),
+            ).to.include('--start-slot: 541/542');
         });
     });
 
@@ -199,7 +232,10 @@ describe('SlotManager — absolute positioning path', () => {
             const original = globalThis.getComputedStyle;
             const host = {} as Element;
             let token = '2';
-            globalThis.getComputedStyle = (() => ({ getPropertyValue: () => token }) as unknown as CSSStyleDeclaration) as typeof getComputedStyle;
+            globalThis.getComputedStyle = (() =>
+                ({
+                    getPropertyValue: () => token,
+                }) as unknown as CSSStyleDeclaration) as typeof getComputedStyle;
             try {
                 expect(sm.pxToTime(120, host)).to.deep.equal({ hour: 1, minute: 0 });
                 expect(sm.pxToTime(-100, host)).to.deep.equal({ hour: 0, minute: 0 });

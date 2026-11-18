@@ -9,14 +9,8 @@ export class SyncServiceImpl {
     constructor(private bus: EventBus) {}
 
     /** Subscribe to real-time events for a calendar. Returns unsubscribe fn. */
-    subscribe(
-        calendarId: string,
-        callback: (event: SseEvent) => void,
-    ): () => void {
-        return this.bus.subscribe(
-            this._channel(calendarId),
-            callback as (data: unknown) => void,
-        );
+    subscribe(calendarId: string, callback: (event: SseEvent) => void): () => void {
+        return this.bus.subscribe(this._channel(calendarId), callback as (data: unknown) => void);
     }
 
     /** Broadcast a mutation event to all subscribers of a calendar. */

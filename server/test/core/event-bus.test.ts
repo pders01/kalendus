@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+
 import { EventBus } from '../../src/core/event-bus.js';
 
 describe('EventBus', () => {

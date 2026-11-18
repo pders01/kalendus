@@ -1,7 +1,8 @@
 import { expect } from 'chai';
-import { createTestDb } from '../helpers/test-db.js';
-import { createCalendar } from '../helpers/fixtures.js';
+
 import { CalendarServiceImpl } from '../../src/core/calendar.service.js';
+import { createCalendar } from '../helpers/fixtures.js';
+import { createTestDb } from '../helpers/test-db.js';
 
 describe('CalendarService', () => {
     let service: CalendarServiceImpl;

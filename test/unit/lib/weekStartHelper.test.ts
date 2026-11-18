@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+
 import {
     getWeekStartOffset,
     getWeekDates,
@@ -20,15 +21,21 @@ describe('weekStartHelper', () => {
                 expect(week.map((d) => d.day)).to.deep.equal([26, 27, 28, 29, 30, 31, 1]);
                 const month = getMonthCalendarArray(date, 1);
                 expect(month).to.have.length(42);
-                expect(month.filter((d) => d.month === 12).map((d) => d.day)).to.deep.equal(Array.from({ length: 31 }, (_, i) => i + 1));
+                expect(month.filter((d) => d.month === 12).map((d) => d.day)).to.deep.equal(
+                    Array.from({ length: 31 }, (_, i) => i + 1),
+                );
             } finally {
-                if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+                if (previous === undefined) delete process.env.TZ;
+                else process.env.TZ = previous;
             }
         });
 
         it('returns seven unique dates for all seven week starts', () => {
             for (let first = 0; first < 7; first++) {
-                const dates = getWeekDates({ year: 2026, month: 1, day: 1 }, first as FirstDayOfWeek);
+                const dates = getWeekDates(
+                    { year: 2026, month: 1, day: 1 },
+                    first as FirstDayOfWeek,
+                );
                 expect(new Set(dates.map((d) => `${d.year}-${d.month}-${d.day}`)).size).to.equal(7);
                 expect(getWeekdayOrder(first as FirstDayOfWeek)[0] % 7).to.equal(first);
             }
@@ -36,7 +43,9 @@ describe('weekStartHelper', () => {
 
         it('rejects invalid runtime date and weekday values', () => {
             expect(() => getWeekDates({ year: 2026, month: 2, day: 30 }, 1)).to.throw(RangeError);
-            expect(() => getMonthCalendarArray({ year: 2026, month: 2, day: 1 }, 7 as FirstDayOfWeek)).to.throw(RangeError);
+            expect(() =>
+                getMonthCalendarArray({ year: 2026, month: 2, day: 1 }, 7 as FirstDayOfWeek),
+            ).to.throw(RangeError);
             expect(() => getWeekStartOffset(NaN, 1)).to.throw(RangeError);
         });
 
@@ -88,7 +97,7 @@ describe('weekStartHelper', () => {
             expect(dates).to.have.length(7);
             // Week of Feb 28 2026 (Saturday): Monday=Feb 23 .. Sunday=Mar 1
             expect(dates[0]).to.deep.equal({ year: 2026, month: 2, day: 23 }); // Mon
-            expect(dates[6]).to.deep.equal({ year: 2026, month: 3, day: 1 });  // Sun
+            expect(dates[6]).to.deep.equal({ year: 2026, month: 3, day: 1 }); // Sun
         });
 
         it('should return Sun-Sat for Sunday-first', () => {
@@ -104,7 +113,7 @@ describe('weekStartHelper', () => {
             expect(dates).to.have.length(7);
             // Saturday-first week containing Feb 28 (Sat): Sat=Feb 28 .. Fri=Mar 6
             expect(dates[0]).to.deep.equal({ year: 2026, month: 2, day: 28 }); // Sat
-            expect(dates[6]).to.deep.equal({ year: 2026, month: 3, day: 6 });  // Fri
+            expect(dates[6]).to.deep.equal({ year: 2026, month: 3, day: 6 }); // Fri
         });
 
         it('should handle month boundaries', () => {

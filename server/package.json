@@ -69,8 +69,9 @@
         "db:migrate": "node dist/db/migrate.js",
         "db:seed": "node dist/db/seed.js",
         "lint": "oxlint src/",
-        "format": "oxfmt --write 'src/**/*.ts' '*.json'",
-        "format:check": "oxfmt --check 'src/**/*.ts' '*.json'",
+        "format": "npm run format:files -- --write",
+        "format:check": "npm run format:files -- --check",
+        "format:files": "oxfmt --config ../.oxfmtrc.json '{src,test,scripts}/**/*.{ts,tsx,js,mjs,cjs}' '*.{ts,js,json}'",
         "prepublishOnly": "bun audit --prod --audit-level=low && npm run clean && npm run build && npm test && npm run lint"
     },
     "dependencies": {

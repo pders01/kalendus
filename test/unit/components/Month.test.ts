@@ -1,4 +1,5 @@
 import { expect, fixture, html } from '@open-wc/testing';
+
 import '../../../src/components/Month.ts';
 import type Month from '../../../src/components/Month.ts';
 
@@ -28,15 +29,11 @@ describe('Month Component', () => {
             expect(dayElements).to.have.length(42); // 6 weeks * 7 days
 
             // Check for September 1st (should be visible)
-            const sept1 = el.shadowRoot?.querySelector(
-                '[data-date="2024-9-1"]',
-            );
+            const sept1 = el.shadowRoot?.querySelector('[data-date="2024-9-1"]');
             expect(sept1).to.exist;
 
             // Check for September 30th (should be visible)
-            const sept30 = el.shadowRoot?.querySelector(
-                '[data-date="2024-9-30"]',
-            );
+            const sept30 = el.shadowRoot?.querySelector('[data-date="2024-9-30"]');
             expect(sept30).to.exist;
         });
 
@@ -44,9 +41,7 @@ describe('Month Component', () => {
             // September 1, 2024 is a Sunday (day 0)
             // In European format (Monday=0), Sunday should be index 6
             // So the first day should appear in the 7th column (index 6)
-            const sept1 = el.shadowRoot?.querySelector(
-                '[data-date="2024-9-1"]',
-            );
+            const sept1 = el.shadowRoot?.querySelector('[data-date="2024-9-1"]');
             expect(sept1).to.exist;
 
             // Check that the calendar grid is populated correctly
@@ -63,9 +58,7 @@ describe('Month Component', () => {
         });
 
         it('should show month name on first day', () => {
-            const sept1 = el.shadowRoot?.querySelector(
-                '[data-date="2024-9-1"]',
-            );
+            const sept1 = el.shadowRoot?.querySelector('[data-date="2024-9-1"]');
             expect(sept1).to.exist;
 
             const indicator = sept1?.querySelector('.indicator');
@@ -133,9 +126,7 @@ describe('Month Component', () => {
         el.activeDate = { day: 1, month: 10, year: 2024 };
         await el.updateComplete;
 
-        const octoberDays = el.shadowRoot?.querySelectorAll(
-            '[data-date*="2024-10-"]',
-        );
+        const octoberDays = el.shadowRoot?.querySelectorAll('[data-date*="2024-10-"]');
         expect(octoberDays).to.have.length.greaterThan(0); // Should have some October days visible
     });
 
@@ -184,9 +175,7 @@ describe('Month Component', () => {
             expandEvent = e;
         });
 
-        const sept15 = el.shadowRoot?.querySelector(
-            '[data-date="2024-9-15"]',
-        ) as HTMLElement;
+        const sept15 = el.shadowRoot?.querySelector('[data-date="2024-9-15"]') as HTMLElement;
         expect(sept15).to.exist;
 
         sept15.click();
@@ -213,12 +202,8 @@ describe('Month Component', () => {
 
         await el.updateComplete;
 
-        const todayDate = `${today.getFullYear()}-${
-            today.getMonth() + 1
-        }-${today.getDate()}`;
-        const todayElement = el.shadowRoot?.querySelector(
-            `[data-date="${todayDate}"]`,
-        );
+        const todayDate = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+        const todayElement = el.shadowRoot?.querySelector(`[data-date="${todayDate}"]`);
 
         if (todayElement) {
             const indicator = todayElement.querySelector('.indicator');
@@ -237,15 +222,11 @@ describe('Month Component', () => {
 
         // Get all day elements and their data-date attributes
         const allDays = el.shadowRoot?.querySelectorAll('.day');
-        const dates = Array.from(allDays || []).map((el) =>
-            el.getAttribute('data-date'),
-        );
+        const dates = Array.from(allDays || []).map((el) => el.getAttribute('data-date'));
 
         const julyDays = dates.filter((date) => date?.includes('2024-7-'));
         const augustDays = dates.filter((date) => date?.includes('2024-8-'));
-        const septemberDays = dates.filter((date) =>
-            date?.includes('2024-9-'),
-        );
+        const septemberDays = dates.filter((date) => date?.includes('2024-9-'));
 
         // Should have exactly 42 days total
         expect(allDays).to.have.length(42);

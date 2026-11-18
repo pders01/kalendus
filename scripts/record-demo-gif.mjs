@@ -13,12 +13,13 @@
  * Run: bun run demo:gif
  */
 
-import { chromium } from 'playwright';
-import { createServer } from 'vite';
+import { execSync } from 'child_process';
+import { writeFileSync, readFileSync, mkdirSync, rmSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { writeFileSync, readFileSync, mkdirSync, rmSync } from 'fs';
-import { execSync } from 'child_process';
+
+import { chromium } from 'playwright';
+import { createServer } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');

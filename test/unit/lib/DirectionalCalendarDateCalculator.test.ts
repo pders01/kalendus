@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+
 import DirectionalCalendarDateCalculator from '../../../src/lib/DirectionalCalendarDateCalculator.js';
 
 describe('DirectionalCalendarDateCalculator', () => {
@@ -16,26 +17,40 @@ describe('DirectionalCalendarDateCalculator', () => {
             const previous = process.env.TZ;
             process.env.TZ = 'Pacific/Apia';
             try {
-                const calc = new DirectionalCalendarDateCalculator({ date: { year: 2011, month: 12, day: 29 }, direction: 'next' });
-                expect(calc.getDateByDayInDirection()).to.deep.equal({ year: 2011, month: 12, day: 30 });
-                expect(calc.getDateByDayInDirection()).to.deep.equal({ year: 2011, month: 12, day: 31 });
+                const calc = new DirectionalCalendarDateCalculator({
+                    date: { year: 2011, month: 12, day: 29 },
+                    direction: 'next',
+                });
+                expect(calc.getDateByDayInDirection()).to.deep.equal({
+                    year: 2011,
+                    month: 12,
+                    day: 30,
+                });
+                expect(calc.getDateByDayInDirection()).to.deep.equal({
+                    year: 2011,
+                    month: 12,
+                    day: 31,
+                });
             } finally {
-                if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+                if (previous === undefined) delete process.env.TZ;
+                else process.env.TZ = previous;
             }
         });
 
         it('rejects fractional dates and unsupported runtime directions', () => {
-            expect(() => { calculator.date = { year: 2026, month: 3, day: 1.5 }; }).to.throw();
-            expect(() => { calculator.direction = 'sideways' as 'next'; }).to.throw(RangeError);
+            expect(() => {
+                calculator.date = { year: 2026, month: 3, day: 1.5 };
+            }).to.throw();
+            expect(() => {
+                calculator.direction = 'sideways' as 'next';
+            }).to.throw(RangeError);
         });
     });
 
     describe('constructor and setters', () => {
         it('should initialize with empty constructor', () => {
             const calc = new DirectionalCalendarDateCalculator({});
-            expect(() => calc.getDateByMonthInDirection()).to.throw(
-                'date is not set',
-            );
+            expect(() => calc.getDateByMonthInDirection()).to.throw('date is not set');
         });
 
         it('should allow setting date after construction', () => {
@@ -186,9 +201,7 @@ describe('DirectionalCalendarDateCalculator', () => {
         describe('error handling', () => {
             it('should throw error when date is not set', () => {
                 calculator = new DirectionalCalendarDateCalculator({});
-                expect(() => calculator.getDateByMonthInDirection()).to.throw(
-                    'date is not set',
-                );
+                expect(() => calculator.getDateByMonthInDirection()).to.throw('date is not set');
             });
 
             it('should throw error when direction is not set', () => {

@@ -131,20 +131,9 @@ export interface CalendarService {
 }
 
 export interface EventService {
-    getByRange(
-        calendarId: string,
-        start: string,
-        end: string,
-    ): Promise<ApiCalendarEntry[]>;
-    getSummary(
-        calendarId: string,
-        start: string,
-        end: string,
-    ): Promise<EventSummary>;
-    create(
-        calendarId: string,
-        dto: CreateEventDto,
-    ): Promise<ApiCalendarEntry>;
+    getByRange(calendarId: string, start: string, end: string): Promise<ApiCalendarEntry[]>;
+    getSummary(calendarId: string, start: string, end: string): Promise<EventSummary>;
+    create(calendarId: string, dto: CreateEventDto): Promise<ApiCalendarEntry>;
     update(
         calendarId: string,
         eventId: string,

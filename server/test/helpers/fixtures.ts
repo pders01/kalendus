@@ -1,13 +1,11 @@
 import { nanoid } from 'nanoid';
-import type { TestDb } from './test-db.js';
+
 import { calendars, events } from '../../src/db/schema.js';
+import type { TestDb } from './test-db.js';
 
 const now = new Date().toISOString();
 
-export function createCalendar(
-    db: TestDb,
-    overrides: Partial<typeof calendars.$inferInsert> = {},
-) {
+export function createCalendar(db: TestDb, overrides: Partial<typeof calendars.$inferInsert> = {}) {
     const id = overrides.id ?? nanoid();
     const row = {
         id,

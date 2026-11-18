@@ -10,11 +10,12 @@
  * Run: node scripts/screenshot-windows-fonts.mjs
  */
 
-import { chromium } from 'playwright';
-import { createServer } from 'vite';
+import { writeFileSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { writeFileSync, mkdirSync } from 'fs';
+
+import { chromium } from 'playwright';
+import { createServer } from 'vite';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
@@ -170,8 +171,7 @@ async function run() {
         {
             name: 'windows',
             label: 'Windows (Arial / Segoe UI fallback)',
-            fontOverride:
-                "Arial, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+            fontOverride: "Arial, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
             userAgent:
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
@@ -215,7 +215,9 @@ async function run() {
 
         // Clean up temp HTML
         const { unlinkSync } = await import('fs');
-        try { unlinkSync(htmlPath); } catch {}
+        try {
+            unlinkSync(htmlPath);
+        } catch {}
     }
 
     await browser.close();

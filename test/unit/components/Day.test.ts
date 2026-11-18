@@ -1,4 +1,5 @@
 import { expect, fixture, html } from '@open-wc/testing';
+
 import '../../../src/components/Day.ts';
 import type Day from '../../../src/components/Day.ts';
 
@@ -18,26 +19,22 @@ describe('Day Component', () => {
         });
 
         it('should render 25 hour labels (0-24)', () => {
-            const hourElements =
-                el.shadowRoot?.querySelectorAll('.hour-label');
+            const hourElements = el.shadowRoot?.querySelectorAll('.hour-label');
             expect(hourElements).to.have.length(25);
         });
 
         it('should render timed-content with gradient separators', () => {
-            const timedContent =
-                el.shadowRoot?.querySelector('.timed-content');
+            const timedContent = el.shadowRoot?.querySelector('.timed-content');
             expect(timedContent).to.exist;
 
             // No longer has DOM separator elements — uses CSS gradient instead
-            const separators =
-                el.shadowRoot?.querySelectorAll('.separator');
+            const separators = el.shadowRoot?.querySelectorAll('.separator');
             expect(separators).to.have.length(0);
         });
 
         it('should render a single timed slot', () => {
             // Should have a single "timed" slot instead of per-hour slots
-            const timedSlot =
-                el.shadowRoot?.querySelector('slot[name="timed"]');
+            const timedSlot = el.shadowRoot?.querySelector('slot[name="timed"]');
             expect(timedSlot).to.exist;
         });
 
@@ -61,37 +58,28 @@ describe('Day Component', () => {
             expect(main).to.exist;
 
             // Should have timed-content column
-            const timedContent =
-                el.shadowRoot?.querySelector('.timed-content');
+            const timedContent = el.shadowRoot?.querySelector('.timed-content');
             expect(timedContent).to.exist;
 
             // Should have time-labels column
-            const timeLabels =
-                el.shadowRoot?.querySelector('.time-labels');
+            const timeLabels = el.shadowRoot?.querySelector('.time-labels');
             expect(timeLabels).to.exist;
         });
 
         it('should position hour labels with absolute top offsets', () => {
-            const hourLabels =
-                el.shadowRoot?.querySelectorAll('.hour-label');
+            const hourLabels = el.shadowRoot?.querySelectorAll('.hour-label');
 
             // Check first hour (hour 0) - should be at top: calc(0 * var(--hour-height))
             const firstHour = hourLabels?.[0] as HTMLElement;
-            expect(firstHour.style.top).to.equal(
-                'calc(0 * var(--hour-height))',
-            );
+            expect(firstHour.style.top).to.equal('calc(0 * var(--hour-height))');
 
             // Check hour 1 - should be at top: calc(1 * var(--hour-height))
             const secondHour = hourLabels?.[1] as HTMLElement;
-            expect(secondHour.style.top).to.equal(
-                'calc(1 * var(--hour-height))',
-            );
+            expect(secondHour.style.top).to.equal('calc(1 * var(--hour-height))');
 
             // Check last hour (hour 24) - should be at top: calc(24 * var(--hour-height))
             const lastHour = hourLabels?.[24] as HTMLElement;
-            expect(lastHour.style.top).to.equal(
-                'calc(24 * var(--hour-height))',
-            );
+            expect(lastHour.style.top).to.equal('calc(24 * var(--hour-height))');
         });
     });
 
@@ -105,8 +93,7 @@ describe('Day Component', () => {
         });
 
         it('should render all-day slot', () => {
-            const allDaySlot =
-                el.shadowRoot?.querySelector('slot[name="all-day"]');
+            const allDaySlot = el.shadowRoot?.querySelector('slot[name="all-day"]');
             expect(allDaySlot).to.exist;
             expect(allDaySlot?.id).to.equal('all-day');
         });
@@ -144,8 +131,7 @@ describe('Day Component', () => {
 
             await el.updateComplete;
 
-            const indicators =
-                el.shadowRoot?.querySelectorAll('.hour-label .indicator');
+            const indicators = el.shadowRoot?.querySelectorAll('.hour-label .indicator');
             expect(indicators).to.have.length(25);
 
             // Check first hour (0:00) — hour: 'numeric' omits leading zero
@@ -171,9 +157,7 @@ describe('Day Component', () => {
             `);
 
             // Simulate sidebar activation
-            (
-                el as unknown as { _hasActiveSidebar: boolean }
-            )._hasActiveSidebar = true;
+            (el as unknown as { _hasActiveSidebar: boolean })._hasActiveSidebar = true;
             await el.updateComplete;
 
             const sidebar = el.shadowRoot?.querySelector('.sidebar');
@@ -194,9 +178,7 @@ describe('Day Component', () => {
 
             await el.updateComplete;
 
-            const container = el.shadowRoot?.querySelector(
-                '.container',
-            ) as HTMLDivElement;
+            const container = el.shadowRoot?.querySelector('.container') as HTMLDivElement;
             expect(container).to.exist;
 
             // Container uses flex: 1 to fill remaining space after all-day section.
@@ -208,18 +190,13 @@ describe('Day Component', () => {
         it('should support custom CSS properties', async () => {
             const el: Day = await fixture(html`
                 <lms-calendar-day
-                    style="
-                    --day-header-height: 4em;
-                    --day-gap: 2px;
-                    --day-padding: 1em;
-                "
+                    style="--day-header-height: 4em; --day-gap: 2px; --day-padding: 1em"
                 ></lms-calendar-day>
             `);
 
             await el.updateComplete;
 
-            const container =
-                el.shadowRoot?.querySelector('.container');
+            const container = el.shadowRoot?.querySelector('.container');
             const main = el.shadowRoot?.querySelector('.main');
 
             expect(container).to.exist;

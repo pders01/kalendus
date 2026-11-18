@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+
 import { allocateAllDayRows, type AllDayEvent } from '../../src/lib/allDayLayout.js';
 
 describe('Week View Row Allocation for Multi-Day Events', () => {

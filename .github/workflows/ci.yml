@@ -16,7 +16,7 @@ env:
 
 jobs:
     lint:
-        name: Lint, format, catalogs & docs
+        name: Types, lint, format, catalogs & docs
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -25,6 +25,7 @@ jobs:
               with:
                   node-version: 24
             - run: bun install --frozen-lockfile
+            - run: bun run typecheck
             - run: bun run lint
             - run: bun run format:check
             - run: bun run i18n:check

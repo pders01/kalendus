@@ -7,8 +7,9 @@
  * Prereq: Storybook running on localhost:6006
  */
 
-import { chromium } from 'playwright';
 import { writeFileSync } from 'fs';
+
+import { chromium } from 'playwright';
 
 const STORYBOOK_URL = 'http://localhost:6006';
 const LOCALE_SHOWCASE_URL = `${STORYBOOK_URL}/iframe.html?id=components-kalendus--locale-showcase&viewMode=story`;
@@ -183,11 +184,11 @@ function analyzeTrace(label, events) {
 
     // ── 1. Rendering phase breakdown ──
     const categories = {
-        'Scripting': 0,
-        'Layout': 0,
-        'Paint': 0,
-        'Rendering': 0,
-        'Other': 0,
+        Scripting: 0,
+        Layout: 0,
+        Paint: 0,
+        Rendering: 0,
+        Other: 0,
     };
 
     const layoutEvents = [];
@@ -251,8 +252,10 @@ function analyzeTrace(label, events) {
     for (const [cat, time] of Object.entries(categories).sort((a, b) => b[1] - a[1])) {
         if (time > 0.1) {
             const pct = ((time / totalTime) * 100).toFixed(1);
-            const bar = '█'.repeat(Math.round(time / totalTime * 40));
-            console.log(`    ${cat.padEnd(12)} ${time.toFixed(1).padStart(8)}ms  ${pct.padStart(5)}%  ${bar}`);
+            const bar = '█'.repeat(Math.round((time / totalTime) * 40));
+            console.log(
+                `    ${cat.padEnd(12)} ${time.toFixed(1).padStart(8)}ms  ${pct.padStart(5)}%  ${bar}`,
+            );
         }
     }
 
@@ -288,12 +291,19 @@ function analyzeTrace(label, events) {
             .sort((a, b) => b[1] - a[1])
             .filter(([key]) => {
                 const name = key.split('|')[0];
-                return name !== '(idle)' && name !== '(garbage collector)' && name !== '(root)' && name !== '(program)';
+                return (
+                    name !== '(idle)' &&
+                    name !== '(garbage collector)' &&
+                    name !== '(root)' &&
+                    name !== '(program)'
+                );
             })
             .slice(0, 20);
 
         console.log(`\n  Top JS functions by CPU samples (${totalHits} total samples):`);
-        console.log(`  ${'Hits'.padStart(6)}  ${'%'.padStart(5)}  ${'Function'.padEnd(40)}  Location`);
+        console.log(
+            `  ${'Hits'.padStart(6)}  ${'%'.padStart(5)}  ${'Function'.padEnd(40)}  Location`,
+        );
         for (const [key, hits] of sorted) {
             const [name, loc] = key.split('|');
             const pct = ((hits / totalHits) * 100).toFixed(1);
@@ -301,7 +311,9 @@ function analyzeTrace(label, events) {
                 .replace(/.*\/node_modules\//, 'nm:')
                 .replace(/.*\/src\//, 'src/')
                 .replace(/\?.*$/, '');
-            console.log(`  ${String(hits).padStart(6)}  ${pct.padStart(5)}%  ${name.slice(0, 40).padEnd(40)}  ${shortLoc}`);
+            console.log(
+                `  ${String(hits).padStart(6)}  ${pct.padStart(5)}%  ${name.slice(0, 40).padEnd(40)}  ${shortLoc}`,
+            );
         }
     }
 }

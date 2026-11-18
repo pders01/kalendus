@@ -1,7 +1,8 @@
 import { expect } from 'chai';
-import { createTestDb } from '../helpers/test-db.js';
-import { createCalendar, createEvent } from '../helpers/fixtures.js';
+
 import { EventServiceImpl } from '../../src/core/event.service.js';
+import { createCalendar, createEvent } from '../helpers/fixtures.js';
+import { createTestDb } from '../helpers/test-db.js';
 
 describe('EventService', () => {
     let service: EventServiceImpl;
@@ -67,23 +68,31 @@ describe('EventService', () => {
     describe('getByRange', () => {
         it('returns events overlapping with the range', async () => {
             createEvent(db, calId, {
-                startYear: 2026, startMonth: 3, startDay: 10,
-                endYear: 2026, endMonth: 3, endDay: 10,
+                startYear: 2026,
+                startMonth: 3,
+                startDay: 10,
+                endYear: 2026,
+                endMonth: 3,
+                endDay: 10,
             });
             createEvent(db, calId, {
-                startYear: 2026, startMonth: 3, startDay: 15,
-                endYear: 2026, endMonth: 3, endDay: 20,
+                startYear: 2026,
+                startMonth: 3,
+                startDay: 15,
+                endYear: 2026,
+                endMonth: 3,
+                endDay: 20,
             });
             createEvent(db, calId, {
-                startYear: 2026, startMonth: 4, startDay: 1,
-                endYear: 2026, endMonth: 4, endDay: 1,
+                startYear: 2026,
+                startMonth: 4,
+                startDay: 1,
+                endYear: 2026,
+                endMonth: 4,
+                endDay: 1,
             });
 
-            const results = await service.getByRange(
-                calId,
-                '2026-03-12',
-                '2026-03-25',
-            );
+            const results = await service.getByRange(calId, '2026-03-12', '2026-03-25');
             expect(results).to.have.length(1);
             expect(results[0].date.start.day).to.equal(15);
         });
@@ -91,26 +100,22 @@ describe('EventService', () => {
         it('returns multi-day events that span into the range', async () => {
             createEvent(db, calId, {
                 heading: 'Conference',
-                startYear: 2026, startMonth: 3, startDay: 8,
-                endYear: 2026, endMonth: 3, endDay: 16,
+                startYear: 2026,
+                startMonth: 3,
+                startDay: 8,
+                endYear: 2026,
+                endMonth: 3,
+                endDay: 16,
             });
 
-            const results = await service.getByRange(
-                calId,
-                '2026-03-12',
-                '2026-03-14',
-            );
+            const results = await service.getByRange(calId, '2026-03-12', '2026-03-14');
             expect(results).to.have.length(1);
             expect(results[0].heading).to.equal('Conference');
         });
 
         it('returns empty for no matches', async () => {
             createEvent(db, calId);
-            const results = await service.getByRange(
-                calId,
-                '2025-01-01',
-                '2025-01-31',
-            );
+            const results = await service.getByRange(calId, '2025-01-01', '2025-01-31');
             expect(results).to.have.length(0);
         });
     });
@@ -118,19 +123,23 @@ describe('EventService', () => {
     describe('getSummary', () => {
         it('returns per-day counts', async () => {
             createEvent(db, calId, {
-                startYear: 2026, startMonth: 3, startDay: 15,
-                endYear: 2026, endMonth: 3, endDay: 17,
+                startYear: 2026,
+                startMonth: 3,
+                startDay: 15,
+                endYear: 2026,
+                endMonth: 3,
+                endDay: 17,
             });
             createEvent(db, calId, {
-                startYear: 2026, startMonth: 3, startDay: 15,
-                endYear: 2026, endMonth: 3, endDay: 15,
+                startYear: 2026,
+                startMonth: 3,
+                startDay: 15,
+                endYear: 2026,
+                endMonth: 3,
+                endDay: 15,
             });
 
-            const summary = await service.getSummary(
-                calId,
-                '2026-03-01',
-                '2026-03-31',
-            );
+            const summary = await service.getSummary(calId, '2026-03-01', '2026-03-31');
             expect(summary['2026-03-15']).to.equal(2);
             expect(summary['2026-03-16']).to.equal(1);
             expect(summary['2026-03-17']).to.equal(1);

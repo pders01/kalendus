@@ -1,6 +1,7 @@
 import { expect } from 'chai';
-import { ViewStateController, type ViewMode } from '../../../src/lib/ViewStateController.js';
 import type { ReactiveControllerHost } from 'lit';
+
+import { ViewStateController, type ViewMode } from '../../../src/lib/ViewStateController.js';
 
 function createMockHost(): ReactiveControllerHost {
     return {
@@ -281,11 +282,18 @@ describe('ViewStateController', () => {
 
         it('does not schedule updates for equal or invalid inputs', () => {
             let updates = 0;
-            host.requestUpdate = () => { updates++; };
+            host.requestUpdate = () => {
+                updates++;
+            };
             const current = controller.activeDate;
             controller.setActiveDate({ ...current });
             controller.setViewMode('month');
-            for (const value of [null, {}, { year: 2026, month: 2, day: 30 }, { year: 2026, month: 3, day: 1.5 }]) {
+            for (const value of [
+                null,
+                {},
+                { year: 2026, month: 2, day: 30 },
+                { year: 2026, month: 3, day: 1.5 },
+            ]) {
                 controller.setActiveDate(value as CalendarDate);
             }
             controller.setViewMode('invalid' as ViewMode);
@@ -307,7 +315,8 @@ describe('ViewStateController', () => {
                 controller.navigatePrevious();
                 expect(controller.activeDate.day).to.equal(30);
             } finally {
-                if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+                if (previous === undefined) delete process.env.TZ;
+                else process.env.TZ = previous;
             }
         });
 
@@ -323,7 +332,9 @@ describe('ViewStateController', () => {
         it('should call requestUpdate when setting active date', () => {
             let updateCount = 0;
             const trackingHost = createMockHost();
-            trackingHost.requestUpdate = () => { updateCount++; };
+            trackingHost.requestUpdate = () => {
+                updateCount++;
+            };
             const ctrl = new ViewStateController(trackingHost);
 
             ctrl.setActiveDate({ day: 1, month: 1, year: 2024 });
@@ -333,7 +344,9 @@ describe('ViewStateController', () => {
         it('should call requestUpdate when setting view mode', () => {
             let updateCount = 0;
             const trackingHost = createMockHost();
-            trackingHost.requestUpdate = () => { updateCount++; };
+            trackingHost.requestUpdate = () => {
+                updateCount++;
+            };
             const ctrl = new ViewStateController(trackingHost);
 
             ctrl.setViewMode('day');

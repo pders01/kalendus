@@ -1,6 +1,7 @@
-import { expect } from 'chai';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
+
+import { expect } from 'chai';
 
 const template = readFileSync(new URL('../../../docs/_includes/base.njk', import.meta.url), 'utf8');
 const script = /<script>([\s\S]*?)<\/script>/.exec(template)![1];
@@ -10,17 +11,58 @@ const script = /<script>([\s\S]*?)<\/script>/.exec(template)![1];
 function setup(narrowLayout: boolean) {
     const callbacks = new Map<string, (...args: any[]) => void>();
     const attributes = new Map<string, string>();
-    const link = { focus() { document.activeElement = link; } };
-    const toggle = { hidden: true, focus() { document.activeElement = toggle; },
-        setAttribute(name: string, value: string) { attributes.set(name, value); },
-        addEventListener(name: string, callback: (...args: any[]) => void) { callbacks.set(name, callback); } };
-    const sidebar = { hidden: false, contains(node: unknown) { return node === link; }, querySelector() { return link; } };
-    const media = { matches: narrowLayout, addEventListener(name: string, callback: (...args: any[]) => void) { callbacks.set(name, callback); } };
-    const document = { activeElement: {} as unknown,
+    const link = {
+        focus() {
+            document.activeElement = link;
+        },
+    };
+    const toggle = {
+        hidden: true,
+        focus() {
+            document.activeElement = toggle;
+        },
+        setAttribute(name: string, value: string) {
+            attributes.set(name, value);
+        },
+        addEventListener(name: string, callback: (...args: any[]) => void) {
+            callbacks.set(name, callback);
+        },
+    };
+    const sidebar = {
+        hidden: false,
+        contains(node: unknown) {
+            return node === link;
+        },
+        querySelector() {
+            return link;
+        },
+    };
+    const media = {
+        matches: narrowLayout,
+        addEventListener(name: string, callback: (...args: any[]) => void) {
+            callbacks.set(name, callback);
+        },
+    };
+    const document = {
+        activeElement: {} as unknown,
         documentElement: { classList: { add() {} }, style: { setProperty() {} } },
-        querySelector() { return toggle; }, getElementById() { return sidebar; },
-        addEventListener(name: string, callback: (...args: any[]) => void) { callbacks.set(name, callback); } };
-    runInNewContext(script, { document, matchMedia: () => media, ResizeObserver: class { observe() {} } });
+        querySelector() {
+            return toggle;
+        },
+        getElementById() {
+            return sidebar;
+        },
+        addEventListener(name: string, callback: (...args: any[]) => void) {
+            callbacks.set(name, callback);
+        },
+    };
+    runInNewContext(script, {
+        document,
+        matchMedia: () => media,
+        ResizeObserver: class {
+            observe() {}
+        },
+    });
     return { document, toggle, sidebar, link, media, attributes, callbacks };
 }
 

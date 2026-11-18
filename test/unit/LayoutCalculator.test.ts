@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+
 import { LayoutCalculator } from '../../src/lib/LayoutCalculator.js';
 
 describe('LayoutCalculator', () => {
@@ -10,14 +11,18 @@ describe('LayoutCalculator', () => {
 
     describe('geometry and sweep invariants', () => {
         const event = (id: string, start: number, end: number) => ({
-            id, heading: id, color: '#123456',
+            id,
+            heading: id,
+            color: '#123456',
             startTime: { hour: Math.floor(start / 60), minute: start % 60 },
             endTime: { hour: Math.floor(end / 60), minute: end % 60 },
         });
 
         it('groups visually colliding short/point events using their minimum display height', () => {
             const boxes = calculator.calculateLayout([
-                event('a', 540, 545), event('b', 550, 555), event('point', 560, 560),
+                event('a', 540, 545),
+                event('b', 550, 555),
+                event('point', 560, 560),
             ]).boxes;
             expect(new Set(boxes.map((box) => box.group)).size).to.equal(1);
             expect(boxes.map((box) => box.height)).to.deep.equal([20, 20, 20]);
@@ -27,7 +32,10 @@ describe('LayoutCalculator', () => {
 
         it('uses the configured pixel scale and minimum in collision detection', () => {
             const scaled = new LayoutCalculator({ minuteHeight: 2, eventMinHeight: 60 });
-            const boxes = scaled.calculateLayout([event('a', 540, 545), event('b', 560, 565)]).boxes;
+            const boxes = scaled.calculateLayout([
+                event('a', 540, 545),
+                event('b', 560, 565),
+            ]).boxes;
             expect(boxes[0].group).to.equal(boxes[1].group);
             expect(boxes[0].y).to.equal(1080);
             expect(boxes[0].height).to.equal(60);
@@ -36,31 +44,49 @@ describe('LayoutCalculator', () => {
 
         it('reuses foreground depth for non-simultaneous events instead of unbounded cascading', () => {
             const boxes = calculator.calculateLayout([
-                event('background', 540, 720), event('early', 550, 580), event('late', 600, 630),
+                event('background', 540, 720),
+                event('early', 550, 580),
+                event('late', 600, 630),
             ]).boxes;
             expect(boxes.map((box) => box.depth)).to.deep.equal([0, 1, 1]);
             expect(boxes[1].x).to.equal(boxes[2].x);
         });
 
         it('keeps ties and group numbering deterministic through reordering', () => {
-            const events = [event('c', 540, 600), event('b', 540, 600), event('a', 540, 600), event('z', 720, 750)];
-            const canonical = (items: typeof events) => calculator.calculateLayout(items).boxes.sort((a, b) => a.id.localeCompare(b.id));
+            const events = [
+                event('c', 540, 600),
+                event('b', 540, 600),
+                event('a', 540, 600),
+                event('z', 720, 750),
+            ];
+            const canonical = (items: typeof events) =>
+                calculator.calculateLayout(items).boxes.sort((a, b) => a.id.localeCompare(b.id));
             expect(canonical(events)).to.deep.equal(canonical([...events].reverse()));
             expect(canonical(events)[0].depth).to.equal(0);
         });
 
         it('keeps touching display endpoints in separate groups', () => {
-            const boxes = calculator.calculateLayout([event('a', 540, 545), event('b', 560, 565)]).boxes;
+            const boxes = calculator.calculateLayout([
+                event('a', 540, 545),
+                event('b', 560, 565),
+            ]).boxes;
             expect(boxes[0].group).not.to.equal(boxes[1].group);
         });
 
         it('matches a simple reference connectivity calculation on deterministic random intervals', () => {
             let seed = 42;
-            const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 2 ** 32; };
+            const random = () => {
+                seed = (seed * 1664525 + 1013904223) >>> 0;
+                return seed / 2 ** 32;
+            };
             for (let trial = 0; trial < 20; trial++) {
                 const events = Array.from({ length: 30 }, (_, i) => {
                     const start = Math.floor(random() * 1400);
-                    return event(String(i), start, Math.min(1440, start + Math.floor(random() * 60)));
+                    return event(
+                        String(i),
+                        start,
+                        Math.min(1440, start + Math.floor(random() * 60)),
+                    );
                 });
                 const intervals = events.map((item) => {
                     const start = item.startTime.hour * 60 + item.startTime.minute;
@@ -74,8 +100,16 @@ describe('LayoutCalculator', () => {
                     while (changed) {
                         changed = false;
                         intervals.forEach((candidate, j) => {
-                            if (!connected.has(j) && [...connected].some((k) => intervals[k].start < candidate.end && candidate.start < intervals[k].end)) {
-                                connected.add(j); changed = true;
+                            if (
+                                !connected.has(j) &&
+                                [...connected].some(
+                                    (k) =>
+                                        intervals[k].start < candidate.end &&
+                                        candidate.start < intervals[k].end,
+                                )
+                            ) {
+                                connected.add(j);
+                                changed = true;
                             }
                         });
                     }
@@ -89,23 +123,33 @@ describe('LayoutCalculator', () => {
         for (const size of [100, 1000, 10000]) {
             it(`handles ${size} identical overlaps without repeated group scans`, function () {
                 this.timeout(10000);
-                const boxes = calculator.calculateLayout(Array.from({ length: size }, (_, i) => event(String(i).padStart(5, '0'), 540, 600))).boxes;
+                const boxes = calculator.calculateLayout(
+                    Array.from({ length: size }, (_, i) =>
+                        event(String(i).padStart(5, '0'), 540, 600),
+                    ),
+                ).boxes;
                 expect(boxes).to.have.length(size);
                 expect(new Set(boxes.map((box) => box.group)).size).to.equal(1);
                 expect(new Set(boxes.map((box) => box.depth)).size).to.equal(size);
-                expect(boxes.every((box) => Number.isFinite(box.x) && box.width >= 65)).to.equal(true);
+                expect(boxes.every((box) => Number.isFinite(box.x) && box.width >= 65)).to.equal(
+                    true,
+                );
             });
         }
 
         it('handles 1,000 chained overlaps with bounded simultaneous foreground depth', () => {
-            const boxes = calculator.calculateLayout(Array.from({ length: 1000 }, (_, i) => event(String(i), i, i + 2))).boxes;
+            const boxes = calculator.calculateLayout(
+                Array.from({ length: 1000 }, (_, i) => event(String(i), i, i + 2)),
+            ).boxes;
             expect(new Set(boxes.map((box) => box.group)).size).to.equal(1);
             expect(Math.max(...boxes.map((box) => box.depth))).to.be.at.most(20);
         });
 
         it('rejects impossible times, reversed intervals and invalid geometry scales', () => {
             expect(() => calculator.calculateLayout([event('bad', 600, 540)])).to.throw(RangeError);
-            expect(() => calculator.calculateLayout([event('bad', 1440, 1440)])).to.throw(RangeError);
+            expect(() => calculator.calculateLayout([event('bad', 1440, 1440)])).to.throw(
+                RangeError,
+            );
             expect(() => new LayoutCalculator({ minuteHeight: 0 })).to.throw(RangeError);
             expect(() => new LayoutCalculator({ eventMinHeight: NaN })).to.throw(RangeError);
         });
@@ -126,14 +170,8 @@ describe('LayoutCalculator', () => {
             const layout = calculator.calculateLayout(events);
             const box = layout.boxes[0];
 
-            expect(box.width).to.equal(
-                100,
-                'Single event should have 100% width',
-            );
-            expect(box.x).to.equal(
-                0,
-                'Single event should be positioned at x=0',
-            );
+            expect(box.width).to.equal(100, 'Single event should have 100% width');
+            expect(box.x).to.equal(0, 'Single event should be positioned at x=0');
             expect(box.depth).to.equal(0, 'Single event should have depth 0');
             expect(box.group).to.equal(0, 'Single event should be in group 0');
         });
@@ -163,14 +201,8 @@ describe('LayoutCalculator', () => {
                     100,
                     `Non-overlapping event ${index} should have 100% width`,
                 );
-                expect(box.x).to.equal(
-                    0,
-                    `Non-overlapping event ${index} should be at x=0`,
-                );
-                expect(box.depth).to.equal(
-                    0,
-                    `Non-overlapping event ${index} should have depth 0`,
-                );
+                expect(box.x).to.equal(0, `Non-overlapping event ${index} should be at x=0`);
+                expect(box.depth).to.equal(0, `Non-overlapping event ${index} should have depth 0`);
                 expect(box.group).to.equal(
                     index,
                     `Non-overlapping event ${index} should be in separate group`,
@@ -206,26 +238,14 @@ describe('LayoutCalculator', () => {
 
             expect(backgroundEvent).to.exist;
             expect(overlappingEvent).to.exist;
-            expect(backgroundEvent!.id).to.equal(
-                '2',
-                'Longest event should be background',
-            );
-            expect(backgroundEvent!.width).to.equal(
-                100,
-                'Background event should have 100% width',
-            );
-            expect(backgroundEvent!.x).to.equal(
-                0,
-                'Background event should be at x=0',
-            );
+            expect(backgroundEvent!.id).to.equal('2', 'Longest event should be background');
+            expect(backgroundEvent!.width).to.equal(100, 'Background event should have 100% width');
+            expect(backgroundEvent!.x).to.equal(0, 'Background event should be at x=0');
             expect(overlappingEvent!.width).to.be.lessThan(
                 100,
                 'Overlapping event should have reduced width',
             );
-            expect(overlappingEvent!.x).to.be.greaterThan(
-                0,
-                'Overlapping event should be offset',
-            );
+            expect(overlappingEvent!.x).to.be.greaterThan(0, 'Overlapping event should be offset');
         });
 
         it('should handle three overlapping events with correct background assignment', () => {
@@ -257,33 +277,18 @@ describe('LayoutCalculator', () => {
 
             // All should be in same group
             const groups = new Set(layout.boxes.map((box) => box.group));
-            expect(groups.size).to.equal(
-                1,
-                'All overlapping events should be in same group',
-            );
+            expect(groups.size).to.equal(1, 'All overlapping events should be in same group');
 
             // Find background event (depth 0)
             const backgroundEvent = layout.boxes.find((box) => box.depth === 0);
             expect(backgroundEvent).to.exist;
-            expect(backgroundEvent!.id).to.equal(
-                '3',
-                'Longest event should be background',
-            );
-            expect(backgroundEvent!.width).to.equal(
-                100,
-                'Background event should have 100% width',
-            );
-            expect(backgroundEvent!.x).to.equal(
-                0,
-                'Background event should be at x=0',
-            );
+            expect(backgroundEvent!.id).to.equal('3', 'Longest event should be background');
+            expect(backgroundEvent!.width).to.equal(100, 'Background event should have 100% width');
+            expect(backgroundEvent!.x).to.equal(0, 'Background event should be at x=0');
 
             // Check that other events have cascading depths
             const depths = layout.boxes.map((box) => box.depth).sort();
-            expect(depths).to.deep.equal(
-                [0, 1, 2],
-                'Should have depths 0, 1, 2',
-            );
+            expect(depths).to.deep.equal([0, 1, 2], 'Should have depths 0, 1, 2');
         });
 
         it('should handle partial overlaps correctly', () => {
@@ -323,14 +328,8 @@ describe('LayoutCalculator', () => {
             // Find the longest event (A is 90 minutes, B is 60 minutes, C is 45 minutes)
             const backgroundEvent = layout.boxes.find((box) => box.depth === 0);
             expect(backgroundEvent).to.exist;
-            expect(backgroundEvent!.id).to.equal(
-                '1',
-                'Event A (longest) should be background',
-            );
-            expect(backgroundEvent!.width).to.equal(
-                100,
-                'Background event should have 100% width',
-            );
+            expect(backgroundEvent!.id).to.equal('1', 'Event A (longest) should be background');
+            expect(backgroundEvent!.width).to.equal(100, 'Background event should have 100% width');
         });
     });
 
@@ -379,28 +378,16 @@ describe('LayoutCalculator', () => {
             // All events have same duration (60 minutes), so first one should be background
             const backgroundEvent = layout.boxes.find((box) => box.depth === 0);
             expect(backgroundEvent).to.exist;
-            expect(backgroundEvent!.width).to.equal(
-                100,
-                'Background event should have 100% width',
-            );
-            expect(backgroundEvent!.x).to.equal(
-                0,
-                'Background event should be at x=0',
-            );
+            expect(backgroundEvent!.width).to.equal(100, 'Background event should have 100% width');
+            expect(backgroundEvent!.x).to.equal(0, 'Background event should be at x=0');
 
             // All should be in same group
             const groups = new Set(layout.boxes.map((box) => box.group));
-            expect(groups.size).to.equal(
-                1,
-                'All overlapping events should be in same group',
-            );
+            expect(groups.size).to.equal(1, 'All overlapping events should be in same group');
 
             // Should have unique depths 0-4
             const depths = layout.boxes.map((box) => box.depth).sort();
-            expect(depths).to.deep.equal(
-                [0, 1, 2, 3, 4],
-                'Should have depths 0-4',
-            );
+            expect(depths).to.deep.equal([0, 1, 2, 3, 4], 'Should have depths 0-4');
         });
 
         it('should handle cascading overlaps with correct width allocation', () => {
@@ -440,23 +427,12 @@ describe('LayoutCalculator', () => {
             // Workshop (3 hours) should be the background
             const backgroundEvent = layout.boxes.find((box) => box.depth === 0);
             expect(backgroundEvent).to.exist;
-            expect(backgroundEvent!.id).to.equal(
-                '1',
-                'Workshop (longest) should be background',
-            );
-            expect(backgroundEvent!.width).to.equal(
-                100,
-                'Background event should have 100% width',
-            );
-            expect(backgroundEvent!.x).to.equal(
-                0,
-                'Background event should be at x=0',
-            );
+            expect(backgroundEvent!.id).to.equal('1', 'Workshop (longest) should be background');
+            expect(backgroundEvent!.width).to.equal(100, 'Background event should have 100% width');
+            expect(backgroundEvent!.x).to.equal(0, 'Background event should be at x=0');
 
             // Check width allocation for overlapping events
-            const overlappingEvents = layout.boxes.filter(
-                (box) => box.depth > 0,
-            );
+            const overlappingEvents = layout.boxes.filter((box) => box.depth > 0);
             overlappingEvents.forEach((event) => {
                 expect(event.width).to.be.at.least(
                     65,
@@ -531,17 +507,11 @@ describe('LayoutCalculator', () => {
             // Both events have same duration, so first one should be background
             const backgroundEvent = layout.boxes.find((box) => box.depth === 0);
             expect(backgroundEvent).to.exist;
-            expect(backgroundEvent!.width).to.equal(
-                100,
-                'Background event should have 100% width',
-            );
+            expect(backgroundEvent!.width).to.equal(100, 'Background event should have 100% width');
 
             // Both should be in same group
             const groups = new Set(layout.boxes.map((box) => box.group));
-            expect(groups.size).to.equal(
-                1,
-                'Identical events should be in same group',
-            );
+            expect(groups.size).to.equal(1, 'Identical events should be in same group');
         });
 
         it('should handle zero-duration events', () => {
@@ -558,15 +528,9 @@ describe('LayoutCalculator', () => {
             const layout = calculator.calculateLayout(events);
             const box = layout.boxes[0];
 
-            expect(box.width).to.equal(
-                100,
-                'Zero duration event should have 100% width',
-            );
+            expect(box.width).to.equal(100, 'Zero duration event should have 100% width');
             expect(box.x).to.equal(0, 'Zero duration event should be at x=0');
-            expect(box.depth).to.equal(
-                0,
-                'Zero duration event should have depth 0',
-            );
+            expect(box.depth).to.equal(0, 'Zero duration event should have depth 0');
         });
     });
 
@@ -650,9 +614,7 @@ describe('LayoutCalculator', () => {
 
             scenarios.forEach((events, scenarioIndex) => {
                 const layout = calculator.calculateLayout(events);
-                const backgroundEvents = layout.boxes.filter(
-                    (box) => box.depth === 0,
-                );
+                const backgroundEvents = layout.boxes.filter((box) => box.depth === 0);
 
                 backgroundEvents.forEach((event, eventIndex) => {
                     expect(event.width).to.equal(
@@ -693,9 +655,7 @@ describe('LayoutCalculator', () => {
             ];
 
             const layout = calculator.calculateLayout(events);
-            const sortedByDepth = layout.boxes.sort(
-                (a, b) => a.depth - b.depth,
-            );
+            const sortedByDepth = layout.boxes.sort((a, b) => a.depth - b.depth);
 
             // Background event (depth 0)
             expect(sortedByDepth[0].width).to.equal(100);
@@ -705,9 +665,7 @@ describe('LayoutCalculator', () => {
             for (let i = 1; i < sortedByDepth.length; i++) {
                 expect(sortedByDepth[i].x).to.be.greaterThan(
                     sortedByDepth[i - 1].x,
-                    `Event at depth ${
-                        sortedByDepth[i].depth
-                    } should have x > event at depth ${
+                    `Event at depth ${sortedByDepth[i].depth} should have x > event at depth ${
                         sortedByDepth[i - 1].depth
                     }`,
                 );

@@ -1,15 +1,49 @@
 import { expect } from 'chai';
-import { getMessages, ensureLocale, isLocaleLoaded, _resetForTesting, type MessageKey } from '../../../src/lib/messages.js';
+
+import {
+    getMessages,
+    ensureLocale,
+    isLocaleLoaded,
+    _resetForTesting,
+    type MessageKey,
+} from '../../../src/lib/messages.js';
 
 const ALL_KEYS: MessageKey[] = [
-    'day', 'week', 'month', 'currentMonth', 'allDay',
-    'today', 'noTitle', 'noContent', 'noTime',
-    'eventDetails', 'exportAsICS', 'title', 'time',
-    'date', 'notes', 'close', 'calendarWeek', 'year',
-    'previous', 'next', 'events',
-    'calendarEvent', 'pressToOpen', 'to', 'switchToDayView',
-    'showEarlierDays', 'showLaterDays', 'more', 'calendarView', 'viewLabel',
-    'allDayEventsWeek', 'agenda', 'timed', 'description', 'downloadIcs',
+    'day',
+    'week',
+    'month',
+    'currentMonth',
+    'allDay',
+    'today',
+    'noTitle',
+    'noContent',
+    'noTime',
+    'eventDetails',
+    'exportAsICS',
+    'title',
+    'time',
+    'date',
+    'notes',
+    'close',
+    'calendarWeek',
+    'year',
+    'previous',
+    'next',
+    'events',
+    'calendarEvent',
+    'pressToOpen',
+    'to',
+    'switchToDayView',
+    'showEarlierDays',
+    'showLaterDays',
+    'more',
+    'calendarView',
+    'viewLabel',
+    'allDayEventsWeek',
+    'agenda',
+    'timed',
+    'description',
+    'downloadIcs',
 ];
 
 describe('getMessages', () => {
