@@ -1,9 +1,13 @@
 import { resolve } from 'node:path';
+
 import { defineConfig } from 'vite';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 
+import { staticLitCss } from './scripts/static-lit-css.mjs';
+
 export default defineConfig({
     plugins: [
+        staticLitCss(),
         viteStaticCopy({
             targets: [{ src: 'src/themes/*', dest: 'themes' }],
         }),
@@ -21,6 +25,7 @@ export default defineConfig({
         minify: 'terser',
         terserOptions: {
             ecma: 2020,
+            compress: { passes: 2 },
             module: false,
         },
         rollupOptions: {

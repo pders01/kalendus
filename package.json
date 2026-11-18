@@ -115,6 +115,7 @@
         "lit": "^3.3.2",
         "lit-analyzer": "^2.0.3",
         "luxon": "^3.7.2",
+        "magic-string": "0.30.21",
         "mocha": "^11.7.5",
         "oxfmt": "0.35.0",
         "oxlint": "1.50.0",
