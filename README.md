@@ -46,7 +46,7 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 
 ### Advanced Event Handling
 
-- **Smart Overlapping**: Cascading layout with progressive transparency preserves event visibility
+- **Readable Density**: Side-by-side time lanes with real-event disclosure when groups cannot fit
 - **Duration-Based Positioning**: Events positioned precisely by start time and duration via `LayoutCalculator`
 - **Multi-Day Events**: Seamless spanning across multiple days with first/middle/last-day visual styling
 - **All-Day Events**: Dedicated all-day section with row allocation via `allDayLayout`
@@ -111,6 +111,16 @@ interface CalendarEntry {
 All-day date ends are inclusive. Explicit timed entries require `time` and describe one continuous interval with an exclusive end; `24:00` is allowed only as an end boundary. Without `kind`, legacy inclusive dates/daily windows and multi-day all-day promotion remain compatible. Zoned DST gaps and ambiguous endpoints are rejected. Duplicate caller IDs use the first valid record; expansion is limited to the visible range and a segment budget, with `entries-invalid` / `entries-error` diagnostics. See [data contracts](docs/library-usage.md#data-contracts).
 
 `entry-activate` and `export-entry` are cancelable requests carrying the canonical original `{ entry, eventId }`. Call `preventDefault()` synchronously to replace the inspector or download, **not** `stopPropagation()`. Legacy action notifications remain available; do not derive fetch ranges from their `detail.direction` or `detail.view`. See [Events Reference](docs/events.md).
+
+### Month Flow and Owner-Supplied Status
+
+Month grows with its content; the embedding page owns vertical scrolling. Compact date selection keeps Month open and shows a contextual event list below the grid. Use `month-day-behavior="day"` for legacy Day drilling, or `inline` for contextual selection even at wide sizes (`auto` is the default).
+
+Day/Week retain bounded timelines with free scrolling and preserve time position across view switches. They honor a supplied height and use a viewport-based fallback otherwise. Do not use a fixed-height, overflow-hidden wrapper around Month. Late minimum-height cards remain reachable in blank trailing scroll space; their geometry is still a preview, not a true-duration measurement.
+
+Use `month-agenda-presentation="accordion"` to opt into a dedicated selected-day list within Month, with inline descriptions and on-demand `.ics` export. The existing defaults (`auto`, `full`, `card`) are unchanged. See [presentation choices](docs/library-usage.md#experimental-presentation-choices) for dense Month counts and the other list and time-grid options.
+
+Set `calendar.loading = true` or `calendar.error = '…'` to distinguish pending/failed data from an empty result. The `status` slot can replace fallback status content. These are owner-controlled presentation inputs, not an automatic fetch implementation; adapters and Expo do not infer them from `entries`.
 
 ### Year View Controls
 

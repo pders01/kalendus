@@ -1,4 +1,4 @@
-/** Deterministic cascade layout. Collision intervals use the rendered minimum geometry. */
+/** Deterministic time-grid layout. Collision intervals use the rendered minimum geometry. */
 import { isValidCalendarTime } from './calendarModel.js';
 
 interface CalendarEvent {
@@ -9,9 +9,11 @@ interface CalendarEvent {
     color: string;
 }
 
-interface GridConfig {
+export interface GridConfig {
     minuteHeight: number;
     eventMinHeight: number;
+    /** Compatibility default: cascade. Columns includes every event in lane allocation. */
+    layoutMode?: 'cascade' | 'columns';
 }
 
 export const MIN_EVENT_DURATION_MINUTES = 20;
@@ -34,6 +36,10 @@ export interface LayoutBox {
     /** Pass to SlotManager when using a custom minimum height/scale. */
     durationMinutes: number;
     depth: number;
+    /** Zero-based reusable lane; present only in columns mode. */
+    columnIndex?: number;
+    /** Peak display-interval concurrency in this connected group (not its event total). */
+    columnCount?: number;
     group: number;
     opacity: number;
     zIndex: number;
@@ -100,12 +106,13 @@ function compareIntervals(a: Interval, b: Interval): number {
 }
 
 export class LayoutCalculator {
-    private config: GridConfig;
+    private config: Required<GridConfig>;
 
     constructor(config: Partial<GridConfig> = {}) {
         this.config = {
             minuteHeight: config.minuteHeight ?? 1,
             eventMinHeight: config.eventMinHeight ?? MIN_EVENT_DURATION_MINUTES,
+            layoutMode: config.layoutMode ?? 'cascade',
         };
         if (
             !Number.isFinite(this.config.minuteHeight) ||
@@ -115,10 +122,17 @@ export class LayoutCalculator {
         ) {
             throw new RangeError('Invalid layout scale or minimum height');
         }
+        if (this.config.layoutMode !== 'cascade' && this.config.layoutMode !== 'columns') {
+            throw new RangeError('Invalid layout mode');
+        }
     }
 
     calculateLayout(events: CalendarEvent[]): LayoutResult {
-        const minimum = this.config.eventMinHeight / this.config.minuteHeight;
+        const rawMinimum = this.config.eventMinHeight / this.config.minuteHeight;
+        const nearest = Math.round(rawMinimum);
+        // Font-relative scales such as 44 / 60 must not make adjacent hours
+        // falsely collide because their quotient is 60.00000000000001.
+        const minimum = Math.abs(rawMinimum - nearest) < 1e-9 ? nearest : rawMinimum;
         const intervals: Interval[] = events.map((event, index) => {
             if (
                 !isValidCalendarTime(event.startTime) ||
@@ -157,6 +171,10 @@ export class LayoutCalculator {
 
         const boxes: LayoutBox[] = new Array(events.length);
         groups.forEach((group, groupId) => {
+            if (this.config.layoutMode === 'columns') {
+                this._layoutColumns(group, groupId, boxes, minimum);
+                return;
+            }
             // Keep the established full-width longest-event background policy.
             const background = group.reduce((best, item) =>
                 item.duration > best.duration ? item : best,
@@ -206,5 +224,50 @@ export class LayoutCalculator {
             }
         });
         return { boxes };
+    }
+
+    /** Two heaps bound work to O(n log n); no pairwise collision graph or background exception. */
+    private _layoutColumns(
+        group: Interval[],
+        groupId: number,
+        boxes: LayoutBox[],
+        minimum: number,
+    ): void {
+        const active = new MinHeap<{ end: number; column: number }>(
+            (a, b) => a.end - b.end || a.column - b.column,
+        );
+        const available = new MinHeap<number>((a, b) => a - b);
+        const columns = new Map<number, number>();
+        let columnCount = 0;
+        for (const interval of group) {
+            while (active.peek() && active.peek()!.end <= interval.start) {
+                available.push(active.pop()!.column);
+            }
+            const column = available.pop() ?? columnCount++;
+            columns.set(interval.index, column);
+            active.push({ end: interval.end, column });
+        }
+        for (const [paintOrder, interval] of group.entries()) {
+            const columnIndex = columns.get(interval.index)!;
+            const durationMinutes = getDisplayDurationMinutes(
+                interval.start,
+                interval.start + interval.duration,
+                minimum,
+            );
+            boxes[interval.index] = {
+                id: interval.id,
+                x: (columnIndex / columnCount) * 100,
+                y: interval.start * this.config.minuteHeight,
+                width: 100 / columnCount,
+                height: durationMinutes * this.config.minuteHeight,
+                durationMinutes,
+                depth: columnIndex,
+                columnIndex,
+                columnCount,
+                group: groupId,
+                opacity: 1,
+                zIndex: 100 + paintOrder,
+            };
+        }
     }
 }

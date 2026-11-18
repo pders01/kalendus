@@ -32,15 +32,15 @@ Common issues and solutions when using `<lms-calendar>`.
     import '@jpahd/kalendus';
     ```
 
-3. **Zero container height** — The calendar defaults to `--height: 100%`. If its parent has no explicit height, the calendar collapses to zero. See [Layout Guide](./layout-and-positioning.md#height-requirement).
+3. **Constrained container height** — Check for a zero-sized or clipping flex/grid wrapper. Day and Week have a bounded fallback in auto-height embeds. See [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling).
 
 ---
 
 ## Calendar Has Zero Height
 
-The most common issue. The component's `:host` block sets `--height: 100%` and `--width: 100%`. Without an ancestor providing height, it collapses.
+The component defaults to `--height: 100%` and `--width: 100%`. Month is content-sized; Day and Week use a bounded fallback if there is no height to fill. If the calendar is clipped or needs to fit a specific region, check the wrapper's size and overflow.
 
-**Fix:** Give the parent an explicit height:
+**Fix:** Give that region and the calendar a definite height:
 
 ```html
 <div style="height: 600px;">

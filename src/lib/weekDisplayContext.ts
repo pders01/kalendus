@@ -18,6 +18,8 @@ export interface WeekDisplayContext {
     visibleLength: number;
     /** True when showing fewer than 7 days. */
     isCondensed: boolean;
+    /** Whether day cells have enough inline space for an all-day title. */
+    canShowAllDayTitles: boolean;
     /** CSS grid-template-columns value for the week grid. */
     gridColumns: string;
 }
@@ -60,10 +62,12 @@ function computeVisibleStart(activeIndex: number, count: number): number {
 /**
  * Compute the week display context based on CSS custom properties and viewport width.
  *
- * Reads three tokens from `hostEl`:
+ * Reads day-count/breakpoint tokens plus an optional readable-column floor:
  * - `--week-day-count` (default 7): full-width column count
  * - `--week-mobile-day-count` (default 3): condensed column count below breakpoint
  * - `--week-mobile-breakpoint` (default 768px): width threshold
+ * - `--week-min-day-width` (default 8em): px/em column floor; 0 restores fixed counts
+ * Day counts are maxima: narrow embeds/enlarged text can show fewer readable days.
  */
 export function computeWeekDisplayContext(
     activeDate: CalendarDate,
@@ -82,35 +86,39 @@ export function computeWeekDisplayContext(
         : NaN;
     const breakpoint = Number.isFinite(rawBreakpoint) ? rawBreakpoint : 768;
 
-    // 2. Determine effective day count based on viewport width
-    const effectiveCount = calendarWidth < breakpoint ? mobileCount : fullCount;
+    // 2. Respect the component's available width, not just its breakpoint.
+    const requestedCount = calendarWidth < breakpoint ? mobileCount : fullCount;
+    const font = parseFloat(getComputedStyle(hostEl).fontSize) || 16;
+    const pixels = (value: string, fallback: number) => {
+        const match = /^(\d+(?:\.\d+)?|\.\d+)(px|em)?$/.exec(value.trim());
+        return match ? Number(match[1]) * (match[2] === 'em' ? font : 1) : fallback;
+    };
+    const minimum = pixels(readCSSToken(hostEl, '--week-min-day-width', '8em'), font * 8);
+    const timeWidth = pixels(readCSSToken(hostEl, '--time-column-width', '3em'), font * 3);
+    const available = Number.isFinite(calendarWidth)
+        ? Math.max(0, calendarWidth - timeWidth - font)
+        : fullCount * minimum;
+    const capacity = minimum > 0 ? Math.max(1, Math.floor(available / minimum)) : requestedCount;
+    const effectiveCount = Math.min(requestedCount, capacity);
 
     // 3. Get the full 7-day week
     const weekDates = getWeekDates(activeDate, firstDayOfWeek);
 
-    // 4. If showing all 7, return the full week (no condensing)
-    if (effectiveCount >= 7) {
-        return {
-            weekDates,
-            visibleDates: weekDates,
-            visibleStartIndex: 0,
-            visibleLength: 7,
-            isCondensed: false,
-            gridColumns: 'var(--time-column-width) repeat(7, 1fr)',
-        };
-    }
-
-    // 5. Center the visible window around the active date
+    // One construction path keeps full and condensed range metadata aligned.
     const activeIndex = findActiveDateIndex(weekDates, activeDate);
     const visibleStartIndex = computeVisibleStart(activeIndex, effectiveCount);
-    const visibleDates = weekDates.slice(visibleStartIndex, visibleStartIndex + effectiveCount);
+    const visibleDates =
+        effectiveCount === 7
+            ? weekDates
+            : weekDates.slice(visibleStartIndex, visibleStartIndex + effectiveCount);
 
     return {
         weekDates,
         visibleDates,
         visibleStartIndex,
         visibleLength: effectiveCount,
-        isCondensed: true,
+        isCondensed: effectiveCount < 7,
+        canShowAllDayTitles: available / effectiveCount >= font * 7,
         gridColumns: `var(--time-column-width) repeat(${effectiveCount}, 1fr)`,
     };
 }

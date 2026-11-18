@@ -204,6 +204,73 @@ describe('Real-root automatic accessibility regressions', function () {
         }
     }
 
+    // Seven connected overlaps are represented by ONE real disclosure, not
+    // seven unreadable cards. Account for every other real occurrence exactly.
+    async function scanExactDenseGroup(calendar: LMSCalendar, viewMode: 'day' | 'week') {
+        await waitUntil(
+            () => calendar.shadowRoot!.querySelectorAll('[data-density-key]').length === 1,
+        );
+        await settle(calendar);
+        const view = calendar.shadowRoot!.querySelector(`lms-calendar-${viewMode}`)!;
+        const conferenceCount =
+            viewMode === 'day'
+                ? 1
+                : [
+                      ...view.shadowRoot!.querySelectorAll<HTMLButtonElement>(
+                          'button.day-label[data-date]',
+                      ),
+                  ].filter((button) =>
+                      ['2026-3-9', '2026-3-10', '2026-3-11', '2026-3-12'].includes(
+                          button.dataset.date!,
+                      ),
+                  ).length;
+        expect(conferenceCount, 'visible conference dates are represented').to.be.at.least(1);
+        const cards = [...view.querySelectorAll<Entry>('lms-calendar-entry')];
+        expect(cards.map((entry) => entry.eventId).sort()).to.deep.equal(
+            [...Array(conferenceCount).fill('conference'), 'holiday', 'planning'].sort(),
+        );
+        for (const card of cards) {
+            expect(card.getBoundingClientRect().height).to.be.at.least(24);
+            expect(getComputedStyle(card).display).not.to.equal('none');
+        }
+        const trigger =
+            calendar.shadowRoot!.querySelector<HTMLButtonElement>('[data-density-key]')!;
+        expect(trigger).to.be.instanceOf(HTMLButtonElement);
+        const densityKey = trigger.dataset.densityKey;
+        expect(trigger.getBoundingClientRect().width).to.be.at.least(24);
+        trigger.focus();
+        await sendKeys({ press: 'Enter' });
+        await settle(calendar);
+        const list = calendar.shadowRoot!.querySelector<HTMLElement>('[data-density-list]');
+        expect(list, 'keyboard opens the real connected group').to.exist;
+        expect(calendar.shadowRoot!.activeElement).to.equal(list!.querySelector('#agenda-date'));
+        const rows = [...list!.querySelectorAll<HTMLButtonElement>('.agenda-event')];
+        expect(rows.map((row) => row.dataset.eventId)).to.deep.equal(
+            Array.from({ length: 7 }, (_, index) => `dense-${index}`),
+        );
+        for (const [index, row] of rows.entries()) {
+            expect(row).to.be.instanceOf(HTMLButtonElement);
+            expect(row.querySelector('.agenda-title')!.textContent).to.equal(
+                entries(calendar.locale)[index + 1].heading,
+            );
+            expect(row.querySelector('.agenda-time')!.textContent!.trim()).not.to.equal('');
+        }
+        await scan(calendar);
+        const close = list!.querySelector<HTMLButtonElement>('button.agenda-action')!;
+        close.focus();
+        await sendKeys({ press: 'Enter' });
+        await settle(calendar);
+        expect(calendar.viewMode).to.equal(viewMode);
+        expect(calendar.shadowRoot!.querySelector('[data-density-list]')).not.to.exist;
+        const restored =
+            calendar.shadowRoot!.querySelector<HTMLButtonElement>('[data-density-key]')!;
+        expect(restored.dataset.densityKey).to.equal(densityKey);
+        await waitUntil(
+            () => calendar.shadowRoot!.activeElement === restored,
+            'focus returns to the disclosure',
+        );
+    }
+
     for (const theme of Object.keys(themes) as Theme[]) {
         describe(`${theme} shipped theme`, () => {
             scenario(
@@ -243,19 +310,17 @@ describe('Real-root automatic accessibility regressions', function () {
                 'scans narrow Arabic dense Day, then its keyboard-opened non-modal inspector',
                 async () => {
                     const calendar = await calendarFixture(theme, 'day', 360, 'ar');
-                    const day = calendar.shadowRoot!.querySelector('lms-calendar-day')!;
-                    expect(day.querySelectorAll('lms-calendar-entry').length).to.be.at.least(10);
+                    await scanExactDenseGroup(calendar, 'day');
                     await scan(calendar);
-                    await openInspector(calendar);
+                    const invoker = await openInspector(calendar);
                     await scan(calendar);
                     await sendKeys({ press: 'Escape' });
                     await settle(calendar);
                     expect(calendar.shadowRoot!.querySelector<Menu>('lms-menu')!.open).to.equal(
                         false,
                     );
-                    expect(calendar.shadowRoot!.activeElement).to.equal(
-                        day.querySelector<Entry>('lms-calendar-entry:focus'),
-                    );
+                    expect(invoker.isConnected).to.equal(true);
+                    expect(calendar.shadowRoot!.activeElement).to.equal(invoker);
                 },
             );
 
@@ -265,8 +330,8 @@ describe('Real-root automatic accessibility regressions', function () {
                     const calendar = await calendarFixture(theme, 'month', 960);
                     await switchView(calendar, 'week');
                     const week = calendar.shadowRoot!.querySelector('lms-calendar-week')!;
-                    expect(week.querySelectorAll('lms-calendar-entry').length).to.be.greaterThan(8);
                     expect(week.querySelector('[slot^="all-day"]')).to.be.instanceOf(HTMLElement);
+                    await scanExactDenseGroup(calendar, 'week');
                     await scan(calendar);
                 },
             );
@@ -372,7 +437,8 @@ describe('Real-root automatic accessibility regressions', function () {
         const calendar = await calendarFixture('midnight', 'day', 360, 'ar');
         await switchView(calendar, 'week');
         const week = calendar.shadowRoot!.querySelector('lms-calendar-week')!;
-        expect(week.querySelectorAll('lms-calendar-entry').length).to.be.greaterThan(8);
+        expect(week).to.be.instanceOf(HTMLElement);
+        await scanExactDenseGroup(calendar, 'week');
         await scan(calendar);
     });
 

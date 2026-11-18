@@ -178,6 +178,19 @@ describe('Shorter selected-date Month lists', () => {
         expect(calendar.monthAgendaPresentation).to.equal('full');
         expect(rows(calendar)).to.have.length(2);
     });
+
+    it('does not apply Month disclosure policy to a Day density list', async () => {
+        const calendar = await make(
+            Array.from({ length: 6 }, (_, i) => timed(i)),
+            'on-demand',
+        );
+        calendar.viewMode = 'day';
+        await settle(calendar);
+        calendar.shadowRoot!.querySelector<HTMLButtonElement>('.time-group')!.click();
+        await settle(calendar);
+        expect(rows(calendar)).to.have.length(6);
+        expect(calendar.shadowRoot!.querySelector('.agenda-toggle')).to.equal(null);
+    });
 });
 
 describe('Simpler Month continuity without a layout restructure', () => {

@@ -122,6 +122,7 @@ The library defaults are unchanged. Use these options to choose an alternate pre
 | ------------------------- | --------------------------- | ------------------------------------------- | ------- |
 | `monthPresentation`       | `month-presentation`        | `auto`, `presence`, `previews`              | `auto`  |
 | `monthAgendaPresentation` | `month-agenda-presentation` | `full`, `preview`, `on-demand`, `accordion` | `full`  |
+| `timedEntryPresentation`  | `timed-entry-presentation`  | `card`, `marker`                            | `card`  |
 
 ### Month and Agenda
 
@@ -156,7 +157,10 @@ on occupied dates instead. Counts include one-day events and convey cardinality,
 availability or individual multi-day identity. A dense Month cannot individually
 trace every event; readable selected-date lists do not solve cross-date comparison.
 
-Invalid presentation values normalize to their defaults.
+`card` retains readable minimum geometry and full textual ranges; `marker` separates
+proportional duration marks from readable labels. These options are not automatically
+exposed by the server adapter or Expo wrapper. Invalid values normalize to their
+defaults.
 
 ### Methods and getters
 

@@ -21,7 +21,7 @@ export default {
             cacheDir: `${root}node_modules/.vite-server-browser`,
             optimizeDeps: {
                 exclude: ['@lit-labs/observers', 'remeda'],
-                include: ['lit/directives/if-defined.js', 'ts-ics'],
+                include: ['lit/directives/if-defined.js', 'lit/directives/keyed.js', 'ts-ics'],
             },
         }),
     ],

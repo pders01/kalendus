@@ -7,8 +7,7 @@ export class TimeGridSizingController implements ReactiveController {
     private lastMinute = 0;
     constructor(
         private host: LitElement,
-        private wrapperSelector: string,
-        private headerSelector: string,
+        private scrollerSelector: string,
     ) {
         host.addController(this);
     }
@@ -29,22 +28,28 @@ export class TimeGridSizingController implements ReactiveController {
     }
     private start() {
         if (this.observer) return;
-        const wrapper = this.host.renderRoot.querySelector<HTMLElement>(this.wrapperSelector);
-        const header = this.host.renderRoot.querySelector<HTMLElement>(this.headerSelector);
-        if (!wrapper || !header) return;
+        const scroll = this.host.renderRoot.querySelector<HTMLElement>(this.scrollerSelector);
+        if (!scroll) return;
         const sync = () => {
-            const height = wrapper.clientHeight - header.clientHeight;
+            const height = scroll.clientHeight;
             const fontSize = parseFloat(getComputedStyle(this.host).fontSize) || 16;
             // Fit twelve hours only when that leaves readable text space. In
             // short embeds or enlarged text, scroll more rather than crushing
             // a two-line event into a one-line hour. Canonical times stay intact.
             const minute = Math.max(height / 720, (fontSize * 2.75) / 60);
             if (height > 0 && Math.abs(minute - this.lastMinute) > 0.0001) {
+                const inset = parseFloat(getComputedStyle(scroll).paddingTop) || 0;
+                const position =
+                    this.lastMinute > 0 ? (scroll.scrollTop - inset) / this.lastMinute : undefined;
                 this.lastMinute = minute;
                 this.host.style.setProperty('--minute-height', `${minute}px`);
                 this.host.style.setProperty('--hour-height', `${minute * 60}px`);
                 this.host.style.setProperty('--day-total-height', `${minute * 1440}px`);
                 this.host.style.setProperty('--half-day-height', `${minute * 720}px`);
+                // Avoid cumulative subpixel truncation during repeated restores.
+                if (position !== undefined)
+                    scroll.scrollTop = Math.round(inset + position * minute);
+                this.host.dispatchEvent(new Event('time-grid-resize'));
             }
         };
         sync();
@@ -55,8 +60,7 @@ export class TimeGridSizingController implements ReactiveController {
                 if (this.host.isConnected) sync();
             });
         });
-        this.observer.observe(wrapper);
-        this.observer.observe(header);
+        this.observer.observe(scroll);
     }
 }
 

@@ -26,6 +26,7 @@ export default {
                     'lit/directives/style-map.js',
                     'lit/directives/class-map.js',
                     'lit/directives/if-defined.js',
+                    'lit/directives/keyed.js',
                     'luxon',
                     'remeda',
                     'ts-ics',

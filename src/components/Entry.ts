@@ -40,7 +40,7 @@ export default class Entry extends LitElement {
     density: 'compact' | 'standard' | 'full' = 'standard';
 
     @property({ type: String, reflect: true, attribute: 'data-display-mode' })
-    displayMode: 'default' | 'month-dot' | 'month-span' = 'default';
+    displayMode: 'default' | 'month-dot' | 'month-span' | 'time-mark' = 'default';
 
     @property({ type: Boolean, reflect: true, attribute: 'data-float-text' })
     floatText = false;
@@ -157,7 +157,6 @@ export default class Entry extends LitElement {
         /* Compact grouped content - don't stretch to fill height */
         .main.compact,
         .main.standard {
-            align-self: flex-start; /* Don't stretch vertically */
             height: auto; /* Use natural content height instead of 100% */
             min-height: var(--entry-min-height, 1.2em);
         }
@@ -182,18 +181,26 @@ export default class Entry extends LitElement {
             line-height: 1.2;
         }
 
-        /* Compact mode: single line with title only */
+        /* Timed cards keep their actual range even at the readable height floor.
+           Related text stays clustered; a narrow lane may stack whole labels. */
         .main.compact {
             flex-direction: row;
-            align-items: flex-start; /* Top-left alignment for better overlapping visibility */
-            gap: 0;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 0.15em 0.5em;
         }
 
-        /* Standard mode: title + time in various layouts */
+        /* Title first, metadata second. Wrap intrinsically within the entry, never
+           squeeze the heading to zero to keep a time label on the same line. */
         .main.standard {
             flex-direction: var(--entry-layout, row);
+            flex-wrap: wrap;
             align-items: baseline;
-            gap: 0.25em;
+            gap: 0.15em 0.5em;
+        }
+
+        .main.standard .title {
+            min-inline-size: min(100%, 8ch);
         }
 
         /* The band already labels these as all-day. Do not spend scarce day-column
@@ -212,69 +219,40 @@ export default class Entry extends LitElement {
 
         .title {
             max-inline-size: 100%;
-            flex: 1;
+            flex: 0 1 auto;
             min-width: 0;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: var(--entry-title-wrap);
-            font-weight: var(--entry-title-weight);
+            font-weight: var(--entry-title-weight, inherit);
+        }
+
+        .main:has(.timed-label) .title {
+            font-weight: var(--entry-title-weight, 600);
         }
 
         .time {
             max-inline-size: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
             font-family: var(--entry-font-family, var(--system-ui));
-            font-size: var(--entry-time-font-size);
+            font-size: max(12px, var(--entry-time-font-size, 0.85em));
             opacity: var(--entry-time-opacity);
             white-space: nowrap;
             flex-shrink: 0;
-            margin-inline-start: 0; /* Ensure time stays at start, don't auto-align to end */
+            margin-inline-start: 0;
         }
 
-        /* Row layout: optimized for side-by-side content */
-        .main[style*='--entry-layout: row'] {
-            align-items: baseline; /* Baseline-align title and time text */
-            gap: 0.5em; /* Gap between title and time */
-            flex-wrap: nowrap; /* Prevent wrapping */
-            min-height: 1.4em; /* Ensure consistent height */
+        /* Let the measured text, not a width breakpoint, decide whether the
+           end fits. The dash and end wrap together below the visible line. */
+        .timed-label {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 1px 0.25em;
+            block-size: 1lh;
+            overflow: clip;
         }
 
-        .main[style*='--entry-layout: row'] .title {
-            flex: 1 1 auto; /* Allow title to grow but not beyond container */
-            min-width: 0; /* Allow title to shrink below content size */
-            max-width: 65%; /* Reserve space for time, but allow more for title */
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .main[style*='--entry-layout: row'] .time {
-            flex: 0 0 auto; /* Fixed size, don't grow or shrink */
-            min-width: fit-content; /* Ensure time always fits */
-            font-size: 0.8em; /* Slightly smaller in row layout */
-            opacity: 0.9;
-        }
-
-        /* Column layout: optimized for stacked content */
-        .main[style*='--entry-layout: column'] {
-            align-items: flex-start;
-            gap: 0.15em; /* Tighter spacing for stacked layout */
-            padding-top: 0.2em; /* Slight top padding for better visual balance */
-        }
-
-        .main[style*='--entry-layout: column'] .title {
-            width: 100%;
-            font-weight: var(--title-column-weight);
-            line-height: 1.2;
-            margin-bottom: 0.1em;
-        }
-
-        .main[style*='--entry-layout: column'] .time {
-            width: 100%;
-            font-size: 0.85em;
-            opacity: 0.8;
-            line-height: 1.1;
+        :host(:dir(rtl)) .timed-label {
+            justify-content: end;
         }
 
         /* Month view dot indicator styles */
@@ -291,8 +269,10 @@ export default class Entry extends LitElement {
             width: 100%;
             min-width: 0;
             box-sizing: border-box;
-            overflow: visible;
+            overflow: hidden;
             contain: style;
+            height: var(--all-day-row-height, max(24px, 1.5rem));
+            max-height: 100%;
             min-height: 24px;
         }
 
@@ -304,13 +284,24 @@ export default class Entry extends LitElement {
             color: var(--entry-readable-color, var(--text-color, CanvasText));
         }
 
+        /* Reuse the single start-edge accent, including consumer-provided handles.
+           A second decorative dot would spend space without adding information. */
+        :host([data-display-mode='month-dot'])::before {
+            width: var(--entry-handle-width, 2px);
+            display: var(--entry-handle-display, block);
+            background-color: var(--entry-handle-color, var(--entry-color, currentColor));
+        }
+
         :host([data-display-mode='month-dot']) .main {
             padding: 0;
+            padding-inline-start: calc(var(--entry-handle-width, 2px) + 0.35em);
             align-items: center;
-            gap: var(--entry-dot-margin);
+            gap: 0.5em;
             flex-wrap: nowrap;
-            overflow: visible;
+            overflow: hidden;
             flex-direction: row !important;
+            height: 100%;
+            min-height: 0;
         }
 
         :host([data-display-mode='month-dot']) .title {
@@ -318,20 +309,18 @@ export default class Entry extends LitElement {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            flex: 1;
-            min-width: 0;
+            flex: 1 1 0;
+            min-inline-size: 0;
         }
 
         :host([data-display-mode='month-dot']) .time {
             font-family: var(--entry-time-font);
             text-align: var(--entry-time-align);
-            min-width: 0;
-            margin-inline-start: auto;
+            white-space: nowrap;
+            margin-inline-start: 0;
             color: inherit;
-            opacity: 0.8;
-            flex-shrink: 1;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-variant-numeric: tabular-nums;
+            flex: 0 0 auto;
         }
 
         /* Month view connected bar styles for all-day/multi-day events */
@@ -364,6 +353,7 @@ export default class Entry extends LitElement {
             overflow: hidden;
             flex-direction: row !important;
             height: 100%;
+            min-height: 0;
         }
 
         :host([data-display-mode='month-span']) .title {
@@ -405,13 +395,11 @@ export default class Entry extends LitElement {
             border-radius: var(--entry-border-radius, 3px);
         }
 
-        .color-dot {
-            width: var(--entry-dot-size);
-            height: var(--entry-dot-size);
-            border-radius: 50%;
-            background-color: var(--entry-color);
-            flex-shrink: 0;
-            aspect-ratio: 1;
+        /* Only the first visible slice of each weekly span carries a visual title.
+           Keep the complete DOM text/name, and reveal it again on keyboard focus. */
+        :host([data-display-mode='month-span'].middle-day:not(:focus-visible)) .title,
+        :host([data-display-mode='month-span'].last-day:not(:focus-visible)) .title {
+            visibility: hidden;
         }
 
         .content {
@@ -428,10 +416,6 @@ export default class Entry extends LitElement {
             align-items: center;
         }
 
-        :host([data-height='compact']) .time {
-            display: var(--entry-compact-show-time, none);
-        }
-
         :host([data-height='standard']) .main {
             flex-direction: row;
             align-items: flex-start;
@@ -445,6 +429,16 @@ export default class Entry extends LitElement {
         :host([data-height='full']) .title {
             white-space: normal;
             word-wrap: break-word;
+        }
+
+        /* Month owns fixed parent rows, regardless of timed-card density tokens. */
+        :host([data-display-mode='month-dot']) .title,
+        :host([data-display-mode='month-span']) .title {
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+        :host([data-display-mode='month-dot']) .time {
+            line-height: 1.2;
         }
 
         /* ── Interactive state overrides ──────────────────────────
@@ -471,9 +465,100 @@ export default class Entry extends LitElement {
         :host([data-display-mode='month-dot']) .time {
             opacity: 1;
         }
+        /* Comparison variant: the host is a collision/interaction envelope,
+           not a duration rectangle. Only the separate mark encodes time. */
+        :host([data-display-mode='time-mark']) {
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            overflow: visible;
+            padding: 0;
+            pointer-events: none;
+        }
+        :host([data-display-mode='time-mark'])::before {
+            display: none;
+        }
+        :host([data-display-mode='time-mark']) .main {
+            margin-inline-start: 1em;
+            inline-size: calc(100% - 1em);
+            padding: 0.2em 0.3em;
+            border: 1px solid var(--separator-light, GrayText);
+            background: var(--background-color, Canvas);
+            color: var(--text-color, CanvasText);
+            pointer-events: auto;
+            min-block-size: max(24px, var(--entry-min-height, 24px));
+            transform: translateY(var(--entry-label-offset, 0px));
+        }
+        .label-leader {
+            position: absolute;
+            inset-inline-start: 9px;
+            inset-block-start: var(--entry-label-offset, 0px);
+            block-size: calc(-1 * var(--entry-label-offset, 0px));
+            inline-size: calc(1em - 9px);
+            border-inline-start: 1px dashed currentColor;
+            border-block-start: 1px solid currentColor;
+            color: var(--text-color, CanvasText);
+            pointer-events: none;
+        }
+        .duration-mark {
+            position: absolute;
+            inset-block-start: 0;
+            inset-inline-start: 2px;
+            inline-size: 5px;
+            color: var(--entry-handle-color, var(--entry-color, currentColor));
+            background: currentColor;
+            pointer-events: none;
+        }
+        .duration-mark::before,
+        .duration-mark::after {
+            content: '';
+            position: absolute;
+            inset-inline-start: -2px;
+            inline-size: 9px;
+            block-size: 1px;
+            background: currentColor;
+        }
+        .duration-mark::before {
+            inset-block-start: 0;
+        }
+        .duration-mark::after {
+            inset-block-end: 0;
+        }
+        .duration-mark[data-point]::before {
+            inset-block-start: -3px;
+            inline-size: 7px;
+            block-size: 7px;
+            transform: rotate(45deg);
+        }
+        .duration-mark[data-point]::after {
+            display: none;
+        }
+        :host([data-display-mode='time-mark'][data-highlighted]),
+        :host([data-display-mode='time-mark']:focus-visible) {
+            outline: none;
+            box-shadow: none;
+            background: transparent;
+        }
+        :host([data-display-mode='time-mark'][data-highlighted]) .main,
+        :host([data-display-mode='time-mark']:focus-visible) .main {
+            outline: 2px solid var(--entry-focus-color, Highlight);
+            outline-offset: -2px;
+        }
+        @media (pointer: coarse) {
+            :host([data-display-mode='time-mark']) .main {
+                min-block-size: max(44px, var(--entry-min-height, 44px));
+            }
+        }
         @media (forced-colors: active) {
             :host {
                 border: 1px solid CanvasText;
+            }
+            :host([data-display-mode='time-mark']) {
+                border: 0;
+            }
+            .duration-mark {
+                color: CanvasText;
+                background: CanvasText;
             }
             :host([data-highlighted]),
             :host(:focus-visible) {
@@ -508,22 +593,28 @@ export default class Entry extends LitElement {
             return startTime ? html`<span class="time">${startTime}</span>` : nothing;
         }
 
-        // Default mode (day/week views)
-        if (this.density === 'compact') {
-            return nothing;
-        }
-
         if (this._isAllDayEntry()) return html`<span class="time">${msg.allDay}</span>`;
-
         if (!this.time) return nothing;
 
-        // Show start time only (e.g. "9:30 AM") — keeps title visible
-        const startTime = formatLocalizedTime(
+        if (this.displayMode === 'default' && this.slot.startsWith('timed') && !this.floatText) {
+            const { start, end } = this.time;
+            const first = formatLocalizedTime(start.hour, start.minute, this.locale);
+            const point = start.hour === end.hour && start.minute === end.minute;
+            return html`<span class="time timed-label" dir="ltr" aria-hidden="true"><bdi>${first}</bdi>${
+                point
+                    ? nothing
+                    : html` <span>– <bdi>${formatLocalizedTime(end.hour, end.minute, this.locale)}</bdi></span>`
+            }</span>`;
+        }
+
+        const range = formatLocalizedTimeRange(
             this.time.start.hour,
             this.time.start.minute,
+            this.time.end.hour,
+            this.time.end.minute,
             this.locale,
         );
-        return startTime ? html`<span class="time">${startTime}</span>` : nothing;
+        return html`<span class="time">${range}</span>`;
     }
 
     private _renderContent() {
@@ -578,15 +669,8 @@ export default class Entry extends LitElement {
                     data-full-content=${this.content || ''}
                     ?data-is-multi-day=${isMultiDay}
                 >
-                    ${
-                        !isMultiDay
-                            ? html`
-                                  <span class="color-dot"></span>
-                              `
-                            : ''
-                    }
-                    <span class="title">${this.heading}</span>
                     ${this._renderTime()}
+                    <span class="title">${this.heading}</span>
                 </div>
             `;
         }
@@ -603,6 +687,20 @@ export default class Entry extends LitElement {
             `;
         }
 
+        if (this.displayMode === 'time-mark' && this.time && !this._isAllDayEntry()) {
+            const { start, end } = this.time;
+            const minutes = (end.hour - start.hour) * 60 + end.minute - start.minute;
+            return html`
+                <span class="label-leader" aria-hidden="true"></span>
+                <span class="duration-mark" aria-hidden="true" ?data-point=${minutes === 0}
+                    style=${`block-size: calc(${minutes} * var(--minute-height, 0.8px))`}></span>
+                <div class=${mainClass} title=${this._renderTitle()} data-full-content=${this.content || ''}>
+                    <span class="title">${this.heading}</span>
+                    ${this._renderTime()}
+                </div>
+            `;
+        }
+
         // Float text mode: render box with floating text above
         if (this.floatText) {
             return html`
@@ -611,7 +709,7 @@ export default class Entry extends LitElement {
                     style="background-color: var(--entry-background-color); height: 100%; position: relative; overflow: visible;"
                 >
                     <div class="text-content">
-                        <span style="font-weight: var(--entry-title-weight);">${this.heading}</span>
+                        <span style="font-weight: var(--entry-title-weight, inherit);">${this.heading}</span>
                         ${this._renderTime()}
                     </div>
                 </div>
@@ -713,7 +811,11 @@ export default class Entry extends LitElement {
             displayTime,
             displayDate,
             date: entry.date.start,
-            anchorRect: this.getBoundingClientRect(),
+            anchorRect:
+                (this.displayMode === 'time-mark'
+                    ? this.renderRoot.querySelector('.main')
+                    : null
+                )?.getBoundingClientRect() ?? this.getBoundingClientRect(),
             entry,
             eventId: this.eventId ?? entry.id,
         };

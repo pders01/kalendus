@@ -3,7 +3,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 import { DateTime } from 'luxon';
-import { groupBy } from 'remeda';
 
 import LMSCalendarContext from './components/Context.js';
 import LMSCalendarDay from './components/Day.js';
@@ -79,6 +78,12 @@ type EntryRender = { key: string; template: TemplateResult<1> };
 const civilDateKey = ({ year, month, day }: CalendarDate) =>
     `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
+function groupByDate(entries: ExpandedCalendarEntry[]) {
+    const groups: Record<string, ExpandedCalendarEntry[]> = {};
+    for (const entry of entries) (groups[civilDateKey(entry.date.start)] ??= []).push(entry);
+    return groups;
+}
+
 function sortMonthEntries(entries: ExpandedCalendarEntry[]) {
     const order = (entry: ExpandedCalendarEntry) =>
         entry.originalIndex - (entry.continuation.has ? 1000 : 0);
@@ -95,8 +100,19 @@ function sortMonthEntries(entries: ExpandedCalendarEntry[]) {
 export type MonthDayBehavior = 'auto' | 'inline' | 'day';
 /** Experimental comparison modes; auto preserves the existing responsive policy. */
 export type MonthPresentation = 'auto' | 'presence' | 'previews';
-/** Selected-date list presentation. */
+/** Selected-date list presentation; density lists retain their existing policy. */
 export type MonthAgendaPresentation = 'full' | 'preview' | 'on-demand' | 'accordion';
+/** Experimental: separate proportional duration marks from readable label envelopes. */
+export type TimedEntryPresentation = 'card' | 'marker';
+type DensityScope =
+    | { agendaDate: CalendarDate; segmentIds?: never; timeRange?: never }
+    | { agendaDate?: never; segmentIds: readonly string[]; timeRange: string };
+type DensityReturn = DensityScope & {
+    viewMode: 'day' | 'week';
+    activeDate: CalendarDate;
+    key: string;
+    scrollMinute: number;
+};
 
 @customElement('lms-calendar')
 export default class LMSCalendar extends LitElement {
@@ -173,8 +189,13 @@ export default class LMSCalendar extends LitElement {
     monthAgendaPresentation: MonthAgendaPresentation = 'full';
     private _monthSpans: MonthSpan[][] = [];
 
+    /** Experimental timed-event comparison; all-day entries are unaffected. */
+    @property({ type: String, attribute: 'timed-entry-presentation' })
+    timedEntryPresentation: TimedEntryPresentation = 'card';
+
     private _viewState = new ViewStateController(this);
     @state() private _compactMonth = false;
+    @state() private _densityReturn?: DensityReturn;
     @state() private _agendaLimit = 50;
     @state() private _agendaExpanded = false;
     private _agendaKey = '';
@@ -210,6 +231,7 @@ export default class LMSCalendar extends LitElement {
     }
 
     set viewMode(value: ViewMode) {
+        if (value !== 'day') this._densityReturn = undefined;
         this._viewState.setViewMode(value);
     }
 
@@ -347,8 +369,13 @@ export default class LMSCalendar extends LitElement {
     @state() private _timeGridMinimum = 24;
     @state() private _timeGridStackMinimum = 40;
     @state() private _timeGridForceStack = false;
+    @state() private _timeGridColumnWidth = 0;
+    private _densityMinimumWidth = 128;
+    private _timeGridFont = 16;
     private _timeGridHost?: LMSCalendarDay | LMSCalendarWeek;
     private _timeGridObserver?: MutationObserver;
+    private _timeAnchor?: number;
+    private _timeRestoreGeneration = 0;
     private _resizeObserver?: ResizeObserver;
     private _containerFrame = 0;
 
@@ -431,7 +458,6 @@ export default class LMSCalendar extends LitElement {
             --entry-month-text-color: var(--separator-dark);
 
             /* Entry typography tokens */
-            --entry-title-weight: inherit;
             --entry-title-wrap: nowrap;
             --entry-time-font-size: 0.85em;
             --entry-time-opacity: 1;
@@ -471,6 +497,7 @@ export default class LMSCalendar extends LitElement {
             /* Week view condensed tokens */
             --week-day-count: 7;
             --week-mobile-day-count: 3;
+            --week-min-day-width: 8em;
             --week-mobile-breakpoint: 768px;
 
             /* Grid template tokens */
@@ -618,6 +645,28 @@ export default class LMSCalendar extends LitElement {
             min-block-size: min-content;
             overflow: visible;
         }
+        .calendar-view:is(.time-grid, .agenda-view) {
+            /* A definite flex basis is the fallback in an auto-height embed.
+               With an embed height, the viewport still takes the remaining space. */
+            flex: 1 1 auto;
+            block-size: min(36rem, 65vh);
+            block-size: min(36rem, 65dvb);
+        }
+        .calendar-view.time-grid {
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+        :host([data-view-mode='week']) .calendar-view.time-grid {
+            container: week-viewport / size;
+        }
+        .time-grid > :is(lms-calendar-day, lms-calendar-week) {
+            min-inline-size: max(240px, 15em);
+            flex-shrink: 0;
+        }
+        .calendar-view.agenda-view {
+            overflow-y: auto;
+        }
+
         .calendar-error {
             margin: 0.5em 1em;
         }
@@ -732,12 +781,40 @@ export default class LMSCalendar extends LitElement {
         .agenda-more {
             margin-block-start: 0.75em;
         }
-        .agenda-toggle {
+        .all-day-count {
+            min-inline-size: 0;
+            min-block-size: 44px;
+            padding: 0.125em;
+            border: 1px solid var(--separator-light);
+            border-radius: var(--border-radius-sm);
+            background: var(--background-color);
+            color: inherit;
+            font: inherit;
+            font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere;
+            cursor: pointer;
+        }
+        .all-day-count,
+        .time-group strong {
+            font-weight: 600;
+        }
+        .all-day-count:hover {
+            background: var(--hover-bg);
+        }
+        .all-day-count:focus-visible {
+            outline: 2px solid var(--entry-focus-color, Highlight);
+            outline-offset: -2px;
+        }
+        .agenda-toggle,
+        .all-day-list-close {
             min-block-size: 44px;
             max-inline-size: 50%;
         }
         .agenda-toggle {
             display: grid;
+        }
+        .all-day-list-close {
+            overflow-wrap: anywhere;
         }
         .agenda-toggle > span {
             grid-area: 1 / 1;
@@ -793,9 +870,57 @@ export default class LMSCalendar extends LitElement {
             background: var(--hover-bg);
         }
         .agenda-event:focus-visible,
-        .agenda-action:focus-visible {
+        .agenda-action:focus-visible,
+        .time-group:focus-visible {
             outline: 2px solid var(--entry-focus-color, Highlight);
             outline-offset: -2px;
+        }
+        .time-group-range {
+            box-sizing: border-box;
+            border-inline-start: 1px dashed var(--separator-mid);
+            padding-inline-start: 3px;
+        }
+        .time-group {
+            position: sticky;
+            inset-block-start: 0;
+            inline-size: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: start;
+            gap: 0;
+            padding: 0.15em;
+            min-block-size: 44px;
+            min-inline-size: 24px;
+            border: 1px solid var(--separator-light);
+            border-inline-start: 3px solid var(--separator-mid);
+            background: var(--background-color);
+            color: inherit;
+            text-align: start;
+            font: inherit;
+            cursor: pointer;
+            overflow: hidden;
+        }
+        .time-group strong {
+            inline-size: 100%;
+            min-inline-size: 0;
+            flex-shrink: 0;
+            font-size: 0.875em;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+            text-decoration: underline;
+            text-underline-offset: 0.15em;
+        }
+        .group-meta {
+            inline-size: 100%;
+            min-block-size: 0;
+            font-size: 0.75em;
+        }
+        .group-meta bdi {
+            display: block;
+            line-height: 1.2;
+            padding-block-start: 0.1em;
+            overflow-wrap: anywhere;
         }
         @media (pointer: coarse) {
             .agenda-action {
@@ -805,7 +930,8 @@ export default class LMSCalendar extends LitElement {
         }
         @media (forced-colors: active) {
             .agenda-event:focus-visible,
-            .agenda-action:focus-visible {
+            .agenda-action:focus-visible,
+            .time-group:focus-visible {
                 outline-color: Highlight;
             }
             .agenda-event {
@@ -865,6 +991,7 @@ export default class LMSCalendar extends LitElement {
         this._containerFrame = 0;
         this._timeGridObserver?.disconnect();
         this._timeGridHost = undefined;
+        this._timeRestoreGeneration++;
         clearTimeout(this._midnightTimer);
     }
 
@@ -872,6 +999,12 @@ export default class LMSCalendar extends LitElement {
         changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
     ): void {
         this.setAttribute('data-view-mode', this.viewMode);
+        if (this._menuOpen) {
+            const menu = this.shadowRoot?.querySelector<LMSCalendarMenu>('lms-menu');
+            if (menu)
+                menu.containment =
+                    this.shadowRoot?.querySelector<HTMLElement>('.calendar-view') ?? this;
+        }
         const focus = this._focusToRestore;
         this._focusToRestore = undefined;
         if (
@@ -948,6 +1081,7 @@ export default class LMSCalendar extends LitElement {
                 'lms-calendar-day, lms-calendar-week',
             ) ?? undefined;
         if (view !== this._timeGridHost) {
+            this._timeRestoreGeneration++;
             this._timeGridObserver?.disconnect();
             this._timeGridHost = view;
             if (view) {
@@ -958,9 +1092,49 @@ export default class LMSCalendar extends LitElement {
                     attributes: true,
                     attributeFilter: ['style'],
                 });
+                if (this._timeAnchor !== undefined) {
+                    void this._restoreTimePosition(
+                        view,
+                        this._timeAnchor,
+                        this._timeRestoreGeneration,
+                    );
+                }
             }
         }
         if (view) void view.updateComplete.then(() => this._readTimeGridGeometry(view));
+    }
+
+    private _timePosition(view: LMSCalendarDay | LMSCalendarWeek) {
+        const scroller = view.shadowRoot?.querySelector<HTMLElement>('.week-scroll, .main');
+        const scale = parseFloat(getComputedStyle(view).getPropertyValue('--minute-height'));
+        const inset = scroller ? parseFloat(getComputedStyle(scroller).paddingTop) || 0 : 0;
+        return scroller && scale > 0 ? (scroller.scrollTop - inset) / scale : 0;
+    }
+
+    private async _restoreTimePosition(
+        view: LMSCalendarDay | LMSCalendarWeek,
+        minute: number,
+        generation: number,
+    ) {
+        await view.updateComplete;
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        if (
+            !this.isConnected ||
+            generation !== this._timeRestoreGeneration ||
+            view !== this._timeGridHost
+        )
+            return;
+        const scroller = view.shadowRoot?.querySelector<HTMLElement>('.week-scroll, .main');
+        const scale = parseFloat(getComputedStyle(view).getPropertyValue('--minute-height'));
+        if (scroller && scale > 0) {
+            const inset = parseFloat(getComputedStyle(scroller).paddingTop) || 0;
+            scroller.scrollTop = Math.round(inset + minute * scale);
+        }
+    }
+
+    private _handleTimeGridResize({ currentTarget }: Event) {
+        if (currentTarget === this._timeGridHost && this._timeGridHost)
+            this._readTimeGridGeometry(this._timeGridHost);
     }
 
     private _readTimeGridGeometry(view: LMSCalendarDay | LMSCalendarWeek) {
@@ -981,6 +1155,8 @@ export default class LMSCalendar extends LitElement {
                 ? lineHeight +
                   pixels(contentStyle.paddingTop) +
                   pixels(contentStyle.paddingBottom) +
+                  pixels(contentStyle.borderTopWidth) +
+                  pixels(contentStyle.borderBottomWidth) +
                   pixels(style.paddingTop) +
                   pixels(style.paddingBottom) +
                   pixels(style.borderTopWidth) +
@@ -993,25 +1169,35 @@ export default class LMSCalendar extends LitElement {
             : 0;
         const gap = pixels(contentStyle?.rowGap);
         const stackMinimum = Math.max(40, Math.ceil(contentMinimum + timeLine + gap));
+        const column = view.shadowRoot?.querySelector<HTMLElement>('.day-column, .timed-content');
         const widthPercent = pixels(control?.style.width) || 100;
-        const columnWidth = ((control?.getBoundingClientRect().width ?? 0) * 100) / widthPercent;
+        const columnWidth =
+            column?.getBoundingClientRect().width ??
+            ((control?.getBoundingClientRect().width ?? 0) * 100) / widthPercent;
+        const hostFont = pixels(getComputedStyle(this).fontSize) || 16;
+        this._timeGridFont = hostFont;
+        this._densityMinimumWidth = Math.max(128, hostFont * 8);
         const insets =
             pixels(contentStyle?.paddingLeft) +
             pixels(contentStyle?.paddingRight) +
+            pixels(contentStyle?.marginLeft) +
+            pixels(contentStyle?.marginRight) +
             pixels(style?.paddingLeft) +
             pixels(style?.paddingRight) +
             pixels(style?.borderLeftWidth) +
             pixels(style?.borderRightWidth);
         // Reserve visible title space as well as the time. A height-only rule
         // can leave a routine mobile Week event with a zero-width title.
-        // Normalize the sampled card to its column, then allow for the 65%
-        // foreground cascade; do not read every event's layout on each update.
+        // Normalize the sampled card to its column; do not read every event's
+        // layout on each update. Narrow overlap groups use an explicit list.
         const rowMinimum =
             (time?.getBoundingClientRect().width ?? 0) + pixels(style?.fontSize) * 3 + gap + insets;
-        const forceStack = !!time && columnWidth > 0 && columnWidth * 0.65 < rowMinimum;
+        const forceStack = columnWidth > 0 && columnWidth < Math.max(rowMinimum, hostFont * 12);
         const minimum = Math.max(
             24,
+            Math.ceil(hostFont * 2.6),
             pixels(style?.minHeight),
+            pixels(contentStyle?.minBlockSize),
             Math.ceil(contentMinimum),
             forceStack ? stackMinimum : 0,
         );
@@ -1021,12 +1207,14 @@ export default class LMSCalendar extends LitElement {
                 Math.abs(scale - this._timeGridScale) > 0.0001) ||
             minimum !== this._timeGridMinimum ||
             stackMinimum !== this._timeGridStackMinimum ||
-            forceStack !== this._timeGridForceStack
+            forceStack !== this._timeGridForceStack ||
+            Math.abs(columnWidth - this._timeGridColumnWidth) > 0.5
         ) {
             if (Number.isFinite(scale) && scale > 0) this._timeGridScale = scale;
             this._timeGridMinimum = minimum;
             this._timeGridStackMinimum = stackMinimum;
             this._timeGridForceStack = forceStack;
+            this._timeGridColumnWidth = columnWidth;
             this._layoutCache.clear();
         }
     }
@@ -1090,6 +1278,12 @@ export default class LMSCalendar extends LitElement {
     protected override willUpdate(
         changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
     ): void {
+        const previousGrid = this._timeGridHost;
+        const leavingGrid =
+            previousGrid &&
+            (this._densityReturn || previousGrid.localName !== `lms-calendar-${this.viewMode}`);
+        if (previousGrid?.isConnected && leavingGrid)
+            this._timeAnchor = this._timePosition(previousGrid);
         const focused = this.shadowRoot?.activeElement;
         if (focused instanceof LMSCalendarEntry && focused.eventId) {
             this._focusToRestore = { eventId: focused.eventId, slot: focused.slot };
@@ -1105,7 +1299,14 @@ export default class LMSCalendar extends LitElement {
             this._agendaTrace = undefined;
             this._agendaDisclosures.clear();
         }
-        const agendaKey = `${this.viewMode}:${civilDateKey(this.activeDate)}:${this.monthAgendaPresentation}`;
+        if (!['card', 'marker'].includes(this.timedEntryPresentation))
+            this.timedEntryPresentation = 'card';
+        if (
+            this._densityReturn?.agendaDate &&
+            civilDateKey(this._densityReturn.activeDate) !== civilDateKey(this.activeDate)
+        )
+            this._densityReturn = undefined;
+        const agendaKey = `${this.viewMode}:${civilDateKey(this.activeDate)}:${this.monthAgendaPresentation}:${this._densityReturn?.key ?? ''}`;
         if (agendaKey !== this._agendaKey) {
             this._agendaKey = agendaKey;
             this._agendaLimit = 50;
@@ -1457,26 +1658,25 @@ export default class LMSCalendar extends LitElement {
 
                 <slot name="status">${this.error ? html`<p class="calendar-error" role="alert">${this.error}</p>` : this.loading ? html`<progress class="calendar-progress" aria-label=${getMessages(this.locale).calendarView}></progress>` : nothing}</slot>
                 <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${this._rangeDescription()}</p>
-                <section class="calendar-view" role="region" data-menu-focus-fallback tabindex="-1" aria-label=${this._rangeDescription()} aria-busy=${this.loading ? 'true' : 'false'} @open-menu=${this._handleOpenMenu}>
+                <section class="calendar-view${viewMode === 'day' || viewMode === 'week' ? (this._densityReturn ? ' agenda-view' : ' time-grid') : ''}" style=${styleMap({ '--_time-grid-tail': `${this.timedEntryPresentation === 'card' ? this._timeGridMinimum : 0}px` })} role="region" data-menu-focus-fallback tabindex="-1" aria-label=${this._rangeDescription()} aria-busy=${this.loading ? 'true' : 'false'} @open-menu=${this._handleOpenMenu}>
                     ${this._entriesError ? html`<slot name="entries-error"><p role="alert" lang="en">${this._entriesError}</p></slot>` : nothing}
                     ${viewMode === 'month' ? this._renderMonthView() : nothing}
                     ${
-                        viewMode === 'week'
-                            ? (() => {
-                                  const ctx = computeWeekDisplayContext(
-                                      currentActiveDate,
-                                      this.firstDayOfWeek,
-                                      this._calendarWidth,
-                                      this,
-                                  );
-                                  const result = this._renderEntriesByDate(ctx);
-                                  return html`
+                        weekContext
+                            ? this._densityReturn?.agendaDate
+                                ? this._renderDateAgenda(this._densityReturn.agendaDate, true)
+                                : (() => {
+                                      const ctx = weekContext;
+                                      const result = this._renderEntriesByDate(ctx);
+                                      return html`
                                       <lms-calendar-week
                                           @expand=${this._handleExpand}
                                           @peek-navigate=${this._handlePeekNavigate}
                                           @clear-other-selections=${this._handleClearOtherSelections}
+                                          @time-grid-resize=${this._handleTimeGridResize}
                                           .activeDate=${currentActiveDate}
                                           .allDayRowCount=${result.allDayRowCount}
+                                          .allDaySummary=${result.allDaySummary}
                                           .firstDayOfWeek=${this.firstDayOfWeek}
                                           .locale=${this.locale}
                                           .localeVersion=${this._localeVersion}
@@ -1490,16 +1690,19 @@ export default class LMSCalendar extends LitElement {
                                           ${result.elements}
                                       </lms-calendar-week>
                                   `;
-                              })()
+                                  })()
                             : nothing
                     }
                     ${
                         viewMode === 'day'
-                            ? (() => {
-                                  const result = this._renderEntriesByDate();
-                                  return html`
+                            ? this._densityReturn
+                                ? this._renderDateAgenda(currentActiveDate, true)
+                                : (() => {
+                                      const result = this._renderEntriesByDate();
+                                      return html`
                                       <lms-calendar-day
                                           @clear-other-selections=${this._handleClearOtherSelections}
+                                          @time-grid-resize=${this._handleTimeGridResize}
                                           .allDayRowCount=${result.allDayRowCount}
                                           .activeDate=${currentActiveDate}
                                           .firstDayOfWeek=${this.firstDayOfWeek}
@@ -1509,7 +1712,7 @@ export default class LMSCalendar extends LitElement {
                                           ${result.elements}
                                       </lms-calendar-day>
                                   `;
-                              })()
+                                  })()
                             : nothing
                     }
                     ${
@@ -1532,6 +1735,7 @@ export default class LMSCalendar extends LitElement {
                 </section>
 
                 <lms-menu
+                    .placement=${'anchor'}
                     ?open=${this._menuOpen}
                     .eventDetails=${
                         this._menuEventDetails || {
@@ -1558,6 +1762,14 @@ export default class LMSCalendar extends LitElement {
             return;
         }
         if (e.detail.direction === 'next') {
+            if (this.viewMode === 'week' && !this._densityReturn) {
+                const { isCondensed, weekDates } = this._weekContext();
+                // Continue at the start of the next week, not at the old window's offset.
+                if (isCondensed) {
+                    this._viewState.setActiveDate(addDisplayDays(weekDates[6], 1));
+                    return;
+                }
+            }
             this._viewState.navigateNext();
         } else if (e.detail.direction === 'previous') {
             this._viewState.navigatePrevious();
@@ -1566,6 +1778,7 @@ export default class LMSCalendar extends LitElement {
 
     private _handleSwitchView(e: CustomEvent) {
         // Persistent toolbar controls retain focus when switching views.
+        this._densityReturn = undefined;
         this.viewMode = e.detail.view;
     }
 
@@ -1600,6 +1813,7 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _handleExpand(e: CustomEvent) {
+        this._densityReturn = undefined;
         this._viewState.setActiveDate(e.detail.date);
         const target = e.detail.drillTarget || 'day';
         if (target === 'month') {
@@ -1699,6 +1913,10 @@ export default class LMSCalendar extends LitElement {
         entry?: CalendarEntry;
         eventId?: string;
     }) {
+        const menu = this.shadowRoot?.querySelector<LMSCalendarMenu>('lms-menu');
+        if (menu)
+            menu.containment =
+                this.shadowRoot?.querySelector<HTMLElement>('.calendar-view') ?? this;
         this._menuEventDetails = eventDetails;
         this._menuOpen = true;
     }
@@ -1731,12 +1949,12 @@ export default class LMSCalendar extends LitElement {
         };
         isContinuation?: boolean;
         density?: 'compact' | 'standard' | 'full';
-        displayMode?: 'default' | 'month-dot' | 'month-span';
+        displayMode?: 'default' | 'month-dot' | 'month-span' | 'time-mark';
         floatText?: boolean;
         spanClass?: string;
     }) {
         // Determine density based on event duration and context if not explicitly set
-        const determinedDensity = density || this._determineDensity(entry, undefined, undefined);
+        const determinedDensity = density || this._determineDensity(entry);
 
         const canonicalEntry =
             entry.canonicalEntry ?? entry.sourceEntry ?? (entry as CalendarEntry);
@@ -1774,22 +1992,8 @@ export default class LMSCalendar extends LitElement {
         return `rgb(${r}, ${g}, ${b})`;
     }
 
-    private _determineDensity(
-        entry: Partial<CalendarEntry>,
-        grading?: Grading[],
-        index?: number,
-    ): 'compact' | 'standard' | 'full' {
+    private _determineDensity(entry: Partial<CalendarEntry>): 'compact' | 'standard' | 'full' {
         if (!entry.time) return 'compact'; // Default to compact for month view
-
-        // For overlapping events in day/week view, use consistent density
-        // based on depth to maintain visual hierarchy
-        if (grading && index !== undefined && grading[index]) {
-            // All overlapping events should have consistent display
-            // Top event (depth 0): show time
-            // Deeper events: also show time for consistency
-            // This prevents the visual chaos of mixed display modes
-            return 'standard';
-        }
 
         const durationMinutes =
             (entry.time.end.hour - entry.time.start.hour) * 60 +
@@ -1807,10 +2011,6 @@ export default class LMSCalendar extends LitElement {
         return 'standard';
     }
 
-    private _createConsistentEventId(entry: ExpandedCalendarEntry): string {
-        return entry.occurrenceId;
-    }
-
     /**
      * Render all entries for month view (both all-day and timed).
      * All-day entries use connected bar styling, timed entries use dot indicators.
@@ -1826,7 +2026,7 @@ export default class LMSCalendar extends LitElement {
 
     private _renderMonthView() {
         return this._inMonthAgenda
-            ? this._renderDateAgenda(this.activeDate)
+            ? this._renderDateAgenda(this.activeDate, false)
             : this._renderMonthGrid();
     }
 
@@ -1858,7 +2058,7 @@ export default class LMSCalendar extends LitElement {
                 .selectedDate=${this._inlineMonth || this._hasMonthAgenda ? this.activeDate : undefined}
                 .trace=${trace}
             >${compact ? nothing : this._renderMonthEntries()}</lms-calendar-month>
-            ${this._inlineMonth && !this._hasMonthAgenda ? this._renderDateAgenda(this.activeDate) : nothing}
+            ${this._inlineMonth && !this._hasMonthAgenda ? this._renderDateAgenda(this.activeDate, false) : nothing}
         `;
     }
 
@@ -1890,16 +2090,22 @@ export default class LMSCalendar extends LitElement {
     }
 
     /** A readable, bounded rendering of real occurrences, never synthetic events. */
-    private _renderDateAgenda(date: CalendarDate) {
-        const accordion = this._inMonthAgenda;
+    private _renderDateAgenda(date: CalendarDate, density: boolean) {
+        const accordion = this._inMonthAgenda && !density;
         if (this._entriesError && !accordion) return nothing;
         const key = civilDateKey(date);
-        const entries = [...(this._expandedByISODate.get(key) ?? [])].sort((a, b) => {
-            const allDay = Number(b.isAllDay) - Number(a.isAllDay);
-            const minutes = (entry: ExpandedCalendarEntry) =>
-                (entry.time?.start.hour ?? 0) * 60 + (entry.time?.start.minute ?? 0);
-            return allDay || minutes(a) - minutes(b) || a.originalIndex - b.originalIndex;
-        });
+        const drillIn = density ? this._densityReturn : undefined;
+        const scope = drillIn?.segmentIds ? new Set(drillIn.segmentIds) : undefined;
+        const entries = [...(this._expandedByISODate.get(key) ?? [])]
+            .filter((entry) =>
+                drillIn?.agendaDate ? entry.isAllDay : !scope || scope.has(entry.segmentId),
+            )
+            .sort((a, b) => {
+                const allDay = Number(b.isAllDay) - Number(a.isAllDay);
+                const minutes = (entry: ExpandedCalendarEntry) =>
+                    (entry.time?.start.hour ?? 0) * 60 + (entry.time?.start.minute ?? 0);
+                return allDay || minutes(a) - minutes(b) || a.originalIndex - b.originalIndex;
+            });
         // Keep Timed reachable even when there are hundreds of all-day events.
         const visible = accordion
             ? [true, false].flatMap((allDay) =>
@@ -1982,29 +2188,32 @@ export default class LMSCalendar extends LitElement {
                     : nothing
             }
         `;
-        const policy = this.monthAgendaPresentation;
+        const policy = density ? 'full' : this.monthAgendaPresentation;
         const disclosure =
             entries.length > 0 &&
             (policy === 'on-demand' || (policy === 'preview' && entries.length > 3));
-        return html`<section class=${accordion ? 'date-agenda accordion-agenda' : 'date-agenda'} aria-labelledby="agenda-date">
+        return html`<section class=${accordion ? 'date-agenda accordion-agenda' : 'date-agenda'} aria-labelledby="agenda-date" data-density-list=${density ? '' : nothing}>
             <header><div><h2 id="agenda-date" tabindex="-1">${dateLabel}</h2>
+                ${drillIn?.timeRange ? html`<p class="agenda-count">${drillIn.timeRange}</p>` : nothing}
                 ${!entries.length && (this.loading || this.error || this._entriesError) ? nothing : html`<p class="agenda-count">${format.eventCount(entries.length)}</p>`}
             </div>
             ${
-                disclosure
-                    ? html`<button class="agenda-action agenda-toggle" type="button" aria-expanded=${this._agendaExpanded ? 'true' : 'false'} aria-controls="agenda-events" aria-describedby="agenda-date"
+                density
+                    ? html`<button class="agenda-action${drillIn?.agendaDate ? ' all-day-list-close' : ''}" type="button" aria-label=${messages.close} @click=${this._closeDensityList}>${drillIn?.agendaDate ? messages.close : '×'}</button>`
+                    : disclosure
+                      ? html`<button class="agenda-action agenda-toggle" type="button" aria-expanded=${this._agendaExpanded ? 'true' : 'false'} aria-controls="agenda-events" aria-describedby="agenda-date"
                           @click=${() => {
                               this._agendaExpanded = !this._agendaExpanded;
                           }}>
                           <span class="when-closed">${format.agendaAction(false, policy === 'preview')}</span>
                           <span class="when-open">${format.agendaAction(true, policy === 'preview')}</span>
                         </button>`
-                    : accordion
-                      ? html`<button type="button" class="agenda-text agenda-back" @click=${() => {
-                            this._agendaSelected = false;
-                            void this._focusView();
-                        }}><span aria-hidden="true">‹</span> ${messages.month}</button>`
-                      : nothing
+                      : accordion
+                        ? html`<button type="button" class="agenda-text agenda-back" @click=${() => {
+                              this._agendaSelected = false;
+                              void this._focusView();
+                          }}><span aria-hidden="true">‹</span> ${messages.month}</button>`
+                        : nothing
             }
             </header>
             <div id="agenda-events">${
@@ -2183,7 +2392,7 @@ export default class LMSCalendar extends LitElement {
                         slot: `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
                         inlineStyle: `--entry-color: ${background}; --entry-background-color: ${background}; --all-day-row: ${row}; z-index: ${100 + originalIndex}`,
                         entry,
-                        density: this._determineDensity(entry, undefined, undefined),
+                        density: this._determineDensity(entry),
                         displayMode: 'month-dot',
                     });
                 },
@@ -2203,21 +2412,21 @@ export default class LMSCalendar extends LitElement {
         const viewMode = this._viewState.viewMode;
 
         if (viewMode !== 'day' && viewMode !== 'week') {
-            return { elements: nothing, allDayRowCount: 0 };
+            return { elements: nothing, allDayRowCount: 0, allDaySummary: false };
         }
 
         // O(1) map lookups instead of O(n) expansion + Luxon filtering
         let allEntriesForDate: ExpandedCalendarEntry[];
 
         if (viewMode === 'day') {
-            const key = `${currentActiveDate.year}-${String(currentActiveDate.month).padStart(2, '0')}-${String(currentActiveDate.day).padStart(2, '0')}`;
+            const key = civilDateKey(currentActiveDate);
             allEntriesForDate = this._expandedByISODate.get(key) ?? [];
         } else {
             // Week view: use visible dates from context (condensed or full)
             const datesToRender =
                 weekCtx?.visibleDates ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
             allEntriesForDate = datesToRender.flatMap((wd) => {
-                const key = `${wd.year}-${String(wd.month).padStart(2, '0')}-${String(wd.day).padStart(2, '0')}`;
+                const key = civilDateKey(wd);
                 return this._expandedByISODate.get(key) ?? [];
             });
         }
@@ -2226,11 +2435,11 @@ export default class LMSCalendar extends LitElement {
         const allDayEntries: ExpandedCalendarEntry[] = [];
         const entriesByDate: ExpandedCalendarEntry[] = [];
         for (const entry of allEntriesForDate) {
-            (this._isEffectivelyAllDay(entry) ? allDayEntries : entriesByDate).push(entry);
+            (entry.isAllDay ? allDayEntries : entriesByDate).push(entry);
         }
 
         if (!entriesByDate.length && !allDayEntries.length) {
-            return { elements: nothing, allDayRowCount: 0 };
+            return { elements: nothing, allDayRowCount: 0, allDaySummary: false };
         }
 
         // Use SlotManager to handle positioning across different views
@@ -2259,11 +2468,7 @@ export default class LMSCalendar extends LitElement {
 
             if (viewMode === 'week') {
                 // Group timed entries by day for week view
-                const entriesByDay = groupBy(
-                    entriesByDate,
-                    (entry) =>
-                        `${entry.date.start.year}-${entry.date.start.month}-${entry.date.start.day}`,
-                );
+                const entriesByDay = groupByDate(entriesByDate);
 
                 const condensedDates = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
 
@@ -2272,7 +2477,7 @@ export default class LMSCalendar extends LitElement {
                     condensedDates ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
 
                 for (const wd of datesToRender) {
-                    const dayEntries = entriesByDay[`${wd.year}-${wd.month}-${wd.day}`];
+                    const dayEntries = entriesByDay[civilDateKey(wd)];
                     if (!dayEntries?.length) continue;
 
                     const dayElements = this._renderDayEntriesWithSlotManager(
@@ -2296,6 +2501,18 @@ export default class LMSCalendar extends LitElement {
             }
         }
 
+        const allDayByDate =
+            weekCtx && allDayEntries.length ? groupByDate(allDayEntries) : undefined;
+        const maxPreviewRows = 3;
+        if (
+            weekCtx &&
+            allDayByDate &&
+            (!weekCtx.canShowAllDayTitles ||
+                Object.values(allDayByDate).some((entries) => entries.length > maxPreviewRows))
+        ) {
+            return this._renderWeekAllDaySummary(weekCtx, allDayByDate, allElements);
+        }
+
         // Compute all-day layout declaratively (cached — only recomputes when entries change)
         const condensedDatesForAllDay = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
         const allDayKey =
@@ -2306,7 +2523,7 @@ export default class LMSCalendar extends LitElement {
         let allDayLayout = this._allDayLayoutCache.get(allDayKey);
         if (!allDayLayout) {
             const allDayLayoutEvents: AllDayEvent[] = allDayEntries.map((entry) => {
-                const eventId = this._createConsistentEventId(entry);
+                const eventId = entry.occurrenceId;
                 const dayIndex =
                     viewMode === 'week'
                         ? condensedDatesForAllDay
@@ -2343,11 +2560,13 @@ export default class LMSCalendar extends LitElement {
         }
 
         const { rowAssignments, mergedEvents, totalRows } = allDayLayout;
+        if (weekCtx && allDayByDate && totalRows > maxPreviewRows)
+            return this._renderWeekAllDaySummary(weekCtx, allDayByDate, allElements);
 
         // Process all-day entries with layout info
         const allDayElements = allDayEntries.map((entry, index) => {
             const [r, g, b] = parseColorWithDefault(entry.color);
-            const eventId = this._createConsistentEventId(entry);
+            const eventId = entry.occurrenceId;
 
             const positionConfig: PositionConfig = {
                 viewMode,
@@ -2419,6 +2638,43 @@ export default class LMSCalendar extends LitElement {
                 (item) => item.template,
             ),
             allDayRowCount: totalRows,
+            allDaySummary: false,
+        };
+    }
+
+    private _renderWeekAllDaySummary(
+        context: WeekDisplayContext,
+        byDate: Record<string, ExpandedCalendarEntry[]>,
+        timed: EntryRender[],
+    ) {
+        const format = getMessageFormatters(this.locale);
+        const messages = getMessages(this.locale);
+        const number = new Intl.NumberFormat(this.locale);
+        const summaries = context.visibleDates.flatMap((date) => {
+            const entries = byDate[civilDateKey(date)];
+            if (!entries?.length) return [];
+            const key = `all-day:${civilDateKey(date)}`;
+            const dateLabel = formatLocalizedDate(date.day, date.month, date.year, this.locale);
+            return [
+                {
+                    key,
+                    template: html`
+                <button type="button" class="all-day-count" slot=${`all-day-${date.year}-${date.month}-${date.day}`}
+                    data-density-key=${key} aria-label=${format.eventLabel(messages.allDay, dateLabel, format.eventCount(entries.length))}
+                    @click=${() => this._showDensityList(date, key, { agendaDate: date })}>
+                    <bdi>${number.format(entries.length)}</bdi>
+                </button>`,
+                },
+            ];
+        });
+        return {
+            elements: repeat(
+                [...summaries, ...timed],
+                (item) => item.key,
+                (item) => item.template,
+            ),
+            allDayRowCount: 1,
+            allDaySummary: true,
         };
     }
 
@@ -2431,34 +2687,75 @@ export default class LMSCalendar extends LitElement {
     ) {
         // Cache key from the day being rendered (all entries share the same date)
         const first = dayEntries[0];
-        const cacheKey = `${first.date.start.year}-${String(first.date.start.month).padStart(2, '0')}-${String(first.date.start.day).padStart(2, '0')}`;
+        const cacheKey = `${first.date.start.year}-${String(first.date.start.month).padStart(2, '0')}-${String(first.date.start.day).padStart(2, '0')}:${this.timedEntryPresentation}`;
 
         // Reuse cached layout when only resize/locale/menu changed (not entries)
         let layout = this._layoutCache.get(cacheKey);
         if (!layout) {
-            const layoutEvents = dayEntries.map((entry) => ({
-                id: entry.segmentId,
-                heading: entry.heading || '',
-                startTime: {
-                    hour: entry.time!.start.hour,
-                    minute: entry.time!.start.minute,
-                },
-                endTime: {
-                    hour: entry.time!.end.hour,
-                    minute: entry.time!.end.minute,
-                },
-                color: entry.color || '#1976d2',
-            }));
+            const layoutEvents = dayEntries.map((entry) => {
+                const { start, end } = entry.time!;
+                const startMinute = start.hour * 60 + start.minute;
+                // Only label collision envelopes move near midnight. Canonical
+                // endpoints, SlotManager positioning and duration marks do not.
+                const labelStart =
+                    this.timedEntryPresentation === 'marker'
+                        ? Math.min(
+                              startMinute,
+                              Math.max(
+                                  0,
+                                  1440 - Math.ceil(this._timeGridMinimum / this._timeGridScale),
+                              ),
+                          )
+                        : startMinute;
+                return {
+                    id: entry.segmentId,
+                    heading: entry.heading || '',
+                    startTime: { hour: Math.floor(labelStart / 60), minute: labelStart % 60 },
+                    endTime: end,
+                    color: entry.color || '#1976d2',
+                };
+            });
             layout = new LayoutCalculator({
                 minuteHeight: this._timeGridScale,
                 eventMinHeight: this._timeGridMinimum,
+                layoutMode: 'columns',
             }).calculateLayout(layoutEvents);
             this._layoutCache.set(cacheKey, layout);
         }
 
-        // Render entries using SlotManager
-        return dayEntries.map((entry, index) => {
+        const columnWidth =
+            this._timeGridColumnWidth ||
+            this._calendarWidth / (viewMode === 'week' ? condensedDates?.length || 7 : 1);
+        const denseGroups = new Map<number, number[]>();
+        layout.boxes.forEach((box, index) => {
+            if (
+                (box.columnCount ?? 1) > 1 &&
+                columnWidth / (box.columnCount ?? 1) < this._densityMinimumWidth
+            ) {
+                const indices = denseGroups.get(box.group) ?? [];
+                indices.push(index);
+                denseGroups.set(box.group, indices);
+            }
+        });
+
+        // Column lanes never paint over each other. Unreadable connected
+        // display groups have a real disclosure action, not a fake event.
+        return dayEntries.flatMap((entry, index) => {
             const layoutBox = layout.boxes[index];
+            const group = denseGroups.get(layoutBox.group);
+            if (group)
+                return index === group[0]
+                    ? [
+                          this._renderDensityGroup(
+                              dayEntries,
+                              group,
+                              layout,
+                              viewMode,
+                              currentActiveDate,
+                              condensedDates,
+                          ),
+                      ]
+                    : [];
             const globalIndex = globalIndexMap.get(entry) ?? index;
 
             // Use SlotManager to determine positioning and accessibility
@@ -2492,45 +2789,154 @@ export default class LMSCalendar extends LitElement {
                 entry.time,
             );
 
-            const smartLayout = this._getSmartLayout(entry, layoutBox.height, layoutBox.width, {
-                depth: layoutBox.depth,
-                opacity: layoutBox.opacity,
-            });
+            const smartLayout = this._getSmartLayout(layoutBox.height, layoutBox.width);
+            const labelOffset =
+                this.timedEntryPresentation === 'marker'
+                    ? layoutBox.y / this._timeGridScale -
+                      (entry.time!.start.hour * 60 + entry.time!.start.minute)
+                    : 0;
 
-            return this._composeEntry({
-                index: globalIndex,
-                slot: position.slotName,
-                inlineStyle: `--entry-color: ${this._safeEntryColor(entry.color)}; --entry-background-color: var(--background-color); --entry-border: 1px solid var(--separator-light); --entry-border-inline-start: none; --entry-handle-color: ${this._safeEntryColor(entry.color)}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); --entry-layout: ${smartLayout}; ${positionCSS}`,
-                entry: {
-                    ...entry,
-                    // Add accessibility data to entry
-                    accessibility: accessibility,
-                },
-                density: 'standard',
-                floatText: false,
-            });
+            return [
+                this._composeEntry({
+                    index: globalIndex,
+                    slot: position.slotName,
+                    inlineStyle: `--entry-color: ${this._safeEntryColor(entry.color)}; --entry-background-color: var(--background-color); --entry-border: 1px solid var(--separator-light); --entry-border-inline-start: none; --entry-handle-color: ${this._safeEntryColor(entry.color)}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); --entry-layout: ${smartLayout}; --entry-label-offset: calc(${labelOffset} * var(--minute-height)); ${positionCSS}`,
+                    displayMode: this.timedEntryPresentation === 'marker' ? 'time-mark' : 'default',
+                    entry: {
+                        ...entry,
+                        // Add accessibility data to entry
+                        accessibility: accessibility,
+                    },
+                    density: 'standard',
+                    floatText: false,
+                }),
+            ];
         });
     }
 
-    private _getSmartLayout(
-        entry: CalendarEntry,
-        height: number,
-        _width?: number,
-        layoutBox?: { depth: number; opacity: number },
-    ): 'row' | 'column' {
-        if (!entry.time) return 'row';
-
-        const isOverlapping = layoutBox && layoutBox.depth > 0;
-
-        if (!isOverlapping && !this._timeGridForceStack) return 'row';
-
-        // Use the measured two-line requirement, not twice a single-line
-        // target floor. Narrow columns reserve that height in collision work.
-        return height >= this._timeGridStackMinimum - 0.5 ? 'column' : 'row';
+    private _renderDensityGroup(
+        entries: ExpandedCalendarEntry[],
+        indices: number[],
+        layout: LayoutResult,
+        viewMode: 'day' | 'week',
+        activeDate: CalendarDate,
+        weekDates?: CalendarDate[],
+    ): EntryRender {
+        let first = 1440,
+            last = 0,
+            top = Infinity,
+            bottom = 0;
+        for (const index of indices) {
+            const entry = entries[index];
+            first = Math.min(first, entry.time!.start.hour * 60 + entry.time!.start.minute);
+            last = Math.max(last, entry.time!.end.hour * 60 + entry.time!.end.minute);
+            top = Math.min(top, layout.boxes[index].y);
+            bottom = Math.max(bottom, layout.boxes[index].y + layout.boxes[index].height);
+        }
+        const date = entries[indices[0]].date.start;
+        const time = {
+            start: { hour: Math.floor(first / 60), minute: first % 60 },
+            end: { hour: Math.floor(last / 60), minute: last % 60 },
+        };
+        const position = slotManager.calculatePosition({
+            viewMode,
+            date,
+            time,
+            activeDate,
+            isAllDay: false,
+            firstDayOfWeek: this.firstDayOfWeek,
+            weekDates,
+            locale: this.locale,
+        });
+        const style = slotManager.generatePositionCSS(
+            position,
+            {
+                x: 0,
+                width: 100,
+                zIndex: 1,
+                opacity: 1,
+                height: bottom - top,
+                durationMinutes: Math.max(last - first, (bottom - top) / this._timeGridScale),
+            },
+            time,
+        );
+        const format = getMessageFormatters(this.locale);
+        const count = format.eventCount(indices.length);
+        const range = this._timeLabel(time);
+        const key = `${civilDateKey(date)}:${first}:${last}`;
+        const label = format.eventLabel(
+            count,
+            formatLocalizedDate(date.day, date.month, date.year, this.locale),
+            range,
+        );
+        return {
+            key: `density-${key}`,
+            template: html`<div class="time-group-range" slot=${position.slotName} style=${style}>
+            <button type="button" class="time-group" data-density-key=${key} aria-label=${label}
+                @click=${() =>
+                    this._showDensityList(date, key, {
+                        segmentIds: indices.map((index) => entries[index].segmentId),
+                        timeRange: range,
+                    })}>
+                <strong>${count}</strong>
+                <span class="group-meta" aria-hidden="true"><bdi>${range}</bdi></span>
+            </button>
+        </div>`,
+        };
     }
 
-    private _isEffectivelyAllDay(entry: ExpandedCalendarEntry): boolean {
-        return entry.isAllDay;
+    private async _showDensityList(date: CalendarDate, key: string, scope: DensityScope) {
+        if (this.viewMode !== 'day' && this.viewMode !== 'week') return;
+        const view = this.shadowRoot?.querySelector<LMSCalendarDay | LMSCalendarWeek>(
+            'lms-calendar-day, lms-calendar-week',
+        );
+        this._densityReturn = {
+            viewMode: this.viewMode,
+            activeDate: { ...this.activeDate },
+            key,
+            scrollMinute: view ? this._timePosition(view) : 0,
+            ...scope,
+        };
+        if (!scope.agendaDate) {
+            this.activeDate = date;
+            this.viewMode = 'day';
+        }
+        await this.updateComplete;
+        this.shadowRoot?.querySelector<HTMLElement>('#agenda-date')?.focus({ preventScroll: true });
+    }
+
+    private async _closeDensityList() {
+        const previous = this._densityReturn;
+        if (!previous) return;
+        this._densityReturn = undefined;
+        this._timeAnchor = previous.scrollMinute;
+        this.activeDate = previous.activeDate;
+        this.viewMode = previous.viewMode;
+        await this.updateComplete;
+        const view = this.shadowRoot?.querySelector<LMSCalendarDay | LMSCalendarWeek>(
+            'lms-calendar-day, lms-calendar-week',
+        );
+        await view?.updateComplete;
+        await this.updateComplete;
+        if (view)
+            await this._restoreTimePosition(
+                view,
+                previous.scrollMinute,
+                this._timeRestoreGeneration,
+            );
+        const trigger = [
+            ...(this.shadowRoot?.querySelectorAll<HTMLElement>('[data-density-key]') ?? []),
+        ].find((button) => button.dataset.densityKey === previous.key);
+        if (trigger) trigger.focus({ preventScroll: true });
+        else await this._focusView();
+    }
+
+    private _getSmartLayout(height: number, width: number): 'row' | 'column' {
+        const pixels = (this._timeGridColumnWidth * width) / 100;
+        const narrow = this._timeGridForceStack || (pixels > 0 && pixels < this._timeGridFont * 12);
+        // All lanes follow the same information grammar; reused lane indices
+        // are not a reason to change title/time ordering.
+        return narrow && height >= this._timeGridStackMinimum - 0.5 ? 'column' : 'row';
     }
 }
 

@@ -4,10 +4,12 @@ import { sendKeys, setViewport } from '@web/test-runner-commands';
 import '../../../src/lms-calendar.ts';
 import type Menu from '../../../src/components/Menu.ts';
 import type Month from '../../../src/components/Month.ts';
+import { formatLocalizedTime, formatLocalizedTimeRange } from '../../../src/lib/localization.ts';
+import { getMessageFormatters } from '../../../src/lib/messages.ts';
 import type Calendar from '../../../src/lms-calendar.ts';
 
 const date = { year: 2026, month: 6, day: 15 };
-const settleMonth = async (calendar: Calendar) => {
+const settle = async (calendar: Calendar) => {
     await calendar.localeReady;
     await calendar.updateComplete;
     await waitUntil(() => {
@@ -32,9 +34,112 @@ const settleMonth = async (calendar: Calendar) => {
     }
 };
 
-const settle = async () => {
-    for (let index = 0; index < 4; index++) await nextFrame();
-};
+function timeRange(entry: CalendarEntry, locale: string, card = false) {
+    const { start, end } = entry.time!;
+    // The card isolates the range in markup; the string formatter uses BiDi controls.
+    if (card)
+        return formatLocalizedTimeRange(
+            start.hour,
+            start.minute,
+            end.hour,
+            end.minute,
+            locale,
+        ).slice(1, -1);
+    return getMessageFormatters(locale).timeRange(
+        formatLocalizedTime(start.hour, start.minute, locale),
+        formatLocalizedTime(end.hour, end.minute, locale),
+    );
+}
+
+function readableTitle(control: HTMLElement, selector: string, heading: string) {
+    expect(control, `${heading}: real control exists`).to.be.instanceOf(HTMLElement);
+    const title =
+        control.shadowRoot?.querySelector<HTMLElement>(selector) ??
+        control.querySelector<HTMLElement>(selector);
+    expect(title, `${heading}: title exists, never silently skip a missing card/row`).to.exist;
+    expect(title!.textContent!.trim()).to.equal(heading);
+    const box = control.getBoundingClientRect();
+    const text = title!.getBoundingClientRect();
+    expect(text.width, `${heading}: readable title space`).to.be.at.least(24);
+    expect(text.left).to.be.at.least(box.left - 0.5);
+    expect(text.right).to.be.at.most(box.right + 0.5);
+    expect(text.top).to.be.at.least(box.top - 0.5);
+    expect(text.bottom).to.be.at.most(box.bottom + 0.5);
+}
+
+async function inspectExactGroup(
+    calendar: Calendar,
+    sources: CalendarEntry[],
+    activateId?: string,
+) {
+    const previousView = calendar.viewMode;
+    const previousDate = calendar.activeDate;
+    await waitUntil(() => calendar.shadowRoot!.querySelectorAll('[data-density-key]').length === 1);
+    const triggers = [
+        ...calendar.shadowRoot!.querySelectorAll<HTMLButtonElement>('[data-density-key]'),
+    ];
+    expect(triggers).to.have.length(1);
+    const trigger = triggers[0];
+    const densityKey = trigger.dataset.densityKey;
+    expect(trigger).to.be.instanceOf(HTMLButtonElement);
+    expect(trigger.textContent).to.include(
+        getMessageFormatters(calendar.locale).eventCount(sources.length),
+    );
+    expect(trigger.getBoundingClientRect().width).to.be.at.least(24);
+    trigger.focus();
+    await sendKeys({ press: 'Enter' });
+    await settle(calendar);
+    const list = calendar.shadowRoot!.querySelector<HTMLElement>('[data-density-list]');
+    expect(list, 'disclosure opens exact real events').to.exist;
+    expect(calendar.shadowRoot!.activeElement).to.equal(list!.querySelector('#agenda-date'));
+    const rows = [...list!.querySelectorAll<HTMLButtonElement>('.agenda-event')];
+    expect(rows.map((row) => row.dataset.eventId)).to.deep.equal(
+        sources.map((source) => source.id),
+    );
+    for (const [index, row] of rows.entries()) {
+        readableTitle(row, '.agenda-title', sources[index].heading!);
+        expect(row.querySelector('.agenda-time')!.textContent).to.equal(
+            timeRange(sources[index], calendar.locale),
+        );
+        expect(row.getAttribute('aria-label')).to.include(sources[index].heading!);
+    }
+    if (activateId) {
+        const row = rows.find((row) => row.dataset.eventId === activateId)!;
+        expect(row).to.be.instanceOf(HTMLButtonElement);
+        let canonical: CalendarEntry | undefined;
+        calendar.addEventListener(
+            'entry-activate',
+            (event) => {
+                canonical = (event as CustomEvent).detail.entry;
+            },
+            { once: true },
+        );
+        row.focus();
+        await sendKeys({ press: 'Enter' });
+        await settle(calendar);
+        const menu = calendar.shadowRoot!.querySelector<Menu>('lms-menu')!;
+        expect(menu.open).to.equal(true);
+        expect(canonical).to.deep.equal(sources.find((source) => source.id === activateId));
+        expect(menu.eventDetails.heading).to.equal(canonical!.heading);
+        await sendKeys({ press: 'Escape' });
+        await settle(calendar);
+        expect(menu.open).to.equal(false);
+        expect(calendar.shadowRoot!.activeElement).to.equal(row);
+    }
+    const close = list!.querySelector<HTMLButtonElement>('button.agenda-action')!;
+    close.focus();
+    await sendKeys({ press: 'Enter' });
+    await settle(calendar);
+    expect(calendar.viewMode).to.equal(previousView);
+    expect(calendar.activeDate).to.deep.equal(previousDate);
+    expect(calendar.shadowRoot!.querySelector('[data-density-list]')).not.to.exist;
+    const restored = calendar.shadowRoot!.querySelector<HTMLButtonElement>('[data-density-key]')!;
+    expect(restored.dataset.densityKey).to.equal(densityKey);
+    await waitUntil(
+        () => calendar.shadowRoot!.activeElement === restored,
+        'focus returns to the group',
+    );
+}
 
 describe('Real-root Year overview and text-size reflow', () => {
     let rootFont: string;
@@ -51,7 +156,7 @@ describe('Real-root Year overview and text-size reflow', () => {
         const calendar = await fixture<Calendar>(
             html`<lms-calendar .viewMode=${'year'} .activeDate=${date} style="width:1136px;height:760px"></lms-calendar>`,
         );
-        await settle();
+        await settle(calendar);
         const year = calendar.shadowRoot!.querySelector('lms-calendar-year')!;
         const grid = year.shadowRoot!.querySelector<HTMLElement>('.year-grid')!;
         const scroller = year.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
@@ -98,31 +203,46 @@ describe('Real-root Year overview and text-size reflow', () => {
             const calendar = await fixture<Calendar>(
                 html`<lms-calendar .viewMode=${viewMode} .activeDate=${date} .entries=${entries} style="width:752px;height:760px"></lms-calendar>`,
             );
-            await settle();
-            const short =
-                calendar.shadowRoot!.querySelector<HTMLElement>('[data-event-id="short"]')!;
-            // The outer display floor must include the text line's padding and
-            // borders, not merely the smaller declared CSS min-height.
-            expect(short.getBoundingClientRect().height).to.be.greaterThan(
-                parseFloat(getComputedStyle(short).minHeight),
+            await settle(calendar);
+            // Day has room for two readable lanes; enlarged Week does not.
+            // Keep exact coverage of ALL three titles instead of lowering a
+            // rendered-card minimum or silently skipping a missing short card.
+            const cardSources = viewMode === 'day' ? entries : entries.slice(0, 1);
+            const cards = [
+                ...calendar.shadowRoot!.querySelectorAll<HTMLElement>('lms-calendar-entry'),
+            ];
+            expect(cards.map((card) => card.dataset.eventId).sort()).to.deep.equal(
+                cardSources.map((source) => source.id).sort(),
             );
-            for (const id of ['short', 'all-day']) {
-                const entry = calendar.shadowRoot!.querySelector<HTMLElement>(
-                    `[data-event-id="${id}"]`,
-                )!;
-                const box = entry.getBoundingClientRect();
-                const title = entry.shadowRoot!.querySelector('.title')!.getBoundingClientRect();
-                expect(title.width, `${id}: visible title space`).to.be.at.least(24);
-                expect(title.left).to.be.at.least(box.left);
-                expect(title.right).to.be.at.most(box.right);
-                expect(title.top).to.be.at.least(box.top);
-                expect(title.bottom).to.be.at.most(box.bottom);
-                const time = entry.shadowRoot!.querySelector('.time');
-                if (time && getComputedStyle(time).display !== 'none') {
-                    const interval = time.getBoundingClientRect();
-                    expect(interval.top).to.be.at.least(box.top);
-                    expect(interval.bottom).to.be.at.most(box.bottom);
+            for (const source of cardSources) {
+                const entry = cards.find((card) => card.dataset.eventId === source.id)!;
+                readableTitle(entry, '.title', source.heading!);
+                if (source.time) {
+                    const box = entry.getBoundingClientRect();
+                    const time = entry.shadowRoot!.querySelector<HTMLElement>('.time');
+                    expect(time, `${source.id}: full time range exists`).to.exist;
+                    expect(getComputedStyle(time!).display).not.to.equal('none');
+                    expect(time!.textContent!.trim()).to.equal(
+                        timeRange(source, calendar.locale, true),
+                    );
+                    const interval = time!.getBoundingClientRect();
+                    expect(interval.top).to.be.at.least(box.top - 0.5);
+                    expect(interval.bottom).to.be.at.most(box.bottom + 0.5);
+                    expect(interval.width).to.be.greaterThan(0);
+                    expect(time!.lastElementChild!.getBoundingClientRect().bottom).to.be.at.most(
+                        interval.bottom + 0.5,
+                    );
+                    expect(time!.scrollWidth).to.be.at.most(time!.clientWidth + 1);
                 }
+            }
+            if (viewMode === 'day') {
+                const short = cards.find((card) => card.dataset.eventId === 'short')!;
+                expect(short.getBoundingClientRect().height).to.be.greaterThan(
+                    parseFloat(getComputedStyle(short).minHeight),
+                );
+                expect(calendar.shadowRoot!.querySelector('[data-density-key]')).not.to.exist;
+            } else {
+                await inspectExactGroup(calendar, entries.slice(1), 'short');
             }
             const view = calendar.shadowRoot!.querySelector(`lms-calendar-${viewMode}`)!;
             expect(
@@ -134,7 +254,7 @@ describe('Real-root Year overview and text-size reflow', () => {
         });
     }
 
-    it('keeps ordinary mobile Week titles beside their own times and keyboard-opens full details', async () => {
+    it('discloses all ordinary mobile Week overlaps as exact readable title/time rows and keyboard-opens canonical details', async () => {
         await setViewport({ width: 390, height: 720 });
         const timed = (
             id: string,
@@ -159,21 +279,77 @@ describe('Real-root Year overview and text-size reflow', () => {
         const calendar = await fixture<Calendar>(
             html`<lms-calendar .viewMode=${'week'} .activeDate=${date} .entries=${entries} style="width:358px;height:660px"></lms-calendar>`,
         );
-        await settle();
-        const sync = calendar.shadowRoot!.querySelector<HTMLElement>('[data-event-id="sync"]')!;
-        const box = sync.getBoundingClientRect();
-        const title = sync.shadowRoot!.querySelector('.title')!.getBoundingClientRect();
-        const time = sync.shadowRoot!.querySelector('.time')!.getBoundingClientRect();
-        expect(title.width, 'Team sync must not disappear behind its time').to.be.at.least(24);
-        expect(title.right).to.be.at.most(box.right);
-        expect(time.top).to.be.at.least(title.bottom);
-        expect(time.bottom).to.be.at.most(box.bottom);
-        expect(sync.getAttribute('aria-label')).to.include('Team sync');
-        sync.focus();
-        await sendKeys({ press: 'Enter' });
-        const menu = calendar.shadowRoot!.querySelector<Menu>('lms-menu')!;
-        await waitUntil(() => menu.open);
-        expect(menu.eventDetails.heading).to.equal('Team sync');
+        await settle(calendar);
+        expect(calendar.shadowRoot!.querySelectorAll('lms-calendar-entry')).to.have.length(0);
+        await inspectExactGroup(calendar, entries, 'sync');
+    });
+
+    for (const viewMode of ['day', 'week'] as const) {
+        for (const width of [160, 240]) {
+            it(`preserves a readable minimum-width ${viewMode} time grid at a ${width}px tiny embed`, async () => {
+                const source: CalendarEntry = {
+                    id: 'tiny',
+                    heading: 'Tiny event',
+                    date: { start: date, end: date },
+                    time: { start: { hour: 9, minute: 15 }, end: { hour: 10, minute: 45 } },
+                };
+                const calendar = await fixture<Calendar>(html`<lms-calendar
+                    .viewMode=${viewMode} .activeDate=${date} .entries=${[source]}
+                    style=${`width:${width}px;height:660px`}></lms-calendar>`);
+                await settle(calendar);
+                const region = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
+                const view = region.querySelector<HTMLElement>(`lms-calendar-${viewMode}`)!;
+                expect(view.getBoundingClientRect().width).to.be.at.least(240);
+                expect(getComputedStyle(region).overflowX).to.equal('auto');
+                expect(region.scrollWidth).to.be.at.least(240);
+                if (width < 240) expect(region.scrollWidth).to.be.greaterThan(region.clientWidth);
+                const cards = [...view.querySelectorAll<HTMLElement>('lms-calendar-entry')];
+                expect(cards).to.have.length(1);
+                expect(cards[0].dataset.eventId).to.equal(source.id);
+                readableTitle(cards[0], '.title', source.heading);
+                const time = cards[0].shadowRoot!.querySelector<HTMLElement>('.time')!;
+                expect(time.textContent!.trim()).to.equal(timeRange(source, calendar.locale, true));
+                expect(time.lastElementChild!.getBoundingClientRect().bottom).to.be.at.most(
+                    time.getBoundingClientRect().bottom + 0.5,
+                );
+                expect(time.scrollWidth).to.be.at.most(time.clientWidth + 1);
+                expect(calendar.shadowRoot!.querySelector('[data-density-key]')).not.to.exist;
+            });
+        }
+    }
+
+    it('keeps every default compact Month title in readable contextual rows at 2× text with page-owned vertical scroll', async () => {
+        await setViewport({ width: 390, height: 720 });
+        document.documentElement.style.fontSize = '32px';
+        const sources: CalendarEntry[] = Array.from({ length: 6 }, (_, index) => ({
+            id: `context-${index}`,
+            heading: `Readable event ${index + 1}`,
+            date: { start: date, end: date },
+            time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
+        }));
+        const calendar = await fixture<Calendar>(html`<lms-calendar .activeDate=${date}
+            .entries=${sources} style="width:358px;height:660px"></lms-calendar>`);
+        await settle(calendar);
+        const month = calendar.shadowRoot!.querySelector<Month>('lms-calendar-month')!;
+        expect(month.compact).to.equal(true);
+        expect(month.querySelectorAll('lms-calendar-entry')).to.have.length(0);
+        const rows = [...calendar.shadowRoot!.querySelectorAll<HTMLButtonElement>('.agenda-event')];
+        expect(rows.map((row) => row.dataset.eventId)).to.deep.equal(
+            sources.map((source) => source.id),
+        );
+        for (const [index, row] of rows.entries()) {
+            readableTitle(row, '.agenda-title', sources[index].heading);
+            expect(row.querySelector('.agenda-time')!.textContent).to.equal(
+                timeRange(sources[index], calendar.locale),
+            );
+        }
+        const grid = month.shadowRoot!.querySelector<HTMLElement>('.month')!;
+        const region = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
+        expect(getComputedStyle(grid).overflowY).to.equal('visible');
+        expect(getComputedStyle(region).overflowY).to.equal('visible');
+        expect(grid.scrollHeight).to.be.at.most(grid.clientHeight + 1);
+        expect(calendar.getBoundingClientRect().height).to.be.greaterThan(660);
+        expect(document.scrollingElement!.scrollHeight).to.be.greaterThan(window.innerHeight);
     });
 
     it('keeps enlarged compact date/count names intact in page-owned vertical flow with explicit keyboard day drill', async () => {
@@ -192,7 +368,7 @@ describe('Real-root Year overview and text-size reflow', () => {
         const calendar = await fixture<Calendar>(
             html`<lms-calendar .activeDate=${date} .entries=${entries} .monthDayBehavior=${'day'} style="width:358px;height:660px"></lms-calendar>`,
         );
-        await settleMonth(calendar);
+        await settle(calendar);
         const toolbar = calendar.shadowRoot!.querySelector('lms-calendar-header')!.shadowRoot!;
         const controls = [...toolbar.querySelectorAll('.context button')].map((button) =>
             button.getBoundingClientRect(),
@@ -239,7 +415,7 @@ describe('Real-root Year overview and text-size reflow', () => {
         expect(document.scrollingElement!.scrollHeight).to.be.greaterThan(window.innerHeight);
         await sendKeys({ press: 'ArrowRight' });
         await sendKeys({ press: ' ' });
-        await settleMonth(calendar);
+        await settle(calendar);
         expect(calendar.viewMode).to.equal('day');
         expect(calendar.activeDate).to.deep.equal({ ...date, day: 21 });
         await waitUntil(() => !!calendar.shadowRoot!.querySelector('lms-calendar-entry'));

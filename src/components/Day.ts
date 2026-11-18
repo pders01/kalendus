@@ -7,7 +7,7 @@ import {
     formatLocalizedTime,
     getLocalizedWeekdayShort,
 } from '../lib/localization.js';
-import { getMessages } from '../lib/messages.js';
+import { getMessages, normalizeLocale } from '../lib/messages.js';
 import type { FirstDayOfWeek } from '../lib/weekStartHelper.js';
 import { CurrentDateController } from './CurrentDateController.js';
 import { TimeGridSizingController, assignLegacyAllDayRows } from './TimeGridSizingController.js';
@@ -43,7 +43,7 @@ export default class Day extends LitElement {
 
     constructor() {
         super();
-        new TimeGridSizingController(this, '.wrapper', '.day-header');
+        new TimeGridSizingController(this, '.main');
     }
 
     /** Root drill-down focus destination; does not add a permanent tab stop. */
@@ -72,12 +72,11 @@ export default class Day extends LitElement {
             overflow: hidden;
         }
 
-        /* Matches .week-header height so day/week scroll viewports
-           are equal and the noon snap aligns across both views. */
+        /* Match .week-header so day/week have equal scroll viewports. */
         .day-header {
             display: grid;
             grid-template-columns: var(--day-grid-columns, var(--calendar-grid-columns-day));
-            height: var(--day-header-height, 2.5em);
+            min-block-size: var(--day-header-height, 2.5em);
             flex-shrink: 0;
             border-bottom: var(--separator-border);
             gap: var(--day-gap, 1px);
@@ -90,13 +89,18 @@ export default class Day extends LitElement {
         }
 
         .day-header .day-label {
+            margin: 0;
+            font-size: inherit;
+            min-block-size: 24px;
             padding: 0 0.25em;
             font-weight: var(--day-label-font-weight);
             display: flex;
             flex-direction: row;
+            flex-wrap: wrap;
             justify-content: center;
             align-items: center;
-            gap: 0.35em;
+            gap: 0.1em 0.35em;
+            padding-block: 0.15em;
             overflow: hidden;
             /* Offset by half the time column so the label visually
                centers across the full calendar width, not just the
@@ -114,6 +118,17 @@ export default class Day extends LitElement {
             font-size: 0.95em;
             font-weight: var(--day-label-number-font-weight);
             line-height: 1;
+            display: inline-grid;
+            place-items: center;
+            min-inline-size: 1.65em;
+            min-block-size: 1.65em;
+        }
+
+        .day-label.current .day-number {
+            border-radius: 50%;
+            background: var(--current-day-bg, Highlight);
+            color: var(--current-day-color, HighlightText);
+            font-weight: var(--current-day-font-weight, bold);
         }
 
         .day-label.current {
@@ -136,12 +151,19 @@ export default class Day extends LitElement {
             height: 100%;
             gap: var(--day-gap, 1px);
             overflow-y: scroll;
-            scroll-snap-type: y proximity;
+            /* Retired snap tokens deliberately cannot re-enable snapping. */
+            scroll-snap-type: none;
+            overflow-anchor: none;
             text-align: var(--day-text-align, center);
-            /* Vertical padding gives the first/last hour labels room to
-               render above/below the grid without clipping.
-               Horizontal padding keeps the scrollport flush. */
-            padding: 0.6em var(--day-padding, 0.5em);
+            /* Half the explicit axis line box on each end. Grid minute zero is
+               at padding-block-start; events and labels share that origin. */
+            padding-block: calc(var(--hour-indicator-font-size, 0.8125em) * 0.625);
+            padding-block-end: calc(
+                var(--hour-indicator-font-size, 0.8125em) * 0.625 +
+                    var(--_time-grid-tail, max(24px, var(--entry-min-height, 3em)))
+            );
+            padding-inline: var(--day-padding, 0.5em);
+            box-sizing: border-box;
             position: relative;
             contain: content;
         }
@@ -159,26 +181,25 @@ export default class Day extends LitElement {
             left: 0;
             right: 0;
             text-align: var(--hour-text-align, center);
-            font-size: var(--hour-indicator-font-size);
+            font-size: var(--hour-indicator-font-size, 0.8125em);
+            line-height: 1.25;
             color: var(--hour-indicator-color);
         }
 
-        /* Snap at noon: first scroll stop aligns with --half-day-height */
-        .hour-label.snap-target {
-            scroll-snap-align: start;
-        }
-
         .hour-label .indicator {
-            position: relative;
-            top: var(--indicator-top, -0.6em);
+            display: block;
+            block-size: 1.25em;
+            white-space: nowrap;
+            transform: translateY(-50%);
         }
 
         .timed-content {
             grid-column: 2;
             position: relative;
             height: var(--day-total-height);
-            /* Match time-labels clipping */
-            overflow: clip;
+            /* Readable late cards may extend beyond the midnight grid boundary.
+               The scroller owns a blank tail; this is not additional civil time. */
+            overflow: visible;
             background-image: linear-gradient(to bottom, var(--separator-light) 1px, transparent 1px);
             background-size: 100% var(--hour-height);
         }
@@ -200,10 +221,6 @@ export default class Day extends LitElement {
             width: 30%;
         }
 
-        .w-0 {
-            width: 0;
-        }
-
         .all-day-wrapper {
             display: block;
             max-block-size: min(35%, var(--all-day-max-height, 12rem));
@@ -214,11 +231,27 @@ export default class Day extends LitElement {
             /* This bounded scroller retains every all-day entry. */
         }
 
+        .all-day-container {
+            display: grid;
+            grid-template-columns: var(--day-grid-columns, var(--calendar-grid-columns-day));
+            gap: var(--day-gap, 1px);
+            padding-inline: var(--day-padding, 0.5em);
+        }
+        .all-day-time-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--hour-indicator-font-size);
+            color: var(--hour-indicator-color);
+            font-weight: var(--day-label-font-weight);
+            border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
+            overflow-wrap: anywhere;
+        }
         .all-day {
             font-size: var(--day-all-day-font-size, 16px);
             margin-block: 0;
-            margin-inline-start: var(--day-all-day-margin-inline-start, 4.25em);
-            margin-inline-end: var(--day-all-day-margin-inline-end, 1.25em);
+            margin-inline-start: var(--day-all-day-margin-inline-start, 0);
+            margin-inline-end: var(--day-all-day-margin-inline-end, 0);
             min-height: 0;
             padding: 0.5em 0;
             display: grid;
@@ -240,12 +273,14 @@ export default class Day extends LitElement {
             height: var(--all-day-row-height, max(24px, 1.5rem)) !important;
             margin-block: 0 !important;
         }
+        .main:focus-visible,
         .all-day-wrapper:focus-visible,
         .day-label:focus-visible {
             outline: 2px solid currentColor;
             outline-offset: -2px;
         }
         @media (forced-colors: active) {
+            .main:focus-visible,
             .all-day-wrapper:focus-visible,
             .day-label:focus-visible {
                 outline-color: Highlight;
@@ -284,17 +319,20 @@ export default class Day extends LitElement {
         return html` <div class="wrapper">
             <div class="day-header">
                 <div class="time-header"></div>
-                <div class="day-label ${classMap({ current: this._isCurrentDate() })}" tabindex="-1" role="heading" aria-level="2" aria-label=${formatLocalizedDate(this.activeDate.day, this.activeDate.month, this.activeDate.year, this.locale)} aria-current=${this._isCurrentDate() ? 'date' : 'false'}>
+                <h2 id="day-label" class="day-label ${classMap({ current: this._isCurrentDate() })}" tabindex="-1" aria-label=${formatLocalizedDate(this.activeDate.day, this.activeDate.month, this.activeDate.year, this.locale)} aria-current=${this._isCurrentDate() ? 'date' : 'false'}>
                     <span class="day-name">${getLocalizedWeekdayShort(luxonWeekday, this.locale)}</span>
-                    <span class="day-number">${this.activeDate.day}</span>
-                </div>
+                    <span class="day-number">${new Intl.NumberFormat(normalizeLocale(this.locale)).format(this.activeDate.day)}</span>
+                </h2>
             </div>
             ${
                 hasAllDay
                     ? html`
-                          <div class="all-day-wrapper" tabindex="0" role="region" aria-label=${getMessages(this.locale).allDay}>
-                              <div class="all-day" style="--all-day-rows: ${Math.max(1, this.allDayRowCount)}">
-                                  <slot name="all-day" id="all-day" class="entry" @slotchange=${assignLegacyAllDayRows}></slot>
+                          <div class="all-day-wrapper" tabindex="0" role="region" aria-labelledby="all-day-label">
+                              <div class="all-day-container">
+                                  <div class="all-day-time-header" id="all-day-label">${getMessages(this.locale).allDay}</div>
+                                  <div class="all-day" style="--all-day-rows: ${Math.max(1, this.allDayRowCount)}">
+                                      <slot name="all-day" id="all-day" class="entry" @slotchange=${assignLegacyAllDayRows}></slot>
+                                  </div>
                               </div>
                           </div>
                       `
@@ -306,12 +344,13 @@ export default class Day extends LitElement {
                         'w-100': !this._hasActiveSidebar,
                         'w-70': this._hasActiveSidebar,
                     })}"
+                    tabindex="0" role="region" aria-labelledby="day-label"
                 >
                     <div class="time-labels">
                         ${this._hours.map(
                             (hour) => html`
                                 <div
-                                    class="hour-label${hour % 12 === 0 ? ' snap-target' : ''}"
+                                    class="hour-label"
                                     style="top: calc(${hour} * var(--hour-height))"
                                 >
                                     <span class="indicator">

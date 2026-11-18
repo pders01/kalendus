@@ -2,8 +2,12 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
-import { formatLocalizedTime, getLocalizedWeekdayShort } from '../lib/localization.js';
-import { getMessages } from '../lib/messages.js';
+import {
+    formatLocalizedDate,
+    formatLocalizedTime,
+    getLocalizedWeekdayShort,
+} from '../lib/localization.js';
+import { getMessages, normalizeLocale } from '../lib/messages.js';
 import { type FirstDayOfWeek, getWeekDates, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import './Day.js';
 import { CurrentDateController } from './CurrentDateController.js';
@@ -22,6 +26,9 @@ export default class Week extends LitElement {
 
     @property({ type: Number })
     allDayRowCount = 0;
+
+    @property({ attribute: false })
+    allDaySummary = false;
 
     @property({ type: Number })
     firstDayOfWeek: FirstDayOfWeek = 1;
@@ -55,14 +62,15 @@ export default class Week extends LitElement {
             display: flex;
             flex-direction: column;
             height: var(--view-container-height, 100%);
-            overflow: hidden;
+            /* Clip at the grid boundary without taking over inline scrolling. */
+            overflow: clip;
             position: relative;
         }
 
         .week-header {
             display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
-            height: var(--day-header-height, 2.5em);
+            min-block-size: var(--day-header-height, 2.5em);
             flex-shrink: 0;
             border-bottom: var(--separator-border);
             gap: var(--day-gap, 1px);
@@ -82,9 +90,11 @@ export default class Week extends LitElement {
             border-inline-end: var(--separator-border);
             display: flex;
             flex-direction: row;
+            flex-wrap: wrap;
             justify-content: center;
             align-items: center;
-            gap: 0.35em;
+            gap: 0.1em 0.35em;
+            padding-block: 0.15em;
             cursor: pointer;
             transition: background-color var(--transition-speed) ease;
             overflow: hidden;
@@ -100,16 +110,28 @@ export default class Week extends LitElement {
             font-size: 0.95em;
             font-weight: var(--day-label-number-font-weight);
             line-height: 1;
+            display: inline-grid;
+            place-items: center;
+            min-inline-size: 1.65em;
+            min-block-size: 1.65em;
         }
 
-        .day-label:hover {
+        .day-label.current .day-number {
+            border-radius: 50%;
+            background: var(--current-day-bg, Highlight);
+            color: var(--current-day-color, HighlightText);
+            font-weight: var(--current-day-font-weight, bold);
+        }
+
+        .day-label:hover,
+        .day-label.current:hover {
             background-color: var(--hover-bg);
+            color: var(--hover-color, var(--text-color, CanvasText));
         }
 
-        .day-label:focus {
+        .day-label:focus-visible {
             outline: 2px solid var(--entry-focus-color, var(--primary-color));
-            outline-offset: 2px;
-            background-color: var(--focus-bg);
+            outline-offset: -2px;
         }
 
         .day-label:last-child {
@@ -124,15 +146,22 @@ export default class Week extends LitElement {
         .week-scroll {
             flex: 1;
             overflow-y: auto;
-            scroll-snap-type: y proximity;
+            /* Retired snap tokens deliberately cannot re-enable snapping. */
+            scroll-snap-type: none;
+            overflow-anchor: none;
             display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
             grid-template-rows: 1fr;
             gap: var(--day-gap, 1px);
-            /* Vertical padding gives the first/last hour labels room to
-               render above/below the grid without clipping.
-               Horizontal padding keeps the scrollport flush. */
-            padding: 0.6em var(--day-padding, 0.5em);
+            /* Half the explicit axis line box on each end. Grid minute zero is
+               at padding-block-start; events and labels share that origin. */
+            padding-block: calc(var(--hour-indicator-font-size, 0.8125em) * 0.625);
+            padding-block-end: calc(
+                var(--hour-indicator-font-size, 0.8125em) * 0.625 +
+                    var(--_time-grid-tail, max(24px, var(--entry-min-height, 3em)))
+            );
+            padding-inline: var(--day-padding, 0.5em);
+            box-sizing: border-box;
             min-height: 0;
             position: relative;
             contain: content;
@@ -151,27 +180,26 @@ export default class Week extends LitElement {
             left: 0;
             right: 0;
             text-align: var(--hour-text-align, center);
-            font-size: var(--hour-indicator-font-size);
+            font-size: var(--hour-indicator-font-size, 0.8125em);
+            line-height: 1.25;
             color: var(--hour-indicator-color);
             pointer-events: none;
         }
 
         .hour-label .indicator {
-            position: relative;
-            top: var(--indicator-top, -0.6em);
-        }
-
-        /* Snap at noon: first scroll stop aligns with --half-day-height */
-        .hour-label.snap-target {
-            scroll-snap-align: start;
+            display: block;
+            block-size: 1.25em;
+            white-space: nowrap;
+            transform: translateY(-50%);
         }
 
         .day-column {
             position: relative;
             height: var(--day-total-height);
             border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
-            /* Match time-labels clipping */
-            overflow: clip;
+            /* Readable late cards may extend beyond the midnight grid boundary.
+               The scroller owns a blank tail; this is not additional civil time. */
+            overflow: visible;
             background-image: linear-gradient(to bottom, var(--separator-light) 1px, transparent 1px);
             background-size: 100% var(--hour-height);
         }
@@ -214,6 +242,10 @@ export default class Week extends LitElement {
             );
             grid-auto-rows: var(--all-day-row-height, max(24px, 1.5rem));
             gap: 4px;
+        }
+        .all-day-wrapper[data-summary] .all-day-day-column {
+            grid-template-rows: auto;
+            grid-auto-rows: auto;
         }
         .all-day-day-column slot {
             display: contents;
@@ -273,41 +305,106 @@ export default class Week extends LitElement {
             color: var(--hour-indicator-color);
             font-weight: var(--day-label-font-weight);
             border-inline-end: var(--separator-border);
+            overflow-wrap: anywhere;
         }
 
-        /* Peek indicators for condensed view */
         .peek-indicators {
-            display: flex;
-            justify-content: space-between;
+            box-sizing: border-box;
+            container: week-pager / inline-size;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
             align-items: center;
-            padding: 0 0.25em;
-            min-height: 24px;
+            gap: 0.35em 0.75em;
+            padding: 0.35em var(--day-padding, 0.5em);
             flex-shrink: 0;
             border-bottom: var(--separator-border);
+            background: var(--background-color, Canvas);
+        }
+
+        /* Only the navigator stays inside the visible pane; date headers,
+           all-day events and times still pan together at the wider grid width. */
+        @container week-viewport (min-width: 0px) {
+            .peek-indicators {
+                position: sticky;
+                inset-inline-start: 0;
+                align-self: start;
+                inline-size: min(100%, 100cqi);
+            }
+        }
+        .window-context {
+            min-inline-size: 0;
+            text-align: center;
+            font-size: 0.8em;
+            line-height: 1.4;
+        }
+
+        .window-range,
+        .window-position {
+            display: block;
+            overflow-wrap: anywhere;
+        }
+
+        .window-position {
+            font-variant-numeric: tabular-nums;
+        }
+
+        @container week-viewport (inline-size < 28rem) or (block-size < 16rem) {
+            .peek-indicators {
+                padding-block: 0;
+            }
+        }
+        /* The weekday headings already show these dates. In short embeds,
+           keep the labels on the controls but give the extra line to the timeline. */
+        @container week-viewport (block-size < 16rem) {
+            .window-range {
+                display: none;
+            }
+            .peek-indicator {
+                min-inline-size: 44px;
+                min-block-size: 44px;
+            }
+        }
+        @container week-pager (width < 28rem) {
+            .window-range,
+            .peek-caption {
+                display: none;
+            }
+            .window-position {
+                font-weight: 600;
+            }
+            button.peek-indicator {
+                min-inline-size: 44px;
+                min-block-size: 44px;
+                padding: 0;
+                border-color: transparent;
+            }
+            .peek-glyph {
+                font-size: 1.5em;
+            }
         }
 
         .peek-indicator {
             display: flex;
             align-items: center;
+            justify-content: center;
+            overflow-wrap: anywhere;
             gap: 0.25em;
-            color: var(--hour-indicator-color, rgba(0, 0, 0, 0.5));
-            font-size: 0.75em;
+            color: var(--text-color, CanvasText);
+            font-size: 0.8em;
             cursor: pointer;
             user-select: none;
-            padding: 0.1em 0.35em;
+            padding: 0.25em 0.5em;
+            border: 1px solid var(--separator-light, currentColor);
             border-radius: var(--border-radius-sm);
             transition:
                 background-color var(--transition-speed) ease,
                 color var(--transition-speed) ease;
         }
 
-        .peek-indicator:hover {
+        .peek-indicator:not(:disabled):hover,
+        .peek-indicator:not(:disabled):active {
             background-color: var(--hover-bg);
-            color: var(--separator-dark, rgba(0, 0, 0, 0.7));
-        }
-
-        .peek-indicator:active {
-            background-color: var(--peek-active-bg);
+            color: var(--hover-color, var(--text-color, CanvasText));
         }
 
         button {
@@ -319,19 +416,27 @@ export default class Week extends LitElement {
             min-block-size: 24px;
         }
         button:focus-visible,
+        .week-scroll:focus-visible,
         .all-day-wrapper:focus-visible {
             outline: 2px solid currentColor;
             outline-offset: -2px;
         }
         @media (forced-colors: active) {
             button:focus-visible,
+            .week-scroll:focus-visible,
             .all-day-wrapper:focus-visible {
                 outline-color: Highlight;
             }
         }
-        .peek-indicator--hidden {
-            visibility: hidden;
-            pointer-events: none;
+        .peek-indicator:disabled {
+            cursor: default;
+            opacity: 0.55;
+        }
+        @media (pointer: coarse) {
+            button {
+                min-inline-size: 44px;
+                min-block-size: 44px;
+            }
         }
     `;
 
@@ -372,7 +477,7 @@ export default class Week extends LitElement {
 
     constructor() {
         super();
-        new TimeGridSizingController(this, '.week-container', '.week-header');
+        new TimeGridSizingController(this, '.week-scroll');
     }
 
     /** Root drill-down/return focus destination. */
@@ -387,6 +492,24 @@ export default class Week extends LitElement {
         const datesToRender = this._getDatesToRender();
         const weekdayOrder = this._getVisibleWeekdayOrder();
         const hasAllDay = this.allDayRowCount > 0;
+        const msg = getMessages(this.locale);
+        const number = new Intl.NumberFormat(normalizeLocale(this.locale));
+        const dateLabel = (date: CalendarDate) =>
+            formatLocalizedDate(date.day, date.month, date.year, this.locale);
+        const firstDate = datesToRender[0];
+        const lastDate = datesToRender[datesToRender.length - 1];
+        const windowDates =
+            firstDate && lastDate ? `${dateLabel(firstDate)} – ${dateLabel(lastDate)}` : '';
+        const windowSummary =
+            firstDate && lastDate
+                ? `${getLocalizedWeekdayShort(weekdayOrder[0], this.locale)} ${number.format(firstDate.day)} – ${getLocalizedWeekdayShort(weekdayOrder[datesToRender.length - 1], this.locale)} ${number.format(lastDate.day)}`
+                : '';
+        const firstPosition = number.format(this.visibleStartIndex + 1);
+        const visiblePositions =
+            datesToRender.length === 1
+                ? firstPosition
+                : `${firstPosition}–${number.format(this.visibleStartIndex + datesToRender.length)}`;
+        const windowPosition = `${visiblePositions}/${number.format(7)}`;
 
         const showLeftPeek = this._isCondensed && this.visibleStartIndex > 0;
         const showRightPeek = this._isCondensed && this.visibleStartIndex + this.visibleLength < 7;
@@ -396,7 +519,6 @@ export default class Week extends LitElement {
                 <div class="week-header">
                     <div class="time-header"></div>
                     ${datesToRender.map((date, index) => {
-                        const msg = getMessages(this.locale);
                         return html`
                             <button type="button"
                                 data-date=${dateKey(date)}
@@ -404,43 +526,38 @@ export default class Week extends LitElement {
                                     current: this._isCurrentDate(date),
                                 })}"
                                 aria-current=${this._isCurrentDate(date) ? 'date' : 'false'}
-                                aria-label="${msg.switchToDayView} ${getLocalizedWeekdayShort(
-                                    weekdayOrder[index],
-                                    this.locale,
-                                )}, ${date.day}"
+                                aria-label="${msg.switchToDayView} ${dateLabel(date)}"
                                 @click=${() => this._handleDayLabelClick(date)}
                             >
                                 <span class="day-name">${getLocalizedWeekdayShort(weekdayOrder[index], this.locale)}</span>
-                                <span class="day-number">${date.day}</span>
+                                <span class="day-number">${number.format(date.day)}</span>
                             </button>
                         `;
                     })}
                 </div>
 
-                <!-- Peek indicators for condensed view -->
                 ${
                     this._isCondensed
-                        ? (() => {
-                              const msg = getMessages(this.locale);
-                              return html`
-                <div class="peek-indicators">
-                    <button type="button"
-                        class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showLeftPeek })}"
-                        ?disabled=${!showLeftPeek}
-                        tabindex=${showLeftPeek ? '0' : '-1'}
-                        aria-label="${msg.showEarlierDays}"
-                        @click=${() => this._handlePeekNavigate('previous')}
-                    >\u2039 ${msg.more}</button>
-                    <button type="button"
-                        class="peek-indicator ${classMap({ 'peek-indicator--hidden': !showRightPeek })}"
-                        ?disabled=${!showRightPeek}
-                        tabindex=${showRightPeek ? '0' : '-1'}
-                        aria-label="${msg.showLaterDays}"
-                        @click=${() => this._handlePeekNavigate('next')}
-                    >${msg.more} \u203A</button>
-                </div>
-                `;
-                          })()
+                        ? html`
+                              <div class="peek-indicators" role="group" aria-labelledby="window-range window-position">
+                                  <button type="button"
+                                      class="peek-indicator"
+                                      ?disabled=${!showLeftPeek}
+                                      aria-label="${msg.previous} · ${msg.showEarlierDays} · ${windowDates}"
+                                      @click=${() => this._handlePeekNavigate('previous')}
+                                  ><span class="peek-glyph" aria-hidden="true">‹</span><bdi class="peek-caption">${msg.previous}</bdi></button>
+                                  <div class="window-context">
+                                      <span class="window-range" id="window-range">${windowSummary}</span>
+                                      <bdi class="window-position" id="window-position">${windowPosition}</bdi>
+                                  </div>
+                                  <button type="button"
+                                      class="peek-indicator"
+                                      ?disabled=${!showRightPeek}
+                                      aria-label="${msg.next} · ${msg.showLaterDays} · ${windowDates}"
+                                      @click=${() => this._handlePeekNavigate('next')}
+                                  ><bdi class="peek-caption">${msg.next}</bdi><span class="peek-glyph" aria-hidden="true">›</span></button>
+                              </div>
+                          `
                         : nothing
                 }
 
@@ -448,15 +565,15 @@ export default class Week extends LitElement {
                 ${
                     hasAllDay
                         ? html`
-                <div class="all-day-wrapper" tabindex="0" role="region" aria-label=${getMessages(this.locale).allDay}>
+                <div class="all-day-wrapper" ?data-summary=${this.allDaySummary} tabindex=${this.allDaySummary ? '-1' : '0'} role="region" aria-labelledby="all-day-label">
                     <div class="all-day-container" style="--all-day-rows: ${Math.max(1, this.allDayRowCount)}">
-                        <div class="all-day-time-header">${getMessages(this.locale).allDay}</div>
+                        <div class="all-day-time-header" id="all-day-label">${msg.allDay}</div>
                         ${datesToRender.map(
                             (date) => html`
                                 <div class="all-day-day-column">
                                     <slot
                                         name="all-day-${date.year}-${date.month}-${date.day}"
-                                        @slotchange=${assignLegacyAllDayRows}
+                                        @slotchange=${this.allDaySummary ? nothing : assignLegacyAllDayRows}
                                     ></slot>
                                 </div>
                             `,
@@ -466,12 +583,12 @@ export default class Week extends LitElement {
                 `
                         : nothing
                 }
-                <div class="week-scroll">
+                <div class="week-scroll" tabindex="0" role="region" aria-label=${windowDates}>
                     <div class="time-labels">
                         ${Array.from({ length: 25 }).map(
                             (_, hour) => html`
                                 <div
-                                    class="hour-label${hour % 12 === 0 ? ' snap-target' : ''}"
+                                    class="hour-label"
                                     style="top: calc(${hour} * var(--hour-height))"
                                 >
                                     <span class="indicator">

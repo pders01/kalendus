@@ -1,267 +1,190 @@
 import { expect } from 'chai';
-import { computeWeekDisplayContext } from '../../../src/lib/weekDisplayContext.js';
-import type { FirstDayOfWeek } from '../../../src/lib/weekStartHelper.js';
 
-/**
- * Create a mock host element whose getComputedStyle returns the given CSS tokens.
- */
-function mockHost(tokens: Record<string, string> = {}): Element {
-    const el = {} as Element;
-    // Patch globalThis.getComputedStyle to intercept calls for our mock element
-    const originalGetComputedStyle = globalThis.getComputedStyle;
-    globalThis.getComputedStyle = ((target: Element) => {
-        if (target === el) {
-            return {
-                getPropertyValue(prop: string) {
-                    return tokens[prop] ?? '';
-                },
-            } as CSSStyleDeclaration;
-        }
-        return originalGetComputedStyle(target);
-    }) as typeof globalThis.getComputedStyle;
+import {
+    computeWeekDisplayContext,
+    type WeekDisplayContext,
+} from '../../../src/lib/weekDisplayContext.js';
 
-    // Store cleanup function on the element for afterEach
-    (el as Element & { _cleanup: () => void })._cleanup = () => {
-        globalThis.getComputedStyle = originalGetComputedStyle;
-    };
+const activeDate: CalendarDate = { year: 2026, month: 2, day: 18 };
 
-    return el;
+/** Keep the pure geometry tests independent of a real DOM or viewport. */
+function withHost(tokens: Record<string, string>, check: (host: Element) => void) {
+    const host = {} as Element;
+    const original = globalThis.getComputedStyle;
+    globalThis.getComputedStyle = ((target: Element) =>
+        target === host
+            ? ({
+                  fontSize: tokens['font-size'] ?? '16px',
+                  getPropertyValue: (property: string) => tokens[property] ?? '',
+              } as CSSStyleDeclaration)
+            : original(target)) as typeof getComputedStyle;
+    try {
+        check(host);
+    } finally {
+        globalThis.getComputedStyle = original;
+    }
 }
 
-function cleanup(el: Element) {
-    (el as Element & { _cleanup: () => void })._cleanup?.();
+function context(host: Element, width: number, date = activeDate, firstDay: 0 | 1 | 6 = 1) {
+    return computeWeekDisplayContext(date, firstDay, width, host);
+}
+
+function assertWindow(result: WeekDisplayContext, count: number, start: number) {
+    expect(result.weekDates).to.have.length(7);
+    expect(result.visibleLength).to.equal(count);
+    expect(result.visibleStartIndex).to.equal(start);
+    expect(result.isCondensed).to.equal(count < 7);
+    expect(result.visibleDates).to.deep.equal(result.weekDates.slice(start, start + count));
+    expect(result.gridColumns).to.equal(`var(--time-column-width) repeat(${count}, 1fr)`);
 }
 
 describe('weekDisplayContext', () => {
-    // Wednesday 2026-02-18, Monday-first week
-    const activeDate: CalendarDate = { year: 2026, month: 2, day: 18 };
-    const firstDayOfWeek: FirstDayOfWeek = 1;
+    it('retains all seven days when the actual embed has room', () => {
+        withHost({}, (host) => assertWindow(context(host, 1024), 7, 0));
+    });
 
-    describe('default (full width)', () => {
-        it('should return all 7 days when width >= breakpoint', () => {
-            const host = mockHost();
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 1024, host);
-                expect(ctx.isCondensed).to.be.false;
-                expect(ctx.visibleLength).to.equal(7);
-                expect(ctx.visibleDates).to.have.length(7);
-                expect(ctx.visibleStartIndex).to.equal(0);
-                expect(ctx.weekDates).to.deep.equal(ctx.visibleDates);
-                expect(ctx.gridColumns).to.equal('var(--time-column-width) repeat(7, 1fr)');
-            } finally {
-                cleanup(host);
-            }
-        });
+    it('uses the old breakpoint as a maximum, not permission to crush seven columns', () => {
+        withHost({}, (host) => assertWindow(context(host, 768), 5, 0));
+    });
 
-        it('should return all 7 days at exactly the breakpoint', () => {
-            const host = mockHost();
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 768, host);
-                expect(ctx.isCondensed).to.be.false;
-                expect(ctx.visibleLength).to.equal(7);
-            } finally {
-                cleanup(host);
-            }
+    it('centers the readable two-day window on the active date', () => {
+        withHost({}, (host) => assertWindow(context(host, 400), 2, 2));
+    });
+
+    it('clamps the window at the start of the same week', () => {
+        withHost({}, (host) =>
+            assertWindow(context(host, 400, { year: 2026, month: 2, day: 16 }), 2, 0),
+        );
+    });
+
+    it('clamps the window at the end of the same week', () => {
+        withHost({}, (host) =>
+            assertWindow(context(host, 400, { year: 2026, month: 2, day: 22 }), 2, 5),
+        );
+    });
+
+    it('retains the full seven-day domain in a one-day narrow window', () => {
+        withHost({}, (host) => {
+            const result = context(host, 288);
+            assertWindow(result, 1, 2);
+            expect(result.visibleDates[0]).to.deep.equal(activeDate);
         });
     });
 
-    describe('condensed (narrow width)', () => {
-        it('should return 3 days centered on active date by default', () => {
-            const host = mockHost();
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 400, host);
-                expect(ctx.isCondensed).to.be.true;
-                expect(ctx.visibleLength).to.equal(3);
-                expect(ctx.visibleDates).to.have.length(3);
-                // Wed is index 2 in Mon-first week, centering 3 days: [Tue, Wed, Thu] → start=1
-                expect(ctx.visibleStartIndex).to.equal(1);
-                expect(ctx.gridColumns).to.equal('var(--time-column-width) repeat(3, 1fr)');
-            } finally {
-                cleanup(host);
-            }
-        });
-
-        it('should clamp to start when active date is Monday (first day)', () => {
-            const monday: CalendarDate = { year: 2026, month: 2, day: 16 };
-            const host = mockHost();
-            try {
-                const ctx = computeWeekDisplayContext(monday, firstDayOfWeek, 400, host);
-                expect(ctx.isCondensed).to.be.true;
-                // Monday is index 0, centering 3 days: ideal start = -1 → clamped to 0
-                expect(ctx.visibleStartIndex).to.equal(0);
-                expect(ctx.visibleDates).to.have.length(3);
-                expect(ctx.visibleDates[0].day).to.equal(16); // Monday
-            } finally {
-                cleanup(host);
-            }
-        });
-
-        it('should clamp to end when active date is Sunday (last day)', () => {
-            const sunday: CalendarDate = { year: 2026, month: 2, day: 22 };
-            const host = mockHost();
-            try {
-                const ctx = computeWeekDisplayContext(sunday, firstDayOfWeek, 400, host);
-                expect(ctx.isCondensed).to.be.true;
-                // Sunday is index 6, centering 3 days: ideal start = 5 → clamped to 4 (7-3=4)
-                expect(ctx.visibleStartIndex).to.equal(4);
-                expect(ctx.visibleDates).to.have.length(3);
-                expect(ctx.visibleDates[2].day).to.equal(22); // Sunday
-            } finally {
-                cleanup(host);
-            }
-        });
+    it('respects the full-width count as a maximum', () => {
+        withHost({ '--week-day-count': '5' }, (host) => assertWindow(context(host, 1024), 5, 0));
     });
 
-    describe('custom CSS tokens', () => {
-        it('should respect --week-day-count for full-width view', () => {
-            const host = mockHost({ '--week-day-count': '5' });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 1024, host);
-                expect(ctx.isCondensed).to.be.true;
-                expect(ctx.visibleLength).to.equal(5);
-                expect(ctx.visibleDates).to.have.length(5);
-            } finally {
-                cleanup(host);
-            }
-        });
-
-        it('should respect --week-mobile-day-count', () => {
-            const host = mockHost({ '--week-mobile-day-count': '2' });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 400, host);
-                expect(ctx.isCondensed).to.be.true;
-                expect(ctx.visibleLength).to.equal(2);
-                expect(ctx.visibleDates).to.have.length(2);
-            } finally {
-                cleanup(host);
-            }
-        });
-
-        it('should respect --week-mobile-breakpoint', () => {
-            const host = mockHost({ '--week-mobile-breakpoint': '500px' });
-            try {
-                // Width 600 is above custom breakpoint 500
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 600, host);
-                expect(ctx.isCondensed).to.be.false;
-                expect(ctx.visibleLength).to.equal(7);
-            } finally {
-                cleanup(host);
-            }
-        });
-
-        it('should use mobile count when width is below custom breakpoint', () => {
-            const host = mockHost({
-                '--week-mobile-breakpoint': '500px',
-                '--week-mobile-day-count': '1',
-            });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 400, host);
-                expect(ctx.isCondensed).to.be.true;
-                expect(ctx.visibleLength).to.equal(1);
-                expect(ctx.visibleDates).to.have.length(1);
-                // Single day should be the active date itself
-                expect(ctx.visibleDates[0]).to.deep.equal(activeDate);
-            } finally {
-                cleanup(host);
-            }
-        });
+    it('respects the configured mobile count', () => {
+        withHost({ '--week-mobile-day-count': '2' }, (host) =>
+            assertWindow(context(host, 400), 2, 2),
+        );
     });
 
-    describe('invalid CSS token fallback', () => {
-        it('does not silently truncate fractional/garbage counts or reinterpret non-pixel lengths', () => {
-            const host = mockHost({
+    it('does not let a custom breakpoint override the readable column floor', () => {
+        withHost({ '--week-mobile-breakpoint': '500px' }, (host) =>
+            assertWindow(context(host, 600), 4, 1),
+        );
+    });
+
+    it('can explicitly request a one-day window below a custom breakpoint', () => {
+        withHost(
+            { '--week-mobile-breakpoint': '500px', '--week-mobile-day-count': '1' },
+            (host) => {
+                const result = context(host, 400);
+                assertWindow(result, 1, 2);
+                expect(result.visibleDates[0]).to.deep.equal(activeDate);
+            },
+        );
+    });
+
+    it('does not silently truncate fractional/garbage counts or reinterpret an em breakpoint as pixels', () => {
+        withHost(
+            {
                 '--week-day-count': '2.5',
                 '--week-mobile-day-count': '2oops',
                 '--week-mobile-breakpoint': '50em',
-            });
-            try {
-                expect(computeWeekDisplayContext(activeDate, firstDayOfWeek, 1024, host).visibleLength).to.equal(7);
-                expect(computeWeekDisplayContext(activeDate, firstDayOfWeek, 400, host).visibleLength).to.equal(3);
-            } finally {
-                cleanup(host);
-            }
-        });
-
-        it('accepts finite fractional pixel breakpoints and bounds invalid counts', () => {
-            const host = mockHost({ '--week-mobile-breakpoint': '500.5px', '--week-mobile-day-count': 'Infinity' });
-            try {
-                expect(computeWeekDisplayContext(activeDate, firstDayOfWeek, 500.25, host).visibleLength).to.equal(3);
-                expect(computeWeekDisplayContext(activeDate, firstDayOfWeek, 500.75, host).visibleLength).to.equal(7);
-            } finally {
-                cleanup(host);
-            }
-        });
+            },
+            (host) => {
+                assertWindow(context(host, 1024), 7, 0);
+                assertWindow(context(host, 400), 2, 2);
+            },
+        );
     });
 
-    describe('clamping', () => {
-        it('should clamp day count of 0 to 1', () => {
-            const host = mockHost({ '--week-mobile-day-count': '0' });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 400, host);
-                expect(ctx.visibleLength).to.equal(1);
-            } finally {
-                cleanup(host);
-            }
-        });
-
-        it('should clamp day count of 10 to 7', () => {
-            const host = mockHost({ '--week-day-count': '10' });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 1024, host);
-                expect(ctx.isCondensed).to.be.false;
-                expect(ctx.visibleLength).to.equal(7);
-            } finally {
-                cleanup(host);
-            }
-        });
-
-        it('should clamp negative day count to 1', () => {
-            const host = mockHost({ '--week-mobile-day-count': '-3' });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 400, host);
-                expect(ctx.visibleLength).to.equal(1);
-            } finally {
-                cleanup(host);
-            }
-        });
+    it('accepts finite fractional pixel breakpoints independently of the optional width floor', () => {
+        withHost(
+            {
+                '--week-mobile-breakpoint': '500.5px',
+                '--week-mobile-day-count': 'Infinity',
+                '--week-min-day-width': '0',
+            },
+            (host) => {
+                assertWindow(context(host, 500.25), 3, 1);
+                assertWindow(context(host, 500.75), 7, 0);
+            },
+        );
     });
 
-    describe('Sunday-first week', () => {
-        it('should work correctly with firstDayOfWeek=0', () => {
-            const sundayFirst: FirstDayOfWeek = 0;
-            const host = mockHost({ '--week-mobile-day-count': '3' });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, sundayFirst, 400, host);
-                expect(ctx.isCondensed).to.be.true;
-                expect(ctx.visibleLength).to.equal(3);
-                expect(ctx.weekDates).to.have.length(7);
-                // Should still center properly
-                expect(ctx.visibleDates).to.have.length(3);
-            } finally {
-                cleanup(host);
-            }
-        });
+    it('clamps a zero day count to one', () => {
+        withHost({ '--week-mobile-day-count': '0' }, (host) =>
+            assertWindow(context(host, 400), 1, 2),
+        );
     });
 
-    describe('gridColumns', () => {
-        it('should produce correct grid-template-columns for condensed view', () => {
-            const host = mockHost({ '--week-mobile-day-count': '2' });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 400, host);
-                expect(ctx.gridColumns).to.equal('var(--time-column-width) repeat(2, 1fr)');
-            } finally {
-                cleanup(host);
-            }
-        });
+    it('clamps an excessive day count to seven', () => {
+        withHost({ '--week-day-count': '10' }, (host) => assertWindow(context(host, 1024), 7, 0));
+    });
 
-        it('should produce correct grid-template-columns for 5-day view', () => {
-            const host = mockHost({ '--week-day-count': '5' });
-            try {
-                const ctx = computeWeekDisplayContext(activeDate, firstDayOfWeek, 1024, host);
-                expect(ctx.gridColumns).to.equal('var(--time-column-width) repeat(5, 1fr)');
-            } finally {
-                cleanup(host);
-            }
+    it('clamps a negative day count to one', () => {
+        withHost({ '--week-mobile-day-count': '-3' }, (host) =>
+            assertWindow(context(host, 400), 1, 2),
+        );
+    });
+
+    it('preserves a Sunday-first domain and centers its readable subset', () => {
+        withHost({}, (host) => assertWindow(context(host, 400, activeDate, 0), 2, 3));
+    });
+
+    it('preserves a Saturday-first domain and centers its readable subset', () => {
+        withHost({}, (host) => assertWindow(context(host, 400, activeDate, 6), 2, 4));
+    });
+
+    it('produces the explicit five-day grid when requested and readable', () => {
+        withHost({ '--week-day-count': '5' }, (host) => assertWindow(context(host, 1024), 5, 0));
+    });
+
+    it('reduces the visible count for enlarged text without changing the week domain', () => {
+        withHost({ 'font-size': '32px' }, (host) => assertWindow(context(host, 1024), 3, 1));
+    });
+
+    it('accounts for the configured time column as well as the day columns', () => {
+        withHost({ '--time-column-width': '160px' }, (host) =>
+            assertWindow(context(host, 1024), 6, 0),
+        );
+    });
+
+    it('supports explicit pixel and font-relative em minimums', () => {
+        withHost({ '--week-min-day-width': '200px' }, (host) =>
+            assertWindow(context(host, 1024), 4, 1),
+        );
+        withHost({ '--week-min-day-width': '10em' }, (host) =>
+            assertWindow(context(host, 1024), 6, 0),
+        );
+    });
+
+    it('falls back safely for malformed minimum lengths', () => {
+        for (const minimum of ['-20px', '2oops', 'Infinity', '20vw']) {
+            withHost({ '--week-min-day-width': minimum }, (host) =>
+                assertWindow(context(host, 400), 2, 2),
+            );
+        }
+    });
+
+    it('provides an explicit legacy fixed-count styling escape hatch', () => {
+        withHost({ '--week-min-day-width': '0' }, (host) => {
+            assertWindow(context(host, 400), 3, 1);
+            assertWindow(context(host, 768), 7, 0);
         });
     });
 });

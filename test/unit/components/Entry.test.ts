@@ -26,11 +26,11 @@ type CalendarDateInterval = {
 };
 
 describe('Entry Component', () => {
-    // --- shared fixture: heading only (read-only tests) ---
+    // Each test owns a connected fixture; open-wc cleans fixtures after each test.
     describe('basic rendering', () => {
         let el: Entry;
 
-        before(async () => {
+        beforeEach(async () => {
             el = await fixture(html`
                 <lms-calendar-entry heading="Test Event"></lms-calendar-entry>
             `);
@@ -72,7 +72,7 @@ describe('Entry Component', () => {
         expect(mainElement?.getAttribute('title')).to.equal('Meeting: Discuss project status');
     });
 
-    it('should display time interval correctly', async () => {
+    it('should display both endpoints of a standard time interval', async () => {
         const timeInterval: CalendarTimeInterval = {
             start: { hour: 9, minute: 30 },
             end: { hour: 10, minute: 45 },
@@ -90,10 +90,11 @@ describe('Entry Component', () => {
         await el.updateComplete;
 
         const timeElement = el.shadowRoot?.querySelector('.time');
-        expect(timeElement?.textContent).to.equal('9:30 AM');
+        expect(timeElement?.textContent).to.equal('\u20669:30 AM – 10:45 AM\u2069');
+        expect(el.getAttribute('aria-label')).to.include('9:30 AM – 10:45 AM');
     });
 
-    it('should format single digit hours and minutes with leading zeros', async () => {
+    it('should preserve minute padding in the complete time range', async () => {
         const timeInterval: CalendarTimeInterval = {
             start: { hour: 8, minute: 5 },
             end: { hour: 9, minute: 0 },
@@ -111,7 +112,7 @@ describe('Entry Component', () => {
         await el.updateComplete;
 
         const timeElement = el.shadowRoot?.querySelector('.time');
-        expect(timeElement?.textContent).to.equal('8:05 AM');
+        expect(timeElement?.textContent).to.equal('\u20668:05 AM – 9:00 AM\u2069');
     });
 
     it('should display "All Day" for continuation events', async () => {
@@ -151,16 +152,44 @@ describe('Entry Component', () => {
         expect(timeElement?.textContent).to.equal('All Day');
     });
 
-    it('should not render time in compact density', async () => {
+    it('should retain the real range in a compact minimum-height preview', async () => {
+        const timeInterval: CalendarTimeInterval = {
+            start: { hour: 9, minute: 0 },
+            end: { hour: 9, minute: 5 },
+        };
         const el: Entry = await fixture(html`
-            <lms-calendar-entry heading="No Time Event" .density=${'compact'}></lms-calendar-entry>
+            <lms-calendar-entry
+                heading="Quick Event"
+                .time=${timeInterval}
+                .density=${'compact'}
+                data-height="compact"
+                style="--entry-compact-show-time:none"
+            ></lms-calendar-entry>
         `);
-
         await el.updateComplete;
 
-        // Compact density hides time — see docs/lit-attribute-testing-pitfall.md
-        const timeElement = el.shadowRoot?.querySelector('.time');
-        expect(timeElement).to.not.exist;
+        const timeElement = el.shadowRoot!.querySelector<HTMLElement>('.time')!;
+        expect(timeElement.textContent).to.equal('\u20669:00 AM – 9:05 AM\u2069');
+        expect(getComputedStyle(timeElement).display).not.to.equal('none');
+        expect(el.time).to.equal(timeInterval);
+        expect(el.getAttribute('aria-label')).to.include('9:00 AM – 9:05 AM');
+    });
+
+    it('should keep Month previews start-only while retaining the full accessible range', async () => {
+        const el = await fixture<Entry>(html`
+            <lms-calendar-entry
+                heading="Month Event"
+                .displayMode=${'month-dot'}
+                .time=${{ start: { hour: 9, minute: 30 }, end: { hour: 10, minute: 45 } }}
+            ></lms-calendar-entry>
+        `);
+        expect(el.shadowRoot!.querySelector('.time')?.textContent).to.equal('9:30 AM');
+        expect(el.getAttribute('aria-label')).to.include('9:30 AM – 10:45 AM');
+
+        el.displayMode = 'month-span';
+        await el.updateComplete;
+        expect(el.shadowRoot!.querySelector('.time')).to.equal(null);
+        expect(el.getAttribute('aria-label')).to.include('9:30 AM – 10:45 AM');
     });
 
     it('should set data attributes correctly', async () => {
@@ -301,18 +330,23 @@ describe('Entry Component', () => {
         (el as HTMLElement).getBoundingClientRect = () => anchorRect;
 
         let receivedDetail: any;
-        const originalDispatch = el.dispatchEvent.bind(el);
-        el.dispatchEvent = ((event: Event) => {
-            if (event.type === 'open-menu') {
-                receivedDetail = (event as CustomEvent).detail;
-                return true;
-            }
-            return originalDispatch(event);
-        }) as typeof el.dispatchEvent;
+        let receivedEvent: CustomEvent | undefined;
+        el.addEventListener(
+            'open-menu',
+            (event) => {
+                receivedEvent = event as CustomEvent;
+                receivedDetail = receivedEvent.detail;
+                event.preventDefault();
+            },
+            { once: true },
+        );
 
-        (el as any)._handleInteraction(new MouseEvent('click'));
+        el.click();
 
-        el.dispatchEvent = originalDispatch;
+        expect(receivedEvent?.bubbles).to.equal(true);
+        expect(receivedEvent?.composed).to.equal(true);
+        expect(receivedEvent?.cancelable).to.equal(true);
+        expect(receivedEvent?.defaultPrevented).to.equal(true);
 
         expect(receivedDetail).to.exist;
         expect(receivedDetail.heading).to.equal('Menu Event');
@@ -322,6 +356,58 @@ describe('Entry Component', () => {
         expect(receivedDetail.anchorRect).to.equal(anchorRect);
         expect(receivedDetail.displayTime).to.be.a('string').and.not.empty;
     });
+
+    for (const key of ['Enter', ' ']) {
+        it(`should activate the canonical event exactly once with ${key === ' ' ? 'Space' : key}`, async () => {
+            const canonical: CalendarEntry = {
+                id: 'canonical-event',
+                kind: 'timed',
+                heading: 'Original event',
+                content: 'Original details',
+                date: {
+                    start: { year: 2026, month: 6, day: 15 },
+                    end: { year: 2026, month: 6, day: 16 },
+                },
+                time: { start: { hour: 23, minute: 0 }, end: { hour: 1, minute: 0 } },
+            };
+            const el = await fixture<Entry>(html`
+                <lms-calendar-entry
+                    heading="Displayed continuation"
+                    kind="timed"
+                    .isContinuation=${true}
+                    .canonicalEntry=${canonical}
+                    .date=${{ start: canonical.date.end, end: canonical.date.end }}
+                    .time=${{ start: { hour: 0, minute: 0 }, end: canonical.time!.end }}
+                ></lms-calendar-entry>
+            `);
+            const opened: CustomEvent[] = [];
+            el.addEventListener('open-menu', (event) => {
+                opened.push(event as CustomEvent);
+                event.preventDefault();
+            });
+            el.focus();
+            expect(document.activeElement === el).to.equal(true);
+            expect(opened.length).to.equal(0);
+            const down = new KeyboardEvent('keydown', { key, cancelable: true });
+            el.dispatchEvent(down);
+            expect(down.defaultPrevented).to.equal(true);
+            expect(opened.length).to.equal(key === ' ' ? 0 : 1);
+            el.dispatchEvent(new KeyboardEvent('keyup', { key, cancelable: true }));
+            await el.updateComplete;
+
+            expect(opened.length).to.equal(1);
+            const detail = opened[0].detail;
+            expect(detail.entry === canonical).to.equal(true);
+            expect(detail.time === canonical.time).to.equal(true);
+            expect(detail.date).to.deep.equal(canonical.date.start);
+            expect(detail.heading).to.equal(canonical.heading);
+            expect(detail.content).to.equal(canonical.content);
+            expect(detail.eventId).to.equal(canonical.id);
+            expect(detail.displayTime).to.include('11:00 PM');
+            expect(detail.displayTime).to.include('1:00 AM');
+            expect(el.hasAttribute('data-highlighted')).to.equal(true);
+        });
+    }
 
     it('should handle keyboard interactions (Enter key)', async () => {
         const el: Entry = await fixture(html`
@@ -365,7 +451,8 @@ describe('Entry Component', () => {
         el.dispatchEvent(escapeEvent);
         await el.updateComplete;
 
-        expect(el.getAttribute('aria-selected')).to.not.equal('true');
+        expect(el.hasAttribute('data-highlighted')).to.equal(false);
+        expect(el.hasAttribute('aria-selected')).to.equal(false);
     });
 
     it('should handle events without date gracefully', async () => {

@@ -134,13 +134,13 @@ All properties are defined in the `:host` block of the component's Shadow DOM st
 
 ## Entry Design — Typography
 
-| Token                    | Default   | Description                            |
-| ------------------------ | --------- | -------------------------------------- |
-| `--entry-title-weight`   | `inherit` | Font weight for entry title            |
-| `--entry-title-wrap`     | `nowrap`  | Wrapping behavior for entry title      |
-| `--entry-time-font-size` | `0.85em`  | Font size for time display             |
-| `--entry-time-opacity`   | `1`       | Opacity of time display                |
-| `--title-column-weight`  | `inherit` | Font weight for title in column layout |
+| Token                    | Default                                             | Description                            |
+| ------------------------ | --------------------------------------------------- | -------------------------------------- |
+| `--entry-title-weight`   | `600` for Day/Week timed cards; `inherit` otherwise | Font weight for entry title            |
+| `--entry-title-wrap`     | `nowrap`                                            | Wrapping behavior for entry title      |
+| `--entry-time-font-size` | `0.85em`                                            | Font size for time display             |
+| `--entry-time-opacity`   | `1`                                                 | Opacity of time display                |
+| `--title-column-weight`  | `inherit`                                           | Font weight for title in column layout |
 
 ## Entry Design — Density Mode
 
@@ -174,7 +174,7 @@ All properties are defined in the `:host` block of the component's Shadow DOM st
 | `--minute-height`     | `0.8px`                             | Height of one minute in the time grid      | Day, Week |
 | `--hour-height`       | `calc(60 * var(--minute-height))`   | Height of one hour (derived)               | Day, Week |
 | `--day-total-height`  | `calc(1440 * var(--minute-height))` | Total height of the 24-hour grid (derived) | Day, Week |
-| `--half-day-height`   | `calc(var(--day-total-height) / 2)` | Half-day height, used for scroll snap      | Day, Week |
+| `--half-day-height`   | `calc(var(--day-total-height) / 2)` | Derived twelve-hour length (no snapping)   | Day, Week |
 
 ## Deprecated Tokens
 
@@ -185,11 +185,12 @@ All properties are defined in the `:host` block of the component's Shadow DOM st
 
 ## Week View — Condensed Mode
 
-| Token                      | Default | Description                                     |
-| -------------------------- | ------- | ----------------------------------------------- |
-| `--week-day-count`         | `7`     | Number of day columns in week view (1–7)        |
-| `--week-mobile-day-count`  | `3`     | Number of columns below mobile breakpoint (1–7) |
-| `--week-mobile-breakpoint` | `768px` | Width threshold for condensed mode              |
+| Token                      | Default | Description                                                |
+| -------------------------- | ------- | ---------------------------------------------------------- |
+| `--week-day-count`         | `7`     | Number of day columns in week view (1–7)                   |
+| `--week-mobile-day-count`  | `3`     | Number of columns below mobile breakpoint (1–7)            |
+| `--week-mobile-breakpoint` | `768px` | Width threshold for condensed mode                         |
+| `--week-min-day-width`     | `8em`   | Readable day-column floor; `0` retains fixed-count windows |
 
 These tokens are read at runtime by `computeWeekDisplayContext`. Below the breakpoint, the component centers a smaller window around the active date and enables peek navigation arrows.
 

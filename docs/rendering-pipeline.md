@@ -70,9 +70,11 @@ All-day date ends remain inclusive; explicit timed endpoints have an exclusive e
 
 `LayoutCalculator.calculateLayout()` converts validated timed entries into positioned boxes. It accepts the effective `minuteHeight` and `eventMinHeight`, so collision intervals include the rendered minimum height rather than only semantic duration. Point/short events therefore participate in collision handling without changing their canonical endpoints.
 
-Entries are sorted deterministically by start, descending duration, identity and input index. A sweep groups connected overlap components; heaps reuse foreground depths as intervals end. The longest event remains the full-width depth-0 background. Equal endpoints do not collide unless minimum display geometry extends them.
+Entries are sorted deterministically by start, descending duration, identity and input index. A sweep groups connected overlap components; heaps reuse lanes as intervals end. Equal endpoints do not collide unless minimum display geometry extends them.
 
-The resulting `LayoutBox` records use these cascade rules:
+The root opts into `layoutMode: 'columns'`: equal reusable lanes expose `columnIndex` and the connected group's peak `columnCount`. Groups whose measured lanes cannot remain readable become disclosures opening precisely those real segments. Metadata stays next to titles; start/end ranges make minimum-height short events distinguishable from long events.
+
+For compatibility, standalone `LayoutCalculator` still defaults to cascade. Only that mode uses these rules:
 
 | Property  | Depth 0 (primary) | Depth > 0 (overlapping)                         |
 | --------- | ----------------- | ----------------------------------------------- |
@@ -83,7 +85,7 @@ The resulting `LayoutBox` records use these cascade rules:
 
 **`minReadableWidth = 65`** — overlapping events are always at least 65% wide. The remaining 35% (`maxRange`) is distributed across depth levels via cascading offset so deeper events peek out from behind the primary.
 
-A single-event group always gets `x = 0, width = 100`. The opacity values above remain calculator metadata; root rendering overrides opacity to `1` and uses an opaque theme surface to prevent competing text bleeding through. Reusing a horizontal lane never reuses an earlier paint index. Cascade occlusion itself remains a usability limitation, not a fully solved dense-layout policy.
+A single-event group always gets `x = 0, width = 100`. The opacity values above remain calculator metadata; root rendering uses opaque surfaces. Reusing a lane never reuses an earlier paint index. Standalone cascade can still occlude content; the root's columns/disclosure policy avoids treating that compatibility mode as a complete density solution.
 
 ### Caching
 
@@ -147,7 +149,7 @@ The `top` and `height` formulas use the `--minute-height` token set by the share
 
 ### All-day entries (slot-based positioning)
 
-All-day entries don't use absolute positioning. They flow inside slot containers. SlotManager still sets `--entry-width`, `--entry-margin-inline-start`, `--entry-z-index`, and `--entry-opacity` as CSS custom properties.
+All-day chips don't use absolute positioning. They flow inside slot containers. SlotManager still sets `--entry-width`, `--entry-margin-inline-start`, `--entry-z-index`, and `--entry-opacity` as CSS custom properties. For dense or narrow Week, date count controls use the same slots and the chips are not mounted; the timed entries are unchanged.
 
 ### Slot naming conventions
 
@@ -167,14 +169,14 @@ All-day entries don't use absolute positioning. They flow inside slot containers
 
 ## 6. Time Grid Sizing
 
-Day.ts and Week.ts use `TimeGridSizingController` to observe wrapper/header geometry, coalesce frame writes, reconnect observation and cancel queued work on disconnect.
+Day.ts and Week.ts use `TimeGridSizingController` to observe the timed scroller, coalesce frame writes, reconnect observation and cancel queued work on disconnect. The calendar supplies a bounded fallback viewport when no embed height resolves. The 24-hour content cannot feed back into that viewport's size.
 
 ### The `--minute-height` calculation
 
 On connection and observed resize:
 
 ```
-viewportHeight = wrapper.clientHeight - header.clientHeight
+viewportHeight = timedScroller.clientHeight
 minuteHeight = max(viewportHeight / 720, hostFontSize * 2.75 / 60)
 ```
 
@@ -184,18 +186,27 @@ minuteHeight = max(viewportHeight / 720, hostFontSize * 2.75 / 60)
 
 All four tokens are set explicitly on the host element:
 
-| Token                | Value           | Purpose                         |
-| -------------------- | --------------- | ------------------------------- |
-| `--minute-height`    | `${m}px`        | Base unit for all positioning   |
-| `--hour-height`      | `${m * 60}px`   | Hour label spacing, grid lines  |
-| `--day-total-height` | `${m * 1440}px` | Total scrollable height (24h)   |
-| `--half-day-height`  | `${m * 720}px`  | Twelve hours at effective scale |
+| Token                | Value           | Purpose                                          |
+| -------------------- | --------------- | ------------------------------------------------ |
+| `--minute-height`    | `${m}px`        | Base unit for all positioning                    |
+| `--hour-height`      | `${m * 60}px`   | Hour label spacing, grid lines                   |
+| `--day-total-height` | `${m * 1440}px` | 24-hour coordinate height; excludes preview tail |
+| `--half-day-height`  | `${m * 720}px`  | Twelve hours at effective scale                  |
 
-These are set as inline styles rather than calculated with `calc()` in CSS because CSS custom property resolution scope means a child component cannot reliably read a `calc()`-based token set on a parent — each value must be a resolved length.
+These are resolved inline lengths from the shared geometry calculation. CSS custom
+properties can contain `calc()` and inherit normally; the controller writes these
+values explicitly to keep all positioning consumers on the same measured scale.
 
-### Scroll snap
+The time columns retain exactly `1440 × minuteHeight` coordinate height. They no
+longer clip minimum-height event previews at midnight; the owning scroller reserves
+blank trailing space for them. That extra space has no hour labels/grid extension
+and must not be interpreted as additional time or a change to canonical endpoints.
 
-Hour labels at hours 0, 12, and 24 carry `scroll-snap-align: start` for half-day scrolling. Do not rely on an automatic initial scroll-to-noon API.
+### Scrolling and Axis Origin
+
+Day and Week scroll freely with no snap targets. Leading/trailing padding protects the first/last axis labels without moving event coordinates. Time restoration stores a semantic minute relative to that padding and restores it at the new view's scale. Do not rely on an automatic initial scroll-to-noon API.
+
+Month is normal flow, not a vertical scroll viewport. Its compact contextual list uses explicit continuation instead of nested vertical scrolling.
 
 ---
 
@@ -294,7 +305,10 @@ Each `.day-column` is a `position: relative` container. Entries slotted into `ti
 }
 ```
 
-Peek navigation indicators ("‹ more" / "more ›") appear when there are hidden days to the left or right.
+The day-window pager moves within the current week. In a condensed Week, the
+header’s **Next** button opens the first window of the following week, starting
+on the configured first weekday. It keeps the timed scroll position. Full
+seven-column Week navigation keeps the active weekday.
 
 ---
 

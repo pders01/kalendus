@@ -987,8 +987,10 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
             if (shouldOverlap) {
                 const existingEvent =
                     eventsThisDay[Math.floor(Math.random() * eventsThisDay.length)];
-                startHour = existingEvent.time.start.hour;
-                startMinute = existingEvent.time.start.minute + 15; // 15min offset
+                const existingTime = existingEvent.time;
+                if (!existingTime) throw new Error('Overlap fixture requires a timed event');
+                startHour = existingTime.start.hour;
+                startMinute = existingTime.start.minute + 15; // 15min offset
                 if (startMinute >= 60) {
                     startHour += 1;
                     startMinute -= 60;
@@ -1147,10 +1149,9 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
         if (a.date.start.day !== b.date.start.day) {
             return a.date.start.day - b.date.start.day;
         }
-        if (a.time.start.hour !== b.time.start.hour) {
-            return a.time.start.hour - b.time.start.hour;
-        }
-        return a.time.start.minute - b.time.start.minute;
+        const minutes = (entry: CalendarEntry) =>
+            (entry.time?.start.hour ?? 0) * 60 + (entry.time?.start.minute ?? 0);
+        return minutes(a) - minutes(b);
     });
 };
 
@@ -1802,7 +1803,7 @@ const createLocaleStory = (locale: string, label: string, description: string): 
     args: {
         heading: label,
         locale,
-        firstDayOfWeek: getFirstDayForLocale(locale) as number,
+        firstDayOfWeek: getFirstDayForLocale(locale),
         entries: getLocaleEntries(locale),
     },
     render: (args) => html`
@@ -2123,7 +2124,7 @@ export const RTLOverride: Story = {
     args: {
         heading: 'Arabic (forced LTR)',
         locale: 'ar',
-        firstDayOfWeek: getFirstDayForLocale('ar') as number,
+        firstDayOfWeek: getFirstDayForLocale('ar'),
         entries: getLocaleEntries('ar'),
     },
     render: (args) => html`

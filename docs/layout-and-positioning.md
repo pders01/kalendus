@@ -16,7 +16,7 @@ Essential information for getting `<lms-calendar>` to display correctly in your 
 
 Month is a normal-flow section: its six-week grid and optional contextual list determine its height. The embedding page owns vertical scrolling. Month intentionally ignores an explicit host height/block-size used for other views, so a long list pushes following content down instead of covering it. Do not constrain a Month wrapper with a fixed height and hidden overflow.
 
-For Day, Week, and Year, supply a height to the embed or its parent. The shared defaults are `--height: 100%` and `--width: 100%`.
+Day and Week fill the supplied height, including when a CSS Grid or flex parent sizes the calendar. The toolbar takes its own space; the timeline fills the rest. Without a supplied height, the area below the toolbar defaults to the smaller of `36rem` and `65dvb`. Supply a height to the embed or its parent for Year. The shared defaults are `--height: 100%` and `--width: 100%`.
 
 ```html
 <!-- ✅ Works: parent provides height -->
@@ -34,7 +34,7 @@ For Day, Week, and Year, supply a height to the embed or its parent. The shared 
     <lms-calendar></lms-calendar>
 </div>
 
-<!-- Month grows naturally; provide a height for the other views -->
+<!-- Month grows naturally; Day/Week fall back to a bounded scroller -->
 <div>
     <lms-calendar></lms-calendar>
 </div>
@@ -78,9 +78,11 @@ lms-calendar {
 
 Below the breakpoint, the component:
 
-1. Shows only `--week-mobile-day-count` columns centered around the active date
+1. Treats `--week-mobile-day-count` as a maximum, fitting readable columns around the active date
 2. Adds peek navigation arrows to slide through the full week
 3. Fires legacy `peek-navigate` action notifications, then reports the committed half-open visible window through `calendar-state-change`; use that range for fetching
+
+The default `--week-min-day-width: 8em` further limits visible columns using the measured embed and text size. Set it to `0` to restore fixed-count behavior. Extremely tiny timelines deliberately pan horizontally instead of reducing a lone event to an unreadable sliver.
 
 ### Year View Grid Columns
 
@@ -102,9 +104,9 @@ Prefer `kind: 'all-day'` with inclusive civil date endpoints and no `time` for t
 
 Without `kind`, legacy promotion is retained: missing time, multi-day dates, an end-hour minus start-hour of at least 23, or `isContinuation: true` is treated as all-day. Do not create time sentinels for new all-day records. See [data contracts](./library-usage.md#data-contracts).
 
-All-day events are allocated into rows by `allocateAllDayRows()` to avoid visual overlap. The number of all-day rows affects the available height for the time grid. Bands scroll internally instead of pushing timed entries out of reach. The default `--all-day-row-height: max(24px, 1.5rem)` scales with document text size; keep the row tall enough for the event font when overriding it.
+All-day event chips are allocated into rows by `allocateAllDayRows()` to avoid visual overlap. The band is bounded so timed entries remain reachable. In Week, the band shows per-date all-day totals instead of chips when a column has less than about seven times the calendar font size in usable width or more than three rows are needed. Each count opens that date's all-day list without changing the active week. Closing it returns to the count and the prior timed scroll position. A multi-day event is counted on each date it occupies. Day retains an internally scrolling chip band. The default `--all-day-row-height: max(24px, 1.5rem)` scales with document text size; keep the row tall enough when overriding it.
 
-Month measures each cell's preview budget. A `+N` disclosure counts hidden entries only. Enlarged text can require horizontal panning within the Month grid, but the page owns vertical scrolling.
+Month measures each cell's bounded preview budget rather than imposing an unconditional two-entry limit. A `+N` disclosure counts hidden entries only. Compact date controls expose full date/activity descriptions for assistive technology; `month-day-behavior="day"` retains the legacy whole-day count action. Enlarged text may require horizontal panning within the Month grid, but the embedding page owns vertical scrolling.
 
 ---
 
@@ -141,29 +143,30 @@ Explicit timed entries instead describe one continuous interval with an exclusiv
 Overlapping timed events in day/week views are handled automatically by `LayoutCalculator`:
 
 - Events sharing time slots are detected and grouped
-- Each event in a group gets progressive width reduction and margin offset (cascading layout)
-- Cards use opaque theme surfaces so unrelated text cannot bleed through
-- Foreground paint order follows chronological order, independently of reused horizontal lanes
+- The calendar uses reusable side-by-side lanes with opaque surfaces
+- Groups too narrow for readable cards become native event-count/range disclosures
+- A disclosure opens exactly its advertised real occurrences, not unrelated events that day
+- Closing that list restores the view, semantic time position and disclosure focus
 
-Consumers just provide the entry data — no positioning configuration needed. Cascade overlap can still obscure earlier headings, especially in narrow or very dense views. Keyboard focus raises an entry and activation opens its complete details; this is not a side-by-side or full-agenda layout.
+The standalone `LayoutCalculator` keeps its legacy cascade default; the calendar opts into columns. No synthetic exportable density events are introduced. Visible minimum-height previews may be taller than an event's true duration; their localized start/end range remains authoritative.
 
 ---
 
-## Scroll Snap
+## Free Timeline Scrolling
 
-Day and week views use a half-day scroll snap point:
+Day and Week scroll freely, without hour or half-day snapping. Legacy snap tokens no longer enable snapping. Compatible Day/Week switches preserve the visible semantic minute, independently of each view's pixel scale and leading axis padding. There is no public automatic initial scroll-to-noon guarantee.
 
-```css
---half-day-height: calc(var(--day-total-height) / 2);
-```
-
-The time labels provide half-day snap targets while scrolling. There is no public automatic initial scroll-to-noon guarantee.
+The 24-hour grid ends at midnight, but readable minimum-height cards may extend
+into blank trailing scroll space. That space keeps late-night labels/targets
+reachable; it is **not** an additional date or proportional duration. The grid's
+coordinate height and canonical endpoints do not move. True-duration marker labels
+can instead move upward with a leader to their unchanged time mark.
 
 ---
 
 ## Time Grid Sizing
 
-The base `--minute-height` is `0.8px`, but day/week sizing writes an effective inline scale from observed wrapper/header geometry: the larger of available height divided by 720 minutes and `2.75 × host font size / 60`. It also writes resolved `--hour-height`, `--day-total-height` and `--half-day-height` lengths. This aims to fit half a day when readable; short embeds and enlarged text show fewer hours and scroll rather than crushing event labels. Narrow columns stack title and time using measured two-line geometry.
+The base `--minute-height` is `0.8px`, but day/week sizing writes an effective inline scale from the observed timed scroller below the header and all-day band: the larger of available height divided by 720 minutes and `2.75 × host font size / 60`. It also writes resolved `--hour-height`, `--day-total-height` and `--half-day-height` lengths. This aims to fit half a day when readable; short embeds and enlarged text show fewer hours and scroll rather than crushing event labels. Narrow columns stack title and time using measured two-line geometry.
 
 Do not assume a host-level `--minute-height` override is a fixed zoom API: the child sizing controller recomputes its values on resize. Adjust the calendar/container height for more space. Collision layout reads effective scale and minimum entry geometry so short/point events remain separated consistently with their rendered size. See [Rendering Pipeline](./rendering-pipeline.md#6-time-grid-sizing).
 
@@ -171,20 +174,22 @@ Do not assume a host-level `--minute-height` override is a fixed zoom API: the c
 
 ## ResizeObserver + `display: none`
 
-The calendar relies on `ResizeObserver` for responsive behavior. If you toggle the calendar's visibility with `display: none`, the observer cannot measure the container and may report stale dimensions.
-
-**Workaround:** Use `visibility: hidden; height: 0; overflow: hidden;` instead of `display: none` if you need the calendar to measure correctly when shown. Alternatively, reassign `entries` after making the calendar visible to trigger a re-render.
+The calendar cannot measure a `display: none` container while hidden. Its observers
+reconcile geometry when the container becomes visible again; do not replace the
+entries array merely to refresh sizing. Day/Week use their bounded fallback again
+if no embed height is supplied. Disconnect/reconnect reacquires observations and
+cancels pending frame work.
 
 ---
 
 ## Common Pitfalls
 
-| Symptom                              | Cause                                   | Fix                                                                            |
-| ------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------ |
-| Calendar renders with zero height    | Parent container has no explicit height | Give the parent a height or set `--height` on `<lms-calendar>`                 |
-| Month view shows only dots           | Container is below 768px wide           | Expected behavior — widen the container or accept dot mode                     |
-| Week shows only 3 days               | Condensed mode is active                | Set `--week-mobile-day-count: 7` to disable, or widen the container            |
-| Year view is single-column           | Container is mobile-width               | Set `--year-grid-columns-mobile` to control column count                       |
-| Time grid looks too short/tall       | Available container/header geometry     | Adjust the constrained container height; inspect effective child sizing tokens |
-| Entries overlap incorrectly          | —                                       | This is handled automatically; ensure entries have valid time ranges           |
-| All-day section takes too much space | Many overlapping all-day events         | Expected — rows scale with event count                                         |
+| Symptom                           | Cause                                     | Fix                                                                                 |
+| --------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------- |
+| Day/Week renders with zero height | Parent container is collapsed or clipping | Check the available space and overflow; use a definite size for a constrained embed |
+| Month shows dots instead of rows  | Compact for this width or text size       | Select a date for its events, or widen the container for in-cell previews           |
+| Week shows fewer than 7 days      | Requested count and readable-column floor | Widen the container; fixed counts also require `--week-min-day-width: 0`            |
+| Year view is single-column        | Container is mobile-width                 | Set `--year-grid-columns-mobile` to control column count                            |
+| Time grid looks too short/tall    | Available container/header geometry       | Adjust the constrained container height; inspect effective child sizing tokens      |
+| Entries overlap incorrectly       | —                                         | This is handled automatically; ensure entries have valid time ranges                |
+| All-day section has many rows     | Many overlapping all-day events           | Week shows per-date totals; Day scrolls its all-day band internally                 |
