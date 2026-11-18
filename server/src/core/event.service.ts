@@ -25,17 +25,16 @@ export class EventServiceImpl {
         const [startY, startM, startD] = this._parseDate(start);
         const [endY, endM, endD] = this._parseDate(end);
 
-        const startVal = startY * 10000 + startM * 100 + startD;
-        const endVal = endY * 10000 + endM * 100 + endD;
-
+        // Inclusive overlap. Comparing date tuples lets SQLite seek on the
+        // existing (calendar_id, start_year, start_month, start_day) index.
         const rows = this.db
             .select()
             .from(events)
             .where(
                 and(
                     eq(events.calendarId, calendarId),
-                    sql`(${events.startYear} * 10000 + ${events.startMonth} * 100 + ${events.startDay}) <= ${endVal}`,
-                    sql`(${events.endYear} * 10000 + ${events.endMonth} * 100 + ${events.endDay}) >= ${startVal}`,
+                    sql`(${events.startYear}, ${events.startMonth}, ${events.startDay}) <= (${endY}, ${endM}, ${endD})`,
+                    sql`(${events.endYear}, ${events.endMonth}, ${events.endDay}) >= (${startY}, ${startM}, ${startD})`,
                 ),
             )
             .limit(MAX_QUERY_RESULTS + 1)
