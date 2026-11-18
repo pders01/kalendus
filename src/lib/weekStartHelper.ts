@@ -10,7 +10,7 @@ import { DateTime } from 'luxon';
 import { isValidCalendarDate } from './calendarModel.js';
 
 /** Display padding may cross the input domain by a few days; it is never event data. */
-function addDisplayDays(date: CalendarDate, days: number): CalendarDate {
+export function addDisplayDays(date: CalendarDate, days: number): CalendarDate {
     const next = DateTime.utc(date.year, date.month, date.day).plus({ days });
     return { year: next.year, month: next.month, day: next.day };
 }

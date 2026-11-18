@@ -158,7 +158,7 @@ describe('Year / Header visual geometry regressions', () => {
                 expect(group.scrollWidth).to.be.at.most(group.clientWidth + 1);
             }
             const visibleDetails = [...el.shadowRoot!.querySelectorAll('.view-detail')].filter(
-                (detail) => getComputedStyle(detail).display !== 'none',
+                (detail) => getComputedStyle(detail).visibility === 'visible',
             );
             expect(visibleDetails).to.have.length(1);
             expect(visibleDetails[0].textContent).to.include('Dec 28, 2026');

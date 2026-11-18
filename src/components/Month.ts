@@ -1,13 +1,17 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
+import { styleMap } from 'lit/directives/style-map.js';
 
+import { parseColorWithDefault } from '../lib/colorParser.js';
 import {
     formatLocalizedDate,
-    getLocalizedDayMonth,
+    getLocalizedDayMonthParts,
     getLocalizedWeekdayShort,
 } from '../lib/localization.js';
-import { getMessageFormatters, normalizeLocale } from '../lib/messages.js';
+import { getMessageFormatters, getMessages, normalizeLocale } from '../lib/messages.js';
+import type { MonthSpan } from '../lib/monthSpans.js';
 import {
     type FirstDayOfWeek,
     getMonthCalendarArray,
@@ -29,6 +33,12 @@ export default class Month extends LitElement {
     @property({ type: Number }) maxVisibleRows?: number;
     /** Counts for dates represented by summaries rather than slotted entries. */
     @property({ attribute: false }) entryCounts: Readonly<Record<string, number>> = {};
+    /** Compact date units use presence markers; the owner renders contextual events. */
+    @property({ type: Boolean, reflect: true }) compact = false;
+    @property({ attribute: false }) selectedDate?: CalendarDate;
+    /** Decorative continuity tracks; date controls own selection and hit targets. */
+    @property({ attribute: false }) spans: readonly (readonly MonthSpan[])[] = [];
+    @property({ attribute: false }) trace: readonly MonthSpan['entry'][] = [];
     @state() private _focusedDate?: CalendarDate;
     @state() private _displayDate?: CalendarDate;
     @state() private _counts: Record<string, number> = {};
@@ -41,25 +51,26 @@ export default class Month extends LitElement {
     static override styles = css`
         :host {
             display: block;
-            flex: 1;
+            flex: 0 0 auto;
             min-height: 0;
             min-inline-size: 0;
         }
+        .month-strip {
+            overflow-x: auto;
+        }
         .month {
-            height: 100%;
+            height: auto;
+            min-inline-size: 17.5em;
             display: grid;
-            /* Keep weekday labels in their own intrinsic track, even in a short embed. */
-            grid-template-rows: min-content repeat(6, minmax(calc(3em + 1px), 1fr));
-            overflow: auto;
-            border-top: 1px solid var(--separator-light);
+            /* Bounded, font-relative week budgets; overflow is disclosed via +N.
+               The grid itself belongs to normal document flow, never a scroller. */
+            grid-template-rows: min-content repeat(6, max(6em, var(--month-week-height, 6.5em)));
+            overflow: visible;
         }
         .week,
         .weekdays {
             display: grid;
             grid-template-columns: repeat(7, minmax(0, 1fr));
-            /* At enlarged text sizes preserve readable cells in this 2-D view
-               rather than clipping month labels and event-count controls. */
-            min-inline-size: 17.5em;
             min-height: 0;
         }
         .weekday {
@@ -81,6 +92,7 @@ export default class Month extends LitElement {
             border-inline-end: none;
         }
         button {
+            box-sizing: border-box;
             font: inherit;
             color: inherit;
             background: transparent;
@@ -94,22 +106,127 @@ export default class Month extends LitElement {
             outline-offset: -2px;
         }
         .indicator {
+            position: relative;
             align-self: flex-start;
             flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.15em;
             margin: 0;
-            padding: 0 0.35em;
+            padding: 2px 0.25em;
             text-align: start;
             border-radius: var(--month-indicator-border-radius);
             white-space: nowrap;
         }
-        .indicator.month-boundary {
-            font-size: 0.85em;
-            padding-inline: 0.2em;
+        .indicator[data-traced-date]::after {
+            content: '';
+            position: absolute;
+            inset-inline: 0;
+            inset-block-end: 0;
+            border-block-end: 2px solid currentColor;
+            pointer-events: none;
         }
-        .indicator.current {
-            color: var(--indicator-color, var(--primary-color));
+        .indicator[data-traced-date~='start']::after {
+            inset-inline-start: 0.35em;
+        }
+        .indicator[data-traced-date~='end']::after {
+            inset-inline-end: 0.35em;
+        }
+        .date-value {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            min-inline-size: max(24px, 1.65em);
+            min-block-size: max(24px, 1.65em);
+            border-radius: 50%;
+        }
+        .month-name {
+            font-size: 0.75em;
+        }
+        .day[data-outside-month] .indicator {
+            color: var(--header-text-color, inherit);
+        }
+        .indicator.current .date-value {
+            background: var(--current-day-bg, Highlight);
+            color: var(--current-day-color, HighlightText);
             font-weight: var(--indicator-font-weight, bold);
-            text-decoration: underline;
+        }
+        .activity {
+            inline-size: 4px;
+            block-size: 4px;
+            border-radius: 50%;
+            background: currentColor;
+            visibility: hidden;
+        }
+        .activity[data-active] {
+            visibility: visible;
+        }
+        .activity[data-count-summary] {
+            background: none;
+            border-radius: 0;
+            inline-size: auto;
+            block-size: 1em;
+            font-size: max(12px, 0.75em);
+            line-height: 1;
+        }
+        :host([compact]) {
+            flex: 0 0 auto;
+        }
+        :host([compact]) .month {
+            min-inline-size: max(19.25em, 308px);
+            block-size: auto;
+            height: auto;
+            grid-template-rows: min-content repeat(6, max(44px, 2.75em));
+            padding-block: 0.35em 0.6em;
+        }
+        .indicator[data-spans] .activity {
+            visibility: hidden;
+        }
+        .span-marks {
+            position: absolute;
+            inset-inline: 0;
+            inset-block-end: 2px;
+            block-size: 7px;
+            pointer-events: none;
+        }
+        .span-mark {
+            position: absolute;
+            inset-inline: 0;
+            block-size: 3px;
+            box-sizing: border-box;
+            border-block-start: 1px solid currentColor;
+            background: var(--span-color);
+        }
+        .span-mark:not([data-before]) {
+            inset-inline-start: 6px;
+            border-start-start-radius: 2px;
+            border-end-start-radius: 2px;
+            border-inline-start: 1px solid currentColor;
+        }
+        .span-mark:not([data-after]) {
+            inset-inline-end: 6px;
+            border-start-end-radius: 2px;
+            border-end-end-radius: 2px;
+            border-inline-end: 1px solid currentColor;
+        }
+        :host([compact]) .day {
+            border: 0;
+        }
+        :host([compact]) .indicator {
+            align-self: stretch;
+            flex: 1;
+            flex-direction: column;
+            justify-content: center;
+            gap: 3px;
+            min-block-size: 44px;
+            border-radius: var(--border-radius-sm, 4px);
+        }
+        .day[aria-selected='true'] .indicator {
+            box-shadow: inset 0 0 0 1px var(--primary-color, Highlight);
+            background: var(--focus-bg, transparent);
+        }
+        :host([compact]) .entries {
+            display: none;
         }
         .entries {
             display: grid;
@@ -139,27 +256,18 @@ export default class Month extends LitElement {
             align-self: flex-start;
             max-inline-size: calc(100% - 4px);
             margin: 0 2px;
-            padding: 0.1em 3px;
-            text-align: center;
-            border: 1px solid var(--separator-mid, var(--separator-light));
+            padding: 0.15em 0.35em;
+            text-align: start;
+            border: 0;
             border-radius: var(--border-radius-sm, 4px);
-            background: var(--entry-month-background, var(--separator-light));
+            background: transparent;
             color: var(--text-color, CanvasText);
             font-size: 0.75em;
             line-height: 1.2;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .summary::before {
-            content: '';
-            display: inline-block;
-            inline-size: 4px;
-            block-size: 4px;
-            margin-inline-end: 3px;
-            vertical-align: middle;
-            border-radius: 50%;
-            background: var(--primary-color, currentColor);
+            white-space: normal;
+            overflow-wrap: anywhere;
+            text-decoration: underline;
+            text-underline-offset: 0.15em;
         }
         .summary:hover {
             background: var(--hover-bg, var(--separator-light));
@@ -177,7 +285,7 @@ export default class Month extends LitElement {
         }
         @media (pointer: coarse) {
             .month {
-                grid-template-rows: min-content repeat(6, minmax(calc(4em + 1px), 1fr));
+                grid-template-rows: min-content repeat(6, max(7em, var(--month-week-height, 7em)));
             }
             .indicator,
             .summary {
@@ -185,11 +293,21 @@ export default class Month extends LitElement {
             }
         }
         @media (forced-colors: active) {
+            .span-mark {
+                border-color: CanvasText;
+                background: CanvasText;
+            }
             button:focus-visible {
                 outline-color: Highlight;
             }
-            .current {
-                border: 1px solid CanvasText;
+            .current .date-value {
+                background: Highlight;
+                color: HighlightText;
+                outline: 1px solid CanvasText;
+            }
+            .day[aria-selected='true'] .indicator {
+                outline: 1px solid CanvasText;
+                outline-offset: -2px;
             }
         }
     `;
@@ -220,6 +338,8 @@ export default class Month extends LitElement {
         if (this._resizeObserver) return;
         this._resizeObserver = new ResizeObserver(() => this._scheduleEntries());
         this._resizeObserver.observe(this);
+        const grid = this.renderRoot.querySelector('.month');
+        if (grid) this._resizeObserver.observe(grid);
         this._scheduleEntries();
     }
     override updated() {
@@ -248,6 +368,13 @@ export default class Month extends LitElement {
             const projectedSummary = slots[1]
                 .assignedNodes()
                 .some((node) => node.nodeType === Node.ELEMENT_NODE || !!node.textContent?.trim());
+            if (this.compact) {
+                counts[key] = entries.length;
+                hiddenCounts[key] = 0;
+                summaries[key] = projectedSummary;
+                for (const entry of entries) entry.removeAttribute('data-month-overflow');
+                continue;
+            }
             const rows = entries.map((entry, index) => {
                 const explicit = entry.style.getPropertyValue('--all-day-row');
                 const legacyOrder = entry.style.order;
@@ -310,6 +437,20 @@ export default class Month extends LitElement {
         button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
+    private _renderSpans(spans: readonly MonthSpan[], column: number) {
+        if (!spans.length) return nothing;
+        return html`<span class="span-marks" aria-hidden="true">
+            ${spans.map((span) => {
+                const index = span.entry.continuation.index + column - span.startColumn;
+                const [r, g, b] = parseColorWithDefault(span.entry.color);
+                return html`<span class="span-mark" data-span-id=${span.entry.sourceId}
+                    ?data-before=${index > 0}
+                    ?data-after=${index < span.entry.continuation.total - 1}
+                    style=${styleMap({ insetBlockStart: `${span.row * 4}px`, '--span-color': `rgb(${r}, ${g}, ${b})` })}></span>`;
+            })}
+        </span>`;
+    }
+
     override render() {
         const dates = getMonthCalendarArray(
             this._displayDate ?? this.activeDate,
@@ -318,15 +459,35 @@ export default class Month extends LitElement {
         const today = this._today.date;
         const current = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
         const focused = dateKey(this._focusedDate ?? this.activeDate);
+        const selected = this.selectedDate ? dateKey(this.selectedDate) : undefined;
+        const displayed = this._displayDate ?? this.activeDate;
+        const tracedDates = new Set(this.trace.map((entry) => dateKey(entry.date.start)));
         const format = getMessageFormatters(this.locale);
         const number = new Intl.NumberFormat(normalizeLocale(this.locale));
-        return html`<div class="month" role="grid" aria-label=${formatLocalizedDate(1, (this._displayDate ?? this.activeDate).month, (this._displayDate ?? this.activeDate).year, this.locale)}>
+        // Two tracks are a display capacity, not a relevance ranking. Once they
+        // cannot show every lifetime, use date totals consistently for the whole
+        // displayed compact Month; an aggregate is not a continuous event.
+        const countsOnly =
+            this.compact && this.spans.some((week) => week.some((span) => span.row > 1));
+        return html`${this.trace.length ? html`<span class="sr-only" id="traced-event">${this.trace[0].heading || getMessages(this.locale).noTitle}</span>` : nothing}
+        <div class="month-strip"><div class="month" data-span-presentation=${countsOnly ? 'counts' : 'individual'} role="grid" aria-label=${formatLocalizedDate(1, (this._displayDate ?? this.activeDate).month, (this._displayDate ?? this.activeDate).year, this.locale)}>
             <div class="weekdays" role="row">${getWeekdayOrder(this.firstDayOfWeek).map((day) => html`<span class="weekday" role="columnheader">${getLocalizedWeekdayShort(day, this.locale)}</span>`)}</div>
             ${Array.from(
                 { length: 6 },
                 (_, week) => html`<div class="week" role="row">
-                ${repeat(dates.slice(week * 7, week * 7 + 7), dateKey, (date) => {
+                ${repeat(dates.slice(week * 7, week * 7 + 7), dateKey, (date, column) => {
                     const key = dateKey(date);
+                    const traced = tracedDates.has(key);
+                    const index = week * 7 + column;
+                    const traceEdges = traced
+                        ? `${column === 0 || !tracedDates.has(dateKey(dates[index - 1])) ? 'start' : ''} ${column === 6 || !tracedDates.has(dateKey(dates[index + 1])) ? 'end' : ''}`
+                        : nothing;
+                    const spans =
+                        this.compact && !countsOnly
+                            ? (this.spans[week] ?? []).filter(
+                                  (span) => span.startColumn <= column && span.endColumn >= column,
+                              )
+                            : [];
                     const isToday = key === current;
                     const count = this.entryCounts[key] ?? this._counts[key] ?? 0;
                     const hiddenCount = this._hiddenCounts[key] ?? 0;
@@ -337,17 +498,34 @@ export default class Month extends LitElement {
                         this.locale,
                     );
                     const overflowLabel = `+${number.format(hiddenCount)}`;
-                    return html`<div class="day" role="gridcell" data-date=${key} @click=${this._backgroundClick}>
-                        <button type="button" class="indicator ${isToday ? 'current' : ''} ${date.day === 1 ? 'month-boundary' : ''}" data-date=${key}
+                    const outside = date.month !== displayed.month || date.year !== displayed.year;
+                    return html`<div class="day" role="gridcell" data-date=${key} ?data-outside-month=${outside}
+                        aria-selected=${ifDefined(selected ? (key === selected ? 'true' : 'false') : undefined)} @click=${this._backgroundClick}>
+                        <button type="button" style=${ifDefined(countsOnly ? 'gap:0' : undefined)} class="indicator ${isToday ? 'current' : ''} ${date.day === 1 ? 'month-boundary' : ''}" data-date=${key} ?data-spans=${spans.length > 0}
+                            data-traced-date=${traceEdges} aria-describedby=${traced ? 'traced-event' : nothing}
                             tabindex=${key === focused ? 0 : -1} aria-current=${isToday ? 'date' : 'false'}
-                            aria-label=${formatLocalizedDate(date.day, date.month, date.year, this.locale)}
+                            aria-label=${this.compact || this.selectedDate ? `${dateLabel}, ${format.eventCount(count)}` : dateLabel}
                             @focus=${() => {
                                 this._focusedDate = date;
                             }} @keydown=${this._handleKeydown} @click=${this._activateDate}>
-                            ${date.day === 1 ? getLocalizedDayMonth(date.day, date.month, date.year, this.locale) : date.day}
+                            ${
+                                !this.compact && date.day === 1
+                                    ? getLocalizedDayMonthParts(
+                                          date.day,
+                                          date.month,
+                                          date.year,
+                                          this.locale,
+                                      ).map((part) =>
+                                          part.type === 'day'
+                                              ? html`<span class="date-value">${part.value}</span>`
+                                              : html`<span class="month-name">${part.value}</span>`,
+                                      )
+                                    : html`<span class="date-value">${number.format(date.day)}</span>`
+                            }
+                            ${this.compact ? html`<span class="activity" aria-hidden="true" ?data-active=${count > 0} ?data-count-summary=${countsOnly}>${countsOnly ? number.format(count) : nothing}</span>${this._renderSpans(spans, column)}` : nothing}
                         </button>
                         <div class="entries"><slot name=${key} @slotchange=${this._scheduleEntries}></slot></div>
-                        <button type="button" class="summary" ?hidden=${!hiddenCount && !this._summaries[key]} data-date=${key}
+                        <button type="button" class="summary" ?hidden=${this.compact || (!hiddenCount && !this._summaries[key])} data-date=${key}
                             @click=${this._activateSummary}
                             aria-labelledby=${`summary-label-${key} summary-date-${key}`}
                             aria-describedby=${count ? `summary-description-${key}` : nothing}>
@@ -359,7 +537,7 @@ export default class Month extends LitElement {
                 })}
             </div>`,
             )}
-        </div>`;
+        </div></div>`;
     }
     private _dateFromElement(element: HTMLElement): CalendarDate {
         const [year, month, day] = element.dataset.date!.split('-').map(Number);

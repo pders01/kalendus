@@ -1,4 +1,5 @@
-import { expect, fixture, html, nextFrame } from '@open-wc/testing';
+import { expect, fixture, html, nextFrame, waitUntil } from '@open-wc/testing';
+import { sendKeys } from '@web/test-runner-commands';
 
 import type { CalendarState } from '../../../src/contracts.js';
 import { MAX_EXPANDED_SEGMENTS } from '../../../src/lib/calendarModel.js';
@@ -17,16 +18,39 @@ const event = (date = march, extra: Partial<CalendarEntry> = {}): CalendarEntry 
 });
 
 async function settle(el: LMSCalendar) {
+    await el.localeReady;
     await el.updateComplete;
-    await nextFrame();
+    // The root commits ResizeObserver width in rAF, after updateComplete.
+    await waitUntil(() => {
+        const container = el.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
+        const style = getComputedStyle(container);
+        const width =
+            container.getBoundingClientRect().width -
+            parseFloat(style.borderLeftWidth) -
+            parseFloat(style.borderRightWidth) -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight);
+        return width > 0 && Math.abs(el._calendarWidth - width) < 0.5;
+    }, 'root commits its measured content width');
+    await el.updateComplete;
+    for (const child of el.shadowRoot!.querySelectorAll(
+        'lms-calendar-month, lms-calendar-day, lms-calendar-week, lms-calendar-year',
+    )) {
+        await (child as LMSCalendar).updateComplete;
+    }
     await nextFrame();
     await el.updateComplete;
 }
 
-async function calendar(entries: CalendarEntry[] = [], width = 1000): Promise<LMSCalendar> {
+async function calendar(
+    entries: CalendarEntry[] = [],
+    width = 1000,
+    monthDayBehavior: LMSCalendar['monthDayBehavior'] = 'auto',
+): Promise<LMSCalendar> {
     const el = await fixture<LMSCalendar>(html`
         <lms-calendar locale="en" style=${`width:${width}px;height:700px`}
-            .activeDate=${{ ...march }} .entries=${entries}></lms-calendar>
+            .activeDate=${{ ...march }} .entries=${entries}
+            .monthDayBehavior=${monthDayBehavior}></lms-calendar>
     `);
     await settle(el);
     return el;
@@ -140,18 +164,60 @@ describe('Calendar public contracts and audit regressions', () => {
         expect(el.shadowRoot!.querySelector('lms-menu')!.hasAttribute('open')).to.equal(false);
     });
 
-    it('renders working native mobile count controls with the correct date (A02)', async () => {
-        const el = await calendar([event()], 500);
+    it('keeps opt-in mobile day drill on a native, count-named date control (A02)', async () => {
+        const el = await calendar([event()], 500, 'day');
         const month = el.shadowRoot!.querySelector('lms-calendar-month')!;
         const button = month.shadowRoot!.querySelector<HTMLButtonElement>(
-            'button.summary:not([hidden])',
+            'button.indicator[data-date="2026-3-15"]',
         );
-        expect(button, `real summary button at width ${el.getBoundingClientRect().width}`).to.exist;
-        button!.click();
+        expect(button, `real date button at width ${el.getBoundingClientRect().width}`).to.exist;
+        expect(button!.getAttribute('aria-label')).to.include('1 event');
+        button!.focus();
+        await sendKeys({ press: ' ' });
         await settle(el);
         expect(el.viewMode).to.equal('day');
         expect(el.activeDate).to.deep.equal(march);
         expect(el.shadowRoot!.activeElement, 'logical focus after drill-down').not.to.equal(null);
+    });
+
+    it('keeps default compact date actions in Month and activates exact canonical contextual entries (A02/C11)', async () => {
+        const source = event(march, { id: 'contextual', content: 'Canonical details' });
+        const otherDate = { ...march, day: 16 };
+        const other = event(otherDate, { id: 'other-date', heading: 'Next date only' });
+        const el = await calendar([source, other], 500);
+        const month = el.shadowRoot!.querySelector('lms-calendar-month')!;
+        const button = month.shadowRoot!.querySelector<HTMLButtonElement>(
+            'button.indicator[data-date="2026-3-16"]',
+        )!;
+        expect(button).to.be.instanceOf(HTMLButtonElement);
+        expect(month.shadowRoot!.querySelectorAll('button.summary:not([hidden])')).to.have.length(
+            0,
+        );
+        expect(
+            [...el.shadowRoot!.querySelectorAll<HTMLElement>('.agenda-event')].map(
+                (row) => row.dataset.eventId,
+            ),
+        ).to.deep.equal(['contextual']);
+        button.focus();
+        await sendKeys({ press: 'Enter' });
+        await settle(el);
+        expect(el.viewMode).to.equal('month');
+        expect(el.activeDate).to.deep.equal(otherDate);
+        expect(month.shadowRoot!.activeElement).to.equal(button);
+        const rows = [...el.shadowRoot!.querySelectorAll<HTMLButtonElement>('.agenda-event')];
+        expect(rows.map((row) => row.dataset.eventId)).to.deep.equal(['other-date']);
+        expect(rows[0].textContent).to.include(other.heading);
+        let activation: CustomEvent | undefined;
+        el.addEventListener('entry-activate', (event) => {
+            activation = event as CustomEvent;
+            event.preventDefault();
+        });
+        rows[0].focus();
+        await sendKeys({ press: 'Enter' });
+        await settle(el);
+        expect(activation, 'real list button requests canonical activation').to.exist;
+        expect(activation!.detail.entry).to.deep.equal(other);
+        expect(el.shadowRoot!.querySelector('lms-menu')!.hasAttribute('open')).to.equal(false);
     });
 
     it('keeps automatic direction reactive and declares language (A12)', async () => {
@@ -235,18 +301,32 @@ describe('Calendar public contracts and audit regressions', () => {
         expect(entry.time!.end).to.deep.equal({ hour: 2, minute: 0 });
     });
 
-    it('reconnects the actual resize observer and switches mobile controls (Q08/Q09)', async () => {
+    it('reconnects the actual resize observer and switches between cards and contextual entries (Q08/Q09)', async () => {
         const el = await calendar([event()]);
-        expect(el.shadowRoot!.querySelector('[slot^="summary-"]')).not.to.exist;
+        expect(
+            el.shadowRoot!.querySelector('lms-calendar-month')!.hasAttribute('compact'),
+        ).to.equal(false);
+        expect(el.shadowRoot!.querySelectorAll('lms-calendar-entry')).to.have.length(1);
+        expect(el.shadowRoot!.querySelector('.date-agenda')).not.to.exist;
         const parent = el.parentElement!;
         el.remove();
         el.style.width = '500px';
         parent.append(el);
         await settle(el);
-        expect(el.shadowRoot!.querySelector('[slot^="summary-"]')).to.exist;
+        expect(
+            el.shadowRoot!.querySelector('lms-calendar-month')!.hasAttribute('compact'),
+        ).to.equal(true);
+        expect(el.shadowRoot!.querySelectorAll('lms-calendar-entry')).to.have.length(0);
+        expect(el.shadowRoot!.querySelectorAll('.agenda-event')).to.have.length(1);
+        expect(el.shadowRoot!.querySelector('.agenda-title')!.textContent).to.equal(
+            'Visible appointment',
+        );
         el.style.width = '1000px';
         await settle(el);
-        expect(el.shadowRoot!.querySelector('[slot^="summary-"]')).not.to.exist;
+        expect(
+            el.shadowRoot!.querySelector('lms-calendar-month')!.hasAttribute('compact'),
+        ).to.equal(false);
+        expect(el.shadowRoot!.querySelector('.date-agenda')).not.to.exist;
         expect(el.shadowRoot!.querySelectorAll('lms-calendar-entry')).to.have.length(1);
     });
 

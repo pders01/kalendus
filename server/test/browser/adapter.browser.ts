@@ -177,7 +177,35 @@ describe('Real Lit calendar/adapter integration', () => {
         }
     });
 
-    it('tracks owner-assigned state, all week starts, responsive resize, date/count drill-down and reconnect', async () => {
+    it('retains Month and its fetch range for default compact date selection', async () => {
+        const host = await fixture<AdapterHost>(
+            html`
+                <server-adapter-contract-host></server-adapter-contract-host>
+            `,
+        );
+        await settle(host);
+        host.calendar.style.width = '500px';
+        await settle(host);
+        const range = { ...host.calendar.visibleRange };
+        const requests = host.requests.length;
+        const month = host.calendar.shadowRoot!.querySelector('lms-calendar-month')!;
+        month
+            .shadowRoot!.querySelector<HTMLButtonElement>(
+                'button.indicator[data-date="2026-3-16"]',
+            )!
+            .click();
+        await settle(host);
+        expect(host.calendar.viewMode).to.equal('month');
+        expect(host.calendar.activeDate).to.deep.equal({ year: 2026, month: 3, day: 16 });
+        expect(host.calendar.visibleRange).to.deep.equal(range);
+        expect(host.requests.length).to.equal(requests);
+        expect(host.calendar.shadowRoot!.querySelector('.date-agenda')!.textContent).to.include(
+            '0 events',
+        );
+        host.remove();
+    });
+
+    it('tracks owner-assigned state, all week starts, responsive resize, opt-in day drill and reconnect', async () => {
         const host = await fixture<AdapterHost>(
             html`
                 <server-adapter-contract-host></server-adapter-contract-host>
@@ -200,15 +228,17 @@ describe('Real Lit calendar/adapter integration', () => {
             expectRange(host);
         }
         host.calendar.viewMode = 'month';
+        host.calendar.monthDayBehavior = 'day';
         host.calendar.activeDate = { year: 2026, month: 3, day: 15 };
         host.calendar.style.width = '500px';
         await settle(host);
         expectRange(host);
         const month = host.calendar.shadowRoot!.querySelector('lms-calendar-month')!;
         const summary = month.shadowRoot!.querySelector<HTMLButtonElement>(
-            'button.summary:not([hidden])',
+            'button.indicator[data-date="2026-3-15"]',
         );
         expect(summary).not.to.equal(null);
+        expect(summary!.getAttribute('aria-label')).to.include('1 event');
         summary!.click();
         await settle(host);
         expect(host.calendar.viewMode).to.equal('day');

@@ -23,7 +23,7 @@ const calendar = document.querySelector<LMSCalendar>('lms-calendar')!;
 calendar.entries = entries;
 ```
 
-The component uses Custom Elements, Shadow DOM, ResizeObserver and CSS container queries. It needs a constrained container height; see [Layout & Positioning](./layout-and-positioning.md). Browser API support is not a claim of Safari, native-device or assistive-technology verification.
+The component uses Custom Elements, Shadow DOM, ResizeObserver and CSS container queries. Give it a height to fit Day, Week, and Year into a specific space, or let those views use their bounded fallback. Month stays in normal page flow. See [Layout & Positioning](./layout-and-positioning.md). Browser API support is not a claim of Safari, native-device or assistive-technology verification.
 
 ## Data contracts
 
@@ -106,9 +106,61 @@ Canonical original records are retained separately from display slices, so activ
 
 Objects/arrays belong on JavaScript properties, not serialized HTML attributes. Assign new entries/objects instead of mutating them in place.
 
+### Responsive flow and owner status
+
+`monthDayBehavior` / `month-day-behavior` accepts `auto` (default), `inline`, or
+`day`. Compact `auto` keeps Month open with a selected-date list; `day` retains
+legacy Day drilling. `loading` (boolean, default false) and `error` (string,
+default empty) are owner-controlled status inputs. The `status` slot can replace
+the fallback. Adapters and Expo do not infer loading/error from empty entries.
+
+### Experimental presentation choices
+
+The library defaults are unchanged. Use these options to choose an alternate presentation:
+
+| Property                  | Attribute                   | Values                                      | Default |
+| ------------------------- | --------------------------- | ------------------------------------------- | ------- |
+| `monthPresentation`       | `month-presentation`        | `auto`, `presence`, `previews`              | `auto`  |
+| `monthAgendaPresentation` | `month-agenda-presentation` | `full`, `preview`, `on-demand`, `accordion` | `full`  |
+
+### Month and Agenda
+
+Opt in with `<lms-calendar month-agenda-presentation="accordion">`. Month and
+Agenda share one calendar, one date, and the Day/Week/Month/Year switcher. Picking
+a date opens Agenda. Use **‹ Month** beside the Agenda date to return to the
+selected date in the grid. The header arrows advance by day
+in Agenda and by month in the grid. Setting `month-day-behavior="day"` disables
+the Agenda option and keeps the existing Month behavior.
+
+Agenda puts **All Day** before **Timed**, with jumps when both sections exist.
+Opening a row shows the full description and a **↓ Download .ics** button inline.
+The latest opened multi-day event is underlined in Month without changing the
+selected date or the event counts. Returning to a recently visited date keeps its
+open row, without moving toolbar focus to a deep position. The first 50 rows of
+each section render immediately; longer lists have a continuation control.
+Agenda is not a fifth `viewMode`: it reports `month` and a one-day `visibleRange`.
+Existing behaviors and default presentations are unchanged.
+
+In the other Month list modes, selected-date details stay inline. `preview` starts with at
+most three chronological rows; `on-demand` starts closed. Their localized header
+buttons distinguish Show all/Show fewer from Show events/Hide events. Expansion
+keeps the control's space and focus; it does not create an internal list scroller.
+The complete list starts with 50 rows and continues on request; that rendering
+bound is not a claim that a long page is comfortable to browse. Changing the date,
+view or list policy resets expansion and the row budget.
+
+The explicit simpler `presence` candidate uses at most two individual multi-day
+tracks, allocated consistently over the displayed Month. If those cannot represent
+all spans, the **entire displayed compact Month** uses localized total event counts
+on occupied dates instead. Counts include one-day events and convey cardinality, not hours,
+availability or individual multi-day identity. A dense Month cannot individually
+trace every event; readable selected-date lists do not solve cross-date comparison.
+
+Invalid presentation values normalize to their defaults.
+
 ### Methods and getters
 
-- **`visibleRange`** (read-only): `{ start, end }` in ISO `YYYY-MM-DD`, half-open `[start, end)`. Includes month spillover and actual condensed-week columns. Day/year ranges cover one day/the active year. These are dates, not UTC timestamps.
+- **`visibleRange`** (read-only): `{ start, end }` in ISO `YYYY-MM-DD`, half-open `[start, end)`. Includes Month grid spillover and actual condensed-week columns. Day and Month's opt-in Agenda cover one day; Year covers the active year. These are dates, not UTC timestamps.
 - **`localeReady: Promise<void>`**: waits for the current load/fallback and root render. It settles even on a failed catalog import; it does not assert every translation or descendant layout is complete.
 - **`retryLocale(): Promise<void>`**: retries the requested locale after a load failure without toggling the property.
 - **`openMenu(details)`**: opens the built-in inspector with `{ heading, content, displayTime, time?, date?, anchorRect?, entry?, eventId? }`. Supply the canonical `entry` and stable `eventId` for correct multi-day export. A display-only call without a date/entry cannot export an event.
@@ -152,7 +204,7 @@ Both requests are cancelable and carry canonical original `{ entry, eventId? }`,
 
 Timed entries use minute-based absolute positioning with overlap layout calculated from effective grid scale/minimum geometry; they are not fixed at one pixel per minute. All-day entries use row allocation. Narrow month layouts use compact indicators; condensed weeks use the actual visible window for both rendering and range reporting.
 
-`year-density-mode` selects dots, heatmap buckets or counts. `year-drill-target` controls year day-cell navigation; month labels always open month, and week numbers open week. Use committed state for routing/fetches; legacy `expand` remains useful for action analytics.
+Year shows twelve months with localized month and weekday names. `year-density-mode` selects dots (presence), heatmap buckets, or counts. These signals describe the number of events on a date, not availability. `year-drill-target` controls what opens when selecting a date; month labels always open Month, and week numbers open Week. Use committed state for routing/fetches; legacy `expand` remains useful for action analytics.
 
 ## Styling and theming
 
@@ -181,7 +233,7 @@ Each instance starts from page `<html lang>` unless explicitly configured. The r
 
 `firstDayOfWeek` is always an explicit policy with default **1 Monday**, independent of locale. Week numbering is ISO-8601, also independent of that policy.
 
-Header/main content is hidden while a catalog is pending. Failed imports report `locale-error`, show retry/fallback UX, and settle `localeReady`; `locale-ready` includes `{ locale, catalogLocale, fallback }`, including English/fallback loads. Some new phrases deliberately use English pending native-speaker translation review. There is no guarantee of complete linguistic translation.
+Header/main content is hidden while a catalog is pending. Failed imports report `locale-error`, show retry/fallback UX, and settle `localeReady`; `locale-ready` includes `{ locale, catalogLocale, fallback }`, including English/fallback loads. Complete contextual/count phrases now have translations in all shipped catalogs, preserving the original legacy values. New translations still require native-speaker review; structural/roundtrip checks do not certify linguistic quality.
 
 Contributors must edit canonical JSON, **not generated templates/XLIFF**. See [translation source of truth](https://github.com/pders01/kalendus/blob/main/src/locales/README.md):
 

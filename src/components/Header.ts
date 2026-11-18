@@ -1,8 +1,12 @@
 import { LitElement, css, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import { DateTime } from 'luxon';
 
-import { formatLocalizedDate, getLocalizedMonth } from '../lib/localization.js';
+import {
+    formatLocalizedDate,
+    formatLocalizedDateInterval,
+    formatLocalizedMonthYear,
+    formatLocalizedYear,
+} from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
 import type { ViewMode } from '../lib/ViewStateController.js';
 import { getWeekDates, type FirstDayOfWeek } from '../lib/weekStartHelper.js';
@@ -20,6 +24,8 @@ export default class Header extends LitElement {
 
     @property({ type: Object })
     expandedDate?: CalendarDate;
+
+    @property({ attribute: false }) agenda = false;
 
     @property({ type: Number })
     firstDayOfWeek: FirstDayOfWeek = 1;
@@ -45,14 +51,16 @@ export default class Header extends LitElement {
             min-block-size: var(--header-height, 3.5em);
             inline-size: 100%;
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+            grid-template-areas: 'info' 'identity' 'navigation' 'views';
+            grid-template-columns: minmax(0, 1fr);
             align-items: center;
-            gap: 0.5em 0.75em;
-            padding-block: 0.5em;
-            border-bottom: 1px solid var(--separator-light);
+            gap: 0.75em 1em;
+            padding: 0.75em 0.5em;
+            border-block-end: 1px solid var(--separator-light);
         }
 
         .info {
+            grid-area: info;
             padding-inline-start: var(
                 --header-info-padding-inline-start,
                 var(--header-info-padding-left, 1em)
@@ -64,58 +72,97 @@ export default class Header extends LitElement {
             overflow-wrap: anywhere;
         }
 
-        @container (max-width: 50em) {
+        /* A normal phone gets period + compact navigation, then view controls.
+           Very narrow/enlarged embeds keep the safe stacked default. */
+        @container (min-width: 20em) {
             .controls {
-                font-size: 0.875em;
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-                align-items: center;
-                padding: 0.35em 0.5em;
-                gap: 0.25em 0.5em;
+                grid-template-areas: 'info info navigation' 'identity views views';
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(min-content, 8em);
+                gap: 0.5em;
             }
-            .info {
-                flex: 1 1 100%;
-                display: flex;
-                flex-wrap: wrap;
-                align-items: baseline;
-                justify-content: center;
-                gap: 0.4em;
-                padding-inline-start: 0;
+            .period-title {
+                min-block-size: 2.6em;
             }
-            .controls .buttons {
-                padding-inline-end: 0;
+            .info,
+            .info + .calendar-title {
+                padding-inline-start: var(
+                    --header-info-padding-inline-start,
+                    var(--header-info-padding-left, 0)
+                );
             }
+            .buttons {
+                padding-inline-end: var(
+                    --header-buttons-padding-inline-end,
+                    var(--header-buttons-padding-right, 0)
+                );
+            }
+        }
+
+        @container (min-width: 40em) {
+            .controls {
+                grid-template-areas: 'info navigation' 'identity navigation' 'views views';
+                grid-template-columns: minmax(0, 1fr) minmax(0, 12em);
+                gap: 0.25em 1em;
+            }
+            .period-title {
+                min-block-size: 0;
+            }
+        }
+
+        @container (min-width: 64em) {
+            .controls {
+                grid-template-areas: 'info navigation views' 'identity navigation views';
+                grid-template-columns: minmax(0, 1fr) minmax(0, 14em) minmax(0, 20em);
+            }
+        }
+
+        .period-title {
+            margin: 0;
+            font-size: 1.25em;
+            font-weight: 700;
+            line-height: 1.3;
+            color: var(--separator-dark, CanvasText);
         }
 
         .calendar-title {
+            grid-area: identity;
+            min-inline-size: 0;
+            overflow-wrap: anywhere;
+            padding-inline-start: var(
+                --header-info-padding-inline-start,
+                var(--header-info-padding-left, 1em)
+            );
             margin: 0;
-            font-size: inherit;
-            font-weight: 700;
+            font-size: 0.875em;
+            font-weight: 400;
+            line-height: 1.4;
+            color: var(--header-text-color, CanvasText);
         }
 
+        /* Reserve space for the longest period label at this width without
+           exposing the inactive labels to assistive technology. */
+        .period-title {
+            display: grid;
+            align-content: center;
+        }
         .view-detail {
-            display: none;
+            grid-area: 1 / 1;
+            visibility: hidden;
         }
-
         .view-detail.active {
-            display: block;
-        }
-        .day,
-        .week,
-        .month,
-        .year {
-            color: var(--header-text-color, rgba(0, 0, 0, 0.6));
+            visibility: visible;
         }
         button {
+            box-sizing: border-box;
             min-inline-size: 24px;
             min-block-size: 24px;
-            padding: 0.4em 0.7em;
+            padding: 0.5em 0.6em;
+            overflow-wrap: anywhere;
             margin: 0;
             border: none;
             background: none;
             font: inherit;
-            font-size: 0.85em;
+            font-size: 0.875em;
             color: var(--header-text-color, rgba(0, 0, 0, 0.6));
             cursor: pointer;
             border-radius: var(--border-radius-sm);
@@ -130,10 +177,11 @@ export default class Header extends LitElement {
         }
 
         .context {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
+            grid-area: views;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: stretch;
+            min-inline-size: 0;
             max-inline-size: 100%;
             box-sizing: border-box;
             gap: 0;
@@ -143,34 +191,74 @@ export default class Header extends LitElement {
         }
 
         .context button {
+            padding-inline: 0.25em;
             border-radius: calc(var(--border-radius-sm) - 1px);
             color: var(--context-text-color, var(--header-text-color, rgba(0, 0, 0, 0.6)));
         }
 
         .context button[data-active] {
+            font-weight: 700;
+            text-decoration: underline;
+            text-underline-offset: 0.25em;
             background: var(--active-indicator-bg);
             color: var(--separator-dark, rgba(0, 0, 0, 0.7));
             box-shadow: var(--active-indicator-shadow);
         }
 
-        @container (max-width: 16em) {
+        @container (min-width: 22em) {
             .context {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-columns: repeat(4, minmax(0, 1fr));
             }
         }
 
         .buttons {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
+            grid-area: navigation;
+            display: grid;
+            grid-template-columns: auto minmax(min-content, 2fr) auto;
+            align-items: stretch;
+            min-inline-size: 0;
             padding-inline-end: var(
                 --header-buttons-padding-inline-end,
                 var(--header-buttons-padding-right, 1em)
             );
-            gap: 0.15em;
-            justify-self: end;
+            gap: 0.25em;
+        }
+
+        button[name='today'] {
+            white-space: normal;
+            overflow-wrap: normal;
+        }
+
+        @container (max-width: 19.999em) {
+            .buttons {
+                grid-template-columns: auto minmax(0, 1fr) auto;
+            }
+            button[name='today'] {
+                overflow-wrap: anywhere;
+            }
+        }
+
+        /* The switcher already names itself. Use the same compact tracks in
+           every view, retaining the identity row only for a supplied title. */
+        @container (width < 40em) {
+            .without-title .calendar-title {
+                display: none;
+            }
+            .without-title .context {
+                grid-column: 1 / -1;
+            }
+        }
+        @container (width < 20em) {
+            .period-title {
+                min-block-size: 2lh;
+            }
+            .controls {
+                row-gap: 0.35em;
+                padding-block: 0.35em;
+            }
+            .controls.without-title {
+                grid-template-areas: 'info' 'navigation' 'views';
+            }
         }
 
         button:focus-visible {
@@ -182,33 +270,22 @@ export default class Header extends LitElement {
                 min-block-size: 44px;
                 min-inline-size: 44px;
             }
+            @container (min-width: 20em) and (max-width: 40em) {
+                .controls {
+                    /* Three 44px targets, gaps, and the legacy end-padding token. */
+                    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(min-content, 10em);
+                }
+                .buttons {
+                    grid-template-columns: auto minmax(44px, 1fr) auto;
+                }
+            }
         }
         @media (forced-colors: active) {
             button:focus-visible {
                 outline-color: Highlight;
             }
         }
-
-        .buttons .separator {
-            width: 1px;
-            height: 1.2em;
-            background: var(--separator-light, rgba(0, 0, 0, 0.15));
-            margin: 0 0.2em;
-        }
     `;
-
-    private _getWeekInfo(date: CalendarDate) {
-        const dt = DateTime.fromObject({
-            year: date.year,
-            month: date.month,
-            day: date.day,
-        });
-
-        return {
-            weekNumber: dt.weekNumber,
-            weekYear: dt.weekYear,
-        };
-    }
 
     override render() {
         const now = new Date();
@@ -218,89 +295,45 @@ export default class Header extends LitElement {
             day: now.getDate(),
         };
         const msg = getMessages(this.locale);
+        const dates = this.visibleDates?.length
+            ? this.visibleDates
+            : getWeekDates(date, this.firstDayOfWeek);
+        const first = dates[0];
+        const last = dates[dates.length - 1];
 
-        return html`<div class="controls">
+        return html`<div class=${this.heading ? 'controls' : 'controls without-title'}>
             <div class="info">
-                <h2 class="calendar-title">${this.heading || msg.calendarView}</h2>
-                <div class="view-detail${this.viewMode === 'day' ? ' active' : ''}">
-                    <span class="day">${date.day}</span>
-                    <span class="month"
-                        >${getLocalizedMonth(date.month, this.locale)}</span
-                    >
-                    <span class="year">${date.year}</span>
-                </div>
-                <div class="view-detail${this.viewMode === 'week' ? ' active' : ''}">
-                    ${(() => {
-                        const { weekNumber } = this._getWeekInfo(date);
-                        const dates = this.visibleDates?.length
-                            ? this.visibleDates
-                            : getWeekDates(date, this.firstDayOfWeek);
-                        const first = dates[0];
-                        const last = dates[dates.length - 1];
-                        return html`
-                            <span class="week"
-                                >${msg.calendarWeek}
-                                ${weekNumber}</span
-                            >
-                            <span class="week-range">${formatLocalizedDate(first.day, first.month, first.year, this.locale)} – ${formatLocalizedDate(last.day, last.month, last.year, this.locale)}</span>
-                        `;
-                    })()}
-                </div>
-                <div class="view-detail${this.viewMode === 'month' ? ' active' : ''}">
-                    <span class="month"
-                        >${getLocalizedMonth(date.month, this.locale)}</span
-                    >
-                    <span class="year">${date.year}</span>
-                </div>
-                <div class="view-detail${this.viewMode === 'year' ? ' active' : ''}">
-                    <span class="year">${date.year}</span>
-                </div>
+                <h2 class="period-title">
+                <span class="view-detail${this.viewMode === 'day' || this.agenda ? ' active' : ''}">
+                    ${formatLocalizedDate(date.day, date.month, date.year, this.locale)}
+                </span>
+                <span class="view-detail${this.viewMode === 'week' ? ' active' : ''}">
+                    <span class="week-range">${formatLocalizedDateInterval(first, last, this.locale)}</span>
+                </span>
+                <span class="view-detail${this.viewMode === 'month' && !this.agenda ? ' active' : ''}">
+                    ${formatLocalizedMonthYear(date.month, date.year, this.locale)}
+                </span>
+                <span class="view-detail${this.viewMode === 'year' ? ' active' : ''}">
+                    <span class="year">${formatLocalizedYear(date.year, this.locale)}</span>
+                </span>
+                </h2>
             </div>
-            <nav class="context" aria-label="${msg.calendarView}" @click=${this._dispatchSwitchView}>
-                <button
-                    type="button"
-                    ?data-active=${this.viewMode === 'day'}
-                    aria-pressed=${this.viewMode === 'day' ? 'true' : 'false'}
-                    data-context="day"
-                    class="btn-change-view"
-                >
-                    ${msg.day}
-                </button>
-                <button
-                    type="button"
-                    ?data-active=${this.viewMode === 'week'}
-                    aria-pressed=${this.viewMode === 'week' ? 'true' : 'false'}
-                    data-context="week"
-                    class="btn-change-view"
-                >
-                    ${msg.week}
-                </button>
-                <button
-                    type="button"
-                    ?data-active=${this.viewMode === 'month'}
-                    aria-pressed=${this.viewMode === 'month' ? 'true' : 'false'}
-                    data-context="month"
-                    class="btn-change-view"
-                >
-                    ${msg.month}
-                </button>
-                <button
-                    type="button"
-                    ?data-active=${this.viewMode === 'year'}
-                    aria-pressed=${this.viewMode === 'year' ? 'true' : 'false'}
-                    data-context="year"
-                    class="btn-change-view"
-                >
-                    ${msg.year}
-                </button>
-            </nav>
-            <div class="buttons" @click=${this._dispatchSwitchDate}>
+            <p class="calendar-title">${this.heading || msg.calendarView}</p>
+            <div class="buttons" role="group" aria-label=${msg.date} @click=${this._dispatchSwitchDate}>
                 <button type="button" name="previous" aria-label="${msg.previous}">«</button>
-                <button type="button" name="next" aria-label="${msg.next}">»</button>
-                <span class="separator"></span>
                 <button type="button" name="today" @click=${this._handleTodayClick}>
                     ${msg.today}
                 </button>
+                <button type="button" name="next" aria-label="${msg.next}">»</button>
+            </div>
+            <div class="context" role="group" aria-label="${msg.calendarView}" @click=${this._dispatchSwitchView}>
+                ${(['day', 'week', 'month', 'year'] as const).map(
+                    (view) => html`
+                    <button type="button" class="btn-change-view" data-context=${view}
+                        ?data-active=${this.viewMode === view} aria-pressed=${this.viewMode === view ? 'true' : 'false'}>
+                        ${msg[view]}
+                    </button>`,
+                )}
             </div>
         </div>`;
     }
@@ -324,7 +357,8 @@ export default class Header extends LitElement {
     }
 
     private _dispatchSwitchDate(e: Event) {
-        const target = e.target instanceof Element ? e.target.closest('button') : null;
+        const target =
+            e.target instanceof Element ? e.target.closest<HTMLButtonElement>('button') : null;
         if (!target || !['previous', 'next'].includes(target.name)) return;
         const direction = target.name;
         const event = new CustomEvent('switchdate', {
@@ -336,7 +370,8 @@ export default class Header extends LitElement {
     }
 
     private _dispatchSwitchView(e: Event) {
-        const target = e.target instanceof Element ? e.target.closest('button') : null;
+        const target =
+            e.target instanceof Element ? e.target.closest<HTMLButtonElement>('button') : null;
         const view = target?.dataset.context;
         if (!view) return;
         const event = new CustomEvent('switchview', {

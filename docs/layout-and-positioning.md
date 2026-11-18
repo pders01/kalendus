@@ -12,9 +12,11 @@ Essential information for getting `<lms-calendar>` to display correctly in your 
 
 ---
 
-## Height Requirement
+## Height and Scrolling
 
-The calendar defaults to `--height: 100%` and `--width: 100%`. This means **the component needs an explicit height from its parent container** — it will not size itself based on content.
+Month is a normal-flow section: its six-week grid and optional contextual list determine its height. The embedding page owns vertical scrolling. Month intentionally ignores an explicit host height/block-size used for other views, so a long list pushes following content down instead of covering it. Do not constrain a Month wrapper with a fixed height and hidden overflow.
+
+For Day, Week, and Year, supply a height to the embed or its parent. The shared defaults are `--height: 100%` and `--width: 100%`.
 
 ```html
 <!-- ✅ Works: parent provides height -->
@@ -32,7 +34,7 @@ The calendar defaults to `--height: 100%` and `--width: 100%`. This means **the 
     <lms-calendar></lms-calendar>
 </div>
 
-<!-- ❌ Fails: parent has no height, calendar collapses to 0 -->
+<!-- Month grows naturally; provide a height for the other views -->
 <div>
     <lms-calendar></lms-calendar>
 </div>
@@ -52,18 +54,15 @@ The component sets `min-height: 0` on `:host` so it cooperates with CSS grid and
 
 ## Responsive Behavior
 
-### Container-Based, Not Viewport-Based
+### Container-Based Sizing
 
-The calendar uses a `ResizeObserver` on its own container — **not CSS media queries**. This means the calendar responds to its container's actual width, which is important for sidebar layouts, modals, and embedded contexts.
+The calendar responds to its own container, not the browser window. It uses `ResizeObserver` for measured layout and CSS container queries for responsive styles. Pointer media queries adjust touch affordances, such as minimum target size. This lets the same page host calendars in a sidebar, modal, and main content area.
 
-### Month View Dot Mode
+### Month Recognition and Selection
 
-When the container width falls below **768px**, month view automatically switches from showing full entry chips to compact dot indicators:
+By default, below the larger of **768px** and **48 times the host font size**, Month uses quiet presence indicators. Selecting a date keeps Month open and shows its real events in a contextual list after the grid. The page scrolls; the list does not create a nested vertical viewport. The default full list initially shows up to 50 events with an explicit continuation action. The [experimental Month choices](library-usage.md#experimental-presentation-choices) can show continuity marks or dense date totals and start with a shorter list.
 
-- **Above 768px**: Full entry chips with heading and time
-- **Below 768px**: Compact numeric count buttons that drill into the day
-
-This threshold is based on the observed container width via `ResizeObserver`.
+`month-day-behavior="auto"` is the default. `inline` keeps contextual date selection at wide sizes too; `day` restores legacy date/count controls that drill into Day. Expanded Month previews remain single-line and bounded to each cell; `+N` counts only genuinely hidden events, not the whole day.
 
 ### Week View Condensed Mode
 
@@ -105,7 +104,7 @@ Without `kind`, legacy promotion is retained: missing time, multi-day dates, an 
 
 All-day events are allocated into rows by `allocateAllDayRows()` to avoid visual overlap. The number of all-day rows affects the available height for the time grid. Bands scroll internally instead of pushing timed entries out of reach. The default `--all-day-row-height: max(24px, 1.5rem)` scales with document text size; keep the row tall enough for the event font when overriding it.
 
-Month view measures each cell's available height rather than imposing an unconditional two-entry limit. A `+N` disclosure counts hidden entries only; narrow layouts use compact whole-day count buttons with full date/count descriptions for assistive technology. Enlarged text can make the two-dimensional month grid scroll horizontally as well as vertically, preserving readable dates and controls instead of clipping them.
+Month measures each cell's preview budget. A `+N` disclosure counts hidden entries only. Enlarged text can require horizontal panning within the Month grid, but the page owns vertical scrolling.
 
 ---
 

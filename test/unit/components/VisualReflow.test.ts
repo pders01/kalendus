@@ -7,6 +7,31 @@ import type Month from '../../../src/components/Month.ts';
 import type Calendar from '../../../src/lms-calendar.ts';
 
 const date = { year: 2026, month: 6, day: 15 };
+const settleMonth = async (calendar: Calendar) => {
+    await calendar.localeReady;
+    await calendar.updateComplete;
+    await waitUntil(() => {
+        const container = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
+        const style = getComputedStyle(container);
+        const width =
+            container.getBoundingClientRect().width -
+            parseFloat(style.borderLeftWidth) -
+            parseFloat(style.borderRightWidth) -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight);
+        return width > 0 && Math.abs(calendar._calendarWidth - width) < 0.5;
+    }, 'root commits its measured width before reflow assertions');
+    for (let index = 0; index < 4; index++) {
+        await calendar.updateComplete;
+        for (const child of calendar.shadowRoot!.querySelectorAll(
+            'lms-calendar-day, lms-calendar-week, lms-calendar-month, lms-calendar-year',
+        )) {
+            await (child as Calendar).updateComplete;
+        }
+        await nextFrame();
+    }
+};
+
 const settle = async () => {
     for (let index = 0; index < 4; index++) await nextFrame();
 };
@@ -151,7 +176,7 @@ describe('Real-root Year overview and text-size reflow', () => {
         expect(menu.eventDetails.heading).to.equal('Team sync');
     });
 
-    it('keeps enlarged mobile cells and counts intact, scrolls in two dimensions and drills with the keyboard', async () => {
+    it('keeps enlarged compact date/count names intact in page-owned vertical flow with explicit keyboard day drill', async () => {
         await setViewport({ width: 390, height: 720 });
         document.documentElement.style.fontSize = '32px';
         const entry = (id: string, day: number): CalendarEntry => ({
@@ -165,9 +190,9 @@ describe('Real-root Year overview and text-size reflow', () => {
             entry('Font scales too', 21),
         ];
         const calendar = await fixture<Calendar>(
-            html`<lms-calendar .activeDate=${date} .entries=${entries} style="width:358px;height:660px"></lms-calendar>`,
+            html`<lms-calendar .activeDate=${date} .entries=${entries} .monthDayBehavior=${'day'} style="width:358px;height:660px"></lms-calendar>`,
         );
-        await settle();
+        await settleMonth(calendar);
         const toolbar = calendar.shadowRoot!.querySelector('lms-calendar-header')!.shadowRoot!;
         const controls = [...toolbar.querySelectorAll('.context button')].map((button) =>
             button.getBoundingClientRect(),
@@ -177,26 +202,44 @@ describe('Real-root Year overview and text-size reflow', () => {
         expect(controls[2].top).to.be.at.least(controls[0].bottom);
         const month = calendar.shadowRoot!.querySelector<Month>('lms-calendar-month')!;
         const grid = month.shadowRoot!.querySelector<HTMLElement>('.month')!;
-        await waitUntil(
-            () =>
-                !month.shadowRoot!.querySelector<HTMLButtonElement>(
-                    '.day[data-date="2026-6-15"] .summary',
-                )!.hidden,
-        );
-        expect(grid.scrollWidth).to.be.greaterThan(grid.clientWidth);
-        const summary = month.shadowRoot!.querySelector<HTMLButtonElement>(
-            '.day[data-date="2026-6-15"] .summary',
+        expect(month.compact).to.equal(true);
+        const strip = month.shadowRoot!.querySelector<HTMLElement>('.month-strip')!;
+        expect(strip.scrollWidth).to.be.greaterThan(strip.clientWidth);
+        expect(getComputedStyle(strip).overflowX).to.equal('auto');
+        expect(strip.scrollHeight).to.be.at.most(strip.clientHeight + 1);
+        expect(grid.scrollWidth).to.be.at.most(grid.clientWidth + 1);
+        expect(getComputedStyle(grid).overflowY).to.equal('visible');
+        expect(grid.scrollHeight).to.be.at.most(grid.clientHeight + 1);
+        const region = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
+        expect(getComputedStyle(region).overflowY).to.equal('visible');
+        const indicator = month.shadowRoot!.querySelector<HTMLButtonElement>(
+            'button.indicator[data-date="2026-6-15"]',
         )!;
-        const cell = summary.closest('.day')!.getBoundingClientRect();
-        const count = summary.getBoundingClientRect();
-        expect(getComputedStyle(summary).fontSize).to.equal('24px');
-        expect(count.right).to.be.at.most(cell.right);
-        expect(count.bottom).to.be.at.most(cell.bottom);
+        expect(indicator).to.be.instanceOf(HTMLButtonElement);
+        expect(indicator.getAttribute('aria-label')).to.include('6 events');
+        expect(indicator.querySelector('.activity[data-active]')).to.exist;
+        const cell = indicator.closest('.day')!.getBoundingClientRect();
+        const control = indicator.getBoundingClientRect();
+        expect(getComputedStyle(indicator).fontSize).to.equal('32px');
+        expect(control.height).to.be.at.least(44);
+        expect(control.right).to.be.at.most(cell.right);
+        expect(control.bottom).to.be.at.most(cell.bottom);
+        expect(calendar.getBoundingClientRect().height).to.be.greaterThan(660);
         await month.focusDate({ ...date, day: 20 });
-        expect(grid.scrollLeft).to.be.greaterThan(0);
+        expect(month.shadowRoot!.activeElement).to.equal(
+            month.shadowRoot!.querySelector('button.indicator[data-date="2026-6-20"]'),
+        );
+        const focused = month.shadowRoot!.activeElement!.getBoundingClientRect();
+        expect(focused.left).to.be.at.least(strip.getBoundingClientRect().left - 1);
+        expect(focused.right).to.be.at.most(strip.getBoundingClientRect().right + 1);
+        // Month owns deliberate horizontal panning, never a vertical viewport.
+        expect(document.scrollingElement!.scrollWidth).to.be.at.most(
+            document.scrollingElement!.clientWidth + 1,
+        );
+        expect(document.scrollingElement!.scrollHeight).to.be.greaterThan(window.innerHeight);
         await sendKeys({ press: 'ArrowRight' });
         await sendKeys({ press: ' ' });
-        await calendar.updateComplete;
+        await settleMonth(calendar);
         expect(calendar.viewMode).to.equal('day');
         expect(calendar.activeDate).to.deep.equal({ ...date, day: 21 });
         await waitUntil(() => !!calendar.shadowRoot!.querySelector('lms-calendar-entry'));

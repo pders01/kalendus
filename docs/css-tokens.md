@@ -33,11 +33,11 @@ All properties are defined in the `:host` block of the component's Shadow DOM st
 
 ## Breakpoints
 
-| Token             | Default  | Description                                 |
-| ----------------- | -------- | ------------------------------------------- |
-| `--breakpoint-xs` | `425px`  | Extra-small breakpoint                      |
-| `--breakpoint-sm` | `768px`  | Small breakpoint (month dot-mode threshold) |
-| `--breakpoint-md` | `1024px` | Medium breakpoint                           |
+| Token             | Default  | Description                                                    |
+| ----------------- | -------- | -------------------------------------------------------------- |
+| `--breakpoint-xs` | `425px`  | Extra-small breakpoint                                         |
+| `--breakpoint-sm` | `768px`  | Legacy breakpoint token; compact Month also respects text size |
+| `--breakpoint-md` | `1024px` | Medium breakpoint                                              |
 
 ## Separators
 

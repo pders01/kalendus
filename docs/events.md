@@ -23,7 +23,7 @@ type CalendarState = {
 };
 ```
 
-`range.start` is included and `range.end` is excluded. These are civil dates, **not UTC timestamps**. Month ranges include spillover cells; week ranges reflect the actual visible columns, including condensed weeks; day/year ranges cover one day/the active calendar year. The read-only public `visibleRange` getter exposes the same shape.
+`range.start` is included and `range.end` is excluded. These are civil dates, **not UTC timestamps**. Month grid ranges include spillover cells; the optional Agenda stays in Month mode and covers one day. Week ranges reflect the actual visible columns, including condensed weeks; Day and Year cover one day and the active calendar year, respectively. The read-only public `visibleRange` getter exposes the same shape.
 
 ```js
 calendar.addEventListener('calendar-state-change', (event) => {

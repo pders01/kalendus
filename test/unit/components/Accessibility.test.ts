@@ -71,6 +71,18 @@ function entries(locale: string): CalendarEntry[] {
 // rendering opportunities for ResizeObserver, slotchange and sizing controllers.
 async function settle(calendar: LMSCalendar): Promise<void> {
     await calendar.localeReady;
+    await calendar.updateComplete;
+    await waitUntil(() => {
+        const container = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
+        const style = getComputedStyle(container);
+        const width =
+            container.getBoundingClientRect().width -
+            parseFloat(style.borderLeftWidth) -
+            parseFloat(style.borderRightWidth) -
+            parseFloat(style.paddingLeft) -
+            parseFloat(style.paddingRight);
+        return width > 0 && Math.abs(calendar._calendarWidth - width) < 0.5;
+    }, 'root commits its observed width before responsive assertions');
     const updates = (element: Element): Promise<unknown>[] => [
         ...('updateComplete' in element ? [(element as LitElement).updateComplete] : []),
         ...Array.from(element.children).flatMap(updates),
@@ -96,6 +108,7 @@ async function calendarFixture(
     view: View,
     width: number,
     locale = 'en',
+    monthDayBehavior: LMSCalendar['monthDayBehavior'] = 'auto',
 ): Promise<LMSCalendar> {
     const wrapper = await fixture<HTMLDivElement>(html`
         <div style=${`width:${width}px;height:720px;background:#fff;color:#111`}>
@@ -105,6 +118,7 @@ async function calendarFixture(
                 .locale=${locale}
                 .activeDate=${date}
                 .viewMode=${view}
+                .monthDayBehavior=${monthDayBehavior}
                 .entries=${entries(locale)}
                 .yearDensityMode=${'heatmap'}
                 .heading=${locale === 'ar' ? 'تقويم الفريق' : 'Team calendar'}
@@ -119,7 +133,7 @@ async function calendarFixture(
     expect(calendar.getBoundingClientRect().width).to.be.closeTo(width, 1);
     expect(calendar.shadowRoot!.querySelector('.locale-loading')).to.equal(null);
     expect(calendar.shadowRoot!.querySelector('[role="alert"]')).to.equal(null);
-    expect(calendar.getAttribute('dir')).to.equal(locale === 'ar' ? 'rtl' : 'ltr');
+    expect(calendar.getAttribute('dir')).to.equal(locale.split('-')[0] === 'ar' ? 'rtl' : 'ltr');
     expect(calendar.shadowRoot!.querySelector(`lms-calendar-${view}`)).to.be.instanceOf(
         HTMLElement,
     );
@@ -140,7 +154,7 @@ async function switchView(calendar: LMSCalendar, view: View): Promise<void> {
     expect(button.getAttribute('aria-pressed')).to.equal('true');
 }
 
-async function openInspector(calendar: LMSCalendar): Promise<void> {
+async function openInspector(calendar: LMSCalendar): Promise<Entry> {
     const entry = Array.from(
         calendar
             .shadowRoot!.querySelector('lms-calendar-day')!
@@ -161,6 +175,7 @@ async function openInspector(calendar: LMSCalendar): Promise<void> {
     expect(calendar.inert).to.equal(false);
     expect(menu.shadowRoot!.activeElement).to.equal(card.querySelector('.close-btn'));
     expect(card.textContent).to.include(entry.heading);
+    return entry;
 }
 
 // These are unmodified axe scans of the REAL root, including its slotted entries,
@@ -206,6 +221,14 @@ describe('Real-root automatic accessibility regressions', function () {
                         month.querySelectorAll<HTMLElement>('lms-calendar-entry'),
                     );
                     expect(rendered.length).to.be.greaterThan(8);
+                    expect(rendered.map((entry) => entry.dataset.eventId).sort()).to.deep.equal(
+                        [
+                            ...Array(4).fill('conference'),
+                            'holiday',
+                            'planning',
+                            ...Array.from({ length: 7 }, (_, index) => `dense-${index}`),
+                        ].sort(),
+                    );
                     expect(
                         rendered.some((entry) => getComputedStyle(entry).display === 'none'),
                     ).to.equal(true);
@@ -263,15 +286,17 @@ describe('Real-root automatic accessibility regressions', function () {
     }
 
     scenario(
-        'scans narrow Arabic Month summaries and the Day reached with actual Space',
+        'scans opt-in narrow Arabic Month day drill and the Day reached with actual Space',
         async () => {
-            const calendar = await calendarFixture('default', 'month', 360, 'ar');
+            const calendar = await calendarFixture('default', 'month', 360, 'ar-u-nu-arab', 'day');
             const month = calendar.shadowRoot!.querySelector('lms-calendar-month')!;
             expect(month.querySelectorAll('lms-calendar-entry')).to.have.length(0);
             const summary = month.shadowRoot!.querySelector<HTMLButtonElement>(
-                `.day[data-date="${key}"] .summary`,
+                `button.indicator[data-date="${key}"]`,
             )!;
-            await waitUntil(() => !summary.hidden);
+            expect(summary).to.be.instanceOf(HTMLButtonElement);
+            expect(summary.querySelector('.activity[data-active]')).to.exist;
+            expect(summary.getAttribute('aria-label')).to.include('٢٠٢٦');
             await scan(calendar);
             summary.focus();
             await sendKeys({ press: ' ' });
@@ -279,6 +304,50 @@ describe('Real-root automatic accessibility regressions', function () {
             expect(calendar.viewMode).to.equal('day');
             expect(calendar.activeDate).to.deep.equal(date);
             await scan(calendar);
+        },
+    );
+
+    scenario(
+        'scans default compact Arabic Month date selection, contextual rows and canonical activation',
+        async () => {
+            const calendar = await calendarFixture('default', 'month', 360, 'ar');
+            const month = calendar.shadowRoot!.querySelector('lms-calendar-month')!;
+            const button = month.shadowRoot!.querySelector<HTMLButtonElement>(
+                `button.indicator[data-date="${key}"]`,
+            )!;
+            expect(button).to.be.instanceOf(HTMLButtonElement);
+            expect(button.querySelector('.activity[data-active]')).to.exist;
+            expect(month.shadowRoot!.querySelectorAll('.summary:not([hidden])')).to.have.length(0);
+            button.focus();
+            await sendKeys({ press: ' ' });
+            await settle(calendar);
+            expect(calendar.viewMode).to.equal('month');
+            expect(month.shadowRoot!.activeElement).to.equal(button);
+            const rows = [
+                ...calendar.shadowRoot!.querySelectorAll<HTMLButtonElement>('.agenda-event'),
+            ];
+            expect(rows.map((row) => row.dataset.eventId)).to.deep.equal([
+                'conference',
+                'holiday',
+                'planning',
+                ...Array.from({ length: 7 }, (_, index) => `dense-${index}`),
+            ]);
+            await scan(calendar);
+            const row = rows.find((row) => row.dataset.eventId === 'planning')!;
+            let activated: CalendarEntry | undefined;
+            calendar.addEventListener('entry-activate', (event) => {
+                activated = (event as CustomEvent).detail.entry;
+            });
+            row.focus();
+            await sendKeys({ press: 'Enter' });
+            await settle(calendar);
+            expect(activated).to.deep.equal(entries('ar')[0]);
+            expect(calendar.shadowRoot!.querySelector<Menu>('lms-menu')!.open).to.equal(true);
+            await scan(calendar);
+            await sendKeys({ press: 'Escape' });
+            await settle(calendar);
+            expect(calendar.shadowRoot!.querySelector<Menu>('lms-menu')!.open).to.equal(false);
+            expect(calendar.shadowRoot!.activeElement).to.equal(row);
         },
     );
 

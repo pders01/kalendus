@@ -6,6 +6,43 @@ import { normalizeLocale } from './messages.js';
 // catalog fallback does not change the user's date/number formatting locale.
 const resolveLuxonLocale = normalizeLocale;
 
+/** CalendarDate is always Gregorian, even for locales defaulting to another era. */
+export const DISPLAY_CALENDAR = 'gregory' as const;
+
+const _dateFormatters = new Map<string, Intl.DateTimeFormat>();
+const _digits = new Map<string, readonly string[]>();
+function localizeDigits(value: string, locale: string): string {
+    const canonical = normalizeLocale(locale);
+    let digits = _digits.get(canonical);
+    if (!digits) {
+        const formatter = new Intl.NumberFormat(canonical, { useGrouping: false });
+        digits = Array.from({ length: 10 }, (_, digit) => formatter.format(digit));
+        _digits.set(canonical, digits);
+    }
+    // Some WebKit Intl builds ignore numberingSystem for Gregorian dates.
+    // Replace only ASCII digits, preserving Intl's ordering, literals and bidi.
+    return value.replace(/[0-9]/g, (digit) => digits![Number(digit)]);
+}
+function dateFormatter(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+    const canonical = normalizeLocale(locale);
+    const key = JSON.stringify([canonical, options]);
+    let formatter = _dateFormatters.get(key);
+    if (!formatter) {
+        formatter = new Intl.DateTimeFormat(canonical, {
+            ...options,
+            calendar: DISPLAY_CALENDAR,
+            // WebKit may choose Latin digits for an explicit Gregorian date
+            // despite the locale's NumberFormat using native numerals.
+            numberingSystem:
+                options.numberingSystem ??
+                new Intl.NumberFormat(canonical).resolvedOptions().numberingSystem,
+            timeZone: 'UTC',
+        });
+        _dateFormatters.set(key, formatter);
+    }
+    return formatter;
+}
+
 /** Civil dates use UTC only as a formatting carrier, never as an event instant. */
 function civilDate(day: number, month: number, year: number): Date {
     const date = new Date(0);
@@ -39,25 +76,6 @@ export function getISOWeek(
     return Object.freeze({ weekNumber: date.weekNumber, weekYear: date.weekYear });
 }
 
-// ── Cached month names (12-element array per locale) ─────────────────
-const _monthCache = new Map<string, readonly string[]>();
-
-function getMonthNames(locale: string): readonly string[] {
-    const key = resolveLuxonLocale(locale);
-    let arr = _monthCache.get(key);
-    if (!arr) {
-        arr = Object.freeze(
-            Array.from({ length: 12 }, (_, i) =>
-                DateTime.utc(2024, i + 1, 1)
-                    .setLocale(key)
-                    .toFormat('MMM'),
-            ),
-        );
-        _monthCache.set(key, arr);
-    }
-    return arr;
-}
-
 // ── Cached weekday names (7-element array per locale) ────────────────
 const _weekdayCache = new Map<string, readonly string[]>();
 
@@ -69,6 +87,7 @@ function getWeekdayNames(locale: string): readonly string[] {
             Array.from({ length: 7 }, (_, i) =>
                 DateTime.utc(2024, 1, i + 1)
                     .setLocale(key)
+                    .reconfigure({ outputCalendar: DISPLAY_CALENDAR })
                     .toFormat('ccc'),
             ),
         );
@@ -84,7 +103,7 @@ function getDayMonthFormatter(locale: string): Intl.DateTimeFormat {
     const key = resolveLuxonLocale(locale);
     let fmt = _dayMonthFmtCache.get(key);
     if (!fmt) {
-        fmt = new Intl.DateTimeFormat(key, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+        fmt = dateFormatter(key, { day: 'numeric', month: 'short' });
         _dayMonthFmtCache.set(key, fmt);
     }
     return fmt;
@@ -94,14 +113,22 @@ function getDayMonthFormatter(locale: string): Intl.DateTimeFormat {
  * Format a DateTime with the given locale
  */
 export function formatDateTime(dateTime: DateTime, format: string, locale = 'en'): string {
-    return dateTime.setLocale(resolveLuxonLocale(locale)).toFormat(format);
+    return dateTime
+        .setLocale(resolveLuxonLocale(locale))
+        .reconfigure({ outputCalendar: DISPLAY_CALENDAR })
+        .toFormat(format);
 }
 
-/**
- * Get localized month name (abbreviated)
- */
-export function getLocalizedMonth(month: number, locale = 'en'): string {
-    return getMonthNames(locale)[month - 1];
+/** Get a standalone month name, abbreviated unless requested otherwise. */
+export function getLocalizedMonth(
+    month: number,
+    locale = 'en',
+    width: 'short' | 'long' = 'short',
+): string {
+    return localizeDigits(
+        dateFormatter(locale, { month: width }).format(civilDate(1, month, 2024)),
+        locale,
+    );
 }
 
 /**
@@ -115,7 +142,19 @@ export function getLocalizedDayMonth(
     locale = 'en',
 ): string {
     const date = civilDate(day, month, year);
-    return getDayMonthFormatter(locale).format(date);
+    return localizeDigits(getDayMonthFormatter(locale).format(date), locale);
+}
+
+/** Structured day/month display without imposing an English word order. */
+export function getLocalizedDayMonthParts(
+    day: number,
+    month: number,
+    year: number,
+    locale = 'en',
+): Intl.DateTimeFormatPart[] {
+    return getDayMonthFormatter(locale)
+        .formatToParts(civilDate(day, month, year))
+        .map((part) => ({ ...part, value: localizeDigits(part.value, locale) }));
 }
 
 /**
@@ -132,7 +171,7 @@ function getTimeFormatter(locale: string): Intl.DateTimeFormat {
     const key = resolveLuxonLocale(locale);
     let fmt = _timeFmtCache.get(key);
     if (!fmt) {
-        fmt = new Intl.DateTimeFormat(key, { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+        fmt = dateFormatter(key, { hour: 'numeric', minute: '2-digit' });
         _timeFmtCache.set(key, fmt);
     }
     return fmt;
@@ -155,7 +194,7 @@ export function formatLocalizedTime(hour: number, minute: number, locale = 'en')
         throw new RangeError('Invalid wall time');
     }
     const d = new Date(Date.UTC(2000, 0, 1, hour, minute));
-    return getTimeFormatter(locale).format(d);
+    return localizeDigits(getTimeFormatter(locale).format(d), locale);
 }
 
 /**
@@ -186,12 +225,55 @@ export function formatLocalizedDate(
     year: number,
     locale = 'en',
 ): string {
-    const key = resolveLuxonLocale(locale);
-    const d = civilDate(day, month, year);
-    return new Intl.DateTimeFormat(key, {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone: 'UTC',
-    }).format(d);
+    return localizeDigits(
+        dateFormatter(locale, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        }).format(civilDate(day, month, year)),
+        locale,
+    );
+}
+
+/** Complete month/year phrase, including locale order, suffixes and numerals. */
+export function formatLocalizedMonthYear(month: number, year: number, locale = 'en'): string {
+    return localizeDigits(
+        dateFormatter(locale, { month: 'short', year: 'numeric' }).format(
+            civilDate(1, month, year),
+        ),
+        locale,
+    );
+}
+
+/** Year label with locale numerals and date grammar (e.g. Japanese 年). */
+export function formatLocalizedYear(year: number, locale = 'en'): string {
+    return localizeDigits(
+        dateFormatter(locale, { year: 'numeric' }).format(civilDate(1, 1, year)),
+        locale,
+    );
+}
+
+/** Inclusive civil-date interval. Intl elides shared fields without inventing word order.
+ * UTC is a carrier only; no host timezone or locale-default calendar may change dates.
+ */
+export function formatLocalizedDateInterval(
+    start: Readonly<{ day: number; month: number; year: number }>,
+    end: Readonly<{ day: number; month: number; year: number }>,
+    locale = 'en',
+): string {
+    const first = civilDate(start.day, start.month, start.year);
+    const last = civilDate(end.day, end.month, end.year);
+    if (first > last) throw new RangeError('Date interval ends before it starts');
+    const formatter = dateFormatter(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+    // formatRange is widely available, but the library's ES2020 declaration target
+    // does not include it. Preserve a complete-date fallback for older Intl engines.
+    const rangeFormatter = formatter as Intl.DateTimeFormat & {
+        formatRange?: (start: Date, end: Date) => string;
+    };
+    const range =
+        first.getTime() === last.getTime()
+            ? formatter.format(first)
+            : (rangeFormatter.formatRange?.(first, last) ??
+              `${formatter.format(first)} – ${formatter.format(last)}`);
+    return `\u2068${localizeDigits(range, locale)}\u2069`;
 }
