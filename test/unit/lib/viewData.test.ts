@@ -1,0 +1,247 @@
+import { expect } from 'chai';
+
+import { prepareAgendaEntries } from '../../../src/lib/agendaEntries.js';
+import { layoutAllDaySegments } from '../../../src/lib/allDayLayout.js';
+import { expandEntries, type CalendarModelEntryInput } from '../../../src/lib/calendarModel.js';
+import { buildMonthPreviews } from '../../../src/lib/monthPreviews.js';
+import { getDenseTimedGroups, layoutTimedEntries } from '../../../src/lib/timedLayout.js';
+import { getMonthCalendarArray } from '../../../src/lib/weekStartHelper.js';
+
+const date = (day: number) => ({ year: 2026, month: 11, day });
+const allDay = (id: string, start = 17, end = start): CalendarModelEntryInput => ({
+    id,
+    kind: 'all-day',
+    date: { start: date(start), end: date(end) },
+});
+const timed = (id: string, hour: number, day = 17): CalendarModelEntryInput => ({
+    id,
+    kind: 'timed',
+    date: { start: date(day), end: date(day) },
+    time: { start: { hour, minute: 0 }, end: { hour: hour + 1, minute: 0 } },
+});
+const segments = (entries: CalendarModelEntryInput[]) =>
+    Object.freeze(
+        expandEntries(entries).map((entry) =>
+            Object.freeze({ ...entry, originalIndex: entries.indexOf(entry.sourceEntry) }),
+        ),
+    );
+const ids = (entries: readonly { sourceId: string }[]) => entries.map((entry) => entry.sourceId);
+
+describe('Timed layout data', () => {
+    const geometry = { minuteHeight: 0.8, eventMinHeight: 24 };
+    const at = (minute: number) => ({ hour: Math.floor(minute / 60), minute: minute % 60 });
+    const interval = (id: string, start: number, end: number): CalendarModelEntryInput => ({
+        ...timed(id, 0),
+        time: { start: at(start), end: at(end) },
+    });
+
+    it('fits a late marker label without changing the displayed or canonical endpoints', () => {
+        const endingAtMidnight: CalendarModelEntryInput = {
+            ...interval('late', 1430, 0),
+            date: { start: date(17), end: date(18) },
+        };
+        const input = segments([endingAtMidnight]);
+        expect(input).to.have.length(1);
+        const [segment] = input;
+        const fractionalGeometry = { ...geometry, eventMinHeight: 25 };
+        const [card] = layoutTimedEntries(input, fractionalGeometry, false).boxes;
+        const [marker] = layoutTimedEntries(input, fractionalGeometry, true).boxes;
+
+        expect(card.y).to.be.closeTo(1430 * geometry.minuteHeight, 1e-9);
+        expect(marker.y).to.be.closeTo(1408 * geometry.minuteHeight, 1e-9);
+        expect(marker.y + marker.height).to.be.closeTo(1440 * geometry.minuteHeight, 1e-9);
+        expect(marker.id).to.equal(segment.segmentId);
+        expect(segment.time).to.deep.equal({ start: at(1430), end: at(1440) });
+        expect(segment.canonicalEntry).to.equal(endingAtMidnight);
+        expect(endingAtMidnight.date.end).to.deep.equal(date(18));
+        expect(endingAtMidnight.time).to.deep.equal({ start: at(1430), end: at(0) });
+    });
+
+    it('keeps touching minimum-height boxes separate and reports them in input order', () => {
+        const input = segments([interval('later', 570, 575), interval('earlier', 540, 545)]);
+        const { boxes } = layoutTimedEntries(input, geometry, false);
+        expect(boxes.map((box) => box.id)).to.deep.equal(input.map((entry) => entry.segmentId));
+        expect(boxes.map((box) => box.durationMinutes)).to.deep.equal([30, 30]);
+        expect(boxes.map((box) => box.columnCount)).to.deep.equal([1, 1]);
+        expect(boxes[1].y + boxes[1].height).to.equal(boxes[0].y);
+        expect(boxes[0].group).not.to.equal(boxes[1].group);
+    });
+
+    it('uses peak lane count to disclose an entire connected group only below the width threshold', () => {
+        const input = segments([
+            interval('c', 580, 610),
+            interval('single', 660, 690),
+            interval('a', 540, 570),
+            interval('b', 560, 590),
+        ]);
+        const { boxes } = layoutTimedEntries(input, geometry, false);
+        expect(boxes.map((box) => box.columnCount)).to.deep.equal([2, 1, 2, 2]);
+        expect(getDenseTimedGroups(boxes, 256, 128).size).to.equal(0);
+        expect([...getDenseTimedGroups(boxes, 255, 128)]).to.deep.equal([
+            [boxes[0].group, [0, 2, 3]],
+        ]);
+        expect([...getDenseTimedGroups(boxes, 100, 128).values()]).to.deep.equal([[0, 2, 3]]);
+    });
+});
+
+describe('All-day placements', () => {
+    it('coalesces visible segments by occurrence without reordering or replacing them', () => {
+        const span = allDay('span', 16, 20);
+        const input = segments([span, allDay('single', 19)]);
+        const entryOn = (day: number) =>
+            input.find((entry) => entry.sourceId === 'span' && entry.date.start.day === day)!;
+        // A condensed window clips off the original first and last days.
+        const visible = [
+            input.find((entry) => entry.sourceId === 'single')!,
+            entryOn(19),
+            entryOn(18),
+            entryOn(17),
+        ];
+        const layout = layoutAllDaySegments(
+            visible.map((entry) => Object.freeze({ entry, column: entry.date.start.day - 17 })),
+        );
+
+        expect(layout.totalRows).to.equal(2);
+        expect(layout.placements.map(({ row }) => row)).to.deep.equal([1, 0, 0, 0]);
+        expect(layout.placements.map(({ spanClass }) => spanClass)).to.deep.equal([
+            'single-day',
+            'last-day',
+            'middle-day',
+            'first-day',
+        ]);
+        layout.placements.forEach(({ entry }, index) => expect(entry).to.equal(visible[index]));
+        expect(layout.placements[1].entry.canonicalEntry).to.equal(span);
+    });
+
+    it('rounds both edges when a multi-day occurrence is visible in only one column', () => {
+        const input = segments([allDay('a-single', 18), allDay('z-span', 16, 20)]).filter(
+            (entry) => entry.date.start.day === 18,
+        );
+        const layout = layoutAllDaySegments(input.map((entry) => ({ entry, column: 0 })));
+        expect(layout.totalRows).to.equal(2);
+        expect(
+            layout.placements.map(({ entry, row, spanClass }) => [entry.sourceId, row, spanClass]),
+        ).to.have.deep.members([
+            ['a-single', 1, 'single-day'],
+            ['z-span', 0, 'single-day'],
+        ]);
+        expect(layoutAllDaySegments([])).to.deep.equal({ placements: [], totalRows: 0 });
+    });
+});
+
+describe('Month preview data', () => {
+    it('keeps sparse span lanes, with timed rows after the last occupied lane', () => {
+        const span = allDay('span', 16, 18);
+        const input = segments([
+            allDay('a', 16, 17),
+            allDay('b', 16, 17),
+            span,
+            timed('timed', 9, 18),
+        ]);
+        const rows = buildMonthPreviews(getMonthCalendarArray(date(17), 1), input);
+        const day = rows['2026-11-18'];
+        expect(day).to.have.length(4);
+        expect(day[0]).to.equal(undefined);
+        expect(day[1]).to.equal(undefined);
+        expect(day[2]?.spanClass).to.equal('last-day');
+        expect(day[2]?.entry).to.equal(
+            input.find((entry) => entry.sourceId === 'span' && entry.date.start.day === 18),
+        );
+        expect(day[2]?.entry.canonicalEntry).to.equal(span);
+        expect(day[3]?.entry.sourceId).to.equal('timed');
+        expect(day[3]?.spanClass).to.equal(undefined);
+    });
+
+    it('keeps bar edges clipped to the caller’s week start', () => {
+        const entries = segments([allDay('span', 14, 16)]);
+        const classes = (firstDayOfWeek: 0 | 1) => {
+            const rows = buildMonthPreviews(
+                getMonthCalendarArray(date(17), firstDayOfWeek),
+                entries,
+            );
+            return [14, 15, 16].map((day) => rows[`2026-11-${day}`][0]?.spanClass);
+        };
+        expect(classes(0)).to.deep.equal(['single-day', 'first-day', 'last-day']);
+        expect(classes(1)).to.deep.equal(['first-day', 'last-day', 'single-day']);
+    });
+
+    it('preserves the existing priority of continuing timed spans in Month previews', () => {
+        const early = timed('early', 8);
+        const overnight: CalendarModelEntryInput = {
+            ...timed('overnight', 22),
+            date: { start: date(17), end: date(18) },
+            time: { start: { hour: 22, minute: 0 }, end: { hour: 8, minute: 0 } },
+        };
+        const rows = buildMonthPreviews(
+            getMonthCalendarArray(date(17), 1),
+            segments([early, overnight]),
+        );
+        expect(rows['2026-11-17'].map((row) => row?.entry.sourceId)).to.deep.equal([
+            'overnight',
+            'early',
+        ]);
+        expect(rows['2026-11-18'][0]?.entry.canonicalEntry).to.equal(overnight);
+    });
+});
+
+describe('Agenda page data', () => {
+    const options = { limit: 3, perSection: false, expanded: false };
+    const input = segments([
+        timed('late', 12),
+        timed('early-a', 8),
+        allDay('all-day-a'),
+        timed('early-b', 8),
+        allDay('all-day-b'),
+        allDay('all-day-c'),
+        allDay('all-day-d'),
+    ]);
+
+    it('applies independent accordion pages and keeps equal start times in source order', () => {
+        const page = prepareAgendaEntries(input, { ...options, perSection: true });
+        expect(ids(page.allDay)).to.deep.equal(['all-day-a', 'all-day-b', 'all-day-c']);
+        expect(ids(page.timed)).to.deep.equal(['early-a', 'early-b', 'late']);
+        expect(page.timed[0]).to.equal(input.find((entry) => entry.sourceId === 'early-a'));
+        expect(page.total).to.equal(7);
+        expect(page.remaining).to.equal(1);
+        expect(page.disclosure).to.equal(false);
+    });
+
+    it('uses one shared quota for full and density lists', () => {
+        const page = prepareAgendaEntries(input, { ...options, limit: 5 });
+        expect(page.allDay).to.have.length(4);
+        expect(ids(page.timed)).to.deep.equal(['early-a']);
+        expect(page.remaining).to.equal(2);
+    });
+
+    it('keeps collapsed preview, on-demand and continuation policies separate', () => {
+        const preview = { ...options, limit: 5, previewSize: 3 };
+        expect(prepareAgendaEntries(input.slice(0, 3), preview).disclosure).to.equal(false);
+        const collapsed = prepareAgendaEntries(input, preview);
+        expect(collapsed.disclosure).to.equal(true);
+        expect(collapsed.allDay.length + collapsed.timed.length).to.equal(3);
+        expect(collapsed.remaining).to.equal(0);
+        const expanded = prepareAgendaEntries(input, { ...preview, expanded: true });
+        expect(expanded.disclosure).to.equal(true);
+        expect(expanded.remaining).to.equal(2);
+        const onDemand = prepareAgendaEntries(input, { ...options, previewSize: 0 });
+        expect(onDemand).to.deep.equal({
+            allDay: [],
+            timed: [],
+            total: 7,
+            disclosure: true,
+            remaining: 0,
+        });
+        expect(prepareAgendaEntries([], { ...options, previewSize: 0 }).disclosure).to.equal(false);
+    });
+
+    it('filters density lists to all-day events or exact selected segments', () => {
+        const allDayPage = prepareAgendaEntries(input, { ...options, allDayOnly: true });
+        expect(allDayPage.total).to.equal(4);
+        expect(allDayPage.timed).to.have.length(0);
+        const segment = input.find((entry) => entry.sourceId === 'early-b')!;
+        const scoped = prepareAgendaEntries(input, { ...options, segmentIds: [segment.segmentId] });
+        expect(scoped.total).to.equal(1);
+        expect(scoped.timed[0]).to.equal(segment);
+        expect(prepareAgendaEntries(input, { ...options, segmentIds: [] }).total).to.equal(0);
+    });
+});

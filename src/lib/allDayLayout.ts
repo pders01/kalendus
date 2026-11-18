@@ -1,3 +1,5 @@
+import type { ExpandedCalendarEntry } from './calendarModel.js';
+
 export interface AllDayEvent {
     id: string;
     days: number[];
@@ -118,6 +120,42 @@ export function allocateAllDayRows(events: AllDayEvent[]): AllDayLayoutResult {
     });
 
     return { rowAssignments: eventRows, totalRows: maxRows };
+}
+
+/**
+ * Coalesce visible segments into row requests, then return one placement per
+ * input segment in the same order. The caller supplies display columns (not
+ * the canonical continuation indices) so span edges follow the visible window.
+ */
+export function layoutAllDaySegments<
+    T extends Pick<ExpandedCalendarEntry, 'occurrenceId' | 'continuation'>,
+>(segments: readonly { entry: T; column: number }[]) {
+    const events = new Map<string, AllDayEvent>();
+    for (const { entry, column } of segments) {
+        const id = entry.occurrenceId;
+        let event = events.get(id);
+        if (!event) {
+            event = { id, days: [], isMultiDay: entry.continuation.total > 1 };
+            events.set(id, event);
+        }
+        event.days.push(column);
+    }
+
+    const { rowAssignments, totalRows } = allocateAllDayRows([...events.values()]);
+    const placements = segments.map(({ entry, column }) => {
+        const days = events.get(entry.occurrenceId)!.days;
+        return {
+            entry,
+            row: rowAssignments.get(entry.occurrenceId)!,
+            spanClass: computeSpanClass({
+                continuationIndex: column,
+                totalDays: entry.continuation.total,
+                visibleStartIndex: Math.min(...days),
+                visibleEndIndex: Math.max(...days),
+            }),
+        };
+    });
+    return { placements, totalRows };
 }
 
 /**

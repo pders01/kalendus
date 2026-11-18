@@ -32,8 +32,10 @@ Called in `willUpdate()` when entries or the committed visible range/view/week-s
 
 - Expands normalized entries via `expandEntries()` in `src/lib/calendarModel.ts`, clipped to `visibleRange`. Invalid records report `entries-invalid`; a visible segment-budget failure clears caches and reports `entries-error` rather than truncating.
 - Groups results into `_expandedByISODate` (`Map<string, ExpandedCalendarEntry[]>`) keyed by `YYYY-MM-DD` for O(1) per-day lookups.
-- Prepares Month rows by date, preserving gaps in multi-day span lanes. Month measures cell capacity before the owner creates preview elements. `_entrySumByDay` retains full per-date counts, including entries not mounted in the grid.
+- Calls `buildMonthPreviews()` in `src/lib/monthPreviews.ts` to prepare rows by date, preserving gaps in multi-day span lanes. Month measures cell capacity before the owner creates preview elements. `_entrySumByDay` retains full per-date counts, including entries not mounted in the grid.
 - Clears `_layoutCache` and `_allDayLayoutCache` so stale layouts are recomputed.
+
+`prepareAgendaEntries()` in `src/lib/agendaEntries.ts` selects the page for a date or density disclosure. The helper retains the original segments, orders all-day before timed, and applies the appropriate shared or per-section limit. The root still owns the selected date, disclosure state, focus, and public events.
 
 ### `normalizeEntries()` / `expandEntries()`
 
@@ -72,7 +74,7 @@ All-day date ends remain inclusive; explicit timed endpoints have an exclusive e
 
 Entries are sorted deterministically by start, descending duration, identity and input index. A sweep groups connected overlap components; heaps reuse lanes as intervals end. Equal endpoints do not collide unless minimum display geometry extends them.
 
-The root opts into `layoutMode: 'columns'`: equal reusable lanes expose `columnIndex` and the connected group's peak `columnCount`. Groups whose measured lanes cannot remain readable become disclosures opening precisely those real segments. Metadata stays next to titles; start/end ranges make minimum-height short events distinguishable from long events.
+`layoutTimedEntries()` prepares one day of segments for `layoutMode: 'columns'`. Equal reusable lanes expose `columnIndex` and the connected group's peak `columnCount`. In marker mode, the helper can move the label collision envelope earlier near midnight, leaving the segment times and canonical endpoints untouched. `getDenseTimedGroups()` selects connected groups with multiple lanes whose measured per-lane width is strictly below the readability threshold. The host renders those groups as disclosures opening precisely the selected segments. Metadata stays next to titles; start/end ranges make minimum-height short events distinguishable from long events.
 
 For compatibility, standalone `LayoutCalculator` still defaults to cascade. Only that mode uses these rules:
 
@@ -89,7 +91,7 @@ A single-event group always gets `x = 0, width = 100`. The opacity values above 
 
 ### Caching
 
-Results are cached in `_layoutCache` keyed by ISO date (`YYYY-MM-DD`). The cache is cleared when entries, the visible range/view key or effective grid scale/minimum geometry changes.
+Results are cached in `_layoutCache` by ISO date and timed presentation (`card` or `marker`). The cache is cleared when entries, the visible range/view key or effective grid scale/minimum geometry changes. Width-dependent density is calculated separately, so the same boxes can serve both wide and narrow layouts.
 
 ---
 
@@ -108,7 +110,7 @@ A greedy first-fit algorithm that packs all-day events into rows without visual 
 
 **Output:** `{ rowAssignments: Map<eventId, row>, totalRows: number }`.
 
-`totalRows` is the maximum number of rows used on any single day — this drives the height of the all-day container.
+`totalRows` is one more than the highest occupied row index (or zero when empty). It includes any gaps in the row sequence and drives the height of the all-day container.
 
 ### `computeSpanClass()`
 
@@ -123,9 +125,11 @@ Assigns a CSS class to each day-segment of a multi-day event:
 
 Week.ts applies corresponding CSS rules so multi-day events render as a connected strip across day columns.
 
-### Caching
+### `layoutAllDaySegments()`
 
-Results are cached in `_allDayLayoutCache` with a composite key that includes the condensed week offset, so full-week and condensed-week layouts coexist.
+Month, Day, and Week share this step: group visible segments by occurrence, allocate rows, and attach a row and a clipped span class to each original segment in input order. The view supplies the display column; the canonical event's dates and continuation index are not used as visible boundaries. Month uses placements as sparse preview lanes, while Day and Week use them for the all-day strip.
+
+Day and Week cache the placements in `_allDayLayoutCache`. Its key includes the condensed week offset and visible length. Week still decides independently whether to render chips or per-date totals.
 
 ---
 
@@ -353,17 +357,17 @@ The handle color is set from the entry's `color` property by `lms-calendar.ts` d
 
 Two layout caches avoid redundant computation:
 
-### `_layoutCache` (per ISO date)
+### `_layoutCache` (per ISO date and presentation)
 
-- **Key:** `YYYY-MM-DD`
+- **Key:** `YYYY-MM-DD:card` or `YYYY-MM-DD:marker`
 - **Value:** `LayoutResult` (the `boxes` array from `LayoutCalculator`)
-- **Lookup:** Before calling `LayoutCalculator.calculateLayout()`, check if the day's result is already cached.
+- **Lookup:** Before calling `layoutTimedEntries()`, check if the day's result is already cached.
 - **Invalidation:** Cleared on entry/range/view changes and effective grid scale/minimum geometry changes.
 
 ### `_allDayLayoutCache` (composite key)
 
 - **Key:** Composite string including visible day offsets (so full-week and condensed layouts are cached separately).
-- **Value:** `{ rowAssignments, mergedEvents, totalRows }`
+- **Value:** `{ placements, totalRows }`, with one placement per visible segment.
 - **Invalidation:** Cleared with range-dependent entry caches on entry/range/view changes.
 
 Both caches are `Map` instances on the component, so they are garbage-collected with the element.
