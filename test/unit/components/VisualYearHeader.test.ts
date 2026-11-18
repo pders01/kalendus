@@ -37,7 +37,7 @@ describe('Year / Header visual geometry regressions', () => {
         { width: 358, fontSize: 16, columns: 1, direction: 'rtl' },
         { width: 752, fontSize: 32, columns: 1, direction: 'ltr' },
     ]) {
-        it(`keeps Year content-sized with aligned, non-overlapping targets at ${width}px / ${fontSize}px / ${direction}`, async () => {
+        it(`keeps Year dates aligned with non-overlapping targets at ${width}px / ${fontSize}px / ${direction}`, async () => {
             const el = await yearFixture(width, fontSize, direction);
             const months = [...el.shadowRoot!.querySelectorAll<HTMLElement>('.mini-month')];
             expect(months).to.have.length(12);
@@ -48,9 +48,10 @@ describe('Year / Header visual geometry regressions', () => {
             for (const month of months) {
                 expect(month.scrollWidth).to.be.at.most(month.clientWidth + 1);
                 const rows = [...month.querySelectorAll<HTMLElement>('.day-row')];
-                // The old half-viewport rows left >100px of blank space after dates.
-                expect(bounds(month).bottom - bounds(rows[rows.length - 1]).bottom).to.be.at.most(
-                    2,
+                // Only the unused slots in the six-week grid may follow the final date.
+                const weekHeight = Math.max(...rows.map((row) => bounds(row).height));
+                expect(bounds(month).bottom - bounds(rows.at(-1)!).bottom).to.be.at.most(
+                    (6 - rows.length) * weekHeight + 2,
                 );
                 const headers = [...month.querySelectorAll('.weekday-header > span')];
                 for (const row of rows) {

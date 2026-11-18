@@ -568,7 +568,7 @@ export default class LMSCalendar extends LitElement {
                --year-grid-columns overrides remain authoritative. */
             --year-grid-columns-tablet: 2;
             --year-grid-columns-mobile: 1;
-            --year-month-label-font-size: 0.875em;
+            --year-month-label-font-size: 1em;
             --year-day-font-size: 0.8125em;
             --year-cell-size: 1.8em;
             --year-dot-color: var(--indicator-color, var(--primary-color));
@@ -591,8 +591,8 @@ export default class LMSCalendar extends LitElement {
 
             /* Year view — calendar week column */
             --year-cw-width: 1.8em;
-            --year-cw-font-size: 0.55em;
-            --year-cw-color: var(--header-text-color, rgba(0, 0, 0, 0.45));
+            --year-cw-font-size: 0.875em;
+            --year-cw-color: var(--header-text-color, var(--separator-dark));
 
             /* Multi-day separator */
             --multi-day-separator: none;
@@ -635,8 +635,7 @@ export default class LMSCalendar extends LitElement {
         .calendar-view {
             flex: 1;
             min-height: 0;
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
@@ -645,7 +644,7 @@ export default class LMSCalendar extends LitElement {
             min-block-size: min-content;
             overflow: visible;
         }
-        .calendar-view:is(.time-grid, .agenda-view) {
+        .calendar-view:is(.time-grid, .agenda-view, .year-view) {
             /* A definite flex basis is the fallback in an auto-height embed.
                With an embed height, the viewport still takes the remaining space. */
             flex: 1 1 auto;
@@ -655,6 +654,9 @@ export default class LMSCalendar extends LitElement {
         .calendar-view.time-grid {
             overflow-x: auto;
             overflow-y: hidden;
+        }
+        .year-view {
+            container: year-viewport / size;
         }
         :host([data-view-mode='week']) .calendar-view.time-grid {
             container: week-viewport / size;
@@ -1658,7 +1660,7 @@ export default class LMSCalendar extends LitElement {
 
                 <slot name="status">${this.error ? html`<p class="calendar-error" role="alert">${this.error}</p>` : this.loading ? html`<progress class="calendar-progress" aria-label=${getMessages(this.locale).calendarView}></progress>` : nothing}</slot>
                 <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${this._rangeDescription()}</p>
-                <section class="calendar-view${viewMode === 'day' || viewMode === 'week' ? (this._densityReturn ? ' agenda-view' : ' time-grid') : ''}" style=${styleMap({ '--_time-grid-tail': `${this.timedEntryPresentation === 'card' ? this._timeGridMinimum : 0}px` })} role="region" data-menu-focus-fallback tabindex="-1" aria-label=${this._rangeDescription()} aria-busy=${this.loading ? 'true' : 'false'} @open-menu=${this._handleOpenMenu}>
+                <section class="calendar-view${viewMode === 'day' || viewMode === 'week' ? (this._densityReturn ? ' agenda-view' : ' time-grid') : viewMode === 'year' ? ' year-view' : ''}" style=${styleMap({ '--_time-grid-tail': `${this.timedEntryPresentation === 'card' ? this._timeGridMinimum : 0}px` })} role="region" data-menu-focus-fallback tabindex="-1" aria-label=${this._rangeDescription()} aria-busy=${this.loading ? 'true' : 'false'} @open-menu=${this._handleOpenMenu}>
                     ${this._entriesError ? html`<slot name="entries-error"><p role="alert" lang="en">${this._entriesError}</p></slot>` : nothing}
                     ${viewMode === 'month' ? this._renderMonthView() : nothing}
                     ${

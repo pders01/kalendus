@@ -285,7 +285,7 @@ Shared all-day rows use `--all-day-row-height: max(24px, 1.5rem)` by default. Th
 | `--year-grid-columns`          | `auto-fit` | Optional wide-layout column count; otherwise fits readable months |
 | `--year-grid-columns-tablet`   | `2`        | Number of month columns (tablet)                                  |
 | `--year-grid-columns-mobile`   | `1`        | Number of month columns (mobile)                                  |
-| `--year-month-label-font-size` | `0.875em`  | Font size for month name labels                                   |
+| `--year-month-label-font-size` | `1em`      | Font size for month name labels                                   |
 | `--year-day-font-size`         | `0.8125em` | Font size for day numbers                                         |
 | `--year-cell-size`             | `1.8em`    | Width/height of day cells                                         |
 
@@ -318,11 +318,11 @@ Shared all-day rows use `--all-day-row-height: max(24px, 1.5rem)` by default. Th
 
 ## Year View — Calendar Week Column
 
-| Token                 | Default                                         | Description                          |
-| --------------------- | ----------------------------------------------- | ------------------------------------ |
-| `--year-cw-width`     | `1.8em`                                         | Width of calendar week number column |
-| `--year-cw-font-size` | `0.55em`                                        | Font size for calendar week numbers  |
-| `--year-cw-color`     | `var(--header-text-color, rgba(0, 0, 0, 0.45))` | Color for calendar week numbers      |
+| Token                 | Default                                           | Description                          |
+| --------------------- | ------------------------------------------------- | ------------------------------------ |
+| `--year-cw-width`     | `1.8em`                                           | Width of calendar week number column |
+| `--year-cw-font-size` | `0.875em`                                         | Font size for calendar week numbers  |
+| `--year-cw-color`     | `var(--header-text-color, var(--separator-dark))` | Color for calendar week numbers      |
 
 ## Multi-Day Events
 

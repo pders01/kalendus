@@ -16,7 +16,7 @@ Essential information for getting `<lms-calendar>` to display correctly in your 
 
 Month is a normal-flow section: its six-week grid and optional contextual list determine its height. The embedding page owns vertical scrolling. Month intentionally ignores an explicit host height/block-size used for other views, so a long list pushes following content down instead of covering it. Do not constrain a Month wrapper with a fixed height and hidden overflow.
 
-Day and Week fill the supplied height, including when a CSS Grid or flex parent sizes the calendar. The toolbar takes its own space; the timeline fills the rest. Without a supplied height, the area below the toolbar defaults to the smaller of `36rem` and `65dvb`. Supply a height to the embed or its parent for Year. The shared defaults are `--height: 100%` and `--width: 100%`.
+Day, Week, and Year fill the supplied height, including when a CSS Grid or flex parent sizes the calendar. The toolbar takes its own space; the view fills the rest. Without a supplied height, the area below the toolbar defaults to the smaller of `36rem` and `65dvb`. Day and Week scroll their timelines; Year scrolls when the twelve months do not fit at readable target sizes. The shared defaults are `--height: 100%` and `--width: 100%`.
 
 ```html
 <!-- ✅ Works: parent provides height -->
@@ -86,11 +86,13 @@ The default `--week-min-day-width: 8em` further limits visible columns using the
 
 ### Year View Grid Columns
 
-Wide Year grids fit columns intrinsically around readable date targets (four columns at the default 1136px reference width). Font-relative container queries select two or one column for smaller embeds and enlarged text. These optional overrides retain control of the layout:
+Year arranges twelve months in complete rows. Container width and text size set how many columns fit; counts and coarse-pointer targets need more room. The height and aspect ratio of the area **below the toolbar** then determine whether to use fewer columns. For example, a wide, shallow desktop embed can show six months across, while the same width with more height can show four across in three rows. Week slots align across adjacent months. When the readable minimum does not fit, Year scrolls rather than shrinking targets.
+
+These optional overrides retain control of the layout:
 
 ```css
 lms-calendar {
-    --year-grid-columns: 3; /* optionally pin wide layouts to 3 columns */
+    --year-grid-columns: 3; /* pin the column count, bypassing automatic layout */
     --year-grid-columns-tablet: 2; /* tablet: 2 months per row */
     --year-grid-columns-mobile: 1; /* mobile: 1 month per row */
 }

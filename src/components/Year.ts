@@ -1,10 +1,14 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { repeat } from 'lit/directives/repeat.js';
 import { DateTime } from 'luxon';
 
-import { getLocalizedMonth, getLocalizedWeekdayShort } from '../lib/localization.js';
-import { getMessages } from '../lib/messages.js';
+import {
+    formatLocalizedDate,
+    formatLocalizedYear,
+    getLocalizedMonth,
+    getLocalizedWeekdayShort,
+} from '../lib/localization.js';
+import { getMessageFormatters, getMessages, normalizeLocale } from '../lib/messages.js';
 import { getFirstDayOffset, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import type { FirstDayOfWeek } from '../lib/weekStartHelper.js';
 import { CurrentDateController } from './CurrentDateController.js';
@@ -40,12 +44,23 @@ export default class Year extends LitElement {
     densityMode: DensityMode = 'dot';
 
     private _today = new CurrentDateController(this);
+    private _numberFormat = new Intl.NumberFormat('en');
+    private _dateNumberFormat = new Intl.NumberFormat('en', { useGrouping: false });
     @state() private _focusedDate?: CalendarDate;
     @state() private _displayYear?: number;
     @state() private _weekFocus?: string;
 
     override willUpdate(changed: Map<string, unknown>) {
-        if (changed.has('activeDate')) {
+        if (changed.has('locale')) {
+            const locale = normalizeLocale(this.locale);
+            this._numberFormat = new Intl.NumberFormat(locale);
+            this._dateNumberFormat = new Intl.NumberFormat(locale, { useGrouping: false });
+        }
+        const previousDate = changed.get('activeDate') as CalendarDate | undefined;
+        if (
+            changed.has('activeDate') &&
+            (!previousDate || dateKey(previousDate) !== dateKey(this.activeDate))
+        ) {
             this._displayYear = undefined;
             this._focusedDate = this.activeDate;
             this._weekFocus = undefined;
@@ -59,6 +74,7 @@ export default class Year extends LitElement {
             min-block-size: 0;
             contain: layout style;
             container-type: inline-size;
+            --_target-min: max(24px, 1.85em);
         }
 
         .scroll-container {
@@ -69,34 +85,82 @@ export default class Year extends LitElement {
 
         .year-grid {
             display: grid;
-            --_month-min-inline: min(
-                100%,
-                calc(max(24px, var(--year-cw-width, 1.8em)) + 7 * max(24px, var(--year-cell-size, 1.8em)))
-            );
+            --_columns: var(--year-grid-columns-mobile, 1);
             grid-template-columns: repeat(
-                var(--year-grid-columns, auto-fit),
-                minmax(var(--_month-min-inline), 1fr)
+                var(--year-grid-columns, min(var(--_columns), var(--_shape-columns, var(--_columns)))),
+                minmax(0, 1fr)
             );
-            /* Content-sized rows keep this an overview, not two months per page. */
-            align-items: start;
-            gap: 1.25em 1em;
-            padding: 1em;
+            /* Fill a sized embed without compressing the dates in a short one. */
+            box-sizing: border-box;
+            min-block-size: 100%;
+            grid-auto-rows: minmax(min-content, 1fr);
+            gap: 1em;
+            padding: 0.75em;
         }
 
-        /* Container queries — respond to component width, not viewport */
-        /* Font-relative breakpoints leave room for eight usable targets per
-           month, including when the embedding calendar enlarges its text. */
-        @container (width < 60em) {
+        /* Balanced divisors of twelve, never 5+5+2 or 7+5. Font-relative
+           container thresholds reserve eight targets per mini-month. */
+        @container (min-width: 28em) {
             .year-grid {
-                grid-template-columns: repeat(var(--year-grid-columns-tablet, 2), minmax(0, 1fr));
+                --_columns: var(--year-grid-columns-tablet, 2);
+            }
+        }
+        @container (min-width: 42em) {
+            .year-grid {
+                --_columns: 3;
+            }
+        }
+        @container (min-width: 56em) {
+            .year-grid {
+                --_columns: 4;
+            }
+        }
+        @container (min-width: 84em) {
+            .year-grid {
+                --_columns: 6;
             }
         }
 
-        @container (width < 40em) {
+        /* Counts need an adjacent home wider than presence/heat marks. */
+        .year-grid[data-density-mode='count'] {
+            --_columns: var(--year-grid-columns-mobile, 1);
+        }
+        @container (min-width: 40em) {
+            .year-grid[data-density-mode='count'] {
+                --_columns: var(--year-grid-columns-tablet, 2);
+            }
+        }
+        @container (min-width: 60em) {
+            .year-grid[data-density-mode='count'] {
+                --_columns: 3;
+            }
+        }
+        @container (min-width: 80em) {
+            .year-grid[data-density-mode='count'] {
+                --_columns: 4;
+            }
+        }
+        @container (min-width: 120em) {
+            .year-grid[data-density-mode='count'] {
+                --_columns: 6;
+            }
+        }
+
+        /* Width sets the safe maximum. Taller viewports can use more rows of
+           months instead of stretching two rows of dates into tall strips. */
+        @container year-viewport (min-block-size: 40em) and (max-aspect-ratio: 5/2) {
             .year-grid {
-                grid-template-columns: repeat(var(--year-grid-columns-mobile, 1), minmax(0, 1fr));
-                gap: 1em 0.75em;
-                padding: 0.75em;
+                --_shape-columns: 4;
+            }
+        }
+        @container year-viewport (min-block-size: 54em) and (max-aspect-ratio: 5/4) {
+            .year-grid {
+                --_shape-columns: 3;
+            }
+        }
+        @container year-viewport (min-block-size: 80em) and (max-aspect-ratio: 2/3) {
+            .year-grid {
+                --_shape-columns: 2;
             }
         }
 
@@ -110,7 +174,7 @@ export default class Year extends LitElement {
         }
 
         .month-label {
-            font-size: var(--year-month-label-font-size, 0.875em);
+            font-size: var(--year-month-label-font-size, 1em);
             font-weight: var(--month-label-font-weight);
             color: var(--separator-dark, rgba(0, 0, 0, 0.7));
             cursor: pointer;
@@ -120,25 +184,31 @@ export default class Year extends LitElement {
             text-align: start;
             border-radius: 0;
             font-family: inherit;
-            border-bottom: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));
-            margin-bottom: 0.15em;
+            border-block-end: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));
+            overflow-wrap: anywhere;
+            inline-size: 100%;
         }
 
         .month-label:hover {
             color: var(--year-month-label-hover-color);
+            text-decoration: underline;
         }
 
-        .weekday-header {
+        :is(.weekday-header, .day-row) {
             display: grid;
-            grid-template-columns: max(24px, var(--year-cw-width, 1.8em)) repeat(
-                    7,
-                    minmax(max(24px, var(--year-cell-size, 1.8em)), 1fr)
-                );
+            grid-template-columns: var(--_week-inline) repeat(7, minmax(var(--_day-inline), 1fr));
+        }
+        :is(.weekday-header, .day-row) > :first-child {
+            box-sizing: border-box;
+            align-self: stretch;
+            border-inline-end: 1px solid var(--separator-light, #ddd);
+        }
+        .weekday-header {
             text-align: center;
         }
 
         .weekday-header span {
-            font-size: 0.75em;
+            font-size: 0.925em;
             color: var(--header-text-color, CanvasText);
             padding: 0.2em 0;
             font-weight: var(--year-weekday-font-weight);
@@ -146,31 +216,28 @@ export default class Year extends LitElement {
         }
 
         .day-grid {
-            display: block;
+            display: grid;
+            flex: 1;
+            /* Align week slots across neighboring months; unused slots have no targets. */
+            grid-template-rows: auto repeat(6, minmax(auto, 1fr));
+            font-size: var(--year-day-font-size, 0.8125em);
+            --_week-inline: max(var(--_target-min), var(--year-cw-width, 1.8em));
+            --_day-inline: max(var(--_target-min), var(--year-cell-size, 1.8em));
+        }
+        [data-density-mode='count'] .day-grid {
+            --_day-inline: max(var(--_target-min), var(--year-cell-size, 1.8em), 2.9em);
         }
         .day-row {
-            display: grid;
-            grid-template-columns: max(24px, var(--year-cw-width, 1.8em)) repeat(
-                    7,
-                    minmax(max(24px, var(--year-cell-size, 1.8em)), 1fr)
-                );
-            grid-auto-rows: minmax(24px, auto);
-            padding-block-end: 0.1em;
+            grid-auto-rows: minmax(var(--_target-min), auto);
             justify-items: center;
-            align-items: center;
-        }
-
-        /* Only count mode places labels outside the date target. */
-        .year-grid[data-density-mode='count'] .day-row {
-            padding-block-end: 0.4em;
         }
 
         .cw-label {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: max(0.75em, var(--year-cw-font-size, 0.75em));
-            color: var(--year-cw-color, var(--header-text-color, CanvasText));
+            font-size: inherit;
+            color: var(--year-cw-color, var(--header-text-color, var(--separator-dark, CanvasText)));
             cursor: pointer;
             border: none;
             background: none;
@@ -178,6 +245,10 @@ export default class Year extends LitElement {
             font-family: inherit;
             padding: 0;
             line-height: 1;
+        }
+
+        .cw-number {
+            font-size: max(0.875em, var(--year-cw-font-size, 0.875em));
         }
 
         .cw-label:hover {
@@ -190,14 +261,15 @@ export default class Year extends LitElement {
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-size: var(--year-day-font-size, 0.8em);
+            font-size: inherit;
             border: none;
             background: none;
             border-radius: var(--year-day-cell-border-radius);
             cursor: pointer;
             position: relative;
-            inline-size: max(24px, var(--year-cell-size, 1.8em));
-            block-size: max(24px, var(--year-cell-size, 1.8em));
+            box-sizing: border-box;
+            inline-size: 100%;
+            min-block-size: max(var(--_target-min), var(--year-cell-size, 1.8em));
             padding: 0;
             color: var(--separator-dark, rgba(0, 0, 0, 0.7));
             font-family: inherit;
@@ -205,65 +277,89 @@ export default class Year extends LitElement {
             overflow: visible;
         }
 
-        .day-cell:hover {
+        .date-number {
+            box-sizing: border-box;
+            display: grid;
+            place-items: center;
+            min-inline-size: 1.5em;
+            min-block-size: 1.5em;
+            padding: 0;
+            border: 2px solid transparent;
+            border-radius: var(--year-day-cell-border-radius);
+        }
+
+        .day-cell:hover .date-number {
             background: var(--hover-bg);
         }
 
-        .day-cell.current {
+        /* Today belongs to the date, never the activity slot. */
+        .day-cell.current .date-number {
+            border-radius: 50%;
             background: var(--current-day-bg, Highlight);
             color: var(--current-day-color, HighlightText);
             font-weight: var(--current-day-font-weight);
         }
 
-        .day-cell.current:hover {
+        .day-cell.current:hover .date-number {
             opacity: var(--current-day-hover-opacity);
         }
 
-        .day-cell.selected {
-            outline: 2px solid var(--primary-color, #3b82f6);
-            outline-offset: -2px;
+        .day-cell.selected .date-number {
+            border-color: var(--primary-color, #3b82f6);
         }
 
-        /* ── Dot density mode ── */
-        .day-cell.has-events::after {
-            content: '';
-            position: absolute;
-            bottom: 1px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 3px;
-            height: 3px;
+        .day-cell.current.selected .date-number {
+            border-color: var(--current-day-color, HighlightText);
+        }
+
+        /* Two in-flow homes inside one target: a four-pixel mark strip or an
+           adjacent count. Activity never paints the date/selection background. */
+        .activity-slot {
+            display: grid;
+            place-items: center;
+            inline-size: 100%;
+            min-block-size: 4px;
+            font-size: 0.75em;
+            line-height: 1.1;
+            color: var(--header-text-color, CanvasText);
+            overflow-wrap: anywhere;
+        }
+
+        [data-density-mode='count'] .day-cell {
+            display: grid;
+            grid-template-columns: max-content minmax(0, 1fr);
+        }
+
+        .activity-mark {
+            inline-size: 4px;
+            block-size: 4px;
             border-radius: 50%;
             background: var(--year-dot-color, var(--indicator-color, var(--primary-color, #3b82f6)));
         }
 
-        .day-cell.current.has-events::after {
-            background: var(--current-dot-bg);
+        /* Heat expresses cardinality in the activity slot, not availability
+           or date selection. Today stays recognizable in every density mode. */
+        .day-cell[data-density] .activity-mark {
+            inline-size: 1.25em;
+            block-size: 4px;
+            border-radius: 2px;
         }
-
-        /* ── Heatmap density mode ── */
-        .day-cell[data-density='1'] {
+        .day-cell[data-density='1'] .activity-mark {
             background: var(--year-heatmap-1, rgba(59, 130, 246, 0.15));
         }
-        .day-cell[data-density='2'] {
+        .day-cell[data-density='2'] .activity-mark {
             background: var(--year-heatmap-2, rgba(59, 130, 246, 0.35));
         }
-        .day-cell[data-density='3'] {
+        .day-cell[data-density='3'] .activity-mark {
             background: var(--year-heatmap-3, rgba(59, 130, 246, 0.55));
         }
-        .day-cell[data-density='4'] {
+        .day-cell[data-density='4'] .activity-mark {
             background: var(--year-heatmap-4, #1d4ed8);
-            color: var(--year-heatmap-4-text, white);
-        }
-
-        .day-cell.current[data-density] {
-            background: var(--current-day-bg, #1d4ed8);
-            color: var(--current-day-color, white);
         }
 
         button {
-            min-inline-size: 24px;
-            min-block-size: 24px;
+            min-inline-size: var(--_target-min);
+            min-block-size: var(--_target-min);
         }
         button:focus-visible {
             outline: 2px solid currentColor;
@@ -271,6 +367,8 @@ export default class Year extends LitElement {
         }
         .day-row > [role='gridcell'] {
             min-inline-size: 0;
+            inline-size: 100%;
+            display: grid;
         }
         .month-heading {
             margin: 0;
@@ -284,36 +382,63 @@ export default class Year extends LitElement {
             clip-path: inset(50%);
             white-space: nowrap;
         }
-        .month-label {
-            inline-size: 100%;
+        @media (pointer: coarse) {
+            :host {
+                --_target-min: max(44px, 1.85em);
+            }
+            .year-grid,
+            .year-grid[data-density-mode='count'] {
+                --_columns: var(--year-grid-columns-mobile, 1);
+            }
+            /* A single-column touch overview has no neighboring weeks to align. */
+            @container (inline-size < 48em) {
+                .day-grid {
+                    grid-template-rows: auto;
+                    grid-auto-rows: minmax(auto, 1fr);
+                }
+            }
+            @container (min-width: 48em) {
+                .year-grid,
+                .year-grid[data-density-mode='count'] {
+                    --_columns: var(--year-grid-columns-tablet, 2);
+                }
+            }
+            @container (min-width: 72em) {
+                .year-grid,
+                .year-grid[data-density-mode='count'] {
+                    --_columns: 3;
+                }
+            }
+            @container (min-width: 96em) {
+                .year-grid,
+                .year-grid[data-density-mode='count'] {
+                    --_columns: 4;
+                }
+            }
+            @container (min-width: 144em) {
+                .year-grid,
+                .year-grid[data-density-mode='count'] {
+                    --_columns: 6;
+                }
+            }
         }
         @media (forced-colors: active) {
-            .day-cell.current {
-                border: 2px solid CanvasText;
+            .day-cell.current .date-number {
+                border-color: CanvasText;
             }
-            .day-cell.selected,
+            .day-cell.selected .date-number {
+                border-color: Highlight;
+            }
             button:focus-visible {
-                outline: 2px solid Highlight;
+                outline-color: Highlight;
+            }
+            .activity-mark {
+                outline: 1px solid CanvasText;
             }
         }
 
-        /* ── Count density mode ── */
         .event-count {
-            position: absolute;
-            bottom: -0.55em;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.55em;
-            color: var(--header-text-color, CanvasText);
-            line-height: 1;
-        }
-
-        .day-cell.current .event-count {
-            color: var(--current-day-color);
-        }
-
-        .empty-cell {
-            /* Grid auto-rows handles height; no explicit size needed */
+            font-variant-numeric: tabular-nums;
         }
     `;
 
@@ -324,12 +449,15 @@ export default class Year extends LitElement {
         const todayMonth = today.getMonth() + 1;
         const todayYear = today.getFullYear();
 
-        const weekdayOrder = getWeekdayOrder(this.firstDayOfWeek);
+        const weekdays = getWeekdayOrder(this.firstDayOfWeek).map((day) =>
+            getLocalizedWeekdayShort(day, this.locale),
+        );
+        const format = getMessageFormatters(this.locale);
 
         return html`
             <p id="date-grid-help" class="sr-only" lang="en">Arrow keys move dates; Home/End move within a week; Page Up/Down move months; Shift+Page Up/Down move years. F2 opens the week control; Escape returns to the date.</p>
             <div class="scroll-container">
-                <div class="year-grid" data-density-mode=${this.densityMode} role="group" aria-label="${getMessages(this.locale).year} ${year}">
+                <div class="year-grid" data-density-mode=${this.densityMode} role="group" aria-label="${getMessages(this.locale).year} ${formatLocalizedYear(year, this.locale)}">
                     ${Array.from({ length: 12 }, (_, i) => {
                         const month = i + 1;
                         return this._renderMiniMonth(
@@ -338,7 +466,8 @@ export default class Year extends LitElement {
                             todayDay,
                             todayMonth,
                             todayYear,
-                            weekdayOrder,
+                            weekdays,
+                            format,
                         );
                     })}
                 </div>
@@ -352,26 +481,16 @@ export default class Year extends LitElement {
         todayDay: number,
         todayMonth: number,
         todayYear: number,
-        weekdayOrder: number[],
+        weekdays: string[],
+        format: ReturnType<typeof getMessageFormatters>,
     ) {
-        const daysInMonth = new Date(year, month, 0).getDate();
+        const daysInMonth = DateTime.utc(year, month).daysInMonth!;
         const firstDayOffset = getFirstDayOffset({ year, month, day: 1 }, this.firstDayOfWeek);
         const msg = getMessages(this.locale);
 
-        // Build explicit week rows: each row is a 7-slot array (null = empty cell)
-        const weeks: (number | null)[][] = [];
-        let currentWeek: (number | null)[] = Array.from({ length: firstDayOffset }, () => null);
-        for (let day = 1; day <= daysInMonth; day++) {
-            currentWeek.push(day);
-            if (currentWeek.length === 7) {
-                weeks.push(currentWeek);
-                currentWeek = [];
-            }
-        }
-        if (currentWeek.length > 0) {
-            while (currentWeek.length < 7) currentWeek.push(null);
-            weeks.push(currentWeek);
-        }
+        const weekCount = Math.ceil((daysInMonth + firstDayOffset) / 7);
+        const activeMonth = year === this.activeDate.year && month === this.activeDate.month;
+        const currentMonth = year === todayYear && month === todayMonth;
 
         return html`
             <div class="mini-month">
@@ -379,67 +498,50 @@ export default class Year extends LitElement {
                     type="button"
                     class="month-label"
                     id=${`month-${month}`}
-                    @click=${() => this._handleMonthClick(year, month)}
+                    @click=${() => this._handleDrill(year, month, 1, 'month')}
                 >
-                    ${getLocalizedMonth(month, this.locale)}
+                    ${getLocalizedMonth(month, this.locale, 'long')}
                 </button></h3>
                 <div class="day-grid" role="grid" aria-labelledby=${`month-${month}`} aria-describedby="date-grid-help">
                 <div class="weekday-header" role="row">
                     <span role="columnheader">${msg.calendarWeek}</span>
-                    ${weekdayOrder.map(
-                        (wd) =>
-                            html`<span role="columnheader" aria-label=${getLocalizedWeekdayShort(wd, this.locale)}>${getLocalizedWeekdayShort(wd, this.locale).charAt(0)}</span>`,
-                    )}
+                    ${weekdays.map((day) => html`<span role="columnheader">${day}</span>`)}
                 </div>
-                    ${repeat(
-                        weeks,
-                        (_, index) => index,
-                        (week) => {
-                            const firstDay = week.find((d) => d !== null);
-                            const weekNum = firstDay
-                                ? DateTime.fromObject({ year, month, day: firstDay }).weekNumber
-                                : null;
-                            return html`<div class="day-row" role="row">
-                            <div role="gridcell">${
-                                weekNum !== null
-                                    ? html`<button
-                                      type="button"
-                                      class="cw-label"
-                                      data-week=${`${year}-${month}-${firstDay}`}
-                                      tabindex=${this._weekFocus === `${year}-${month}-${firstDay}` ? 0 : -1}
-                                      aria-label="${msg.calendarWeek} ${weekNum}"
-                                      @keydown=${(event: KeyboardEvent) => this._handleWeekKeydown(event, { year, month, day: firstDay! })}
-                                      @click=${() => this._handleWeekClick(year, month, firstDay!)}
-                                  >${weekNum}</button>`
-                                    : html`
-                                          <span class="empty-cell"></span>
-                                      `
-                            }</div>
-                            ${week.map(
-                                (day) =>
-                                    html`<div role="gridcell" aria-selected=${day === this.activeDate.day && month === this.activeDate.month && year === this.activeDate.year ? 'true' : 'false'}>${
-                                        day !== null
-                                            ? this._renderDayCell(
-                                                  year,
-                                                  month,
-                                                  day,
-                                                  day === todayDay &&
-                                                      month === todayMonth &&
-                                                      year === todayYear,
-                                                  day === this.activeDate.day &&
-                                                      month === this.activeDate.month &&
-                                                      year === this.activeDate.year,
-                                                  this.entrySumByDay[`${year}-${month}-${day}`] ??
-                                                      0,
-                                              )
-                                            : html`
-                                                  <span class="empty-cell"></span>
-                                              `
-                                    }</div>`,
-                            )}
+                    ${Array.from({ length: weekCount }, (_, index) => {
+                        const weekStart = index * 7 + 1 - firstDayOffset;
+                        const firstDay = Math.max(1, weekStart);
+                        const weekKey = `${year}-${month}-${firstDay}`;
+                        const weekNum = DateTime.utc(year, month, firstDay).weekNumber;
+                        return html`<div class="day-row" role="row">
+                            <div role="gridcell"><button
+                                type="button"
+                                class="cw-label"
+                                data-week=${weekKey}
+                                tabindex=${this._weekFocus === weekKey ? 0 : -1}
+                                aria-label=${format.showWeek(weekNum)}
+                                @keydown=${(event: KeyboardEvent) => this._handleWeekKeydown(event, { year, month, day: firstDay })}
+                                @click=${() => this._handleDrill(year, month, firstDay, 'week')}
+                            ><span class="cw-number">${this._dateNumberFormat.format(weekNum)}</span></button></div>
+                            ${Array.from({ length: 7 }, (_, column) => {
+                                const day = weekStart + column;
+                                const selected = activeMonth && day === this.activeDate.day;
+                                return html`<div role="gridcell" aria-selected=${selected ? 'true' : 'false'}>${
+                                    day >= 1 && day <= daysInMonth
+                                        ? this._renderDayCell(
+                                              year,
+                                              month,
+                                              day,
+                                              currentMonth && day === todayDay,
+                                              selected,
+                                              this.entrySumByDay[`${year}-${month}-${day}`] ?? 0,
+                                              daysInMonth,
+                                              format.eventCount,
+                                          )
+                                        : nothing
+                                }</div>`;
+                            })}
                         </div>`;
-                        },
-                    )}
+                    })}
                 </div>
             </div>
         `;
@@ -452,10 +554,12 @@ export default class Year extends LitElement {
         isCurrent: boolean,
         isSelected: boolean,
         eventCount: number,
+        daysInMonth: number,
+        countLabel: (count: number) => string,
     ) {
         const classes = ['day-cell'];
         if (isCurrent) classes.push('current');
-        if (isSelected && !isCurrent) classes.push('selected');
+        if (isSelected) classes.push('selected');
 
         // Density-specific attributes
         let densityAttr = '';
@@ -472,22 +576,28 @@ export default class Year extends LitElement {
                 class=${classes.join(' ')}
                 data-density=${densityAttr || nothing}
                 data-date="${year}-${month}-${day}"
-                tabindex=${!this._weekFocus?.startsWith(`${year}-${month}-`) && day === (this._focusedDate?.month === month && this._focusedDate.year === year ? this._focusedDate.day : Math.min(this.activeDate.day, new Date(year, month, 0).getDate())) ? 0 : -1}
+                tabindex=${!this._weekFocus?.startsWith(`${year}-${month}-`) && day === (this._focusedDate?.month === month && this._focusedDate.year === year ? this._focusedDate.day : Math.min(this.activeDate.day, daysInMonth)) ? 0 : -1}
                 aria-current=${isCurrent ? 'date' : 'false'}
                 @focus=${() => {
                     this._focusedDate = { year, month, day };
                     this._weekFocus = undefined;
                 }}
                 @keydown=${this._handleDateKeydown}
-                @click=${() => this._handleDayClick(year, month, day)}
-                aria-label="${day} ${getLocalizedMonth(month, this.locale)} ${year}${eventCount > 0 ? `, ${eventCount} ${getMessages(this.locale).events}` : ''}"
+                @click=${() => this._handleDrill(year, month, day, this.drillTarget)}
+                aria-label="${formatLocalizedDate(day, month, year, this.locale)}, ${countLabel(eventCount)}"
             >
-                ${day}
-                ${
-                    this.densityMode === 'count' && eventCount > 0
-                        ? html`<span class="event-count">${eventCount}</span>`
-                        : nothing
-                }
+                <span class="date-number">${this._dateNumberFormat.format(day)}</span>
+                <span class="activity-slot" aria-hidden="true">
+                    ${
+                        eventCount > 0
+                            ? this.densityMode === 'count'
+                                ? html`<span class="event-count">${this._numberFormat.format(eventCount)}</span>`
+                                : html`
+                                      <span class="activity-mark"></span>
+                                  `
+                            : nothing
+                    }
+                </span>
             </button>
         `;
     }
@@ -564,39 +674,10 @@ export default class Year extends LitElement {
         }
     }
 
-    private _handleDayClick(year: number, month: number, day: number) {
+    private _handleDrill(year: number, month: number, day: number, drillTarget: DrillTarget) {
         this.dispatchEvent(
             new CustomEvent('expand', {
-                detail: {
-                    date: { year, month, day },
-                    drillTarget: this.drillTarget,
-                },
-                bubbles: true,
-                composed: true,
-            }),
-        );
-    }
-
-    private _handleWeekClick(year: number, month: number, day: number) {
-        this.dispatchEvent(
-            new CustomEvent('expand', {
-                detail: {
-                    date: { year, month, day },
-                    drillTarget: 'week',
-                },
-                bubbles: true,
-                composed: true,
-            }),
-        );
-    }
-
-    private _handleMonthClick(year: number, month: number) {
-        this.dispatchEvent(
-            new CustomEvent('expand', {
-                detail: {
-                    date: { year, month, day: 1 },
-                    drillTarget: 'month',
-                },
+                detail: { date: { year, month, day }, drillTarget },
                 bubbles: true,
                 composed: true,
             }),
