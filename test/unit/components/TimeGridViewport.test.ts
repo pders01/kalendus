@@ -239,6 +239,21 @@ describe('Day and Week viewport sizing', () => {
                     await nextFrame();
                     expect(snapshot(calendar, view).values).to.deep.equal(after.values);
                 }
+
+                // Growing can clamp the old scrollTop before the new minute scale is applied.
+                const late = 680;
+                after.scroll.scrollTop = Math.round(inset + late * after.values.minute);
+                await nextFrame();
+                const anchor = (after.scroll.scrollTop - inset) / after.values.minute;
+                expect(anchor).to.be.closeTo(late, 2);
+                calendar.style.setProperty('--height', '1040px');
+                await settle();
+                const grown = snapshot(calendar, view);
+                expect(grown.values.minute).to.be.greaterThan(after.values.minute);
+                expect((grown.scroll.scrollTop - inset) / grown.values.minute).to.be.closeTo(
+                    anchor,
+                    2,
+                );
             });
         }
     }

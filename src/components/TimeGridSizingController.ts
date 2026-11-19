@@ -79,6 +79,7 @@ export class TimeGridSizingController implements ReactiveController {
     private lastMinute = 0;
     private lastScroll?: boolean;
     private sync?: () => void;
+    private unlisten?: () => void;
     constructor(
         private host: LitElement & { scrollTimeGrid: boolean },
         private scrollerSelector: string,
@@ -99,6 +100,8 @@ export class TimeGridSizingController implements ReactiveController {
         this.observer?.disconnect();
         this.observer = undefined;
         this.sync = undefined;
+        this.unlisten?.();
+        this.unlisten = undefined;
         cancelAnimationFrame(this.frame);
         this.frame = 0;
         this.lastMinute = 0;
@@ -107,6 +110,15 @@ export class TimeGridSizingController implements ReactiveController {
         if (this.observer) return;
         const scroll = this.host.renderRoot.querySelector<HTMLElement>(this.scrollerSelector);
         if (!scroll) return;
+        let previousHeight = 0;
+        let previousInset = 0;
+        let previousTop = 0;
+        const rememberScroll = () => {
+            // A clamp caused by a resize is not a user choosing a new time.
+            if (scroll.clientHeight === previousHeight) previousTop = scroll.scrollTop;
+        };
+        scroll.addEventListener('scroll', rememberScroll, { passive: true });
+        this.unlisten = () => scroll.removeEventListener('scroll', rememberScroll);
         const sync = () => {
             this.lastScroll = this.host.scrollTimeGrid;
             const height = scroll.clientHeight;
@@ -120,8 +132,13 @@ export class TimeGridSizingController implements ReactiveController {
             const minute = fit ? available / 1440 : Math.max(height / 720, (font * 2.75) / 60);
             this.host.toggleAttribute('data-spaced-hours', fit && minute * 60 < inset * 3);
             if (Math.abs(minute - this.lastMinute) > 0.0001) {
+                const top = scroll.scrollTop;
+                const clamped = height > previousHeight && top >= scroll.scrollHeight - height - 1;
                 const position =
-                    this.lastMinute > 0 ? (scroll.scrollTop - inset) / this.lastMinute : undefined;
+                    this.lastMinute > 0
+                        ? ((clamped ? Math.max(top, previousTop) : top) - previousInset) /
+                          this.lastMinute
+                        : undefined;
                 this.lastMinute = minute;
                 this.host.style.setProperty('--minute-height', `${minute}px`);
                 this.host.style.setProperty('--hour-height', `${minute * 60}px`);
@@ -132,6 +149,9 @@ export class TimeGridSizingController implements ReactiveController {
                     scroll.scrollTop = Math.round(inset + position * minute);
                 this.host.dispatchEvent(new Event('time-grid-resize'));
             }
+            previousHeight = height;
+            previousInset = inset;
+            previousTop = scroll.scrollTop;
         };
         this.sync = sync;
         sync();
