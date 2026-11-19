@@ -23,7 +23,7 @@ type CalendarState = {
 };
 ```
 
-`range.start` is included and `range.end` is excluded. These are civil dates, **not UTC timestamps**. Month grid ranges include spillover cells; the optional Agenda stays in Month mode and covers one day. Week ranges reflect the actual visible columns, including condensed weeks; Day and Year cover one day and the active calendar year, respectively. The read-only public `visibleRange` getter exposes the same shape. Opening or closing a Day/Week timed count or a Week all-day total does not change the committed view, date, or range and does not emit a state change by itself.
+`range.start` is included and `range.end` is excluded. These are civil dates, **not UTC timestamps**. Month grid ranges include spillover cells; the optional Agenda stays in Month mode and covers one day. Week ranges reflect the actual visible columns, including condensed weeks; Day and Year cover one day and the active calendar year, respectively. The read-only `visibleRange` getter exposes the last rendered range. Assignments to `activeDate` or `viewMode` express the next requested state; read the event detail for an atomic snapshot even when another listener requests navigation. Opening or closing a Day/Week timed count or a Week all-day total does not change the committed view, date, or range and does not emit a state change by itself.
 
 ```js
 calendar.addEventListener('calendar-state-change', (event) => {

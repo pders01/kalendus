@@ -3,7 +3,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
-import { DateTime } from 'luxon';
 
 import LMSCalendarContext from './components/Context.js';
 import LMSCalendarDay from './components/Day.js';
@@ -31,6 +30,7 @@ import {
     normalizeEntries,
     expandEntries,
     civilDateKey,
+    parseCalendarDate,
     MAX_EXPANDED_SEGMENTS,
     CalendarExpansionError,
     type EntryValidationIssue,
@@ -41,7 +41,11 @@ import { parseColorWithDefault } from './lib/colorParser.js';
 import { allDaySlotName, dateSlotKey } from './lib/entrySlots.js';
 import getColorTextWithContrast from './lib/getColorTextWithContrast.js';
 import type { LayoutResult } from './lib/LayoutCalculator.js';
-import { formatLocalizedDate, formatLocalizedTime } from './lib/localization.js';
+import {
+    formatLocalizedDate,
+    formatLocalizedDateInterval,
+    formatLocalizedTime,
+} from './lib/localization.js';
 import {
     ensureLocale,
     getMessages,
@@ -217,6 +221,7 @@ export default class LMSCalendar extends LitElement {
      * The currently displayed date. Assigning a new value navigates
      * the calendar to that date. Defaults to today.
      */
+    @property({ attribute: false, noAccessor: true })
     get activeDate(): CalendarDate {
         return this._viewState.activeDate;
     }
@@ -237,34 +242,29 @@ export default class LMSCalendar extends LitElement {
 
     /** Half-open ISO civil-date range actually rendered, including month spillover. */
     get visibleRange(): CalendarVisibleRange {
-        const active = DateTime.fromObject(this.activeDate, { zone: 'UTC' });
-        let start = active.startOf('day');
-        let end = start.plus({ days: 1 });
-        if (this.viewMode === 'month' && !this._inMonthAgenda) {
-            const dates = getMonthCalendarArray(this.activeDate, this.firstDayOfWeek);
-            if (dates?.length) {
-                start = DateTime.fromObject(dates[0], { zone: 'UTC' });
-                end = DateTime.fromObject(dates[dates.length - 1], { zone: 'UTC' }).plus({
-                    days: 1,
-                });
-            }
-        } else if (this.viewMode === 'week') {
-            const { visibleDates } = this._weekContext();
-            start = DateTime.fromObject(visibleDates[0], { zone: 'UTC' });
-            end = DateTime.fromObject(visibleDates[visibleDates.length - 1], { zone: 'UTC' }).plus({
-                days: 1,
-            });
-        } else if (this.viewMode === 'year') {
-            start = active.startOf('year');
-            end = start.plus({ years: 1 });
-        }
-        // Spillover cells can cross the supported public date domain. Bound data
-        // work to years 1–9999 and one exclusive upper sentinel.
-        const minimum = DateTime.utc(1, 1, 1);
-        const maximum = DateTime.utc(10000, 1, 1);
-        if (start < minimum) start = minimum;
-        if (end > maximum) end = maximum;
-        return { start: start.toFormat('yyyy-MM-dd'), end: end.toFormat('yyyy-MM-dd') };
+        return this._renderedState?.range ?? this._calculateVisibleRange();
+    }
+
+    private _calculateVisibleRange(): CalendarVisibleRange {
+        const { activeDate, viewMode } = this;
+        const dates =
+            viewMode === 'month' && !this._inMonthAgenda
+                ? getMonthCalendarArray(activeDate, this.firstDayOfWeek)
+                : viewMode === 'week'
+                  ? this._weekContext().visibleDates
+                  : undefined;
+        const first =
+            dates?.[0] ??
+            (viewMode === 'year' ? { year: activeDate.year, month: 1, day: 1 } : activeDate);
+        const last =
+            dates?.at(-1) ??
+            (viewMode === 'year' ? { year: activeDate.year, month: 12, day: 31 } : activeDate);
+        // Keep machine keys independent of formatting settings; clip display
+        // padding to the public domain, allowing one exclusive upper sentinel.
+        return {
+            start: first.year < 1 ? '0001-01-01' : civilDateKey(first),
+            end: last.year > 9999 ? '10000-01-01' : civilDateKey(addDisplayDays(last, 1)),
+        };
     }
 
     /**
@@ -314,6 +314,7 @@ export default class LMSCalendar extends LitElement {
     @state() private _localeError = false;
     private _derivedRangeKey = '';
     private _lastStateKey = '';
+    private _renderedState!: CalendarState;
     private _validationIssues: EntryValidationIssue[] = [];
     private _focusToRestore?: LMSCalendarEntry;
     @state() private _entriesError = '';
@@ -1035,7 +1036,8 @@ export default class LMSCalendar extends LitElement {
     protected override updated(
         changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
     ): void {
-        this.setAttribute('data-view-mode', this.viewMode);
+        const state = this._renderedState;
+        this.setAttribute('data-view-mode', state.viewMode);
         if (this._menuOpen) {
             const menu = this.shadowRoot?.querySelector<LMSCalendarMenu>('lms-menu');
             if (menu) {
@@ -1083,7 +1085,7 @@ export default class LMSCalendar extends LitElement {
                         code: 'segment-budget',
                         message: this._entriesError,
                         limit: MAX_EXPANDED_SEGMENTS,
-                        range: this.visibleRange,
+                        range: state.range,
                     },
                 }),
             );
@@ -1096,12 +1098,6 @@ export default class LMSCalendar extends LitElement {
             const [r, g, b] = parseColorWithDefault(this.color);
             this.style.setProperty('--calendar-accent', `rgb(${r}, ${g}, ${b})`);
         }
-        const state: CalendarState = Object.freeze({
-            activeDate: Object.freeze(this.activeDate),
-            viewMode: this.viewMode,
-            firstDayOfWeek: this.firstDayOfWeek,
-            range: Object.freeze(this.visibleRange),
-        });
         const key = JSON.stringify(state);
         if (key !== this._lastStateKey) {
             this._lastStateKey = key;
@@ -1382,7 +1378,18 @@ export default class LMSCalendar extends LitElement {
         }
         if (changedProperties.has('locale' as never)) this._startLocaleLoad();
 
-        this._updateEntryCaches(changedProperties.has('entries' as never));
+        // Capture the render's inputs before any post-render listener can
+        // synchronously request the next view or date.
+        this._renderedState = Object.freeze({
+            activeDate: Object.freeze(this.activeDate),
+            viewMode: this.viewMode,
+            firstDayOfWeek: this.firstDayOfWeek,
+            range: Object.freeze(this._calculateVisibleRange()),
+        });
+        this._updateEntryCaches(
+            this._renderedState.range,
+            changedProperties.has('entries' as never),
+        );
         const agendaKey = `${this.viewMode}:${civilDateKey(this.activeDate)}:${this.monthAgendaPresentation}:${this._densityList?.key ?? ''}`;
         if (agendaKey !== this._agendaKey) {
             this._agendaKey = agendaKey;
@@ -1392,9 +1399,8 @@ export default class LMSCalendar extends LitElement {
         }
     }
 
-    private _updateEntryCaches(entriesChanged: boolean) {
+    private _updateEntryCaches(range: CalendarVisibleRange, entriesChanged: boolean) {
         // Controller-backed navigation does not populate Lit's changed properties.
-        const range = this.visibleRange;
         const rangeKey = JSON.stringify([
             range,
             this.viewMode,
@@ -1569,26 +1575,15 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _rangeDescription(): string {
-        const range = this.visibleRange;
-        let formatter: Intl.DateTimeFormat;
-        try {
-            formatter = new Intl.DateTimeFormat(this.locale, {
-                dateStyle: 'long',
-                calendar: 'gregory',
-                timeZone: 'UTC',
-            });
-        } catch {
-            formatter = new Intl.DateTimeFormat('en', { dateStyle: 'long', timeZone: 'UTC' });
-        }
-        const start = formatter.format(DateTime.fromISO(range.start, { zone: 'UTC' }).toJSDate());
-        const exclusiveEnd =
+        const { range, viewMode } = this._renderedState;
+        const first = parseCalendarDate(range.start)!;
+        const last =
             range.end === '10000-01-01'
-                ? DateTime.utc(10000, 1, 1)
-                : DateTime.fromISO(range.end, { zone: 'UTC' });
-        const end = formatter.format(exclusiveEnd.minus({ days: 1 }).toJSDate());
+                ? { year: 9999, month: 12, day: 31 }
+                : addDisplayDays(parseCalendarDate(range.end)!, -1);
         const format = getMessageFormatters(this.locale);
-        const label = getMessages(this.locale)[this._inMonthAgenda ? 'agenda' : this.viewMode];
-        return `${format.viewLabel(label)}: ${start === end ? start : format.timeRange(start, end)}`;
+        const label = getMessages(this.locale)[this._inMonthAgenda ? 'agenda' : viewMode];
+        return `${format.viewLabel(label)}: ${formatLocalizedDateInterval(first, last, this.locale)}`;
     }
 
     private _weekContext() {
@@ -1626,8 +1621,7 @@ export default class LMSCalendar extends LitElement {
     }
 
     override render() {
-        const viewMode = this._viewState.viewMode;
-        const currentActiveDate = this._viewState.activeDate;
+        const { viewMode, activeDate: currentActiveDate } = this._renderedState;
         const weekContext = viewMode === 'week' ? this._weekContext() : undefined;
         const list = this._densityList;
         const replacingGrid = list?.timed ? undefined : list;

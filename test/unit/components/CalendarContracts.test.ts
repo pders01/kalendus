@@ -1,5 +1,6 @@
 import { expect, fixture, html, nextFrame, waitUntil } from '@open-wc/testing';
 import { sendKeys } from '@web/test-runner-commands';
+import { Settings } from 'luxon';
 
 import type { CalendarState } from '../../../src/contracts.js';
 import { MAX_EXPANDED_SEGMENTS } from '../../../src/lib/calendarModel.js';
@@ -104,6 +105,86 @@ describe('Calendar public contracts and audit regressions', () => {
         expect(Object.isFrozen(state!.activeDate)).to.equal(true);
         expect(Object.isFrozen(state!.range)).to.equal(true);
         expect(el.shadowRoot!.querySelector('lms-calendar-day')).to.exist;
+    });
+
+    it('keeps machine ranges Gregorian and ASCII under shared Luxon defaults', async () => {
+        const el = await calendar([event(april)]);
+        const { defaultLocale, defaultOutputCalendar } = Settings;
+        try {
+            Settings.defaultLocale = 'ar-EG';
+            Settings.defaultOutputCalendar = 'buddhist';
+            el.activeDate = april;
+            el.viewMode = 'day';
+            await settle(el);
+            expect(el.visibleRange).to.deep.equal({ start: '2026-04-20', end: '2026-04-21' });
+            expect(el.shadowRoot!.querySelector('lms-calendar-entry')?.heading).to.equal(
+                'Visible appointment',
+            );
+            el.activeDate = { year: 9999, month: 12, day: 31 };
+            await settle(el);
+            expect(el.visibleRange).to.deep.equal({ start: '9999-12-31', end: '10000-01-01' });
+        } finally {
+            Settings.defaultLocale = defaultLocale;
+            Settings.defaultOutputCalendar = defaultOutputCalendar;
+        }
+    });
+
+    it('keeps the public range committed across synchronous state listeners', async () => {
+        const el = await calendar();
+        const seen: Array<[string, string, boolean]> = [];
+        el.addEventListener(
+            'calendar-state-change',
+            () => {
+                el.activeDate = march;
+            },
+            { once: true },
+        );
+        el.addEventListener('calendar-state-change', ({ detail }) => {
+            seen.push([
+                detail.range.start,
+                el.visibleRange.start,
+                !!el.shadowRoot!.querySelector('lms-calendar-day'),
+            ]);
+        });
+        el.activeDate = april;
+        el.viewMode = 'day';
+        await settle(el);
+        expect(seen).to.deep.equal([
+            ['2026-04-20', '2026-04-20', true],
+            ['2026-03-15', '2026-03-15', true],
+        ]);
+    });
+
+    it('publishes the rendered view even when a diagnostic listener changes intent', async () => {
+        const el = document.createElement('lms-calendar');
+        el.activeDate = march;
+        el.entries = [event({ ...march, day: 0 })];
+        const commits: Array<[LMSCalendar['viewMode'], string]> = [];
+        let requested = false;
+        const onInvalid = () => {
+            requested = true;
+            el.viewMode = 'day';
+        };
+        el.addEventListener('entries-invalid', onInvalid, { once: true });
+        el.addEventListener('calendar-state-change', ({ detail }) => {
+            const view = el.shadowRoot!.querySelector('lms-calendar-month, lms-calendar-day');
+            commits.push([detail.viewMode, view?.localName ?? 'missing']);
+        });
+        document.body.append(el);
+        try {
+            await settle(el);
+            expect(requested).to.equal(true);
+            expect(commits).to.deep.equal([
+                ['month', 'lms-calendar-month'],
+                ['day', 'lms-calendar-day'],
+            ]);
+            el.viewMode = 'day';
+            el.activeDate = { ...march };
+            await settle(el);
+            expect(commits).to.have.length(2);
+        } finally {
+            el.remove();
+        }
     });
 
     it('gives identical-looking entries distinct identities (C05)', async () => {
