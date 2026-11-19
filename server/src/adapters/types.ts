@@ -1,20 +1,22 @@
 /// <reference lib="dom" />
 
-/**
- * Client-side types that mirror the component's global types.
- * These are used by the adapters to produce the correct shape.
- */
+// HTTP DTOs have one source of truth. The adapter's rendered entry and state
+// snapshot are separate contracts, not aliases for the wire format.
+import type {
+    ApiCalendarEntry,
+    ApiDate as CalendarDate,
+    ApiTime as CalendarTime,
+    SseEventType,
+} from '../core/types.js';
 
-export interface CalendarDate {
-    day: number;
-    month: number;
-    year: number;
-}
+export type { ApiCalendarEntry, CalendarDate, CalendarTime, SseEventType };
 
-export interface CalendarTime {
-    hour: number;
-    minute: number;
-}
+export type {
+    CalendarManifest,
+    CreateEventDto as CreateEventPayload,
+    EventSummary,
+    UpdateEventDto as UpdateEventPayload,
+} from '../core/types.js';
 
 export interface CalendarTimeInterval {
     start: CalendarTime;
@@ -38,40 +40,6 @@ export interface CalendarEntry {
     color: string;
     isContinuation: boolean;
 }
-
-export interface ApiCalendarEntry {
-    id: string;
-    calendarId: string;
-    heading: string;
-    content: string | null;
-    color: string;
-    date: {
-        start: CalendarDate;
-        end: CalendarDate;
-    };
-    time: {
-        start: CalendarTime;
-        end: CalendarTime;
-    } | null;
-    createdAt: string;
-    updatedAt: string;
-}
-
-export interface CalendarManifest {
-    id: string;
-    name: string;
-    locale: string;
-    firstDayOfWeek: number;
-    color: string;
-    themeTokens: Record<string, string> | null;
-}
-
-export interface EventSummary {
-    [date: string]: number;
-}
-
-/** SSE event types sent by the server */
-export type SseEventType = 'created' | 'updated' | 'deleted';
 
 export interface SyncMessage {
     type: SseEventType;
@@ -104,33 +72,4 @@ export interface KalendusClientOptions {
         url: string,
         init: { withCredentials: boolean; credentials: RequestCredentials },
     ) => StreamTransport;
-}
-
-/** Options for creating events via the API */
-export interface CreateEventPayload {
-    heading: string;
-    content?: string;
-    color?: string;
-    date: {
-        start: CalendarDate;
-        end: CalendarDate;
-    };
-    time?: {
-        start: CalendarTime;
-        end: CalendarTime;
-    };
-}
-
-export interface UpdateEventPayload {
-    heading?: string;
-    content?: string | null;
-    color?: string;
-    date?: {
-        start: CalendarDate;
-        end: CalendarDate;
-    };
-    time?: {
-        start: CalendarTime;
-        end: CalendarTime;
-    } | null;
 }
