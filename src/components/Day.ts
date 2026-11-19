@@ -1,6 +1,7 @@
 import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
+import { DateTime } from 'luxon';
 
 import { formatLocalizedDate, getLocalizedWeekdayShort } from '../lib/localization.js';
 import { getMessages, normalizeLocale } from '../lib/messages.js';
@@ -189,27 +190,18 @@ export default class Day extends LitElement {
         );
     }
 
-    private _getWeekday(): number {
-        const jsDay = new Date(
-            this.activeDate.year,
-            this.activeDate.month - 1,
-            this.activeDate.day,
-        ).getDay();
-        // Convert JS day (0=Sun) to Luxon weekday (1=Mon..7=Sun)
-        return jsDay === 0 ? 7 : jsDay;
-    }
-
     override render(): TemplateResult<1> {
         const hasAllDay = this.allDayRowCount > 0;
-
-        const luxonWeekday = this._getWeekday();
+        const { year, month, day } = this.activeDate;
+        // CalendarDate is a civil date, even when a local time zone skipped it.
+        const weekday = DateTime.utc(year, month, day).weekday;
 
         return html` <div class="wrapper">
             <div class="day-header">
                 <div class="time-header"></div>
-                <h2 id="day-label" class="day-label ${classMap({ current: this._isCurrentDate() })}" tabindex="-1" aria-label=${formatLocalizedDate(this.activeDate.day, this.activeDate.month, this.activeDate.year, this.locale)} aria-current=${this._isCurrentDate() ? 'date' : 'false'}>
-                    <span class="day-name">${getLocalizedWeekdayShort(luxonWeekday, this.locale)}</span>
-                    <span class="day-number">${new Intl.NumberFormat(normalizeLocale(this.locale)).format(this.activeDate.day)}</span>
+                <h2 id="day-label" class="day-label ${classMap({ current: this._isCurrentDate() })}" tabindex="-1" aria-label=${formatLocalizedDate(day, month, year, this.locale)} aria-current=${this._isCurrentDate() ? 'date' : 'false'}>
+                    <span class="day-name">${getLocalizedWeekdayShort(weekday, this.locale)}</span>
+                    <span class="day-number">${new Intl.NumberFormat(normalizeLocale(this.locale)).format(day)}</span>
                 </h2>
             </div>
             ${

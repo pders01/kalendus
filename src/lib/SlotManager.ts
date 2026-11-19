@@ -352,16 +352,36 @@ export class SlotManager {
             throw new RangeError('Entry date is outside the active day');
         }
         if (config.viewMode === 'week') {
-            if (!isValidCalendarDate(config.activeDate))
+            const { activeDate, firstDayOfWeek, weekDates } = config;
+            if (!isValidCalendarDate(activeDate))
                 throw new RangeError('Week view requires an active date');
             if (
-                config.weekDates &&
-                (config.weekDates.length < 1 ||
-                    config.weekDates.length > 7 ||
-                    config.weekDates.some((date) => !isValidCalendarDate(date)))
+                weekDates &&
+                (weekDates.length < 1 ||
+                    weekDates.length > 7 ||
+                    weekDates.some(
+                        (date) =>
+                            !isValidCalendarDate(date) &&
+                            !this._isWeekPadding(date, activeDate, firstDayOfWeek),
+                    ))
             )
                 throw new RangeError('Invalid visible week dates');
         }
+    }
+
+    // Preserve actual week padding for column alignment, never as an entry or active date.
+    private _isWeekPadding(
+        date: CalendarDate,
+        activeDate: CalendarDate,
+        firstDay?: FirstDayOfWeek,
+    ) {
+        return (
+            (date?.year === 0 || date?.year === 10000) &&
+            !Array.isArray(date) &&
+            Number.isInteger(date.month) &&
+            Number.isInteger(date.day) &&
+            this.getWeekDayIndex(date, activeDate, firstDay) !== -1
+        );
     }
 
     /**

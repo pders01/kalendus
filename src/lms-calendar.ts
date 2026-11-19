@@ -1771,9 +1771,9 @@ export default class LMSCalendar extends LitElement {
                     return;
                 }
             }
-            this._viewState.navigateNext();
+            this._viewState.navigateNext(this.firstDayOfWeek);
         } else if (e.detail.direction === 'previous') {
-            this._viewState.navigatePrevious();
+            this._viewState.navigatePrevious(this.firstDayOfWeek);
         }
     }
 

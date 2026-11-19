@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
+import { isValidCalendarDate } from '../lib/calendarModel.js';
 import { allDaySlotName, dateSlotKey, timedSlotName } from '../lib/entrySlots.js';
 import { formatLocalizedDate, getLocalizedWeekdayShort } from '../lib/localization.js';
 import { getMessages, normalizeLocale } from '../lib/messages.js';
@@ -318,27 +319,6 @@ export default class Week extends LitElement {
 
     static override styles = [timeGridStyles, Week.layoutStyles];
 
-    private _getWeekDates(): CalendarDate[] {
-        return getWeekDates(this.activeDate, this.firstDayOfWeek);
-    }
-
-    /** Return the dates to actually render (condensed subset or full week). */
-    private _getDatesToRender(): CalendarDate[] {
-        return this.visibleDates ?? this._getWeekDates();
-    }
-
-    /** Return the weekday order slice matching the visible dates. */
-    private _getVisibleWeekdayOrder(): number[] {
-        const fullOrder = getWeekdayOrder(this.firstDayOfWeek);
-        if (this.visibleDates && this.visibleLength < 7) {
-            return fullOrder.slice(
-                this.visibleStartIndex,
-                this.visibleStartIndex + this.visibleLength,
-            );
-        }
-        return fullOrder;
-    }
-
     private _isCurrentDate(date: CalendarDate) {
         const today = this._today.date;
         return (
@@ -367,8 +347,12 @@ export default class Week extends LitElement {
     }
 
     override render(): TemplateResult<1> {
-        const datesToRender = this._getDatesToRender();
-        const weekdayOrder = this._getVisibleWeekdayOrder();
+        const weekDates = getWeekDates(this.activeDate, this.firstDayOfWeek);
+        const datesToRender = this.visibleDates ?? weekDates;
+        const order = getWeekdayOrder(this.firstDayOfWeek);
+        const start = this._isCondensed ? this.visibleStartIndex : 0;
+        const weekday = (index: number) =>
+            getLocalizedWeekdayShort(order[start + index], this.locale);
         const hasAllDay = this.allDayRowCount > 0;
         const msg = getMessages(this.locale);
         const number = new Intl.NumberFormat(normalizeLocale(this.locale));
@@ -380,7 +364,7 @@ export default class Week extends LitElement {
             firstDate && lastDate ? `${dateLabel(firstDate)} – ${dateLabel(lastDate)}` : '';
         const windowSummary =
             firstDate && lastDate
-                ? `${getLocalizedWeekdayShort(weekdayOrder[0], this.locale)} ${number.format(firstDate.day)} – ${getLocalizedWeekdayShort(weekdayOrder[datesToRender.length - 1], this.locale)} ${number.format(lastDate.day)}`
+                ? `${weekday(0)} ${number.format(firstDate.day)} – ${weekday(datesToRender.length - 1)} ${number.format(lastDate.day)}`
                 : '';
         const firstPosition = number.format(this.visibleStartIndex + 1);
         const visiblePositions =
@@ -389,8 +373,8 @@ export default class Week extends LitElement {
                 : `${firstPosition}–${number.format(this.visibleStartIndex + datesToRender.length)}`;
         const windowPosition = `${visiblePositions}/${number.format(7)}`;
 
-        const showLeftPeek = this._isCondensed && this.visibleStartIndex > 0;
-        const showRightPeek = this._isCondensed && this.visibleStartIndex + this.visibleLength < 7;
+        const previous = weekDates[this.visibleStartIndex - 1];
+        const next = weekDates[this.visibleStartIndex + this.visibleLength];
 
         return html`
             <div class="week-container">
@@ -399,6 +383,7 @@ export default class Week extends LitElement {
                     ${datesToRender.map((date, index) => {
                         return html`
                             <button type="button"
+                                ?disabled=${!isValidCalendarDate(date)}
                                 data-date=${dateSlotKey(date)}
                                 class="day-label ${classMap({
                                     current: this._isCurrentDate(date),
@@ -407,7 +392,7 @@ export default class Week extends LitElement {
                                 aria-label="${msg.switchToDayView} ${dateLabel(date)}"
                                 @click=${() => this._handleDayLabelClick(date)}
                             >
-                                <span class="day-name">${getLocalizedWeekdayShort(weekdayOrder[index], this.locale)}</span>
+                                <span class="day-name">${weekday(index)}</span>
                                 <span class="day-number">${number.format(date.day)}</span>
                             </button>
                         `;
@@ -420,9 +405,9 @@ export default class Week extends LitElement {
                               <div class="peek-indicators" role="group" aria-labelledby="window-range window-position">
                                   <button type="button"
                                       class="peek-indicator"
-                                      ?disabled=${!showLeftPeek}
+                                      ?disabled=${!isValidCalendarDate(previous)}
                                       aria-label="${msg.previous} · ${msg.showEarlierDays} · ${windowDates}"
-                                      @click=${() => this._handlePeekNavigate('previous')}
+                                      @click=${() => this._handlePeekNavigate(previous, 'previous')}
                                   ><span class="peek-glyph" aria-hidden="true">‹</span><bdi class="peek-caption">${msg.previous}</bdi></button>
                                   <div class="window-context">
                                       <span class="window-range" id="window-range">${windowSummary}</span>
@@ -430,9 +415,9 @@ export default class Week extends LitElement {
                                   </div>
                                   <button type="button"
                                       class="peek-indicator"
-                                      ?disabled=${!showRightPeek}
+                                      ?disabled=${!isValidCalendarDate(next)}
                                       aria-label="${msg.next} · ${msg.showLaterDays} · ${windowDates}"
-                                      @click=${() => this._handlePeekNavigate('next')}
+                                      @click=${() => this._handlePeekNavigate(next, 'next')}
                                   ><bdi class="peek-caption">${msg.next}</bdi><span class="peek-glyph" aria-hidden="true">›</span></button>
                               </div>
                           `
@@ -478,6 +463,7 @@ export default class Week extends LitElement {
     }
 
     private _handleDayLabelClick(date: CalendarDate) {
+        if (!isValidCalendarDate(date)) return;
         const event = new CustomEvent('expand', {
             detail: { date },
             bubbles: true,
@@ -490,24 +476,14 @@ export default class Week extends LitElement {
      * Navigate the visible window by shifting the active date by 1 day.
      * The parent's `computeWeekDisplayContext` re-centers the window around the new date.
      */
-    private _handlePeekNavigate(direction: 'previous' | 'next') {
-        const weekDates = this._getWeekDates();
-        let targetDate: CalendarDate | undefined;
-
-        if (direction === 'previous' && this.visibleStartIndex > 0) {
-            targetDate = weekDates[this.visibleStartIndex - 1];
-        } else if (direction === 'next' && this.visibleStartIndex + this.visibleLength < 7) {
-            targetDate = weekDates[this.visibleStartIndex + this.visibleLength];
-        }
-
-        if (targetDate) {
-            this.dispatchEvent(
-                new CustomEvent('peek-navigate', {
-                    detail: { date: targetDate, direction },
-                    bubbles: true,
-                    composed: true,
-                }),
-            );
-        }
+    private _handlePeekNavigate(date: CalendarDate | undefined, direction: 'previous' | 'next') {
+        if (!isValidCalendarDate(date)) return;
+        this.dispatchEvent(
+            new CustomEvent('peek-navigate', {
+                detail: { date, direction },
+                bubbles: true,
+                composed: true,
+            }),
+        );
     }
 }

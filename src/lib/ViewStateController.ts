@@ -1,7 +1,8 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import { DateTime } from 'luxon';
 
-import { addCivilDays, isValidCalendarDate } from './calendarModel.js';
+import { isValidCalendarDate } from './calendarModel.js';
+import { addDisplayDays, getWeekDates, type FirstDayOfWeek } from './weekStartHelper.js';
 
 export type ViewMode = 'month' | 'week' | 'day' | 'year';
 
@@ -51,16 +52,21 @@ export class ViewStateController implements ReactiveController {
         this._host.requestUpdate();
     }
 
-    private navigate(direction: 1 | -1): void {
+    private navigate(direction: 1 | -1, firstDayOfWeek: FirstDayOfWeek): void {
         const current = this._activeDate;
-        if (this._viewMode === 'week' || this._viewMode === 'day') {
-            try {
-                this.setActiveDate(
-                    addCivilDays(current, direction * (this._viewMode === 'week' ? 7 : 1)),
-                );
-            } catch {
-                // Navigation beyond supported years is a no-op.
+        const isWeek = this._viewMode === 'week';
+        if (isWeek || this._viewMode === 'day') {
+            let target = addDisplayDays(current, direction * (isWeek ? 7 : 1));
+            if (isWeek && (target.year < 1 || target.year > 9999)) {
+                const weekEdge = getWeekDates(current, firstDayOfWeek)[direction < 0 ? 0 : 6];
+                // Clamp only if the adjacent week contains a supported day.
+                if (!isValidCalendarDate(addDisplayDays(weekEdge, direction))) return;
+                target =
+                    direction < 0
+                        ? { year: 1, month: 1, day: 1 }
+                        : { year: 9999, month: 12, day: 31 };
             }
+            this.setActiveDate(target);
             return;
         }
         // UTC is only a civil arithmetic carrier: skipped local dates must not vanish.
@@ -72,12 +78,12 @@ export class ViewStateController implements ReactiveController {
         this.setActiveDate({ year: date.year, month: date.month, day: date.day });
     }
 
-    navigateNext(): void {
-        this.navigate(1);
+    navigateNext(firstDayOfWeek: FirstDayOfWeek = 1): void {
+        this.navigate(1, firstDayOfWeek);
     }
 
-    navigatePrevious(): void {
-        this.navigate(-1);
+    navigatePrevious(firstDayOfWeek: FirstDayOfWeek = 1): void {
+        this.navigate(-1, firstDayOfWeek);
     }
 
     jumpToToday(): void {

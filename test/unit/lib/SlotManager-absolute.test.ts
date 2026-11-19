@@ -6,6 +6,8 @@ import {
     type PositionConfig,
     type LayoutDimensions,
 } from '../../../src/lib/SlotManager.js';
+import { getWeekDates } from '../../../src/lib/weekStartHelper.js';
+import type { CalendarDate } from '../../../src/lms-calendar.js';
 
 describe('SlotManager — absolute positioning path', () => {
     let sm: SlotManager;
@@ -201,6 +203,40 @@ describe('SlotManager — absolute positioning path', () => {
                 sm.validatePosition({ viewMode: 'day', date: outside, activeDate: date, time })
                     .valid,
             ).to.equal(false);
+        });
+
+        it('preserves the column of a valid entry alongside civil-boundary padding', () => {
+            for (const [activeDate, firstDayOfWeek, side] of [
+                [{ year: 1, month: 1, day: 1 }, 2, 'start'],
+                [{ year: 9999, month: 12, day: 31 }, 1, 'end'],
+            ] as const) {
+                const full = getWeekDates(activeDate, firstDayOfWeek);
+                const weekDates = side === 'start' ? full.slice(4) : full.slice(3, 6);
+                const index = weekDates.findIndex((date) => date.day === activeDate.day);
+                const padding = weekDates.find((date) => date.year !== activeDate.year)!;
+                expect(padding.year).to.equal(side === 'start' ? 0 : 10000);
+                const config: PositionConfig = {
+                    viewMode: 'week',
+                    date: activeDate,
+                    activeDate,
+                    weekDates,
+                    firstDayOfWeek,
+                    time,
+                };
+                expect(sm.calculatePosition(config).dayIndex).to.equal(index);
+                expect(sm.validatePosition({ ...config, date: padding }).valid).to.equal(false);
+                expect(sm.validatePosition({ ...config, activeDate: padding }).valid).to.equal(
+                    false,
+                );
+                const malformed = { ...padding, day: 32 };
+                const offWeek = { ...padding, day: side === 'start' ? 1 : 9 };
+                for (const date of [malformed, offWeek, { ...padding, day: String(padding.day) }]) {
+                    const dates = [...weekDates, date as CalendarDate];
+                    expect(sm.validatePosition({ ...config, weekDates: dates }).valid).to.equal(
+                        false,
+                    );
+                }
+            }
         });
 
         it('uses the calculator duration authority including non-default scale/minimum', () => {

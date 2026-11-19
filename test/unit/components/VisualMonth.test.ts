@@ -47,6 +47,66 @@ const entryList = (count: number): CalendarEntry[] =>
 
 // These assert actual layout and discoverability, not just template shape or axe output.
 describe('Month visual geometry and density', () => {
+    for (const { activeDate, paddingYear, validTarget, behavior } of [
+        {
+            activeDate: { year: 1, month: 1, day: 1 },
+            paddingYear: 0,
+            validTarget: { year: 1, month: 1, day: 2 },
+            behavior: 'auto',
+        },
+        {
+            activeDate: { year: 9999, month: 12, day: 31 },
+            paddingYear: 10000,
+            validTarget: { year: 9999, month: 11, day: 30 },
+            behavior: 'day',
+        },
+    ]) {
+        it(`keeps year ${paddingYear} display padding inert without disabling valid dates`, async () => {
+            const calendar = await fixture<Calendar>(html`<lms-calendar .activeDate=${activeDate}
+                .firstDayOfWeek=${0} .monthDayBehavior=${behavior} .monthAgendaPresentation=${'accordion'}
+                style="width:900px;height:660px"></lms-calendar>`);
+            await settleCalendar(calendar);
+            const root = calendar.shadowRoot!;
+            const month = root.querySelector<Month>('lms-calendar-month')!;
+            const padding = month.shadowRoot!.querySelectorAll<HTMLElement>(
+                `.day[data-date^="${paddingYear}-"]`,
+            );
+            const emitted: string[] = [];
+            month.addEventListener('expand', (e) => emitted.push(e.type));
+            month.addEventListener('date-summary', (e) => emitted.push(e.type));
+            expect(padding.length).to.be.greaterThan(0);
+            for (const cell of padding) {
+                cell.click();
+                const indicator = cell.querySelector<HTMLButtonElement>('.indicator')!;
+                const summary = cell.querySelector<HTMLButtonElement>('.summary')!;
+                expect(indicator.disabled).to.equal(true);
+                expect(indicator.tabIndex).to.equal(-1);
+                expect(summary.disabled).to.equal(true);
+                indicator.click();
+                // Bypass native disabled behavior to exercise the shared emitter too.
+                indicator.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                summary.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            }
+            await calendar.updateComplete;
+            expect(emitted).to.be.empty;
+            expect(calendar.activeDate).to.deep.equal(activeDate);
+            expect(calendar.viewMode).to.equal('month');
+            expect(root.querySelector('#agenda-date')).not.to.exist;
+
+            const { year, month: targetMonth, day } = validTarget;
+            const indicator = month.shadowRoot!.querySelector<HTMLButtonElement>(
+                `.indicator[data-date="${year}-${targetMonth}-${day}"]`,
+            )!;
+            expect(indicator.disabled).to.equal(false);
+            indicator.click();
+            await calendar.updateComplete;
+            expect(emitted).to.deep.equal(['expand']);
+            expect(calendar.activeDate).to.deep.equal(validTarget);
+            expect(calendar.viewMode).to.equal(behavior === 'day' ? 'day' : 'month');
+            if (behavior === 'auto') expect(root.querySelector('#agenda-date')).to.exist;
+        });
+    }
+
     it('keeps headers and overflow controls whole in a short bounded Month', async () => {
         const calendar = await fixture<Calendar>(
             html`<lms-calendar .activeDate=${date} .entries=${entryList(6)} .monthDayBehavior=${'day'} style="width:900px;height:380px"></lms-calendar>`,

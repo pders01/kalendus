@@ -4,6 +4,7 @@ import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
+import { isValidCalendarDate } from '../lib/calendarModel.js';
 import { parseColorWithDefault } from '../lib/colorParser.js';
 import { dateSlotKey } from '../lib/entrySlots.js';
 import {
@@ -122,6 +123,9 @@ export default class Month extends LitElement {
             cursor: pointer;
             min-block-size: 24px;
             min-inline-size: 24px;
+        }
+        button:disabled {
+            cursor: default;
         }
         button:focus-visible {
             outline: 2px solid var(--entry-focus-color, Highlight);
@@ -586,11 +590,12 @@ export default class Month extends LitElement {
                     );
                     const overflowLabel = `+${number.format(hiddenCount)}`;
                     const outside = date.month !== displayed.month || date.year !== displayed.year;
+                    const selectable = isValidCalendarDate(date);
                     return html`<div class="day" role="gridcell" data-date=${key} ?data-outside-month=${outside}
                         aria-selected=${ifDefined(selected ? (key === selected ? 'true' : 'false') : undefined)} @click=${this._backgroundClick}>
                         <button type="button" style=${ifDefined(countsOnly ? 'gap:0' : undefined)} class="indicator ${isToday ? 'current' : ''} ${date.day === 1 ? 'month-boundary' : ''}" data-date=${key} ?data-spans=${spans.length > 0}
                             data-traced-date=${traceEdges} aria-describedby=${traced ? 'traced-event' : nothing}
-                            tabindex=${key === focused ? 0 : -1} aria-current=${isToday ? 'date' : 'false'}
+                            ?disabled=${!selectable} tabindex=${selectable && key === focused ? 0 : -1} aria-current=${isToday ? 'date' : 'false'}
                             aria-label=${this.compact || this.selectedDate ? `${dateLabel}, ${format.eventCount(count)}` : dateLabel}
                             @focus=${() => {
                                 this._focusedDate = date;
@@ -612,7 +617,7 @@ export default class Month extends LitElement {
                             ${this.compact ? html`<span class="activity" aria-hidden="true" ?data-active=${count > 0} ?data-count-summary=${countsOnly}>${countsOnly ? number.format(count) : nothing}</span>${this._renderSpans(spans, column)}` : nothing}
                         </button>
                         <div class="entries"><slot name=${key} @slotchange=${this._scheduleEntries}></slot></div>
-                        <button type="button" class="summary" ?hidden=${this.compact || (!hiddenCount && !this._summaries[key])} data-date=${key}
+                        <button type="button" class="summary" ?disabled=${!selectable} ?hidden=${!selectable || this.compact || (!hiddenCount && !this._summaries[key])} data-date=${key}
                             @click=${this._activateSummary}
                             aria-labelledby=${`summary-label-${key} summary-date-${key}`}
                             aria-describedby=${count ? `summary-description-${key}` : nothing}>
@@ -631,6 +636,7 @@ export default class Month extends LitElement {
         return { year, month, day };
     }
     private _emitDate(type: 'expand' | 'date-summary', date: CalendarDate) {
+        if (!isValidCalendarDate(date)) return;
         this.dispatchEvent(
             new CustomEvent(type, { detail: { date }, bubbles: true, composed: true }),
         );

@@ -187,6 +187,36 @@ describe('Calendar public contracts and audit regressions', () => {
         }
     });
 
+    it('reaches a timed event in the first partial week without treating padding as data', async () => {
+        const first = { year: 1, month: 1, day: 1 };
+        const el = await calendar(
+            [
+                event(first, {
+                    kind: 'timed',
+                    time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
+                }),
+            ],
+            530,
+        );
+        el.activeDate = { ...first, day: 2 };
+        el.firstDayOfWeek = 2;
+        el.viewMode = 'week';
+        await settle(el);
+        const previous = el
+            .shadowRoot!.querySelector('lms-calendar-header')!
+            .shadowRoot!.querySelector<HTMLButtonElement>('button[name="previous"]')!;
+        previous.click();
+        await settle(el);
+        expect(el.activeDate).to.deep.equal(first);
+        expect(el.visibleRange).to.deep.equal({ start: '0001-01-01', end: '0001-01-02' });
+        expect(el.shadowRoot!.querySelector('lms-calendar-entry')?.heading).to.equal(
+            'Visible appointment',
+        );
+        previous.click();
+        await settle(el);
+        expect(el.activeDate).to.deep.equal(first);
+    });
+
     it('gives identical-looking entries distinct identities (C05)', async () => {
         const el = await calendar([event(), event()]);
         const entries = [...el.shadowRoot!.querySelectorAll('lms-calendar-entry')];

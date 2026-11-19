@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import type { ReactiveControllerHost } from 'lit';
 
 import { ViewStateController, type ViewMode } from '../../../src/lib/ViewStateController.js';
+import type { CalendarDate } from '../../../src/lms-calendar.js';
 
 function createMockHost(): ReactiveControllerHost {
     return {
@@ -125,6 +126,28 @@ describe('ViewStateController', () => {
             controller.navigatePrevious();
             expect(controller.activeDate.day).to.equal(10);
             expect(controller.activeDate.month).to.equal(3);
+        });
+
+        it('reaches the adjacent partial week at the lower bound without moving within it', () => {
+            const minimum = { year: 1, month: 1, day: 1 };
+            controller.setActiveDate({ ...minimum, day: 2 });
+            controller.navigatePrevious(1); // Monday-first: already in the first week.
+            expect(controller.activeDate.day).to.equal(2);
+            controller.navigatePrevious(2); // Tuesday-first: Jan 1 is the previous week's last day.
+            expect(controller.activeDate).to.deep.equal(minimum);
+            controller.navigatePrevious(2);
+            expect(controller.activeDate).to.deep.equal(minimum);
+        });
+
+        it('reaches the adjacent partial week at the upper bound without moving within it', () => {
+            const maximum = { year: 9999, month: 12, day: 31 }; // Friday
+            controller.setActiveDate({ ...maximum, day: 30 });
+            controller.navigateNext(1); // Monday-first: already in the last week.
+            expect(controller.activeDate.day).to.equal(30);
+            controller.navigateNext(5); // Friday-first: Dec 31 starts the next week.
+            expect(controller.activeDate).to.deep.equal(maximum);
+            controller.navigateNext(5);
+            expect(controller.activeDate).to.deep.equal(maximum);
         });
 
         it('should wrap month boundary when navigating forward', () => {

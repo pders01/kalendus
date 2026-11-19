@@ -124,6 +124,19 @@ describe('Day Component', () => {
     });
 
     describe('separate fixtures', () => {
+        for (const [activeDate, weekday] of [
+            [{ year: 1, month: 1, day: 1 }, 'Mon'],
+            // The browser's Pacific/Apia time zone skipped this civil Friday.
+            [{ year: 2011, month: 12, day: 30 }, 'Fri'],
+        ] as const) {
+            it(`labels ${activeDate.year}-${activeDate.month}-${activeDate.day} as ${weekday} regardless of the browser time zone`, async () => {
+                const el = await fixture<Day>(html`
+                    <lms-calendar-day .activeDate=${activeDate}></lms-calendar-day>
+                `);
+                expect(el.shadowRoot!.querySelector('.day-name')!.textContent).to.equal(weekday);
+            });
+        }
+
         it('should render hour indicators correctly', async () => {
             const el: Day = await fixture(html`
                 <lms-calendar-day locale="de"></lms-calendar-day>
