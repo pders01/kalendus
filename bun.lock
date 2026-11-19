@@ -30,6 +30,7 @@
         "@webcomponents/webcomponentsjs": "^2.8.0",
         "chai": "^6.2.2",
         "github-slugger": "2.0.0",
+        "lightningcss": "1.31.1",
         "lit": "^3.3.2",
         "lit-analyzer": "^2.0.3",
         "luxon": "^3.7.2",

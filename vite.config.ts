@@ -33,10 +33,48 @@ export default defineConfig({
             ecma: 2020,
             compress: { passes: 3 },
             // Lit is external in this build and has its own short property names.
-            // Put Calendar helpers in a separate namespace on Lit subclasses.
+            // Calendar internals use _name, not Lit's _$name markers. The
+            // separate output namespace avoids collisions on Lit subclasses.
             mangle: {
                 properties: {
-                    regex: /^_(?:render|handle|compose|requestAgenda|allowEntry|dispatch|toggle|compute|focus|show|close|restore|observe|schedule|read|mount|clear|apply|weekContext|time(?:Position|Label|Anchor$|Restore(?:Generation)?$|GridHost$|GridFont$)|densityMinimumWidth$|updateEntryCaches$|startLocaleLoad$|(?:allDayLayoutCache|layoutCache|processedEntries|expandedEntries|expandedByISODate|entrySumByDay)$|safeEntryColor|entry(?:TimeLabel|FocusTarget)|rangeDescription|determineDensity|deepActiveElement|dateFromElement)/,
+                    regex: /^_[a-zA-Z]/,
+                    // Lit legacy decorators receive literal property names; those
+                    // keys must agree with the emitted member accesses.
+                    reserved: [
+                        '_agendaError',
+                        '_agendaExpanded',
+                        '_agendaLimit',
+                        '_agendaSelected',
+                        '_agendaTrace',
+                        '_bodyScrollable',
+                        '_calendarWidth',
+                        '_compactMonth',
+                        '_counts',
+                        '_densityList',
+                        '_displayDate',
+                        '_displayYear',
+                        '_entriesError',
+                        '_exportError',
+                        '_exporting',
+                        '_focusedDate',
+                        '_hasActiveSidebar',
+                        '_hiddenCounts',
+                        '_highlighted',
+                        '_localeError',
+                        '_localeReady',
+                        '_localeVersion',
+                        '_menuEventDetails',
+                        '_menuOpen',
+                        '_monthCapacity',
+                        '_preferTimeGridScroll',
+                        '_summaries',
+                        '_timeGridColumnWidth',
+                        '_timeGridForceStack',
+                        '_timeGridMinimum',
+                        '_timeGridScale',
+                        '_timeGridStackMinimum',
+                        '_weekFocus',
+                    ],
                     keep_quoted: true,
                     nth_identifier: { get: (index) => `_k${index.toString(36)}` },
                 },

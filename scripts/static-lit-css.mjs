@@ -1,13 +1,13 @@
 // Build-only static Lit CSS minification. Dynamic templates are never rewritten.
+import { transform } from 'lightningcss';
 import MagicString from 'magic-string';
-import { transformWithEsbuild } from 'vite';
 
 export function staticLitCss() {
     return {
         name: 'kalendus-static-lit-css',
         enforce: 'post',
         apply: 'build',
-        async transform(code, id) {
+        transform(code, id) {
             if (!/[/\\]src[/\\].*\.ts$/.test(id) || id.endsWith('.stories.ts')) return null;
             const templates = [];
             function visit(node) {
@@ -30,14 +30,14 @@ export function staticLitCss() {
             for (const node of templates) {
                 const css = node.quasis[0].value.cooked;
                 if (css === null) continue;
-                const result = await transformWithEsbuild(css, `${id}.css`, {
-                    loader: 'css',
+                const result = transform({
+                    filename: `${id}.css`,
+                    code: Buffer.from(css),
                     minify: true,
-                    target: 'esnext',
-                    sourcemap: false,
                 });
                 // Preserve the cooked CSS value when re-embedding it as a JS template.
                 const escaped = result.code
+                    .toString()
                     .trim()
                     .replaceAll('\\', '\\\\')
                     .replaceAll('`', '\\`')
