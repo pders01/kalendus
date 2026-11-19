@@ -72,6 +72,7 @@ function BridgeDocument(props: KalendusWebViewProps) {
         [],
     );
     const synchronize = useCallback(() => {
+        if (!webViewRef.current || failed.current) return;
         const current = latest.current;
         const calendarProps: KalendusProps = {};
         for (const key of PROP_KEYS) {
@@ -90,7 +91,12 @@ function BridgeDocument(props: KalendusWebViewProps) {
         const result = session.synchronize(snapshot);
         if (result.invalid)
             report('Invalid or oversized calendar props/theme; snapshot was rejected');
-        else if (result.raw) send(result.raw);
+        if (!result.raw) return;
+        send(result.raw);
+        if (result.initial) {
+            setStatus('ready');
+            current.onReady?.();
+        }
     }, [session, report, send]);
     // Full replacement semantics include removals. Read the ref again on first ready:
     // no pending-props snapshot can win over more recent renders.
@@ -108,8 +114,6 @@ function BridgeDocument(props: KalendusWebViewProps) {
                 case 'ready':
                     clearTimeout(timeoutRef.current);
                     synchronize();
-                    setStatus('ready');
-                    cb.onReady?.();
                     break;
                 case 'error':
                     // A missing bundle/render failure must not leave a successful-ready

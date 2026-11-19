@@ -385,7 +385,7 @@ export class NativeSession {
         return msg;
     }
     /** Read current props at ready time, not a startup-time queued closure. */
-    synchronize(current: Snapshot): { raw: string | null; invalid: boolean } {
+    synchronize(current: Snapshot): { raw: string | null; invalid: boolean; initial?: boolean } {
         if (this.document === null) return { raw: null, invalid: false };
         const raw = encodeInbound({
             version: VERSION,
@@ -399,8 +399,9 @@ export class NativeSession {
         // Compare only after validation: cycles cannot crash a render/effect.
         const json = JSON.stringify(JSON.parse(raw).snapshot);
         if (json === this.lastSnapshot) return { raw: null, invalid: false };
+        const initial = this.lastSnapshot === null;
         this.lastSnapshot = json;
         this.outgoing++;
-        return { raw, invalid: false };
+        return { raw, invalid: false, initial };
     }
 }

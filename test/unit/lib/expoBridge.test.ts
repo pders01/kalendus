@@ -692,7 +692,7 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             expect(native.receive(JSON.stringify({ ...event, seq: 2, version: 2 }))).to.equal(null);
             expect(native.receive(JSON.stringify({ ...event, seq: 2 }))?.type).to.equal('event');
         });
-        it('rejects bad/cyclic snapshots without poisoning the next valid snapshot', () => {
+        it('marks only the first accepted snapshot ready, including after startup rejection', () => {
             const native = new NativeSession();
             native.receive(
                 JSON.stringify({
@@ -706,7 +706,19 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             const bad = snapshot();
             Reflect.set(bad.props, 'entries', [bad]);
             expect(native.synchronize(bad)).to.deep.equal({ raw: null, invalid: true });
-            expect(native.synchronize(snapshot()).raw).to.be.a('string');
+            const oversized = snapshot({ heading: 'a'.repeat(2049) });
+            expect(native.synchronize(oversized)).to.deep.equal({ raw: null, invalid: true });
+            const first = native.synchronize(snapshot());
+            expect(first.raw).to.be.a('string');
+            expect(first.initial).to.equal(true);
+            expect(JSON.parse(first.raw!).seq).to.equal(1);
+            expect(native.synchronize(snapshot()).raw).to.equal(null);
+            const second = native.synchronize(snapshot({ heading: 'Updated' }));
+            expect(second.raw).to.be.a('string');
+            expect(second.initial).to.equal(false);
+            expect(JSON.parse(second.raw!).seq).to.equal(2);
+            native.reset();
+            expect(native.synchronize(snapshot()).initial).to.equal(undefined);
         });
         it('escapes script literals without changing their JSON value', () => {
             const raw = JSON.stringify(packet(snapshot({ heading: '</script>\u2028\u2029' })));
