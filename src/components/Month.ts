@@ -506,9 +506,11 @@ export default class Month extends LitElement {
     /** @internal Focus target when the preview for a focused entry no longer fits. */
     public previewFocusTarget(key: string) {
         return (
-            this.renderRoot.querySelector<HTMLElement>(
-                `.summary[data-date="${key}"]:not([hidden])`,
-            ) ?? this.renderRoot.querySelector<HTMLElement>(`.indicator[data-date="${key}"]`)
+            (this.compact
+                ? null
+                : this.renderRoot.querySelector<HTMLElement>(
+                      `.summary[data-date="${key}"]:not([hidden])`,
+                  )) ?? this.renderRoot.querySelector<HTMLElement>(`.indicator[data-date="${key}"]`)
         );
     }
 

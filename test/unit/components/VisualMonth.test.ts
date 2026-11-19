@@ -285,6 +285,29 @@ describe('Month visual geometry and density', () => {
         expect(summary(month).hidden).to.equal(true);
     });
 
+    it('restores preview focus to the date when compact Month hides its overflow button', async () => {
+        const calendar = await fixture<Calendar>(html`<lms-calendar .activeDate=${date}
+            .entries=${entryList(12)} style="width:900px;height:880px;font-size:16px"></lms-calendar>`);
+        await settleCalendar(calendar);
+        const month = calendar.shadowRoot!.querySelector('lms-calendar-month')!;
+        await waitUntil(() => !summary(month).hidden && month.querySelector('lms-calendar-entry'));
+        const preview = month.querySelector('lms-calendar-entry')!;
+        const indicator = month.shadowRoot!.querySelector(`.indicator[data-date="${key}"]`)!;
+        // The root chooses a replacement before Month has repainted its controls.
+        month.compact = true;
+        expect(summary(month).hidden).to.equal(false);
+        expect(month.previewFocusTarget(key)).to.equal(indicator);
+        month.compact = false;
+        preview.focus();
+        expect(calendar.shadowRoot!.activeElement).to.equal(preview);
+
+        calendar.style.width = '390px';
+        await settleCalendar(calendar);
+        expect(month.compact).to.equal(true);
+        expect(summary(month).hidden).to.equal(true);
+        expect(month.shadowRoot!.activeElement).to.equal(indicator);
+    });
+
     for (const locale of ['en', 'ar']) {
         it(`keeps default compact ${locale} dates native and all six real contextual titles readable`, async () => {
             const calendar = await fixture<Calendar>(html`<lms-calendar
