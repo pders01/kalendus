@@ -247,6 +247,46 @@ describe('Holistic calendar information architecture', () => {
             ).to.be.at.least(24);
     });
 
+    for (const change of ['reschedule', 'all-day', 'narrower Week'] as const) {
+        it(`closes a timed density list when its scope changes (${change})`, async () => {
+            const groupEntries = Array.from({ length: 8 }, (_, index) =>
+                timed(`dense-${index}`, tomorrow),
+            );
+            const element = await calendar(groupEntries, 358, 'week');
+            const root = element.shadowRoot!;
+            await waitUntil(() => !!root.querySelector('.time-group'));
+            root.querySelector<HTMLButtonElement>('.time-group')!.click();
+            await waitUntil(() => root.activeElement?.id === 'agenda-date');
+
+            // Replacing data alone does not close the list if its time and membership are intact.
+            const refreshed = groupEntries.map((entry) => ({ ...entry, heading: 'Updated title' }));
+            element.entries = refreshed;
+            await settle(element);
+            expect(rows(element)).to.have.length(8);
+            expect(rows(element)[0].textContent).to.include('Updated title');
+
+            if (change === 'narrower Week') element.style.width = '250px';
+            else
+                element.entries = [
+                    change === 'reschedule'
+                        ? {
+                              ...refreshed[0],
+                              time: {
+                                  start: { hour: 17, minute: 0 },
+                                  end: { hour: 18, minute: 0 },
+                              },
+                          }
+                        : { ...refreshed[0], kind: 'all-day' },
+                    ...refreshed.slice(1),
+                ];
+            await waitUntil(() => !root.querySelector('[data-density-list]'));
+            await settle(element);
+            expect(root.querySelector('lms-calendar-week')).not.to.equal(null);
+            expect(root.activeElement).not.to.equal(null);
+            expect(element.activeDate).to.deep.equal(date);
+        });
+    }
+
     it('discloses the exact timed group without changing Week state, then restores place', async () => {
         const groupEntries = Array.from({ length: 8 }, (_, index) =>
             timed(`dense-${index}`, tomorrow),

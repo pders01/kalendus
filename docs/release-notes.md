@@ -18,7 +18,7 @@ section: Getting Started
 ### Upgrade from 0.11.0
 
 - An explicit height now bounds the **whole calendar** in all four views, including Month. Remove the height to let Month grow in page flow. Within a sized embed, the toolbar stays separate from view scrolling except when the embed is too short for both.
-- Timed collision counts and all-day counts open scoped lists without navigating or changing the committed `visibleRange`. Closing a list restores the trigger and timeline position when still available. Keep fetching from `calendar-state-change`, not disclosure clicks.
+- Timed collision counts and all-day counts open scoped lists without navigating or changing the committed `visibleRange`. Closing a list restores the trigger and timeline position when still available. A timed list closes if its members' times or kind change, or if its date leaves the visible range. Keep fetching from `calendar-state-change`, not disclosure clicks.
 - The optional server still accepts its own floating-time API format. Do not send a proposed component entry directly to the server: map it to your persistence contract and validate it there.
 
 See [Events Reference](./events.md#entry-change-requests-opt-in) and [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling).

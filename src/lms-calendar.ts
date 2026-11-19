@@ -1244,13 +1244,6 @@ export default class LMSCalendar extends LitElement {
             Object.keys(this._monthCapacity).length
         )
             this._monthCapacity = {};
-        const agendaKey = `${this.viewMode}:${civilDateKey(this.activeDate)}:${this.monthAgendaPresentation}:${this._densityList?.key ?? ''}`;
-        if (agendaKey !== this._agendaKey) {
-            this._agendaKey = agendaKey;
-            this._agendaLimit = 50;
-            this._agendaExpanded = false;
-            this._agendaError = undefined;
-        }
         const canonicalLocale = normalizeLocale(this.locale);
         if (canonicalLocale !== this.locale) this.locale = canonicalLocale;
         if (
@@ -1271,41 +1264,65 @@ export default class LMSCalendar extends LitElement {
         }
         if (changedProperties.has('locale' as never)) this._startLocaleLoad();
 
-        // Controller-backed navigation does not populate changedProperties. Key
-        // viewport-derived work by the committed range instead of a fictitious
-        // activeDate entry in Lit's change map.
+        this._updateEntryCaches(changedProperties.has('entries' as never));
+        const agendaKey = `${this.viewMode}:${civilDateKey(this.activeDate)}:${this.monthAgendaPresentation}:${this._densityList?.key ?? ''}`;
+        if (agendaKey !== this._agendaKey) {
+            this._agendaKey = agendaKey;
+            this._agendaLimit = 50;
+            this._agendaExpanded = false;
+            this._agendaError = undefined;
+        }
+    }
+
+    private _updateEntryCaches(entriesChanged: boolean) {
+        // Controller-backed navigation does not populate Lit's changed properties.
+        const range = this.visibleRange;
         const rangeKey = JSON.stringify([
-            this.visibleRange,
+            range,
             this.viewMode,
             this.firstDayOfWeek,
             this.monthPresentation,
         ]);
-        const entriesChanged = changedProperties.has('entries' as never);
         if (!entriesChanged && rangeKey === this._derivedRangeKey) return;
         this._derivedRangeKey = rangeKey;
-        if (!entriesChanged) {
-            this._computeEntryCaches();
-            return;
-        }
 
-        if (!Array.isArray(this.entries) || !this.entries.length) {
+        const list = this._densityList;
+        const date = list && civilDateKey(list.date);
+        const ids = list?.timed && new Set(list.timed.segmentIds);
+        const signature = () =>
+            date &&
+            ids &&
+            this._expandedByISODate[date]
+                ?.filter((entry) => ids.has(entry.segmentId))
+                .map(({ segmentId, isAllDay, time }) => JSON.stringify([segmentId, isAllDay, time]))
+                .sort()
+                .join('\n');
+        const previous = signature();
+        if (entriesChanged) {
             this._validationIssues = [];
-            this._entriesError = '';
-            this._processedEntries = [];
-            this._clearEntryCaches();
-            return;
+            this._processedEntries = normalizeEntries(this.entries, (issue) =>
+                this._validationIssues.push(issue),
+            ).sort(
+                (a, b) =>
+                    (a.time?.start.hour ?? 0) - (b.time?.start.hour ?? 0) ||
+                    (a.time?.start.minute ?? 0) - (b.time?.start.minute ?? 0),
+            );
         }
-
-        this._validationIssues = [];
-        this._processedEntries = normalizeEntries(this.entries, (issue) =>
-            this._validationIssues.push(issue),
-        ).sort(
-            (a, b) =>
-                (a.time?.start.hour ?? 0) - (b.time?.start.hour ?? 0) ||
-                (a.time?.start.minute ?? 0) - (b.time?.start.minute ?? 0),
-        );
-
-        this._computeEntryCaches();
+        if (this._processedEntries.length) this._computeEntryCaches(range);
+        else {
+            this._entriesError = '';
+            this._clearEntryCaches();
+        }
+        if (
+            date &&
+            (date < range.start ||
+                (range.end !== '10000-01-01' && date >= range.end) ||
+                previous !== signature())
+        ) {
+            void this._closeDensityList(
+                !!this.shadowRoot?.activeElement?.closest('[data-density-list]'),
+            );
+        }
     }
 
     // ── Memoization helpers (the "compute" side of the memo pattern) ────
@@ -1322,12 +1339,12 @@ export default class LMSCalendar extends LitElement {
         this._allDayLayoutCache.clear();
     }
 
-    private _computeEntryCaches() {
+    private _computeEntryCaches(range: CalendarVisibleRange) {
         // Work is bounded by the visible range, never an event's entire lifetime.
         this._entriesError = '';
         let expanded: ModelExpandedEntry[];
         try {
-            expanded = expandEntries(this._processedEntries, this.visibleRange);
+            expanded = expandEntries(this._processedEntries, range);
         } catch (error) {
             if (!(error instanceof CalendarExpansionError) || error.code !== 'segment-budget')
                 throw error;
@@ -2009,7 +2026,7 @@ export default class LMSCalendar extends LitElement {
             </div>
             ${
                 list
-                    ? html`<button class="agenda-action density-list-close" type="button" @click=${this._closeDensityList}>${messages.close}</button>`
+                    ? html`<button class="agenda-action density-list-close" type="button" @click=${() => this._closeDensityList()}>${messages.close}</button>`
                     : disclosure
                       ? html`<button class="agenda-action agenda-toggle" type="button" aria-expanded=${this._agendaExpanded ? 'true' : 'false'} aria-controls="agenda-events" aria-describedby="agenda-date"
                           @click=${() => {
@@ -2593,10 +2610,11 @@ export default class LMSCalendar extends LitElement {
                 ?.focus({ preventScroll: true });
     }
 
-    private async _closeDensityList() {
+    private async _closeDensityList(restoreFocus = true) {
         const previous = this._densityList;
         if (!previous) return;
         this._densityList = undefined;
+        if (!restoreFocus) return;
         await this.updateComplete;
         const generation = this._timeRestoreGeneration;
         await this._timeRestore;
