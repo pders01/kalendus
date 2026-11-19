@@ -1,6 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
+
+import ts from 'typescript';
 
 const argument = process.argv.indexOf('--budgets');
 const budgets = JSON.parse(
@@ -10,8 +12,23 @@ const gzipBytes = (file) => gzipSync(readFileSync(resolve('dist', file)), { leve
 const esmFiles = readdirSync('dist').filter(
     (file) => file.endsWith('.js') && file !== 'kalendus.iife.js',
 );
+// Rollup may emit a thin entry re-export. Count its entire eager relative
+// import graph, but not dynamic imports or the consumer's peer dependencies.
+const eagerFiles = new Set();
+function visit(file) {
+    if (eagerFiles.has(file)) return;
+    eagerFiles.add(file);
+    const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest);
+    for (const node of source.statements) {
+        if (!(ts.isImportDeclaration(node) || ts.isExportDeclaration(node))) continue;
+        const specifier = node.moduleSpecifier;
+        if (specifier && ts.isStringLiteral(specifier) && specifier.text.startsWith('.'))
+            visit(resolve(dirname(file), specifier.text));
+    }
+}
+visit(resolve('dist/kalendus.js'));
 const measurements = {
-    mainGzipBytes: gzipBytes('kalendus.js'),
+    mainGzipBytes: [...eagerFiles].reduce((sum, file) => sum + gzipBytes(file), 0),
     esmTotalGzipBytes: esmFiles.reduce((sum, file) => sum + gzipBytes(file), 0),
     iifeGzipBytes: gzipBytes('kalendus.iife.js'),
 };
