@@ -287,6 +287,29 @@ describe('Holistic calendar information architecture', () => {
         });
     }
 
+    it('renders overnight continuations before morning cards in Day and Week reading order', async () => {
+        const element = await calendar(
+            [
+                timed('morning', tomorrow),
+                timed('overnight', date, {
+                    date: { start: date, end: tomorrow },
+                    time: { start: { hour: 22, minute: 0 }, end: { hour: 1, minute: 0 } },
+                }),
+            ],
+            1100,
+            'day',
+        );
+        element.activeDate = tomorrow;
+        for (const view of ['day', 'week'] as const) {
+            element.viewMode = view;
+            await settle(element);
+            const day = [...element.shadowRoot!.querySelectorAll('lms-calendar-entry')].filter(
+                (entry) => entry.date?.start.day === tomorrow.day,
+            );
+            expect(day.map((entry) => entry.eventId)).to.deep.equal(['overnight', 'morning']);
+        }
+    });
+
     it('discloses the exact timed group without changing Week state, then restores place', async () => {
         const groupEntries = Array.from({ length: 8 }, (_, index) =>
             timed(`dense-${index}`, tomorrow),

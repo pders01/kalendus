@@ -24,7 +24,7 @@ import type { DensityMode, DrillTarget } from './components/Year.js';
 import './components/Month.js';
 import type { CalendarState, CalendarVisibleRange, CalendarEntryRequest } from './contracts.js';
 import './components/Week.js';
-import { prepareAgendaEntries } from './lib/agendaEntries.js';
+import { entryStartMinute, prepareAgendaEntries } from './lib/agendaEntries.js';
 import { joinVisibleSpans, layoutAllDaySegments, type VisibleSpan } from './lib/allDayLayout.js';
 import './components/Year.js';
 import {
@@ -62,7 +62,7 @@ import { gainsTimedDetail, getDenseTimedGroups, layoutTimedEntries } from './lib
 import type { ViewMode } from './lib/ViewStateController.js';
 import { ViewStateController } from './lib/ViewStateController.js';
 import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
-import { addDisplayDays, getMonthCalendarArray, getWeekDates } from './lib/weekStartHelper.js';
+import { addDisplayDays, getMonthCalendarArray } from './lib/weekStartHelper.js';
 
 // ── RTL locale detection ───────────────────────────────────────────────
 const RTL_LOCALES = new Set(['ar', 'he', 'fa', 'ur', 'yi']);
@@ -1421,11 +1421,7 @@ export default class LMSCalendar extends LitElement {
             this._validationIssues = [];
             this._processedEntries = normalizeEntries(this.entries, (issue) =>
                 this._validationIssues.push(issue),
-            ).sort(
-                (a, b) =>
-                    (a.time?.start.hour ?? 0) - (b.time?.start.hour ?? 0) ||
-                    (a.time?.start.minute ?? 0) - (b.time?.start.minute ?? 0),
-            );
+            ).sort((a, b) => entryStartMinute(a) - entryStartMinute(b));
         }
         if (this._processedEntries.length) this._computeEntryCaches(range);
         else {
@@ -1483,8 +1479,11 @@ export default class LMSCalendar extends LitElement {
             canonicalEntry: entry.canonicalEntry as CalendarEntry,
         }));
 
-        // Group once for direct Day, Week, and Agenda lookups.
+        // Group once for direct Day, Week, and Agenda lookups. Order by the
+        // rendered segment's start: overnight continuations start at midnight.
         this._expandedByISODate = groupByDate(this._expandedEntries);
+        for (const day of Object.values(this._expandedByISODate))
+            day.sort((a, b) => entryStartMinute(a) - entryStartMinute(b));
 
         if (
             this.viewMode === 'month' &&
@@ -2395,98 +2394,34 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _renderEntriesByDate(weekCtx?: WeekDisplayContext) {
-        const currentActiveDate = this._viewState.activeDate;
-        const viewMode = this._viewState.viewMode;
-
-        if (viewMode !== 'day' && viewMode !== 'week') {
-            return { elements: nothing, allDayRowCount: 0, allDaySummary: false };
-        }
-
-        // O(1) map lookups instead of O(n) expansion + Luxon filtering
-        let allEntriesForDate: ExpandedCalendarEntry[];
-
-        if (viewMode === 'day') {
-            const key = civilDateKey(currentActiveDate);
-            allEntriesForDate = this._expandedByISODate[key] ?? [];
-        } else {
-            // Week view: use visible dates from context (condensed or full)
-            const datesToRender =
-                weekCtx?.visibleDates ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
-            allEntriesForDate = datesToRender.flatMap((wd) => {
-                const key = civilDateKey(wd);
-                return this._expandedByISODate[key] ?? [];
-            });
-        }
-
-        // Single-pass partition into all-day vs timed entries
+        const currentActiveDate = this.activeDate;
+        const viewMode = weekCtx ? 'week' : 'day';
+        const dates = weekCtx?.visibleDates ?? [currentActiveDate];
+        const condensedDates = weekCtx?.isCondensed ? dates : undefined;
         const allDayEntries: ExpandedCalendarEntry[] = [];
-        const entriesByDate: ExpandedCalendarEntry[] = [];
-        for (const entry of allEntriesForDate) {
-            (entry.isAllDay ? allDayEntries : entriesByDate).push(entry);
-        }
-
-        if (!entriesByDate.length && !allDayEntries.length) {
-            return { elements: nothing, allDayRowCount: 0, allDaySummary: false };
-        }
-
-        // Use SlotManager to handle positioning across different views
-        return this._renderEntriesWithSlotManager(
-            viewMode,
-            currentActiveDate,
-            allDayEntries,
-            entriesByDate,
-            weekCtx,
-        );
-    }
-
-    private _renderEntriesWithSlotManager(
-        viewMode: 'day' | 'week',
-        currentActiveDate: CalendarDate,
-        allDayEntries: ExpandedCalendarEntry[],
-        entriesByDate: ExpandedCalendarEntry[],
-        weekCtx?: WeekDisplayContext,
-    ) {
-        const allElements: ReturnType<typeof this._composeEntry>[] = [];
-
-        // Process timed entries
-        if (entriesByDate.length > 0) {
-            // Build O(1) global-index lookup (replaces O(n) indexOf per entry)
-            const globalIndexMap = new Map(entriesByDate.map((entry, i) => [entry, i]));
-
-            if (viewMode === 'week') {
-                // Group timed entries by day for week view
-                const entriesByDay = groupByDate(entriesByDate);
-
-                const condensedDates = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
-
-                // Iterate in known day order — no sort needed
-                const datesToRender =
-                    condensedDates ?? getWeekDates(currentActiveDate, this.firstDayOfWeek);
-
-                for (const wd of datesToRender) {
-                    const dayEntries = entriesByDay[civilDateKey(wd)];
-                    if (!dayEntries?.length) continue;
-
-                    const dayElements = this._renderDayEntriesWithSlotManager(
-                        dayEntries,
+        const allElements: EntryRender[] = [];
+        // Keep the cached date buckets and their reading order, rather than
+        // flattening and regrouping Week on each render.
+        let offset = 0;
+        for (const date of dates) {
+            const timed: ExpandedCalendarEntry[] = [];
+            for (const entry of this._expandedByISODate[civilDateKey(date)] ?? [])
+                (entry.isAllDay ? allDayEntries : timed).push(entry);
+            if (timed.length) {
+                allElements.push(
+                    ...this._renderDayEntriesWithSlotManager(
+                        timed,
                         viewMode,
                         currentActiveDate,
-                        globalIndexMap,
+                        offset,
                         condensedDates,
-                    );
-                    allElements.push(...dayElements);
-                }
-            } else {
-                // Day view: process all entries together
-                const dayElements = this._renderDayEntriesWithSlotManager(
-                    entriesByDate,
-                    viewMode,
-                    currentActiveDate,
-                    globalIndexMap,
+                    ),
                 );
-                allElements.push(...dayElements);
+                offset += timed.length;
             }
         }
+        if (!offset && !allDayEntries.length)
+            return { elements: nothing, allDayRowCount: 0, allDaySummary: false };
 
         const allDayByDate =
             weekCtx && allDayEntries.length ? groupByDate(allDayEntries) : undefined;
@@ -2500,7 +2435,6 @@ export default class LMSCalendar extends LitElement {
             return this._renderWeekAllDaySummary(weekCtx, allDayByDate, allElements);
         }
 
-        const dates = weekCtx?.visibleDates ?? [currentActiveDate];
         const allDayKey = `${viewMode}:${civilDateKey(dates[0])}:${dates.length}`;
         let allDayLayout = this._allDayLayoutCache.get(allDayKey);
         if (!allDayLayout) {
@@ -2572,7 +2506,7 @@ export default class LMSCalendar extends LitElement {
         dayEntries: ExpandedCalendarEntry[],
         viewMode: 'day' | 'week',
         currentActiveDate: CalendarDate,
-        globalIndexMap: Map<ExpandedCalendarEntry, number>,
+        offset: number,
         condensedDates?: CalendarDate[],
     ) {
         // Cache key from the day being rendered (all entries share the same date)
@@ -2617,7 +2551,7 @@ export default class LMSCalendar extends LitElement {
                           ),
                       ]
                     : [];
-            const globalIndex = globalIndexMap.get(entry) ?? index;
+            const globalIndex = offset + index;
 
             // Use SlotManager to determine positioning and accessibility
             const positionConfig: PositionConfig = {
@@ -2652,8 +2586,7 @@ export default class LMSCalendar extends LitElement {
 
             const smartLayout = this._getSmartLayout(layoutBox.height, layoutBox.width);
             const labelOffset = useMarkers
-                ? layoutBox.y / this._timeGridScale -
-                  (entry.time!.start.hour * 60 + entry.time!.start.minute)
+                ? layoutBox.y / this._timeGridScale - entryStartMinute(entry)
                 : 0;
 
             return [
@@ -2688,7 +2621,7 @@ export default class LMSCalendar extends LitElement {
             bottom = 0;
         for (const index of indices) {
             const entry = entries[index];
-            first = Math.min(first, entry.time!.start.hour * 60 + entry.time!.start.minute);
+            first = Math.min(first, entryStartMinute(entry));
             last = Math.max(last, entry.time!.end.hour * 60 + entry.time!.end.minute);
             top = Math.min(top, layout.boxes[index].y);
             bottom = Math.max(bottom, layout.boxes[index].y + layout.boxes[index].height);

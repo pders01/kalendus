@@ -13,7 +13,7 @@ interface AgendaPageOptions {
     segmentIds?: ReadonlySet<string>;
 }
 
-const startMinute = (entry: OrderedEntry) =>
+export const entryStartMinute = (entry: Pick<OrderedEntry, 'time'>) =>
     (entry.time?.start.hour ?? 0) * 60 + (entry.time?.start.minute ?? 0);
 
 /** Select a page from one date's segments, preserving their original identity. */
@@ -28,7 +28,7 @@ export function prepareAgendaEntries<T extends OrderedEntry>(
         .sort(
             (a, b) =>
                 Number(b.isAllDay) - Number(a.isAllDay) ||
-                startMinute(a) - startMinute(b) ||
+                entryStartMinute(a) - entryStartMinute(b) ||
                 a.originalIndex - b.originalIndex,
         );
     const total = ordered.length;
