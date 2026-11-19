@@ -38,6 +38,10 @@
             "import": "./dist/kalendus.js",
             "default": "./dist/kalendus.js"
         },
+        "./entry-interactions": {
+            "types": "./dist/entry-interactions.d.ts",
+            "import": "./dist/entry-interactions.js"
+        },
         "./themes/default.css": "./dist/themes/default.css",
         "./themes/ink.css": "./dist/themes/ink.css",
         "./themes/soft.css": "./dist/themes/soft.css",
@@ -49,7 +53,8 @@
         "access": "public"
     },
     "scripts": {
-        "build": "vite build && tsc --project tsconfig.build.json",
+        "build": "vite build && npm run build:interactions && tsc --project tsconfig.build.json",
+        "build:interactions": "vite build --config vite.config.interactions.ts",
         "build:iife": "vite build --config vite.config.iife.ts",
         "build:all": "npm run build && npm run build:iife",
         "build:watch": "vite build --watch",

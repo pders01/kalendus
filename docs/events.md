@@ -81,6 +81,45 @@ The default ICS exporter uses the original endpoints, an identity-derived UID wh
 
 Non-cancelable error notification from `<lms-menu>` with `{ error, entry, eventId }` when generation/download setup fails. The inspector also shows an error message. `entry` may be undefined if no exportable record was supplied. Cancellation of `export-entry` is not an error.
 
+## Entry change requests (opt-in)
+
+Import `enableEntryInteractions` from `@jpahd/kalendus/entry-interactions` to opt in per calendar. The standard package and standalone IIFE remain read-only. On desktop, drag the body of a timed card to move it or drag its marked top or bottom edge to resize a real endpoint. Week can move entries between the rendered day columns. A valid drop emits one typed, bubbling and composed `entry-change-request`. Escaping, a drop outside the timed grid, an invalid or unchanged schedule, or replacing the source entries during the drag emits nothing.
+
+```ts
+import '@jpahd/kalendus';
+import { enableEntryInteractions } from '@jpahd/kalendus/entry-interactions';
+
+const calendar = document.querySelector('lms-calendar')!;
+const edits = enableEntryInteractions(calendar, {
+    snapMinutes: 15,
+    canChange: (entry) => Boolean(entry.id),
+});
+
+calendar.addEventListener('entry-change-request', ({ detail }) => {
+    const { entry, proposed } = detail;
+    // This example adopts the request locally. For persistence, let your app
+    // authorize, save, and reconcile the result before replacing entries.
+    calendar.entries = calendar.entries.map((current) =>
+        current === entry ? proposed : current,
+    );
+});
+
+// From an app-owned button with the current canonical selected entry:
+// edits.requestChange(selectedEntry, { kind: 'resize', edge: 'end' }, 15);
+// Call edits.dispose() when removing the integration.
+```
+
+`EntryChangeRequest` includes:
+
+- **`entry` and `eventId`:** The original record and its identity (a caller ID when provided). The pointer request can also report the view's fallback ID; use caller IDs for persisted updates.
+- **`operation`:** `{ kind: 'move' }` or `{ kind: 'resize', edge: 'start' | 'end' }`.
+- **`proposed`:** A replacement record with the original identity and metadata. A move preserves the wall-clock duration; a resize changes only the selected endpoint. The time zone is retained, and invalid or ambiguous zoned endpoints are rejected.
+- **`source`:** `'pointer'` or `'api'`.
+
+There is **no default mutation**. The request is not cancelable; ignoring it leaves the event where it was. The optional synchronous `canChange(entry, operation)` lets an app disable pointer affordances and reject requests for a record or operation. It is not backend authorization. Set `snapMinutes` to an integer from 1–1440 (default 15); snapping rounds the pointer delta, not the event's original time.
+
+Provide equivalent buttons or a scheduling form for users who cannot drag. Pass the current record from `calendar.entries` to `requestChange(entry, operation, deltaMinutes)`. It uses the same validation and event, without pointer snapping. A `true` return means it dispatched a proposal, not that the app accepted or saved it. Both paths support explicit `kind: 'timed'` records. Pointer gestures currently apply to Day/Week cards only; touch dragging, Month, all-day bars, timed markers, and density groups do not get drag handles. Ordinary activation and native touch scrolling are unchanged.
+
 ## Entry diagnostics
 
 ### `entries-invalid`

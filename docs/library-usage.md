@@ -204,6 +204,8 @@ calendar.addEventListener('export-entry', (event) => {
 
 Both requests are cancelable and carry canonical original `{ entry, eventId? }`, not a rendered segment. Cancel synchronously with **`preventDefault()`**, not `stopPropagation()`. `export-error` reports generation failures. Legacy `switchdate`, `switchview`, `jumptoday`, `expand`, `peek-navigate`, `open-menu` and `menu-close` remain available. See [Events Reference](./events.md) for payloads, diagnostics and locale events.
 
+The optional [entry interactions module](./events.md#entry-change-requests-opt-in) adds move and resize requests to timed Day/Week cards. It is imported separately and never writes to `entries`.
+
 ## Entry layout and year controls
 
 Timed entries use minute-based absolute positioning with overlap layout calculated from effective grid scale/minimum geometry; they are not fixed at one pixel per minute. All-day entries use row allocation. Narrow month layouts use compact indicators; condensed weeks use the actual visible window for both rendering and range reporting.

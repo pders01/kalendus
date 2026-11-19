@@ -74,7 +74,18 @@ calendar.monthPresentation = 'presence';
 calendar.monthAgendaPresentation = 'accordion';
 calendar.style.cssText = 'width: 390px; height: 750px';
 document.body.append(calendar);
-window.smoke = { calendar, states, registered: calendar instanceof Calendar };
+window.smoke = { calendar, states, registered: calendar instanceof Calendar,
+    async propose() {
+        const { enableEntryInteractions } = await import('@jpahd/kalendus/entry-interactions');
+        const edits = enableEntryInteractions(calendar);
+        let request;
+        calendar.addEventListener('entry-change-request', event => { request = event.detail; }, { once: true });
+        const entry = calendar.entries[0];
+        const proposed = edits.requestChange(entry, { kind: 'resize', edge: 'end' }, 15);
+        edits.dispose();
+        return proposed && request?.entry === entry && request?.proposed.time.end.minute === 15 &&
+            entry.time.end.minute === 0 && calendar.entries[0] === entry;
+    } };
 `,
     );
     const config = { root: realpathSync(consumer), configFile: false, logLevel: 'error' };
@@ -103,6 +114,7 @@ window.smoke = { calendar, states, registered: calendar instanceof Calendar };
                     await window.smoke.calendar.updateComplete;
                 });
                 assert.equal(await page.evaluate(() => window.smoke.registered), true);
+                assert.equal(await page.evaluate(() => window.smoke.propose()), true);
                 const calendar = page.locator('lms-calendar');
                 assert.equal(await calendar.getAttribute('dir'), 'rtl');
                 await calendar.locator('.indicator[data-date="2026-11-17"]').click();
@@ -169,6 +181,7 @@ try {
         join(consumer, 'index.ts'),
         `
 import Calendar, { type CalendarEntry, type CalendarState, type ViewMode } from '@jpahd/kalendus';
+import { enableEntryInteractions, type EntryChangeRequest } from '@jpahd/kalendus/entry-interactions';
 const entries: CalendarEntry[] = [{
     id: 'all-day', kind: 'all-day', heading: 'No casts needed', content: '', color: '#24558a',
     date: { start: { year: 2026, month: 3, day: 7 }, end: { year: 2026, month: 3, day: 9 } }
@@ -186,6 +199,14 @@ calendar.addEventListener('entry-activate', event => {
     console.log(event.detail.entry.id);
     event.preventDefault();
 });
+const edits = enableEntryInteractions(calendar, { canChange: (entry, operation) => !!entry.id && operation.kind === 'move' });
+calendar.addEventListener('entry-change-request', event => {
+    const detail: EntryChangeRequest = event.detail;
+    if (detail.operation.kind === 'resize') console.log(detail.operation.edge);
+    calendar.entries = calendar.entries.map(entry => entry === detail.entry ? detail.proposed : entry);
+});
+edits.requestChange(entries[0], { kind: 'move' }, 15);
+edits.dispose();
 `,
     );
     for (const moduleResolution of ['Bundler', 'NodeNext']) {
