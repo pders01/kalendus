@@ -595,6 +595,31 @@ describe('calendarModel', () => {
     });
 
     describe('zone policy', () => {
+        it('uses only civil date fields for zoned validation and retains metadata on the caller record', () => {
+            const input = {
+                kind: 'timed',
+                timeZone: 'America/New_York',
+                date: {
+                    start: Object.freeze({ ...date(2026, 3, 8), calendarId: 'work' }),
+                    end: Object.freeze({ ...date(2026, 3, 8), hour: 2 }),
+                },
+                time: { start: time(3), end: time(24) },
+                calendarId: 'work',
+            };
+            const sibling = entry();
+            const issues: EntryValidationIssue[] = [];
+            const result = normalizeEntries([input, sibling], (issue) => issues.push(issue));
+            expect(issues).to.deep.equal([]);
+            expect(result.map((record) => record.sourceEntry)).to.deep.equal([input, sibling]);
+            expect(result[0].canonicalEntry).to.equal(input);
+            expect(result[0].canonicalEntry.date).to.equal(input.date);
+            expect(input.date.start.calendarId).to.equal('work');
+            expect(input.date.end.hour).to.equal(2);
+            expect(result[0].date).to.deep.equal({
+                start: date(2026, 3, 8),
+                end: date(2026, 3, 8),
+            });
+        });
         it('rejects unknown zones, nonexistent spring times and ambiguous autumn endpoints', () => {
             const at = (start: ReturnType<typeof date>, timeZone: string, hour: number) => ({
                 ...entry(start),

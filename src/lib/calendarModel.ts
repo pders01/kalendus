@@ -68,9 +68,15 @@ export interface EntryValidationIssue {
 
 const DAY_MS = 86_400_000;
 const legacyIds = new WeakMap<object, string>();
+let previousLegacyIds: WeakMap<object, Set<string>> | undefined;
 // Preserve ID provenance independently of mutable caller records and synthetic IDs.
 const normalizedRecords = new WeakMap<object, string | undefined>();
 let nextLegacyId = 0;
+
+/** Identify runtime-only IDs, including ones retained by an already-open inspector. */
+export function isSyntheticEntryId(source: object, id: string): boolean {
+    return legacyIds.get(source) === id || previousLegacyIds?.get(source)?.has(id) === true;
+}
 
 /** Prevent accidental unbounded eager expansion; supply a visible range instead. */
 export const MAX_EXPANDED_SEGMENTS = 100_000;
@@ -184,7 +190,8 @@ function validZonedEndpoint(date: CivilDate, time: ModelTime, zone: string): boo
     // Reject gaps (Luxon otherwise shifts them forward) and ambiguous repeated times.
     const targetDate = time.hour === 24 ? dateFromDay(dayNumber(date) + 1) : date;
     const hour = time.hour === 24 ? 0 : time.hour;
-    const result = DateTime.fromObject({ ...targetDate, hour, minute: time.minute }, { zone });
+    const { year, month, day } = targetDate;
+    const result = DateTime.fromObject({ year, month, day, hour, minute: time.minute }, { zone });
     return (
         result.isValid &&
         result.year === targetDate.year &&
@@ -243,6 +250,12 @@ export function normalizeEntries(
         if (sourceId === undefined) {
             sourceId = legacyIds.get(source);
             if (!sourceId || reservedIds.has(sourceId) || acceptedPublicIds.has(sourceId)) {
+                if (sourceId) {
+                    const previous = (previousLegacyIds ??= new WeakMap());
+                    const ids = previous.get(source);
+                    if (ids) ids.add(sourceId);
+                    else previous.set(source, new Set([sourceId]));
+                }
                 do {
                     sourceId = `legacy:${++nextLegacyId}`;
                 } while (reservedIds.has(sourceId) || acceptedPublicIds.has(sourceId));

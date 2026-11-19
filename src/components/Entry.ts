@@ -1,6 +1,5 @@
 import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { DateTime } from 'luxon';
 
 import {
     formatLocalizedDate,
@@ -8,6 +7,7 @@ import {
     formatLocalizedTimeRange,
 } from '../lib/localization.js';
 import { getMessages, getMessageFormatters } from '../lib/messages.js';
+import { addDisplayDays } from '../lib/weekStartHelper.js';
 import type { CalendarDateInterval, CalendarEntry } from '../lms-calendar.js';
 import { isAllDayExport } from './entryExport.js';
 
@@ -767,9 +767,9 @@ export default class Entry extends LitElement {
         const allDay = isAllDayExport(entry);
         const endDate =
             !allDay && entry.time?.end.hour === 24
-                ? DateTime.fromObject(entry.date.end, { zone: 'UTC' }).plus({ days: 1 }).toObject()
+                ? addDisplayDays(entry.date.end, 1)
                 : entry.date.end;
-        const lastDate = dateLabel(endDate as CalendarDate);
+        const lastDate = dateLabel(endDate);
         const displayDate =
             firstDate === lastDate ? firstDate : format.timeRange(firstDate, lastDate);
         const time = entry.time;

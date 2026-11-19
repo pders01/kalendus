@@ -1,15 +1,12 @@
 import type { CalendarEntry } from '../lms-calendar.js';
 
-const legacyUids = new WeakMap<object, string>();
-let nextLegacyUid = 0;
-
 /** Shared default action for inspector and inline Agenda export. */
 export async function downloadEntryIcs(
     target: HTMLElement,
     entry: CalendarEntry,
     eventId?: string,
     heading?: string,
-    identity = entry as object,
+    identity: object = entry,
 ) {
     if (
         !target.dispatchEvent(
@@ -23,17 +20,8 @@ export async function downloadEntryIcs(
     )
         return;
     try {
-        if (!legacyUids.has(identity))
-            legacyUids.set(identity, `legacy-${Date.now()}-${++nextLegacyUid}@lms-calendar`);
-        const ics = await generateEntryIcs(entry, eventId, legacyUids.get(identity));
-        const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${(heading || 'event').replace(/[\\/:*?"<>|]/g, '-')}.ics`;
-        document.body.append(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 0);
+        const { saveEntryIcs } = await import('./serializeEntryIcs.js');
+        saveEntryIcs(entry, isAllDayExport(entry), eventId, heading, identity);
     } catch (error) {
         target.dispatchEvent(
             new CustomEvent('export-error', {
@@ -63,8 +51,8 @@ export function isAllDayExport(entry: CalendarEntry): boolean {
 export async function generateEntryIcs(
     entry: CalendarEntry,
     eventId?: string,
-    fallbackUid?: string,
+    identity: object = entry,
 ): Promise<string> {
     const { serializeEntryIcs } = await import('./serializeEntryIcs.js');
-    return serializeEntryIcs(entry, isAllDayExport(entry), eventId, fallbackUid);
+    return serializeEntryIcs(entry, isAllDayExport(entry), eventId, identity);
 }

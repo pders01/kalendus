@@ -1,10 +1,10 @@
 import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
-import { DateTime } from 'luxon';
 
 import { formatLocalizedDate, formatLocalizedTimeRange } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
+import { addDisplayDays } from '../lib/weekStartHelper.js';
 import type { CalendarDate, CalendarEntry } from '../lms-calendar.js';
 import { downloadEntryIcs, isAllDayExport } from './entryExport.js';
 
@@ -551,12 +551,13 @@ export class Menu extends LitElement {
         const format = (value: CalendarDate) =>
             formatLocalizedDate(value.day, value.month, value.year, this.locale);
         if (!entry) return format(date);
-        let end = entry.date.end;
-        if (!isAllDayExport(entry) && entry.time?.end.hour === 24) {
-            const next = DateTime.fromObject(end, { zone: 'UTC' }).plus({ days: 1 });
-            end = { year: next.year, month: next.month, day: next.day };
-        }
-        return format(date) === format(end) ? format(date) : `${format(date)} – ${format(end)}`;
+        const end =
+            !isAllDayExport(entry) && entry.time?.end.hour === 24
+                ? addDisplayDays(entry.date.end, 1)
+                : entry.date.end;
+        const first = format(date);
+        const last = format(end);
+        return first === last ? first : `${first} – ${last}`;
     }
     private _timeDescription(): string {
         const entry = this.eventDetails.entry;

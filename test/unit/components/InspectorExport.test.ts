@@ -5,6 +5,7 @@ import { convertIcsCalendar } from 'ts-ics';
 import '../../../src/components/Menu.ts';
 import { generateEntryIcs } from '../../../src/components/entryExport.ts';
 import type { Menu } from '../../../src/components/Menu.ts';
+import { normalizeEntries } from '../../../src/lib/calendarModel.js';
 import type { CalendarEntry } from '../../../src/lms-calendar.js';
 
 const parseIcsCalendar = (source: string) => convertIcsCalendar(undefined, source);
@@ -245,6 +246,67 @@ describe('Non-modal event inspector interactions', () => {
         }
     });
 
+    it('keeps the public runtime ID but downloads a portable UID stable through runtime rekeying', async () => {
+        const entry = { ...allDay, id: undefined };
+        const unrelated = { ...entry };
+        const [record, other] = normalizeEntries([entry, unrelated]);
+        const el = await fixture<Menu>(html`<lms-menu .open=${true}></lms-menu>`);
+        const create = URL.createObjectURL;
+        const revoke = URL.revokeObjectURL;
+        const click = HTMLAnchorElement.prototype.click;
+        const blobs: Blob[] = [];
+        URL.createObjectURL = ((blob: Blob) => {
+            blobs.push(blob);
+            return 'blob:test-uid';
+        }) as typeof URL.createObjectURL;
+        URL.revokeObjectURL = () => {};
+        HTMLAnchorElement.prototype.click = () => {};
+        const download = async (entry: CalendarEntry, eventId: string) => {
+            el.eventDetails = {
+                heading: entry.heading,
+                content: '',
+                displayTime: '',
+                entry,
+                eventId,
+            };
+            await el.updateComplete;
+            const button = el.shadowRoot!.querySelector<HTMLButtonElement>('.export-btn')!;
+            let detail: { entry: CalendarEntry; eventId: string } | undefined;
+            el.addEventListener(
+                'export-entry',
+                (event) => {
+                    detail = (event as CustomEvent).detail;
+                },
+                { once: true },
+            );
+            const index = blobs.length;
+            button.click();
+            await waitUntil(
+                () =>
+                    blobs.length === index + 1 && button.getAttribute('aria-disabled') === 'false',
+            );
+            expect(detail?.entry).to.equal(entry);
+            expect(detail?.eventId).to.equal(eventId);
+            return parseIcsCalendar(await blobs[index].text()).events![0].uid;
+        };
+        try {
+            const uid = await download(entry, record.sourceId);
+            const caller = { ...allDay, id: record.sourceId };
+            const [rebased] = normalizeEntries([record, caller]);
+            expect(rebased.sourceId).not.to.equal(record.sourceId);
+            expect(await download(entry, rebased.sourceId)).to.equal(uid);
+            expect(await download(entry, record.sourceId), 'stale open inspector').to.equal(uid);
+            expect(await download(unrelated, other.sourceId)).not.to.equal(uid);
+            const callerUid = await download(caller, caller.id);
+            expect(callerUid).to.equal(`${encodeURIComponent(caller.id)}@lms-calendar`);
+            expect(uid).not.to.equal(callerUid);
+        } finally {
+            URL.createObjectURL = create;
+            URL.revokeObjectURL = revoke;
+            HTMLAnchorElement.prototype.click = click;
+        }
+    });
+
     it('announces export failures instead of silently rejecting an async click', async () => {
         const el = await fixture<Menu>(html`<lms-menu .open=${true}></lms-menu>`);
         let error: unknown;
@@ -274,6 +336,89 @@ describe('Canonical RFC 5545 export content', () => {
         expect(parsed.events![0].summary).to.equal('Original event');
         expect(parsed.events![0].start.type).to.equal('DATE');
     });
+    it('assigns portable UIDs to raw no-ID records without changing explicit ID precedence', async () => {
+        const entry = { ...allDay, id: undefined };
+        const uid = async (entry: CalendarEntry, eventId?: string) =>
+            parseIcsCalendar(await generateEntryIcs(entry, eventId)).events![0].uid;
+        const first = await uid(entry);
+        expect(await uid(entry)).to.equal(first);
+        expect(await uid({ ...entry })).not.to.equal(first);
+        expect(await uid(allDay, 'explicit:override')).to.equal('explicit%3Aoverride@lms-calendar');
+        expect(await uid(entry, 'legacy:42'), 'explicit ID resembling a synthetic ID').to.equal(
+            'legacy%3A42@lms-calendar',
+        );
+    });
+
+    it('ignores civil date metadata in zoned and floating exports, including end-only 24:00', async () => {
+        const date = {
+            start: Object.freeze({ ...start, calendarId: 'work' }),
+            end: Object.freeze({ ...start, day: 8, hour: 2 }),
+        };
+        const entry: CalendarEntry = {
+            ...allDay,
+            kind: 'timed',
+            date,
+            time: { start: { hour: 23, minute: 0 }, end: { hour: 24, minute: 0 } },
+        };
+        const floating = await generateEntryIcs(entry);
+        expect(floating).to.include('DTSTART:20260307T230000\r\n');
+        expect(floating).to.include('DTEND:20260309T000000\r\n');
+        const zoned = await generateEntryIcs({ ...entry, timeZone: 'America/New_York' });
+        expect(zoned).to.include('DTSTART:20260308T040000Z\r\n');
+        expect(zoned).to.include('DTEND:20260309T040000Z\r\n');
+        expect(await generateEntryIcs({ ...allDay, date })).to.include(
+            'DTEND;VALUE=DATE:20260309\r\n',
+        );
+        expect(entry.date).to.equal(date);
+        expect(date.start.calendarId).to.equal('work');
+        expect(date.end.hour).to.equal(2);
+    });
+
+    it('uses legal equivalent durations when only the exclusive end exceeds the four-digit year', async () => {
+        const finalDay = { year: 9999, month: 12, day: 31 };
+        const date = { start: { ...finalDay, day: 30 }, end: finalDay };
+        const allDayResult = await generateEntryIcs({ ...allDay, date });
+        expect(allDayResult).to.include('DTSTART;VALUE=DATE:99991230\r\n');
+        expect(allDayResult).to.include('DURATION:P2D\r\n');
+        expect(allDayResult).not.to.include('DTEND');
+        expect(parseIcsCalendar(allDayResult).events).to.have.length(1);
+        const timed: CalendarEntry = {
+            ...allDay,
+            kind: 'timed',
+            date: { start: finalDay, end: finalDay },
+            time: { start: { hour: 18, minute: 30 }, end: { hour: 24, minute: 0 } },
+        };
+        const floating = await generateEntryIcs(timed);
+        expect(floating).to.include('DTSTART:99991231T183000\r\n');
+        expect(floating).to.include('DURATION:PT5H30M\r\n');
+        expect(floating).not.to.include('DTEND');
+        const west = await generateEntryIcs({ ...timed, timeZone: 'America/New_York' });
+        expect(west).to.include('DTSTART:99991231T233000Z\r\n');
+        expect(west).to.include('DURATION:PT5H30M\r\n');
+        expect(west).not.to.include('DTEND');
+        const east = await generateEntryIcs({ ...timed, timeZone: 'Asia/Tokyo' });
+        expect(east).to.include('DTEND:99991231T150000Z\r\n');
+        expect(east).not.to.include('DURATION');
+    });
+
+    it('reports an unrepresentable UTC DTSTART instead of emitting a five-digit year', async () => {
+        const finalDay = { year: 9999, month: 12, day: 31 };
+        const entry: CalendarEntry = {
+            ...allDay,
+            kind: 'timed',
+            date: { start: finalDay, end: finalDay },
+            timeZone: 'America/New_York',
+            time: { start: { hour: 23, minute: 30 }, end: { hour: 24, minute: 0 } },
+        };
+        expect(normalizeEntries([entry])).to.have.length(1);
+        try {
+            await generateEntryIcs(entry);
+            expect.fail('Expected an export error');
+        } catch (error) {
+            expect((error as Error).message).to.include('DTSTART');
+        }
+    });
+
     it('round-trips mixed newline styles and escaped punctuation as calendar text', async () => {
         const heading = 'Notes, by date; now';
         const content = 'First\r\nSecond\rThird\nFourth, with a comma; and a backslash: \\.';
