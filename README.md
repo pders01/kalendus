@@ -2,7 +2,7 @@
 
 A responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and CSS design tokens.
 
-Try [the live examples in local Storybook](#storybook), including the narrow-screen Month → Agenda → Week journey.
+[Watch the calendar demo (GIF)](assets/demo.gif) or try the narrow-screen Month → Agenda → Week journey in [local Storybook](#storybook).
 
 ## Installation
 
@@ -12,17 +12,31 @@ bun add @jpahd/kalendus lit luxon
 
 ## Quick Usage
 
-Import `@jpahd/kalendus` once to register the element. In a Lit template:
+Import `@jpahd/kalendus` once in your browser entry point to register the element. This example uses a bundler:
 
 ```ts
-html`<lms-calendar
-    heading="My Calendar"
-    .activeDate=${{ day: 15, month: 3, year: 2026 }}
-    view-mode="month"
-    .entries=${myEvents}
-    color="#1976d2"
-></lms-calendar>`;
+import '@jpahd/kalendus';
+import type { CalendarEntry } from '@jpahd/kalendus';
+
+const date = { day: 17, month: 11, year: 2026 };
+const entries: CalendarEntry[] = [
+    {
+        id: 'studio-check-in',
+        kind: 'timed',
+        heading: 'Studio check-in',
+        date: { start: date, end: date },
+        time: { start: { hour: 9, minute: 0 }, end: { hour: 9, minute: 45 } },
+    },
+];
+
+const calendar = document.createElement('lms-calendar');
+calendar.heading = 'My Calendar';
+calendar.activeDate = date;
+calendar.entries = entries;
+document.body.append(calendar);
 ```
+
+For a page without a bundler, see the [static HTML recipe](docs/integration-guide.md#vanilla-js--html).
 
 In plain JavaScript, assign objects and arrays through `calendar.activeDate` and `calendar.entries`, not HTML attributes. `activeDate` and `viewMode` are public owner controls; read `visibleRange` or listen for the initial and changed `calendar-state-change` snapshots to synchronize fetching. Ranges are half-open ISO civil dates (`start` included, `end` excluded), not timestamps. See [Library Usage](docs/library-usage.md).
 
@@ -122,12 +136,10 @@ Set `calendar.loading = true` or `calendar.error = '…'` to distinguish pending
 
 ### Year View Controls
 
+After registering the element as above, use these attributes to open in Year. Assign event data via the element’s `entries` property as in Quick Usage.
+
 ```html
-<lms-calendar
-    year-drill-target="day"
-    year-density-mode="heatmap"
-    .entries="${events}"
-></lms-calendar>
+<lms-calendar view-mode="year" year-drill-target="day" year-density-mode="heatmap"></lms-calendar>
 ```
 
 - `year-drill-target` (`day` \| `month`): picking a day can either open the specific day or simply focus its month.
@@ -174,14 +186,10 @@ These are catalog codes, not a restriction on BCP 47 formatting tags. Regional a
 
 ## Styling & Theming
 
-Kalendus ships **unstyled by default** (neutral base, respects OS light/dark mode). Import a built-in theme for an opinionated look:
+Kalendus has a **neutral base style** that follows the embedding page’s color scheme. Choose one built-in theme for an opinionated look:
 
 ```js
-import '@jpahd/kalendus/themes/default.css'; // polished light theme
-import '@jpahd/kalendus/themes/ink.css'; // monochrome editorial
-import '@jpahd/kalendus/themes/soft.css'; // pastel, generous radii
-import '@jpahd/kalendus/themes/brutalist.css'; // bold borders, stark contrast
-import '@jpahd/kalendus/themes/midnight.css'; // dark mode
+import '@jpahd/kalendus/themes/default.css'; // or choose ink, soft, brutalist, or midnight
 ```
 
 Override individual CSS custom properties to fine-tune any theme:
@@ -245,8 +253,8 @@ bun run storybook
 
 - **Visual review → Library scenarios → Library: Month → Agenda → Week**: Select Nov 17, open an event and download its `.ics`, then switch to Week to compare times. This story opts into the Agenda accordion.
 - **Visual review → Viewport matrix → Matrix**: Compare Day, Week, Month, Agenda, and Year at the same embed sizes. Use Controls to vary event density, text size, and locale. Presets are CSS sizes, not device emulation.
-- **Components → Kalendus → Overview**: Choose **Default** for the neutral component, **Default Theme** for the opt-in stylesheet, or **Mobile View** for a 375 × 667 CSS pixel canvas.
-- **Components → Kalendus → Layout**: **Condensed Week (Up to 3 Days)** opens directly in Week. The calendar shows fewer days when the embed cannot fit three readable columns.
+- **Components → Kalendus**: Choose **Default** for the neutral component, **Default Theme** for the opt-in stylesheet, or **Mobile View** for a 375 × 667 CSS pixel canvas.
+- **Components → Kalendus → Condensed Week View**: Starts in Week with up to three days. The calendar shows fewer when the embed cannot fit three readable columns.
 
 The sidebar also includes the other built-in themes, locale and RTL examples, Year drill-down, and stress tests. See [Review calendar layouts](docs/developer-guide.md#review-calendar-layouts) for the automated journeys and capture commands.
 
@@ -259,7 +267,7 @@ bun run build                # Vite bundle + declarations
 bun run test                 # Mocha tests
 bun run lint                 # lit-analyzer + oxlint
 bun run format               # Format with oxfmt
-bun run demo:gif             # Record demo GIF (requires ffmpeg)
+bun run demo:gif             # Capture the browsing journey (requires ffmpeg and Playwright Chromium)
 bun scripts/check-locales.mjs --write # Regenerate from canonical JSON catalogs
 bun run i18n:check           # Check completeness, preservation and roundtrip
 bun run docs:sync:check      # Check generated documentation sections
@@ -277,7 +285,9 @@ The repository includes `@jpahd/kalendus-server`, a Hono + SQLite backend with R
 The server is **private-deny by default**: inject a host `authorize` policy for every calendar route. CORS uses exact allowed origins and is not authorization. Only an explicitly public local demo should use:
 
 ```bash
+bun install --frozen-lockfile
 cd server
+bun run build
 bun run db:migrate
 bun run db:seed # optional demo data
 KALENDUS_PUBLIC_DEMO=true bun run dev

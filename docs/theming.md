@@ -21,10 +21,7 @@ Kalendus ships with a **neutral base** that follows the embedding page’s CSS `
 | Midnight  | `@jpahd/kalendus/themes/midnight.css`  | Dark mode — deep charcoal, glowing indigo accents                  |
 
 ```js
-// Pick one:
-import '@jpahd/kalendus/themes/default.css';
-import '@jpahd/kalendus/themes/midnight.css';
-// …etc.
+import '@jpahd/kalendus/themes/default.css'; // choose one theme from the table above
 ```
 
 Each theme supplies opinionated token values. Import one as a starting point and override individual properties afterward; see the [CSS Token Reference](./css-tokens.md).

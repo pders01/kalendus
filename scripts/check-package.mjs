@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+    copyFileSync,
     mkdtempSync,
+    readFileSync,
     mkdirSync,
     readdirSync,
     realpathSync,
@@ -24,7 +26,33 @@ function run(command, args, cwd = root) {
         throw new Error(`${command} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
     return result.stdout;
 }
-async function checkRuntime(consumer) {
+function docsExample(path, section, language) {
+    const markdown = readFileSync(join(root, path), 'utf8');
+    const heading = `\n${section}\n`;
+    assert.ok(markdown.includes(heading), `Missing ${section} in ${path}`);
+    const body = markdown.split(heading)[1];
+    const snippet = body.match(/^```(\w+)\n([\s\S]*?)\n```$/m);
+    assert.equal(snippet?.[1], language, `Missing ${language} example for ${section}`);
+    return snippet[2];
+}
+
+async function checkRuntime(consumer, installed) {
+    const staticDir = join(consumer, 'public', 'static-recipe');
+    mkdirSync(staticDir, { recursive: true });
+    copyFileSync(join(installed, 'dist', 'kalendus.iife.js'), join(staticDir, 'kalendus.iife.js'));
+    const staticRecipe = docsExample('docs/integration-guide.md', '## Vanilla JS / HTML', 'html');
+    writeFileSync(join(staticDir, 'index.html'), staticRecipe);
+    writeFileSync(
+        join(staticDir, 'year.html'),
+        staticRecipe.replace(
+            '</body>',
+            `${docsExample('README.md', '### Year View Controls', 'html')}</body>`,
+        ),
+    );
+    writeFileSync(
+        join(consumer, 'quick-start.html'),
+        '<!doctype html><html lang="en"><meta charset="utf-8"><title>README quick start</title><body><script type="module" src="/quick-start.ts"></script></body></html>',
+    );
     writeFileSync(
         join(consumer, 'index.html'),
         '<!doctype html><html lang="en"><meta charset="utf-8"><title>Package smoke test</title><body><script type="module" src="/calendar.js"></script></body></html>',
@@ -50,7 +78,14 @@ window.smoke = { calendar, states, registered: calendar instanceof Calendar };
 `,
     );
     const config = { root: realpathSync(consumer), configFile: false, logLevel: 'error' };
-    await build(config);
+    await build({
+        ...config,
+        build: {
+            rollupOptions: {
+                input: [join(config.root, 'index.html'), join(config.root, 'quick-start.html')],
+            },
+        },
+    });
     const server = await preview({ ...config, preview: { host: '127.0.0.1', port: 0 } });
     try {
         const url = `http://127.0.0.1:${server.httpServer.address().port}/`;
@@ -77,9 +112,30 @@ window.smoke = { calendar, states, registered: calendar instanceof Calendar };
                 );
                 await calendar.locator('lms-calendar-header [data-context="week"]').click();
                 await calendar.locator('lms-calendar-week').waitFor();
+                await page.goto(`${url}quick-start.html`);
+                const quickStart = page.locator('lms-calendar');
+                await quickStart.locator('lms-calendar-month').waitFor();
+                assert.equal(await quickStart.evaluate((node) => node.activeDate.day), 17);
+                assert.equal(
+                    await quickStart.evaluate((node) => node.entries[0]?.heading),
+                    'Studio check-in',
+                );
+
+                await page.goto(`${url}static-recipe/index.html`);
+                const recipe = page.locator('#demo');
+                await recipe.locator('lms-calendar-month').waitFor();
+                assert.equal(
+                    await recipe.evaluate((node) => node.entries[0]?.heading),
+                    'Open studio',
+                );
+                await page.goto(`${url}static-recipe/year.html`);
+                const year = page.locator('lms-calendar[view-mode="year"]');
+                await year.locator('lms-calendar-year').waitFor();
+                assert.equal(await year.evaluate((node) => node.yearDensityMode), 'heatmap');
+                assert.equal(await year.evaluate((node) => node.yearDrillTarget), 'day');
                 assert.deepEqual(errors, []);
                 console.log(
-                    `PASS packed ${name} runtime: theme, lazy locale and Month → Agenda → Week`,
+                    `PASS packed ${name} runtime: lazy locale, Month → Agenda → Week and README/static recipes`,
                 );
             } finally {
                 await browser.close();
@@ -105,6 +161,10 @@ try {
         symlinkSync(join(root, 'node_modules', dependency), target, 'dir');
     }
     writeFileSync(join(consumer, 'package.json'), JSON.stringify({ type: 'module' }));
+    writeFileSync(
+        join(consumer, 'quick-start.ts'),
+        docsExample('README.md', '## Quick Usage', 'ts'),
+    );
     writeFileSync(
         join(consumer, 'index.ts'),
         `
@@ -141,7 +201,7 @@ calendar.addEventListener('entry-activate', event => {
         };
         writeFileSync(
             join(consumer, 'tsconfig.json'),
-            JSON.stringify({ compilerOptions, files: ['index.ts'] }),
+            JSON.stringify({ compilerOptions, files: ['index.ts', 'quick-start.ts'] }),
         );
         run('bun', [
             join(root, 'node_modules', 'typescript', 'bin', 'tsc'),
@@ -150,7 +210,7 @@ calendar.addEventListener('entry-activate', event => {
         ]);
         console.log(`PASS packed ${moduleResolution} consumer (skipLibCheck=false)`);
     }
-    await checkRuntime(consumer);
+    await checkRuntime(consumer, installed);
 } finally {
     rmSync(temporary, { recursive: true, force: true });
 }

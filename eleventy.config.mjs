@@ -17,9 +17,22 @@ function headingIds(markdown) {
     });
 }
 
+function scrollableTables(markdown) {
+    const rules = markdown.renderer.rules;
+    rules.table_open = (tokens, index, options, _env, renderer) => {
+        const heading = tokens.findLastIndex(
+            (token, i) => i < index && token.type === 'heading_open',
+        );
+        const title = heading < 0 ? 'Table' : `Table: ${tokens[heading + 1].content}`;
+        return `<div class="table-scroll" tabindex="0" role="region" aria-label="${markdown.utils.escapeHtml(title)}">${renderer.renderToken(tokens, index, options)}`;
+    };
+    rules.table_close = (tokens, index, options, _env, renderer) =>
+        `${renderer.renderToken(tokens, index, options)}</div>\n`;
+}
+
 export default function (eleventyConfig) {
     eleventyConfig.addPlugin(syntaxHighlight);
-    eleventyConfig.amendLibrary('md', (markdown) => markdown.use(headingIds));
+    eleventyConfig.amendLibrary('md', (markdown) => markdown.use(headingIds).use(scrollableTables));
 
     eleventyConfig.addPassthroughCopy('assets');
 
@@ -33,13 +46,15 @@ export default function (eleventyConfig) {
     // while keeping the source markdown compatible with GitHub rendering.
     eleventyConfig.addTransform('md-links', function (content) {
         if (this.page.outputPath?.endsWith('.html')) {
-            return content.replace(
-                /href="(\.\/|docs\/)?([a-z][-a-z0-9]*)\.md(#[^"]*)?"/g,
-                (_, prefix, slug, hash) => {
-                    // All doc links resolve to /kalendus/docs/<slug>/
-                    return `href="${pathPrefix}docs/${slug}/${hash || ''}"`;
-                },
-            );
+            return content
+                .replace(
+                    /href="(\.\/|docs\/)?([a-z][-a-z0-9]*)\.md(#[^"]*)?"/g,
+                    (_, _prefix, slug, hash) => `href="${pathPrefix}docs/${slug}/${hash || ''}"`,
+                )
+                .replace(
+                    /<pre(?=[\s>])/g,
+                    '<pre tabindex="0" role="region" aria-label="Code example"',
+                );
         }
         return content;
     });

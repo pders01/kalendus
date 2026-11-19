@@ -12,11 +12,16 @@ Practical recipes for embedding `<lms-calendar>` in different environments.
 
 ## Vanilla JS / HTML
 
+For a static page without a bundler or import map, copy `dist/kalendus.iife.js` from the installed package to your site. This build includes Lit and Luxon. The regular package ESM uses bare peer imports and must be resolved by your bundler or import map.
+
 ```html
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <script type="module" src="/node_modules/@jpahd/kalendus/dist/kalendus.js"></script>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Calendar example</title>
+        <script defer src="./kalendus.iife.js"></script>
         <style>
             lms-calendar {
                 max-width: 1200px;
@@ -26,12 +31,20 @@ Practical recipes for embedding `<lms-calendar>` in different environments.
     </head>
     <body>
         <lms-calendar id="demo"></lms-calendar>
-        <script type="module">
-            import events from './data/events.js';
-            const calendar = document.getElementById('demo');
-            calendar.entries = events;
-            calendar.addEventListener('open-menu', (evt) => {
-                console.log('Selected entry', evt.detail);
+        <script>
+            customElements.whenDefined('lms-calendar').then(() => {
+                const calendar = document.getElementById('demo');
+                const date = { year: 2026, month: 11, day: 17 };
+                calendar.activeDate = date;
+                calendar.entries = [{
+                    id: 'open-studio',
+                    kind: 'all-day',
+                    heading: 'Open studio',
+                    date: { start: date, end: date },
+                }];
+                calendar.addEventListener('entry-activate', (event) => {
+                    console.log(event.detail.entry.heading);
+                });
             });
         </script>
     </body>
@@ -41,34 +54,51 @@ Practical recipes for embedding `<lms-calendar>` in different environments.
 ### Tips
 
 - Set `document.documentElement.lang` so the default locale matches your site. Override per instance with `locale`; the root manages host `lang`/automatic RTL and exposes `localeReady` / `retryLocale()` for loading/fallback. `firstDayOfWeek` defaults to **1 Monday**, not a locale-derived value.
-- Give the calendar a constrained height (for example `height: 600px`); see [Layout & Positioning](./layout-and-positioning.md).
+- Give Day, Week, and Year a definite height when fitting a fixed region; leave Month in normal flow. See [Layout & Positioning](./layout-and-positioning.md).
 - Use CSS variables (`--primary-color`, `--week-mobile-day-count`, etc.) on the `<lms-calendar>` element to theme per instance.
 
 ## React
 
-Wrap the custom element using `React.useEffect` for imperative props:
+Assign object properties through a typed ref. For TypeScript JSX, declare the custom tag in React’s `JSX.IntrinsicElements`:
 
 ```tsx
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type DetailedHTMLProps, type HTMLAttributes } from 'react';
 import '@jpahd/kalendus';
+import type LMSCalendar from '@jpahd/kalendus';
+import type { CalendarEntry, CalendarEntryRequest } from '@jpahd/kalendus';
 
-export function Calendar({ entries, onOpenMenu }) {
-    const ref = useRef(null);
+declare module 'react' {
+    namespace JSX {
+        interface IntrinsicElements {
+            'lms-calendar': DetailedHTMLProps<HTMLAttributes<LMSCalendar>, LMSCalendar>;
+        }
+    }
+}
+
+type CalendarProps = {
+    entries: CalendarEntry[];
+    onEntryActivate?: (detail: CalendarEntryRequest) => void;
+};
+
+export function Calendar({ entries, onEntryActivate }: CalendarProps) {
+    const ref = useRef<LMSCalendar>(null);
 
     useEffect(() => {
         const calendar = ref.current;
         if (!calendar) return;
         calendar.entries = entries;
-        const handler = (event) => onOpenMenu?.(event.detail);
-        calendar.addEventListener('open-menu', handler); // compatibility notification
-        return () => calendar.removeEventListener('open-menu', handler);
-    }, [entries, onOpenMenu]);
+        const handler = (event: CustomEvent<CalendarEntryRequest>) => {
+            onEntryActivate?.(event.detail);
+        };
+        calendar.addEventListener('entry-activate', handler);
+        return () => calendar.removeEventListener('entry-activate', handler);
+    }, [entries, onEntryActivate]);
 
-    return <lms-calendar ref={ref} color="#0d47a1" />;
+    return <lms-calendar ref={ref} />;
 }
 ```
 
-- When server-rendering, remember to load the component module (`@jpahd/kalendus`) once; the custom element registers globally.
+- In an SSR framework, use this in a client-side wrapper. Registration and interactions are browser behavior; this recipe does not render the shadow tree on the server.
 - Consider a thin adapter component to map application data into the `CalendarEntry` shape.
 
 ## Lit / Web Components
@@ -79,16 +109,24 @@ Because Kalendus is built with Lit, it interoperates directly:
 import { LitElement, html } from 'lit';
 import '@jpahd/kalendus';
 
+import type { CalendarEntry } from '@jpahd/kalendus';
+
 export class HostCalendar extends LitElement {
     static properties = {
         entries: { type: Array },
     };
+    declare entries: CalendarEntry[];
+
+    constructor() {
+        super();
+        this.entries = [];
+    }
 
     render() {
         return html`
             <lms-calendar
                 .entries=${this.entries}
-                .heading="Library Schedule"
+                heading="Library Schedule"
                 year-density-mode="count"
             ></lms-calendar>
         `;
@@ -133,7 +171,7 @@ Listen on the element for user actions:
 
 > **Note:** The `expand` event's `drillTarget` is only present when fired from the year view. See the [Events Reference](./events.md) for full payload details.
 
-Example (vanilla):
+Illustrative listener (replace `analytics` with your application’s analytics client):
 
 ```js
 calendar.addEventListener('switchview', (event) => {
@@ -153,6 +191,8 @@ The optional server exposes REST + SSE under `/api/calendars`. It is **private-d
 
 ### Vanilla client
 
+This example assumes an existing page with a mounted calendar. Supply `refreshVisibleRange` in your application to refetch the calendar’s current range and handle cancellation.
+
 ```ts
 import { KalendusApiClient } from '@jpahd/kalendus-server/client';
 
@@ -164,9 +204,10 @@ const client = new KalendusApiClient({
 
 // Legacy API query ends are inclusive (not visibleRange.end).
 // Fetch a range and push into the component
-client.fetchEvents('2026-03-01', '2026-03-31').then((entries) => {
-    document.querySelector('lms-calendar').entries = entries;
-});
+const calendar = document.querySelector('lms-calendar');
+if (calendar) {
+    calendar.entries = await client.fetchEvents('2026-03-01', '2026-03-31');
+}
 
 // Notifications contain no event IDs or details by default. Refetch via REST.
 const stopChanges = client.onInvalidate(refreshVisibleRange);
@@ -180,6 +221,8 @@ Header-authenticated SSE requires an injected authenticated reconnecting `stream
 ### Lit adapter
 
 ```ts
+import { html, LitElement } from 'lit';
+import '@jpahd/kalendus';
 import { KalendusLitAdapter } from '@jpahd/kalendus-server/lit';
 
 class RemoteCalendar extends LitElement {
@@ -195,7 +238,7 @@ class RemoteCalendar extends LitElement {
         return html`
             <lms-calendar
                 .entries=${this.adapter.entries}
-                .heading="Synced Calendar"
+                heading="Synced Calendar"
             ></lms-calendar>
         `;
     }
@@ -216,7 +259,9 @@ The adapter consumes the public `calendar-state-change`/getter contract, convert
 }
 ```
 
-### 2. Highlight weekends
+<span id="2-highlight-weekends"></span>
+
+### 2. Highlight today and activity
 
 The component uses Shadow DOM, so external CSS cannot target internal elements directly. Instead, use CSS custom properties to style day cells:
 
@@ -227,9 +272,11 @@ lms-calendar {
 }
 ```
 
-For weekend-specific styling, listen to `expand` events and decorate surrounding UI, or apply conditional entry colors in your data layer.
+These tokens style today and the activity indicators, not weekend columns. To distinguish weekend events, assign entry colors in your data layer.
 
-### 3. Inject external actions into the menu
+<span id="3-inject-external-actions-into-the-menu"></span>
+
+### 3. Open the inspector from an external list
 
 Use the public `openMenu` method:
 
@@ -244,6 +291,8 @@ calendar.openMenu({
 ```
 
 ### 4. Integrate with routing
+
+Replace `router` with your application’s router.
 
 ```js
 calendar.addEventListener('expand', (event) => {

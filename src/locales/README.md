@@ -26,8 +26,7 @@ runs destructive extraction against the working catalogs.
 messages, but they operate on derivative files and may change their formatting.
 After using them, use the canonical generator above to restore repository formatting;
 never copy generated output over canonical dictionaries. The JSON catalog check is
-the required gate. The package-script/docs owner should point contributor-facing
-commands at this workflow.
+the required gate.
 
 ## Preservation evidence
 
@@ -53,9 +52,8 @@ these snapshots.
 `getMessageFormatters(locale)` adds `eventCount`, `moreEvents`, `dateSummary`,
 `switchToDayView`, `showWeek`, `viewLabel`, `eventLabel`, `timeRange` and
 `agendaAction(expanded, preview)`. The four list-action IDs `A/F/S/H` mean Show all,
-Show fewer, Show events and Hide events. The superseded uncommitted `showAll`
-count-bearing phrase/formatter was removed; this does not remove a legacy message. Every phrase
-can be reordered by translators with named placeholders. Count messages select
+Show fewer, Show events and Hide events. Every phrase can be reordered by
+translators with named placeholders. Count messages select
 `zero/one/two/few/many/other` with `Intl.PluralRules`, and use `Intl.NumberFormat`.
 Counts must be nonnegative safe integers. Legacy fragment fields remain compatible
 while component owners migrate their callers. Evaluate the helpers during render;

@@ -13,7 +13,7 @@ function setup(narrowLayout: boolean) {
     const attributes = new Map<string, string>();
     const link = {
         focus() {
-            document.activeElement = link;
+            if (!sidebar.hidden) document.activeElement = link;
         },
     };
     const toggle = {
