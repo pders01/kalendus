@@ -2,7 +2,9 @@
 
 A responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and CSS design tokens.
 
-[Watch the calendar demo (GIF)](assets/demo.gif) or try the narrow-screen Month → Agenda → Week journey in [local Storybook](#storybook).
+[![Play the 21-second Kalendus showcase: Day, Week, Month, and Year views, themes, and locales](assets/demo-preview.png)](assets/demo.gif)
+
+Select the preview to play the GIF. See overlapping and multi-day events, five themes, German, Japanese, and right-to-left Arabic, plus a Sunday-start calendar. Try the views yourself in [local Storybook](#storybook).
 
 ## Installation
 
@@ -267,7 +269,7 @@ bun run build                # Vite bundle + declarations
 bun run test                 # Mocha tests
 bun run lint                 # lit-analyzer + oxlint
 bun run format               # Format with oxfmt
-bun run demo:gif             # Capture the browsing journey (requires ffmpeg and Playwright Chromium)
+bun run demo:gif             # Regenerate the README GIF and preview (requires ffmpeg and Playwright Chromium)
 bun scripts/check-locales.mjs --write # Regenerate from canonical JSON catalogs
 bun run i18n:check           # Check completeness, preservation and roundtrip
 bun run docs:sync:check      # Check generated documentation sections

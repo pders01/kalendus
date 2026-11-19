@@ -25,6 +25,23 @@ test.afterAll(async () => {
     await server?.close();
 });
 
+test('serves the README preview and its click-to-play showcase under the site prefix', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto(base);
+    const showcase = page.getByRole('link', { name: /^Play the .* Kalendus showcase/ });
+    const poster = showcase.getByRole('img');
+    await expect(poster).toBeVisible();
+    await expect
+        .poll(() => poster.evaluate((img: HTMLImageElement) => img.naturalWidth))
+        .toBeGreaterThan(0);
+    const href = await showcase.getAttribute('href');
+    const animation = await page.request.head(new URL(href!, base).href);
+    expect(animation.ok()).toBe(true);
+    expect(animation.headers()['content-type']).toContain('image/gif');
+});
+
 test('keeps docs tables and code within the reading column and keyboard-scrollable', async ({
     page,
 }) => {
