@@ -2,10 +2,15 @@ import type { Meta, StoryObj } from '@storybook/web-components-vite';
 import { html } from 'lit';
 import { expect, userEvent, waitFor } from 'storybook/test';
 
-import type { FirstDayOfWeek } from './lib/weekStartHelper.js';
-import { getFirstDayForLocale } from './lib/weekStartHelper.js';
+import { normalizeEntries } from './lib/calendarModel.js';
+import { dateSlotKey } from './lib/entrySlots.js';
+import {
+    addDisplayDays,
+    getFirstDayForLocale,
+    type FirstDayOfWeek,
+} from './lib/weekStartHelper.js';
 import type LMSCalendar from './lms-calendar.js';
-import type { CalendarEntry } from './lms-calendar.js';
+import type { CalendarEntry, CalendarState, ViewMode } from './lms-calendar.js';
 
 import brutalistThemeCSS from './themes/brutalist.css?raw';
 
@@ -983,28 +988,21 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
             }
             durationMinutes = durationMinutes! || 60;
 
-            const endTime = new Date();
-            endTime.setHours(startHour, startMinute + durationMinutes);
+            const businessEnd = 22 * 60;
+            let start = startHour * 60 + startMinute;
+            if (start + durationMinutes >= businessEnd) continue;
 
-            const endHour = endTime.getHours();
-            const endMinute = endTime.getMinutes();
-
-            // Skip events that go past reasonable business hours (22:00)
-            if (endHour >= 22) continue;
-
-            // Create overlapping events intentionally (realistic scenario)
+            // Offset inside a real interval, then compute the new end from that start.
             const shouldOverlap = random() < 0.3 && eventsThisDay.length > 0;
             if (shouldOverlap) {
                 const existingEvent = eventsThisDay[Math.floor(random() * eventsThisDay.length)];
                 const existingTime = existingEvent.time;
                 if (!existingTime) throw new Error('Overlap fixture requires a timed event');
-                startHour = existingTime.start.hour;
-                startMinute = existingTime.start.minute + 15; // 15min offset
-                if (startMinute >= 60) {
-                    startHour += 1;
-                    startMinute -= 60;
-                }
+                const existingStart = existingTime.start.hour * 60 + existingTime.start.minute;
+                const existingEnd = existingTime.end.hour * 60 + existingTime.end.minute;
+                start = existingStart + (existingEnd - existingStart > 15 ? 15 : 0);
             }
+            const end = Math.min(start + durationMinutes, businessEnd);
 
             const newEvent: CalendarEntry = {
                 heading: `${eventType.heading}${eventIndex > 0 ? ` ${eventIndex + 1}` : ''}`,
@@ -1016,8 +1014,8 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
                     end: { day, month: currentMonth, year: currentYear },
                 },
                 time: {
-                    start: { hour: startHour, minute: startMinute },
-                    end: { hour: endHour, minute: endMinute },
+                    start: { hour: Math.floor(start / 60), minute: start % 60 },
+                    end: { hour: Math.floor(end / 60), minute: end % 60 },
                 },
             };
 
@@ -1182,6 +1180,11 @@ export const HeavyEventLoad: Story = {
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
+    play: async ({ canvasElement }) => {
+        const calendar = canvasElement.querySelector('lms-calendar');
+        await expect(calendar).toBeInTheDocument();
+        expect(normalizeEntries(calendar!.entries)).toHaveLength(calendar!.entries.length);
+    },
     parameters: {
         docs: {
             description: {
@@ -1190,6 +1193,41 @@ export const HeavyEventLoad: Story = {
         },
     },
 };
+
+function expectCalendarView(calendar: LMSCalendar, viewMode: ViewMode) {
+    expect(calendar.viewMode).toBe(viewMode);
+    expect(calendar.shadowRoot?.querySelector(`lms-calendar-${viewMode}`)).toBeInTheDocument();
+}
+
+function headerControl(calendar: LMSCalendar, selector: string) {
+    return calendar.shadowRoot
+        ?.querySelector('lms-calendar-header')
+        ?.shadowRoot?.querySelector<HTMLButtonElement>(selector);
+}
+
+async function expectNavigation(
+    calendar: LMSCalendar,
+    findButton: () => HTMLButtonElement | null | undefined,
+    expected: Pick<CalendarState, 'viewMode' | 'activeDate'>,
+) {
+    const button = await waitFor(() => {
+        const control = findButton();
+        expect(control).toBeVisible();
+        return control!;
+    });
+    let state: CalendarState | undefined;
+    const onState = (event: CustomEvent<CalendarState>) => (state = event.detail);
+    calendar.addEventListener('calendar-state-change', onState);
+    try {
+        await userEvent.click(button);
+        await waitFor(() => {
+            expect(state).toMatchObject(expected);
+            expectCalendarView(calendar, expected.viewMode);
+        });
+    } finally {
+        calendar.removeEventListener('calendar-state-change', onState);
+    }
+}
 
 export const StressTestAllViews: Story = {
     name: storyName(STORY_GROUPS.STRESS, 'Stress Test (All Views)'),
@@ -1209,61 +1247,32 @@ export const StressTestAllViews: Story = {
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
-    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
+    play: async ({ canvasElement }) => {
+        const calendar = canvasElement.querySelector('lms-calendar')!;
         await expect(calendar).toBeInTheDocument();
-
-        const shadowRoot = calendar.shadowRoot;
-        const header = shadowRoot?.querySelector('lms-calendar-header');
-
-        if (header) {
-            const headerShadow = header.shadowRoot;
-
-            // Test Month View (default)
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-
-            // Switch to Week View
-            const weekButton = headerShadow?.querySelector('[data-context="week"]') as HTMLElement;
-            if (weekButton) {
-                await userEvent.click(weekButton);
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-
-                // Verify week view with heavy load
-                const weekView = shadowRoot?.querySelector('lms-calendar-week');
-                await expect(weekView).toBeInTheDocument();
-            }
-
-            // Switch to Day View
-            const dayButton = headerShadow?.querySelector('[data-context="day"]') as HTMLElement;
-            if (dayButton) {
-                await userEvent.click(dayButton);
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-
-                // Verify day view with heavy load
-                const dayView = shadowRoot?.querySelector('lms-calendar-day');
-                await expect(dayView).toBeInTheDocument();
-            }
-
-            // Navigate to next day to test different day's heavy load
-            const nextButton = headerShadow?.querySelector(
-                'button[name="next"]',
-            ) as HTMLButtonElement;
-            if (nextButton) {
-                await userEvent.click(nextButton);
-                await new Promise((resolve) => setTimeout(resolve, 500));
-                await userEvent.click(nextButton);
-                await new Promise((resolve) => setTimeout(resolve, 500));
-            }
-
-            // Switch back to Month View
-            const monthButton = headerShadow?.querySelector(
-                '[data-context="month"]',
-            ) as HTMLElement;
-            if (monthButton) {
-                await userEvent.click(monthButton);
-                await new Promise((resolve) => setTimeout(resolve, 1000));
-            }
+        await calendar.localeReady;
+        await waitFor(() => expectCalendarView(calendar, 'month'));
+        const initial = calendar.activeDate;
+        for (const viewMode of ['week', 'day'] as const) {
+            await expectNavigation(
+                calendar,
+                () => headerControl(calendar, `[data-context="${viewMode}"]`),
+                {
+                    viewMode,
+                    activeDate: initial,
+                },
+            );
         }
+        for (const days of [1, 2]) {
+            await expectNavigation(calendar, () => headerControl(calendar, 'button[name="next"]'), {
+                viewMode: 'day',
+                activeDate: addDisplayDays(initial, days),
+            });
+        }
+        await expectNavigation(calendar, () => headerControl(calendar, '[data-context="month"]'), {
+            viewMode: 'month',
+            activeDate: addDisplayDays(initial, 2),
+        });
     },
     parameters: {
         docs: {
@@ -2182,6 +2191,12 @@ const generateYearEntries = (): CalendarEntry[] => {
 
 const yearEntries = generateYearEntries();
 
+function yearControl(calendar: LMSCalendar, selector: string) {
+    return calendar.shadowRoot
+        ?.querySelector('lms-calendar-year')
+        ?.shadowRoot?.querySelector<HTMLButtonElement>(selector);
+}
+
 export const YearView: Story = {
     name: storyName(STORY_GROUPS.YEAR, 'Year Overview'),
     args: {
@@ -2203,28 +2218,44 @@ export const YearView: Story = {
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
-    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
+    play: async ({ args, canvasElement }) => {
+        const calendar = canvasElement.querySelector('lms-calendar')!;
         await expect(calendar).toBeInTheDocument();
+        await calendar.localeReady;
+        await waitFor(() => expectCalendarView(calendar, 'month'));
 
-        const shadowRoot = calendar.shadowRoot;
-        const header = shadowRoot?.querySelector('lms-calendar-header');
-        if (header) {
-            const headerShadow = header.shadowRoot;
-            const yearButton = headerShadow?.querySelector('[data-context="year"]') as HTMLElement;
-            if (yearButton) {
-                await userEvent.click(yearButton);
-                await new Promise((resolve) => setTimeout(resolve, 300));
+        const initial = calendar.activeDate;
+        const yearButton = () => headerControl(calendar, '[data-context="year"]');
+        await expectNavigation(calendar, yearButton, { viewMode: 'year', activeDate: initial });
+        await waitFor(() => {
+            const year = calendar.shadowRoot?.querySelector('lms-calendar-year');
+            expect(year?.shadowRoot?.querySelectorAll('.mini-month')).toHaveLength(12);
+        });
 
-                const yearView = shadowRoot?.querySelector('lms-calendar-year');
-                await expect(yearView).toBeInTheDocument();
-            }
-        }
+        const day = { ...initial, day: initial.day === 1 ? 2 : 1 };
+        await expectNavigation(
+            calendar,
+            () => yearControl(calendar, `.day-cell[data-date="${dateSlotKey(day)}"]`),
+            { viewMode: args.yearDrillTarget ?? 'day', activeDate: day },
+        );
+        await expectNavigation(calendar, yearButton, { viewMode: 'year', activeDate: day });
+
+        const month = { year: initial.year, month: (initial.month % 12) + 1, day: 1 };
+        await expectNavigation(
+            calendar,
+            () => yearControl(calendar, `button#month-${month.month}`),
+            {
+                viewMode: 'month',
+                activeDate: month,
+            },
+        );
+        // Leave the overview visible for manual exploration.
+        await expectNavigation(calendar, yearButton, { viewMode: 'year', activeDate: month });
     },
     parameters: {
         docs: {
             description: {
-                story: 'Year view showing 12 mini-month calendars in a responsive grid. Each day shows a dot indicator for days with events. Click a day to drill down to month view, or click a month label to jump directly to that month.',
+                story: 'Year view showing 12 mini-month calendars in a responsive grid. Days with events show a dot. Click a day to open Day view with the default story settings, or click a month label to open that month in Month view.',
             },
         },
     },
@@ -2301,6 +2332,7 @@ export const YearViewDrillDown: Story = {
     },
     render: (args) => html`
         <lms-calendar
+            view-mode="year"
             .heading=${args.heading}
             .activeDate=${args.activeDate}
             .entries=${args.entries}
@@ -2312,20 +2344,23 @@ export const YearViewDrillDown: Story = {
             style="height: 720px; display: block;"
         ></lms-calendar>
     `,
-    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
+    play: async ({ args, canvasElement }) => {
+        const calendar = canvasElement.querySelector('lms-calendar')!;
         await expect(calendar).toBeInTheDocument();
-
-        const shadowRoot = calendar.shadowRoot;
-        const header = shadowRoot?.querySelector('lms-calendar-header');
-        if (header) {
-            const headerShadow = header.shadowRoot;
-            const yearButton = headerShadow?.querySelector('[data-context="year"]') as HTMLElement;
-            if (yearButton) {
-                await userEvent.click(yearButton);
-                await new Promise((resolve) => setTimeout(resolve, 500));
-            }
-        }
+        await calendar.localeReady;
+        await waitFor(() => expectCalendarView(calendar, 'year'));
+        const initial = calendar.activeDate;
+        const date = { ...initial, day: initial.day === 1 ? 2 : 1 };
+        await expectNavigation(
+            calendar,
+            () => yearControl(calendar, `.day-cell[data-date="${dateSlotKey(date)}"]`),
+            { viewMode: args.yearDrillTarget ?? 'day', activeDate: date },
+        );
+        // Leave the demo in Year view so visitors can try their own drill-down.
+        await expectNavigation(calendar, () => headerControl(calendar, '[data-context="year"]'), {
+            viewMode: 'year',
+            activeDate: date,
+        });
     },
     parameters: {
         docs: {
