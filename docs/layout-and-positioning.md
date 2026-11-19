@@ -84,6 +84,8 @@ Below the breakpoint, the component:
 
 The default `--week-min-day-width: 8em` further limits visible columns using the measured embed and text size. Set it to `0` to restore fixed-count behavior. Extremely tiny timelines deliberately pan horizontally instead of reducing a lone event to an unreadable sliver.
 
+Day and Week reserve the same inline gutter for the date header, all-day band, and timeline when the browser supports `scrollbar-gutter` and uses layout-consuming scrollbars. This keeps their columns aligned even when only one region needs to scroll. Overlay scrollbars do not reserve space.
+
 ### Year View Grid Columns
 
 Year arranges twelve months in complete rows. Container width and text size set how many columns fit; counts and coarse-pointer targets need more room. The height and aspect ratio of the area **below the toolbar** then determine whether to use fewer columns. For example, a wide, shallow desktop embed can show six months across, while the same width with more height can show four across in three rows. Week slots align across adjacent months. When the readable minimum does not fit, Year scrolls rather than shrinking targets.

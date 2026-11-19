@@ -77,6 +77,76 @@ describe('Day and Week viewport sizing', () => {
             });
         }
 
+        for (const dir of ['ltr', 'rtl'] as const) {
+            it(`${view} keeps date, all-day and timed columns aligned as the all-day band scrolls (${dir})`, async () => {
+                const calendar = await fixture<Calendar>(html`
+                    <lms-calendar .initialDate=${date} view-mode=${view} dir=${dir}
+                        .entries=${entries.slice(0, 1)}
+                        style=${`width:900px; height:${dir === 'rtl' ? 390 : 760}px; font-size:${dir === 'rtl' ? 24 : 16}px`}
+                    ></lms-calendar>
+                `);
+                await settle();
+                const { scroll, values } = snapshot(calendar, view);
+                const root = scroll.getRootNode() as ShadowRoot;
+                const band = root.querySelector<HTMLElement>('.all-day-wrapper')!;
+                const emulateClassic = /Chrom(e|ium)\//.test(navigator.userAgent);
+                // Emulate a classic platform gutter in Chromium. WebKit's
+                // custom scrollbar pseudo-element behaves differently from
+                // native gutters; exercise its native layout instead.
+                const style = document.createElement('style');
+                const regions = `:is(.${view}-header, .all-day-wrapper, .${view === 'day' ? 'main' : 'week-scroll'})`;
+                style.textContent = `${regions}::-webkit-scrollbar { width: 16px; }
+                    ${regions}::-webkit-scrollbar-thumb { background: gray; }`;
+                const align = (header: string, allDay: string, timed: string) => {
+                    const bounds = (selector: string) =>
+                        [...root.querySelectorAll(selector)].map((el) =>
+                            el.getBoundingClientRect(),
+                        );
+                    const a = bounds(header),
+                        b = bounds(allDay),
+                        c = bounds(timed);
+                    expect(a.length).to.be.greaterThan(0).and.equal(b.length).and.equal(c.length);
+                    for (const [index, column] of a.entries()) {
+                        for (const track of [b[index], c[index]]) {
+                            expect(track.left).to.be.closeTo(column.left, 0.1);
+                            expect(track.right).to.be.closeTo(column.right, 0.1);
+                        }
+                    }
+                };
+                const alignDates = () =>
+                    align(
+                        '.day-label',
+                        view === 'day' ? '.all-day' : '.all-day-day-column',
+                        view === 'day' ? '.timed-content' : '.day-column',
+                    );
+                alignDates();
+                const minute = () => {
+                    const inset = parseFloat(getComputedStyle(scroll).paddingTop);
+                    return (scroll.scrollTop - inset) / snapshot(calendar, view).values.minute;
+                };
+                scroll.scrollTop = Math.round(
+                    parseFloat(getComputedStyle(scroll).paddingTop) + 530 * values.minute,
+                );
+                band.style.maxBlockSize = 'none';
+                if (emulateClassic) root.append(style);
+                await settle();
+                expect(band.scrollHeight).to.be.at.most(band.clientHeight + 1);
+                alignDates();
+                align('.time-header', '.all-day-time-header', '.time-labels');
+                expect(minute()).to.be.closeTo(530, 2);
+
+                band.style.maxBlockSize = '28px';
+                await settle();
+                expect(band.scrollHeight).to.be.greaterThan(band.clientHeight);
+                band.scrollTop = band.scrollHeight;
+                expect(band.scrollTop).to.be.greaterThan(0);
+                alignDates();
+                align('.time-header', '.all-day-time-header', '.time-labels');
+                expect(minute()).to.be.closeTo(530, 2);
+                if (emulateClassic) expect(scroll.offsetWidth - scroll.clientWidth).to.equal(16);
+            });
+        }
+
         for (const dense of [false, true]) {
             it(`${view} settles without an explicit height (${dense ? 'dense' : 'sparse'})`, async () => {
                 const calendar =

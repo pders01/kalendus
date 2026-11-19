@@ -7,7 +7,13 @@ export default {
         if (!['chromium', 'firefox', 'webkit'].includes(product)) {
             throw new Error(`Unsupported TEST_BROWSERS product: ${product}`);
         }
-        return playwrightLauncher({ product });
+        // Keep Chromium's headless defaults from hiding the classic
+        // scrollbars that the timeline geometry test explicitly enables.
+        return playwrightLauncher({
+            product,
+            launchOptions:
+                product === 'chromium' ? { ignoreDefaultArgs: ['--hide-scrollbars'] } : {},
+        });
     }),
     testsFinishTimeout: 60000,
     plugins: [

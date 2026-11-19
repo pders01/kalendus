@@ -69,6 +69,13 @@ export default class Day extends LitElement {
             overflow: var(--_time-grid-overflow, hidden);
         }
 
+        /* Classic scrollbars must reserve the same inline space in all three grids. */
+        .day-header,
+        .all-day-wrapper,
+        .main {
+            scrollbar-gutter: stable;
+        }
+
         /* Match .week-header so day/week have equal scroll viewports. */
         .day-header {
             display: grid;
@@ -144,7 +151,7 @@ export default class Day extends LitElement {
             /* 100% of .container = wrapper − day-header, matching week-scroll */
             height: 100%;
             gap: var(--day-gap, 1px);
-            overflow-y: scroll;
+            overflow-y: auto;
             /* Retired snap tokens deliberately cannot re-enable snapping. */
             scroll-snap-type: none;
             overflow-anchor: none;

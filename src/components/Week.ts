@@ -66,6 +66,13 @@ export default class Week extends LitElement {
             position: relative;
         }
 
+        /* Classic scrollbars must reserve the same inline space in all three grids. */
+        .week-header,
+        .all-day-wrapper,
+        .week-scroll {
+            scrollbar-gutter: stable;
+        }
+
         .week-header {
             display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
