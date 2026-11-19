@@ -19,14 +19,15 @@ const resizeEnd = { kind: 'resize', edge: 'end' } as const;
 
 describe('proposeTimedEntryChange', () => {
     it('moves the complete event across midnight and preserves identity and caller metadata', () => {
-        const start = Object.freeze(date(2024, 2, 28));
-        const end = Object.freeze(date(2024, 2, 29));
+        const start = Object.freeze({ ...date(2024, 2, 28), label: 'Check-in' });
+        const end = Object.freeze({ ...date(2024, 2, 29), label: 'Check-out' });
         const source = Object.freeze({
             ...entry(start, end),
-            date: Object.freeze({ start, end }),
+            date: Object.freeze({ start, end, calendarId: 'ops' }),
             time: Object.freeze({
-                start: Object.freeze(time(23, 45)),
-                end: Object.freeze(time(1)),
+                start: Object.freeze({ ...time(23, 45), precision: 'reported' }),
+                end: Object.freeze({ ...time(1), precision: 'estimated' }),
+                unit: 'wall clock',
             }),
             revision: 4,
         });
@@ -37,11 +38,16 @@ describe('proposeTimedEntryChange', () => {
         const proposed = proposeTimedEntryChange(source, move, 30)!;
         expect(proposed).to.deep.equal({
             ...source,
-            date: { start: end, end },
-            time: { start: time(0, 15), end: time(1, 30) },
+            date: { ...source.date, start: { ...start, day: 29 } },
+            time: {
+                ...source.time,
+                start: { ...source.time.start, ...time(0, 15) },
+                end: { ...source.time.end, ...time(1, 30) },
+            },
         });
         expect(proposed.revision).to.equal(4);
-        expect(source.time.start).to.deep.equal(time(23, 45));
+        expect(source.date.start.day).to.equal(28);
+        expect(source.time.start.hour).to.equal(23);
     });
 
     it('resizes just one canonical endpoint across dates, including an exclusive midnight', () => {
@@ -84,11 +90,26 @@ describe('proposeTimedEntryChange', () => {
             end: time(8, 45),
         });
         const lastDay = date(9999, 12, 31);
-        const last = { ...entry(lastDay), time: { start: time(23), end: time(23, 45) } };
-        expect(proposeTimedEntryChange(last, move, 15)?.time).to.deep.equal({
-            start: time(23, 15),
-            end: time(24),
+        const last = {
+            ...entry(lastDay),
+            date: { start: lastDay, end: { ...lastDay, label: 'Final day' } },
+            time: {
+                start: { ...time(23), precision: 'estimated' },
+                end: { ...time(23, 45), precision: 'reported' },
+                unit: 'wall clock',
+            },
+        };
+        const toBoundary = proposeTimedEntryChange(last, resizeEnd, 15);
+        expect(toBoundary).to.deep.equal({
+            ...last,
+            time: { ...last.time, end: { ...last.time.end, ...time(24) } },
         });
+        expect(proposeTimedEntryChange(last, move, 15)?.time).to.deep.equal({
+            ...last.time,
+            start: { ...last.time.start, ...time(23, 15) },
+            end: { ...last.time.end, ...time(24) },
+        });
+        expect(proposeTimedEntryChange(last, resizeEnd, 16)).to.equal(undefined);
         expect(proposeTimedEntryChange(last, move, 16)).to.equal(undefined);
         expect(proposeTimedEntryChange(entry(date(1, 1, 1)), move, -541)).to.equal(undefined);
     });

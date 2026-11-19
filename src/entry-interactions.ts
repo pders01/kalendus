@@ -130,8 +130,9 @@ function clientEdges(element: HTMLElement) {
     return { left: x, right: x + element.clientWidth, top: y, bottom: y + element.clientHeight };
 }
 
-function minuteAt(y: number, column: DOMRect) {
-    return Math.max(0, Math.min(dayMinutes, ((y - column.top) * dayMinutes) / column.height));
+function minuteAt(y: number, column: DOMRect, unclamped: boolean) {
+    const minute = ((y - column.top) * dayMinutes) / column.height;
+    return unclamped ? minute : Math.max(0, Math.min(dayMinutes, minute));
 }
 
 function previewBand({ element, date }: Column, candidate: CalendarEntry) {
@@ -276,7 +277,11 @@ export function enableEntryInteractions(
                 return date ? [{ element, date }] : [];
             });
             const down = { clientX: event.clientX, clientY: event.clientY };
-            const originalMinute = minuteAt(down.clientY, column.getBoundingClientRect());
+            // End grips can start on either side of midnight. Keep the full pointer
+            // displacement through the visual tail and let proposal validation bound the edit.
+            const unclamped = operation.kind === 'resize' && operation.edge === 'end';
+            const origin = column.getBoundingClientRect();
+            const originalMinute = minuteAt(down.clientY, origin, unclamped);
             const pointerId = event.pointerId;
             const entries = calendar.entries;
             const lifetime = new AbortController();
@@ -333,7 +338,8 @@ export function enableEntryInteractions(
                         if (x < box.left || x >= box.right || box.height <= 0) continue;
                         delta =
                             civilDayDifference(date, target.date) * dayMinutes +
-                            Math.round((minuteAt(y, box) - originalMinute) / snap) * snap;
+                            Math.round((minuteAt(y, box, unclamped) - originalMinute) / snap) *
+                                snap;
                         break;
                     }
                 }

@@ -24,7 +24,7 @@ function shiftEndpoint(
     delta: number,
     isEnd: boolean,
 ): Endpoint {
-    if (delta === 0) return { date: { ...date }, time: { ...time } };
+    if (delta === 0) return { date, time };
 
     const total = toMinute(time) + delta;
     const days = Math.floor(total / minutesPerDay);
@@ -94,8 +94,16 @@ export function proposeTimedEntryChange<T extends CalendarEntry>(
     const proposed: TimedCandidate<T> = {
         ...entry,
         kind: 'timed',
-        date: { start: start.date, end: end.date },
-        time: { start: start.time, end: end.time },
+        date: {
+            ...entry.date,
+            start: { ...entry.date.start, ...start.date },
+            end: { ...entry.date.end, ...end.date },
+        },
+        time: {
+            ...entry.time,
+            start: { ...entry.time.start, ...start.time },
+            end: { ...entry.time.end, ...end.time },
+        },
     };
     // Reuse ingestion rules, including DST gaps/repeated hours. Don't silently
     // shift, disambiguate, or turn an invalid drop into another local time.

@@ -23,9 +23,14 @@ const entry = Object.freeze({
 const move = { kind: 'move' } as const;
 const resizeEnd = { kind: 'resize', edge: 'end' } as const;
 
-async function setup(viewMode: 'day' | 'week' = 'day', dir = 'ltr', source: CalendarEntry = entry) {
+async function setup(
+    viewMode: 'day' | 'week' = 'day',
+    dir = 'ltr',
+    source: CalendarEntry = entry,
+    activeDate = date,
+) {
     const frame = await fixture<HTMLElement>(html`
-        <div><lms-calendar .entries=${[source]} .activeDate=${date} .viewMode=${viewMode}
+        <div><lms-calendar .entries=${[source]} .activeDate=${activeDate} .viewMode=${viewMode}
             dir=${dir} style="width:970px;height:590px;font:16px Arial"></lms-calendar></div>
     `);
     const calendar = frame.querySelector<Calendar>('lms-calendar')!;
@@ -185,6 +190,95 @@ describe('opt-in timed entry interactions', () => {
             });
         });
     }
+
+    for (const inTail of [false, true]) {
+        it(`resizes the end past the grid with a 10-minute snap from ${inTail ? 'the minimum-height tail' : 'just inside midnight'}`, async () => {
+            const originalTime = Object.freeze(
+                inTail
+                    ? { start: time(23, 43), end: time(23, 50) }
+                    : { start: time(23), end: time(24) },
+            );
+            const source = Object.freeze({ ...entry, time: originalTime });
+            const { calendar, card, grid, scroller, scale, requests, activations } = await setup(
+                'day',
+                'ltr',
+                source,
+            );
+            controller = enableEntryInteractions(calendar, { snapMinutes: 10 });
+            scroller.scrollTop = scroller.scrollHeight;
+            await nextFrame();
+            const [x, endGripY] = point(card(), 'end');
+            const midnightY = card().assignedSlot!.parentElement!.getBoundingClientRect().bottom;
+            const y = inTail ? endGripY : Math.floor(midnightY) - 1;
+            const dropY = Math.round(y + scale * 10);
+            if (inTail) expect(y).to.be.greaterThan(midnightY);
+            else {
+                expect(y).to.be.lessThan(midnightY);
+                // Clamping at midnight would erase this entire 10-minute snap.
+                expect(midnightY - y).to.be.lessThan(scale * 5);
+            }
+            expect(dropY).to.be.greaterThan(midnightY);
+            expect(dropY).to.be.lessThan(
+                scroller.getBoundingClientRect().top + scroller.clientHeight,
+            );
+            await pointerAt([x, y]);
+            expect(card().getAttribute('data-kalendus-edit')).to.equal('resize');
+            await press();
+            await pointerAt([x, dropY]);
+            const preview = () =>
+                grid().shadowRoot!.querySelector('[data-kalendus-change-preview]');
+            await waitUntil(preview, 'end resize did not preview a proposal');
+            expect(requests).to.be.empty;
+            await release();
+            expect(requests).to.have.length(1);
+            expect(requests[0]).to.deep.equal({
+                source: 'pointer',
+                eventId: source.id,
+                entry: source,
+                operation: resizeEnd,
+                proposed: {
+                    ...source,
+                    date: { start: date, end: { ...date, day: 18 } },
+                    time: { start: originalTime.start, end: time(0, inTail ? 0 : 10) },
+                },
+            });
+            expect(preview()).not.to.exist;
+            expect(activations).to.be.empty;
+            expect(calendar.entries[0]).to.equal(source);
+            expect(source.time).to.equal(originalTime);
+        });
+    }
+
+    it('clears the preview and rejects an end resize past the supported date range', async () => {
+        const lastDay = { year: 9999, month: 12, day: 31 };
+        const source = {
+            ...entry,
+            date: { start: lastDay, end: lastDay },
+            time: { start: time(23), end: time(24) },
+        };
+        const { calendar, card, grid, scroller, scale, requests } = await setup(
+            'day',
+            'ltr',
+            source,
+            lastDay,
+        );
+        controller = enableEntryInteractions(calendar, { snapMinutes: 10 });
+        scroller.scrollTop = scroller.scrollHeight;
+        await nextFrame();
+        const [x] = point(card(), 'end');
+        const midnightY = card().assignedSlot!.parentElement!.getBoundingClientRect().bottom;
+        const y = Math.floor(midnightY) - 1;
+        const preview = () => grid().shadowRoot!.querySelector('[data-kalendus-change-preview]');
+        await pointerAt([x, y]);
+        await press();
+        await pointerAt([x, y - scale * 10]);
+        await waitUntil(preview);
+        await pointerAt([x, y + scale * 10]);
+        await waitUntil(() => !preview());
+        await release();
+        expect(requests).to.be.empty;
+        expect(calendar.entries[0]).to.equal(source);
+    });
 
     it('does not offer a resize at a continuation boundary', async () => {
         const source = {
