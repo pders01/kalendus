@@ -1,5 +1,6 @@
 import type { CalendarEntryRequest } from './contracts.js';
 import { civilDayDifference, isValidCalendarDate } from './lib/calendarModel.js';
+import { timedSlotPrefix } from './lib/entrySlots.js';
 import { proposeTimedEntryChange, type TimedEntryOperation } from './lib/timedEntryChange.js';
 import type Calendar from './lms-calendar.js';
 import type { CalendarDate, CalendarEntry, CalendarTime } from './lms-calendar.js';
@@ -67,8 +68,8 @@ function relativeMinute(origin: CalendarDate, date: CalendarDate, time: Calendar
 function columnDate(grid: Grid, element: HTMLElement) {
     const name = element.querySelector('slot')?.name;
     if (name === 'timed') return grid.activeDate;
-    if (!name?.startsWith('timed-')) return undefined;
-    const [year, month, day] = name.slice(6).split('-').map(Number);
+    if (!name?.startsWith(timedSlotPrefix)) return undefined;
+    const [year, month, day] = name.slice(timedSlotPrefix.length).split('-').map(Number);
     const date = { year, month, day };
     return isValidCalendarDate(date) ? date : undefined;
 }

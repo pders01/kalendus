@@ -206,6 +206,7 @@ describe('Integrated refactor journeys and representation limits', () => {
 
     it('preserves date and viewed time through adaptive Week resize and Year/Month return', async () => {
         const calendar = await make([timed('Morning event', 540, 570)]);
+        calendar.scrollTimeGrid = true;
         calendar.viewMode = 'day';
         await settle(calendar);
         const position = () => {
@@ -291,8 +292,7 @@ describe('Integrated refactor journeys and representation limits', () => {
                     ),
                 ];
                 expect(entries).to.have.length(2);
-                scroll.scrollTop = scroll.scrollHeight;
-                await settle(calendar);
+                expect(scroll.scrollHeight).to.be.closeTo(scroll.clientHeight, 1);
                 for (const entry of entries) {
                     const start = entry.time!.start.hour * 60 + entry.time!.start.minute;
                     expect(rect(entry).top - rect(column).top).to.be.closeTo(start * scale, 0.5);

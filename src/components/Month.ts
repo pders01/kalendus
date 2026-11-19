@@ -5,6 +5,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import { styleMap } from 'lit/directives/style-map.js';
 
 import { parseColorWithDefault } from '../lib/colorParser.js';
+import { dateSlotKey } from '../lib/entrySlots.js';
 import {
     formatLocalizedDate,
     getLocalizedDayMonthParts,
@@ -18,7 +19,7 @@ import {
     getWeekdayOrder,
 } from '../lib/weekStartHelper.js';
 import { CurrentDateController } from './CurrentDateController.js';
-import { dateKey, keyboardDate } from './dateNavigation.js';
+import { keyboardDate } from './dateNavigation.js';
 
 @customElement('lms-calendar-month')
 export default class Month extends LitElement {
@@ -75,9 +76,11 @@ export default class Month extends LitElement {
             min-inline-size: 17.5em;
             display: grid;
             /* Week rows grow in a tall embed but keep their readable minimum. */
+            --_week-floor: var(--_month-week-min, 6em);
+            --_week-default: var(--_month-week-min, 6.5em);
             grid-template-rows: min-content repeat(
                     6,
-                    minmax(max(6em, var(--month-week-height, 6.5em)), 1fr)
+                    minmax(max(var(--_week-floor), var(--month-week-height, var(--_week-default))), 1fr)
                 );
             overflow: visible;
         }
@@ -93,6 +96,8 @@ export default class Month extends LitElement {
         .weekday {
             text-align: center;
             font-size: 0.8em;
+            /* Line box plus padding is 1.4em at the Month host's font size. */
+            line-height: 1.25;
             padding-block: 0.25em;
         }
         .day {
@@ -312,10 +317,8 @@ export default class Month extends LitElement {
         }
         @media (pointer: coarse) {
             .month {
-                grid-template-rows: min-content repeat(
-                        6,
-                        minmax(max(7em, var(--month-week-height, 7em)), 1fr)
-                    );
+                --_week-default: max(68px, var(--_month-week-min, 7em));
+                --_week-floor: var(--_week-default);
             }
             .indicator,
             .summary {
@@ -513,7 +516,7 @@ export default class Month extends LitElement {
         this._focusedDate = date;
         await this.updateComplete;
         const button = this.renderRoot.querySelector<HTMLButtonElement>(
-            `button[data-date="${dateKey(date)}"]`,
+            `button[data-date="${dateSlotKey(date)}"]`,
         );
         button?.focus();
         button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -540,10 +543,10 @@ export default class Month extends LitElement {
         );
         const today = this._today.date;
         const current = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-        const focused = dateKey(this._focusedDate ?? this.activeDate);
-        const selected = this.selectedDate ? dateKey(this.selectedDate) : undefined;
+        const focused = dateSlotKey(this._focusedDate ?? this.activeDate);
+        const selected = this.selectedDate ? dateSlotKey(this.selectedDate) : undefined;
         const displayed = this._displayDate ?? this.activeDate;
-        const tracedDates = new Set(this.trace.map((entry) => dateKey(entry.date.start)));
+        const tracedDates = new Set(this.trace.map((entry) => dateSlotKey(entry.date.start)));
         const format = getMessageFormatters(this.locale);
         const number = new Intl.NumberFormat(normalizeLocale(this.locale));
         // Two tracks are a display capacity, not a relevance ranking. Once they
@@ -557,12 +560,12 @@ export default class Month extends LitElement {
             ${Array.from(
                 { length: 6 },
                 (_, week) => html`<div class="week" role="row">
-                ${repeat(dates.slice(week * 7, week * 7 + 7), dateKey, (date, column) => {
-                    const key = dateKey(date);
+                ${repeat(dates.slice(week * 7, week * 7 + 7), dateSlotKey, (date, column) => {
+                    const key = dateSlotKey(date);
                     const traced = tracedDates.has(key);
                     const index = week * 7 + column;
                     const traceEdges = traced
-                        ? `${column === 0 || !tracedDates.has(dateKey(dates[index - 1])) ? 'start' : ''} ${column === 6 || !tracedDates.has(dateKey(dates[index + 1])) ? 'end' : ''}`
+                        ? `${column === 0 || !tracedDates.has(dateSlotKey(dates[index - 1])) ? 'start' : ''} ${column === 6 || !tracedDates.has(dateSlotKey(dates[index + 1])) ? 'end' : ''}`
                         : nothing;
                     const spans =
                         this.compact && !countsOnly
@@ -668,7 +671,7 @@ export default class Month extends LitElement {
         if (
             event.key === 'PageUp' ||
             event.key === 'PageDown' ||
-            !dates.some((candidate) => dateKey(candidate) === dateKey(next))
+            !dates.some((candidate) => dateSlotKey(candidate) === dateSlotKey(next))
         ) {
             this._displayDate = next;
             this.dispatchEvent(

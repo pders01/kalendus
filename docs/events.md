@@ -12,7 +12,7 @@ Listen on the `<lms-calendar>` host. The events below bubble and are composed, s
 
 ## `calendar-state-change`
 
-Emitted by the root after its initial render and whenever the committed snapshot changes. This includes owner assignments to `activeDate` / `viewMode`, header/today navigation, date/count/year drill-down, keyboard navigation, week-start policy and responsive visible-window changes. Identical snapshots are not emitted again. It is not cancelable.
+Emitted by the root after its initial render and whenever the committed snapshot changes. This includes owner assignments to `activeDate` / `viewMode`, header/today navigation, date and Year drill-down, keyboard navigation, week-start policy and responsive visible-window changes. Identical snapshots are not emitted again. It is not cancelable.
 
 ```ts
 type CalendarState = {
@@ -23,7 +23,7 @@ type CalendarState = {
 };
 ```
 
-`range.start` is included and `range.end` is excluded. These are civil dates, **not UTC timestamps**. Month grid ranges include spillover cells; the optional Agenda stays in Month mode and covers one day. Week ranges reflect the actual visible columns, including condensed weeks; Day and Year cover one day and the active calendar year, respectively. The read-only public `visibleRange` getter exposes the same shape.
+`range.start` is included and `range.end` is excluded. These are civil dates, **not UTC timestamps**. Month grid ranges include spillover cells; the optional Agenda stays in Month mode and covers one day. Week ranges reflect the actual visible columns, including condensed weeks; Day and Year cover one day and the active calendar year, respectively. The read-only public `visibleRange` getter exposes the same shape. Opening or closing a Day/Week timed count or a Week all-day total does not change the committed view, date, or range and does not emit a state change by itself.
 
 ```js
 calendar.addEventListener('calendar-state-change', (event) => {

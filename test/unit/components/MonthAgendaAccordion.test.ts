@@ -80,6 +80,37 @@ function recordRequest(calendar: Calendar, type: string, block = true) {
 }
 
 describe('Library Month Agenda accordion', () => {
+    it('keeps the same event metadata across plain and accordion rows', async () => {
+        const calendar = await make();
+        calendar.entries = [exhibition, workshop];
+        calendar.monthAgendaPresentation = 'full';
+        await calendar.updateComplete;
+        const metadata = (selector: string) =>
+            calendar.shadowRoot!.querySelector(selector)?.textContent;
+        const plain = row(calendar, 'Long workshop');
+        const time = metadata('.agenda-time');
+        const span = metadata('.agenda-span-range');
+        const color = plain.style.getPropertyValue('--list-event-color');
+        expect(time).to.include('9:00');
+        expect(span).not.to.be.empty;
+        expect(plain.firstElementChild?.className).to.equal('agenda-time');
+        expect(plain.getAttribute('aria-label')).to.include('Long workshop');
+
+        calendar.monthAgendaPresentation = 'accordion';
+        await calendar.updateComplete;
+        await select(calendar);
+        const disclosure = row(calendar, 'Long workshop');
+        expect(disclosure.firstElementChild?.className).to.equal('agenda-title');
+        expect(disclosure.hasAttribute('aria-label')).to.equal(false);
+        expect(metadata('.agenda-time')).to.equal(time);
+        expect(metadata('.agenda-span-range')).to.equal(span);
+        expect(disclosure.style.getPropertyValue('--list-event-color')).to.equal(color);
+        disclosure.click();
+        await calendar.updateComplete;
+        expect(disclosure.getAttribute('aria-expanded')).to.equal('true');
+        expect(metadata('.agenda-details p')).to.equal(workshop.content);
+    });
+
     it('uses one selected date, complete sections, and the real Week/Month switcher', async () => {
         const calendar = await make();
         const root = calendar.shadowRoot!;

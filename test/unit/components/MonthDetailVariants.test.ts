@@ -92,10 +92,9 @@ describe('Shorter selected-date Month lists', () => {
                 ).to.have.length(1);
                 expect(calendar.viewMode).to.equal('month');
                 expect(JSON.stringify(calendar.visibleRange)).to.equal(range);
-                expect(
-                    getComputedStyle(calendar.shadowRoot!.querySelector('.calendar-container')!)
-                        .overflowY,
-                ).to.equal('visible');
+                const frame =
+                    calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
+                expect(frame.scrollHeight).to.be.at.most(frame.clientHeight + 1);
                 expect(
                     getComputedStyle(month(calendar).shadowRoot!.querySelector('.month')!)
                         .overflowY,

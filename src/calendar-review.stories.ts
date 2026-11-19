@@ -116,7 +116,14 @@ const yearOverviewEntries: CalendarEntry[] = [
     }),
 ];
 
+const scheduleStarts = {
+    separate: [480, 570, 660, 750, 840],
+    simultaneous: [540, 540, 540, 540, 540],
+    chain: [540, 560, 580, 600, 620],
+};
+
 type Args = {
+    schedule: keyof typeof scheduleStarts;
     embedWidth: number;
     embedHeight: number;
     fontSize: number;
@@ -128,7 +135,14 @@ const meta: Meta<Args> = {
     id: 'design-comparisons-presentation-variants',
     title: 'Visual review/Library scenarios',
     parameters: { layout: 'fullscreen', controls: { disable: true } },
-    args: { embedWidth: 0, embedHeight: 0, fontSize: 16, locale: 'en', yearDensity: 'dot' },
+    args: {
+        schedule: 'separate',
+        embedWidth: 0,
+        embedHeight: 0,
+        fontSize: 16,
+        locale: 'en',
+        yearDensity: 'dot',
+    },
 };
 export default meta;
 type Story = StoryObj<Args>;
@@ -198,6 +212,33 @@ export const DenseWeekAllDaySummary: Story = {
         <p>Open a count to read that date’s all-day events. Close the list to return to your place in Week.</p>
         <lms-calendar locale="en" view-mode="week" .activeDate=${activeDate} .entries=${denseMonthEntries}></lms-calendar>
     </section>`,
+};
+
+export const TimedDensity: Story = {
+    name: 'Week: Timed density',
+    args: { embedWidth: 390, embedHeight: 720 },
+    parameters: {
+        controls: { disable: false, include: ['schedule', 'embedWidth', 'embedHeight'] },
+    },
+    argTypes: {
+        schedule: { control: 'radio', options: Object.keys(scheduleStarts) },
+        embedWidth: { control: { type: 'number', min: 320 } },
+        embedHeight: { control: { type: 'number', min: 360 } },
+    },
+    render: ({ schedule, embedWidth, embedHeight }) => html`
+        <section>
+            <p>Compare five separate appointments, five simultaneous appointments, and a chain of overlapping appointments. At 390 px wide, try 640 px and 720 px tall. Open a count to see its exact events without leaving Week.</p>
+            <lms-calendar locale="en" view-mode="week" .activeDate=${date(16)}
+                .entries=${[
+                    ...scheduleStarts[schedule].map((start, i) =>
+                        timed(`Appointment ${i + 1}`, 17, start, start + 30),
+                    ),
+                    timed('Later appointment', 17, 1065, 1095),
+                    timed('Appointment on another day', 16, 540, 570),
+                ]}
+                style=${styleMap({ inlineSize: `min(100%, ${embedWidth}px)`, blockSize: `${embedHeight}px` })}>
+            </lms-calendar>
+        </section>`,
 };
 
 export const SparseWeekAllDayChips: Story = {

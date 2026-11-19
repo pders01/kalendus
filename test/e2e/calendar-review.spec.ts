@@ -58,8 +58,48 @@ test('compares the requested Week maxima and adapts when the canvas narrows', as
     await expect.poll(async () => (await columns()).at(-1)).toBeLessThan(5);
 });
 
-test.describe('Desktop Month', () => {
+test.describe('Desktop canvas layout', () => {
     test.use({ hasTouch: false, viewport: { width: 1440, height: 960 } });
+
+    test('keeps the Docs canvas height stable and fits all twelve months without a scroll sliver', async ({
+        page,
+    }) => {
+        await page.goto('/iframe.html?id=components-kalendus--docs&viewMode=docs');
+        const calendar = page.locator('lms-calendar').first();
+        await expect(calendar.locator('lms-calendar-month')).toBeVisible();
+        const layout = () =>
+            calendar.evaluate((element) => {
+                const bounds = (node: Element) => {
+                    const { x, y, width, height } = node.getBoundingClientRect();
+                    return [x, y, width, height];
+                };
+                const root = element.shadowRoot!;
+                return [
+                    bounds(element),
+                    bounds(root.querySelector('.calendar-container > header')!),
+                    bounds(root.querySelector('.calendar-view')!),
+                ];
+            });
+        const initial = await layout();
+        expect(initial[0][3]).toBe(720);
+        for (const view of ['day', 'week', 'year', 'month']) {
+            await calendar.locator(`button[data-context="${view}"]`).click();
+            const child = calendar.locator(`lms-calendar-${view}`);
+            await expect(child).toBeVisible();
+            await expect.poll(layout).toEqual(initial);
+            if (view === 'year') {
+                await expect(child.locator('.mini-month')).toHaveCount(12);
+                await expect
+                    .poll(() =>
+                        child
+                            .locator('.scroll-container')
+                            .evaluate((node) => node.scrollHeight - node.clientHeight),
+                    )
+                    .toBe(0);
+            }
+        }
+    });
+
     test('keeps the overflow button clear of previews at fractional row heights', async ({
         page,
     }) => {
@@ -311,4 +351,31 @@ test('returns from a dense all-day list to the same part of a shallow Week', asy
     await expect(count).toBeFocused();
     await expect(count).toBeInViewport();
     await expect.poll(async () => Math.abs((await visibleMinute()) - before)).toBeLessThan(2);
+});
+
+test('keeps separate appointments available as Week fits the full day', async ({ page }, info) => {
+    await page.setViewportSize({ width: 422, height: 900 });
+    await page.goto(
+        `${story('design-comparisons-presentation-variants--timed-density')}&args=embedHeight:640`,
+    );
+    const calendar = page.locator('lms-calendar');
+    const cards = calendar.locator('lms-calendar-entry[slot^="timed"]');
+    const group = calendar.getByRole('button', { name: /^5 events:.*Nov 17/ });
+    await expect(cards).toHaveCount(7);
+    await expect(group).toHaveCount(0);
+    await capture(page, info, 'separate-appointments-detail');
+
+    await calendar.evaluate((element: Calendar) => (element.style.blockSize = '720px'));
+    await expect(group).toBeVisible();
+    await expect(cards).toHaveCount(2);
+    await capture(page, info, 'separate-appointments-fit');
+    await group.tap();
+    const list = calendar.locator('[data-density-list]');
+    await expect(list.getByRole('heading', { name: 'Nov 17, 2026' })).toBeFocused();
+    await expect(list.getByRole('listitem')).toHaveCount(5);
+    await expect(calendar).toHaveAttribute('data-view-mode', 'week');
+    await capture(page, info, 'scoped-timed-list-in-week');
+    await list.getByRole('button', { name: 'Close', exact: true }).tap();
+    await expect(group).toBeFocused();
+    await expect(group).toBeInViewport();
 });

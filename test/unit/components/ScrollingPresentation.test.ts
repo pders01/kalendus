@@ -47,6 +47,8 @@ describe('Free scrolling and bounded entry presentation', () => {
     for (const view of ['day', 'week'] as const) {
         it(`${view} ignores retired snap tokens and keeps arbitrary native scroll positions`, async () => {
             const el = await grid(view);
+            el.scrollTimeGrid = true;
+            await settle();
             const scroller = el.shadowRoot!.querySelector<HTMLElement>(
                 view === 'day' ? '.main' : '.week-scroll',
             )!;

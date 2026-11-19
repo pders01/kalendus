@@ -3,8 +3,6 @@ import { DateTime } from 'luxon';
 import type { CalendarDate } from '../lms-calendar.js';
 
 /** Civil-date keyboard navigation shared by the two date grids (not spatial dashboards). */
-export const dateKey = (date: CalendarDate) => `${date.year}-${date.month}-${date.day}`;
-
 export function keyboardDate(
     event: KeyboardEvent,
     date: CalendarDate,

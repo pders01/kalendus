@@ -4,6 +4,7 @@ import {
     addCivilDays,
     CalendarExpansionError,
     calendarDateToISO,
+    civilDateKey,
     civilDayDifference,
     expandEntries,
     isValidCalendarDate,
@@ -26,6 +27,12 @@ describe('calendarModel', () => {
             expect(isValidCalendarDate(date(2024, 2, 29))).to.equal(true);
             expect(calendarDateToISO(addCivilDays(date(4, 2, 28), 1))).to.equal('0004-02-29');
             expect(civilDayDifference(date(2024, 2, 28), date(2024, 3, 1))).to.equal(2);
+        });
+        it('orders lookup keys by civil date across year digit boundaries', () => {
+            const first = civilDateKey(date(999, 12, 31));
+            const second = civilDateKey(date(1000, 1, 1));
+            expect(first).to.equal(calendarDateToISO(date(999, 12, 31)));
+            expect([second, first].sort()).to.deep.equal(['0999-12-31', '1000-01-01']);
         });
         it('rejects impossible, fractional, nonfinite and malformed dates', () => {
             for (const value of [

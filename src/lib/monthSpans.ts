@@ -4,6 +4,7 @@ import {
     type CivilDate,
     type ExpandedCalendarEntry,
 } from './calendarModel.js';
+import { dateSlotKey } from './entrySlots.js';
 import { formatLocalizedDateInterval } from './localization.js';
 
 export function formatMonthSpanRange(entry: ExpandedCalendarEntry, locale: string): string {
@@ -25,21 +26,19 @@ export interface MonthSpan {
     row: number;
 }
 
-const key = (date: CivilDate) => `${date.year}-${date.month}-${date.day}`;
-
 /** Uses already bounded segments; does not expand or reformat canonical lifetimes. */
 export function buildMonthSpans(
     dates: readonly CivilDate[],
     entries: readonly ExpandedCalendarEntry[],
 ): MonthSpan[][] {
-    const indices = new Map(dates.map((date, index) => [key(date), index]));
+    const indices = new Map(dates.map((date, index) => [dateSlotKey(date), index]));
     const weeks = Array.from(
         { length: Math.ceil(dates.length / 7) },
         () => new Map<string, MonthSpan>(),
     );
     for (const entry of entries) {
         if (entry.continuation.total < 2) continue;
-        const index = indices.get(key(entry.date.start));
+        const index = indices.get(dateSlotKey(entry.date.start));
         if (index === undefined) continue;
         const week = weeks[Math.floor(index / 7)],
             column = index % 7;

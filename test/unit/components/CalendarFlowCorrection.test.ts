@@ -61,23 +61,22 @@ describe('Calendar review corrections: flow, orientation and truthful disclosure
     });
 
     for (const width of [358, 1100]) {
-        it(`keeps Month out of scroll containers at ${width}px`, async () => {
+        it(`does not make fitting Month content scroll at ${width}px`, async () => {
             const c = await make(width);
             const container = c.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
             const region = c.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
             const m = c.shadowRoot!.querySelector('lms-calendar-month')!;
             const month = m.shadowRoot!.querySelector<HTMLElement>('.month')!;
             for (const e of [container, region, month]) {
-                expect(getComputedStyle(e).overflowY).to.equal('visible');
-                expect(getComputedStyle(e).overflowX).to.equal('visible');
+                expect(e.scrollHeight, e.className).to.be.at.most(e.clientHeight + 1);
+                expect(e.scrollWidth, e.className).to.be.at.most(e.clientWidth + 1);
             }
-            expect(month.scrollHeight).to.be.at.most(month.clientHeight + 1);
         });
     }
 
-    it('lets a long contextual Month list grow the host and push following content down', async () => {
+    it('lets an unsized contextual Month list grow the host and push following content down', async () => {
         const wrap = await fixture<HTMLDivElement>(html`<div>
-            <lms-calendar locale="en" style="width:358px;height:720px" .activeDate=${date}
+            <lms-calendar locale="en" style="width:358px" .activeDate=${date}
                 .entries=${Array.from({ length: 40 }, (_, i) => event(String(i)))}></lms-calendar>
             <p class="following">Following document content</p>
         </div>`);
@@ -91,6 +90,62 @@ describe('Calendar review corrections: flow, orientation and truthful disclosure
         );
         expect(c.getBoundingClientRect().bottom).to.be.at.least(
             list.getBoundingClientRect().bottom,
+        );
+    });
+
+    for (const layout of ['block', 'grid', 'flex'] as const) {
+        it(`honors a supplied height across all four views without moving adjacent content (${layout})`, async () => {
+            const wrap = await fixture<HTMLDivElement>(html`
+                <div>
+                    <div style=${`display:${layout};flex-direction:column;width:965px;height:720px`}>
+                        <lms-calendar locale="en" .activeDate=${date}
+                            style=${layout === 'flex' ? 'flex:1' : ''}
+                            .entries=${[event('morning')]}></lms-calendar>
+                    </div>
+                    <p>After the calendar</p>
+                </div>
+            `);
+            const calendar = wrap.querySelector<Calendar>('lms-calendar')!;
+            const panel = calendar.parentElement!;
+            const sibling = wrap.querySelector('p')!;
+            const root = calendar.shadowRoot!;
+            const header = root.querySelector('header')!;
+            const view = root.querySelector('.calendar-view')!;
+            const top = (element: Element) => element.getBoundingClientRect().top;
+            await settle(calendar);
+            const toolbarTop = top(header);
+            const viewTop = top(view);
+            const siblingTop = top(sibling);
+            for (const mode of ['week', 'year', 'day', 'month'] as const) {
+                calendar.viewMode = mode;
+                await settle(calendar);
+                expect(calendar.getBoundingClientRect().height).to.equal(panel.clientHeight);
+                expect(top(header)).to.be.closeTo(toolbarTop, 0.5);
+                expect(top(view)).to.be.closeTo(viewTop, 0.5);
+                expect(top(sibling)).to.be.closeTo(siblingTop, 0.5);
+                expect(view.getBoundingClientRect().bottom).to.be.closeTo(
+                    panel.getBoundingClientRect().bottom - 1,
+                    0.5,
+                );
+            }
+        });
+    }
+
+    it('scrolls a long Month list inside the supplied height and keeps the last event reachable', async () => {
+        const calendar = await make(
+            358,
+            Array.from({ length: 40 }, (_, i) => event(String(i))),
+        );
+        const region = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
+        const last = [...region.querySelectorAll<HTMLButtonElement>('.agenda-event')].at(-1)!;
+        expect(calendar.getBoundingClientRect().height).to.equal(720);
+        expect(region.scrollHeight).to.be.greaterThan(region.clientHeight);
+        last.focus();
+        await settle(calendar);
+        expect(calendar.shadowRoot!.activeElement).to.equal(last);
+        expect(region.scrollTop).to.be.greaterThan(0);
+        expect(last.getBoundingClientRect().bottom).to.be.at.most(
+            region.getBoundingClientRect().bottom + 1,
         );
     });
 

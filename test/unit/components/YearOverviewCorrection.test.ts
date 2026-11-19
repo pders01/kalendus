@@ -89,7 +89,7 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
             const months = [...element.shadowRoot!.querySelectorAll('.mini-month')];
             for (const month of months) contains(month, scroller);
             const last = months.at(-1)!;
-            expect(rect(scroller).bottom - rect(last).bottom).to.be.closeTo(12, 1);
+            expect(rect(scroller).bottom - rect(last).bottom).to.be.closeTo(6, 1);
             const firstWeekTop = rect(months[0].querySelector('.day-row')!).top;
             for (const month of months.slice(0, columns)) {
                 expect(rect(month.querySelector('.day-row')!).top).to.be.closeTo(firstWeekTop, 1);
@@ -137,6 +137,22 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
             usableMonths(element);
         });
     }
+
+    it('fits a four-column Year in a roughly 604px-high viewport without a sliver of scroll', async () => {
+        const calendar = await fixture<Calendar>(html`
+            <lms-calendar view-mode="year" style="inline-size:965px;block-size:720px;font:16px serif"
+                .activeDate=${{ day: 17, month: 11, year: 2026 }}></lms-calendar>
+        `);
+        await frame();
+        const year = calendar.shadowRoot!.querySelector<Year>('lms-calendar-year')!;
+        const scroll = year.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
+        expect(scroll.clientHeight).to.be.within(590, 615);
+        expect(rowLengths(year)).to.deep.equal([4, 4, 4]);
+        expect(scroll.scrollHeight).to.equal(scroll.clientHeight);
+        for (const month of year.shadowRoot!.querySelectorAll('.mini-month'))
+            contains(month, scroll);
+        usableMonths(year);
+    });
 
     it('fits the same developer-sized grid area in Year, Week and Day, then scrolls Year at its readable minimum', async () => {
         const embed =
@@ -190,6 +206,27 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         await frame();
         expect(scroll().scrollTop).to.be.greaterThan(0);
         contains(year().shadowRoot!.activeElement!, scroll());
+    });
+
+    it('only switches from six columns to four when all three rows fit', async () => {
+        const year = await overview(1440, 'count');
+        const scroll = year.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
+        const check = async (height: number, columns: number) => {
+            year.style.blockSize = `${height}px`;
+            await frame();
+            expect(rowLengths(year), `${height}px`).to.deep.equal(
+                Array(12 / columns).fill(columns),
+            );
+            expect(scroll.scrollHeight, `${height}px`).to.equal(scroll.clientHeight);
+        };
+        await check(675, 6);
+        await check(690, 6);
+        await check(755, 4);
+        // The actual row height, including consumer tokens, determines fit.
+        year.style.setProperty('--year-cell-size', '3em');
+        await check(756, 6);
+        await check(900, 4);
+        await check(755, 6);
     });
 
     it('has a bounded Year viewport without an explicit embed height', async () => {

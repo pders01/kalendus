@@ -2,28 +2,29 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
-import {
-    formatLocalizedDate,
-    formatLocalizedTime,
-    getLocalizedWeekdayShort,
-} from '../lib/localization.js';
+import { formatLocalizedDate, getLocalizedWeekdayShort } from '../lib/localization.js';
 import { getMessages, normalizeLocale } from '../lib/messages.js';
 import type { FirstDayOfWeek } from '../lib/weekStartHelper.js';
 import { CurrentDateController } from './CurrentDateController.js';
-import { TimeGridSizingController, assignLegacyAllDayRows } from './TimeGridSizingController.js';
+import {
+    TimeGridSizingController,
+    assignLegacyAllDayRows,
+    renderTimeLabels,
+    timeGridStyles,
+} from './TimeGridSizingController.js';
 
 @customElement('lms-calendar-day')
 export default class Day extends LitElement {
     private _today = new CurrentDateController(this);
 
     @state()
-    _hours = [...Array(25).keys()];
-
-    @state()
     _hasActiveSidebar = false;
 
     @property({ type: Number })
     allDayRowCount = 0;
+
+    @property({ type: Boolean, attribute: 'scroll-time-grid' })
+    scrollTimeGrid = false;
 
     @property({ type: String })
     locale = 'en';
@@ -52,7 +53,7 @@ export default class Day extends LitElement {
         this.renderRoot.querySelector<HTMLElement>('.day-label')?.focus();
     }
 
-    static override styles = css`
+    private static layoutStyles = css`
         :host {
             display: block;
             height: 100%;
@@ -145,65 +146,17 @@ export default class Day extends LitElement {
         }
 
         .main {
-            display: grid;
             grid-template-columns: var(--day-grid-columns, var(--calendar-grid-columns-day));
-            grid-template-rows: 1fr;
-            /* 100% of .container = wrapper − day-header, matching week-scroll */
             height: 100%;
-            gap: var(--day-gap, 1px);
-            overflow-y: auto;
-            /* Retired snap tokens deliberately cannot re-enable snapping. */
-            scroll-snap-type: none;
-            overflow-anchor: none;
             text-align: var(--day-text-align, center);
-            /* Half the explicit axis line box on each end. Grid minute zero is
-               at padding-block-start; events and labels share that origin. */
-            padding-block: calc(var(--hour-indicator-font-size, 0.8125em) * 0.625);
-            padding-block-end: calc(
-                var(--hour-indicator-font-size, 0.8125em) * 0.625 +
-                    var(--_time-grid-tail, max(24px, var(--entry-min-height, 3em)))
-            );
-            padding-inline: var(--day-padding, 0.5em);
-            box-sizing: border-box;
-            position: relative;
-            contain: content;
         }
 
         .time-labels {
-            grid-column: 1;
-            position: relative;
-            height: var(--day-total-height);
             display: var(--day-show-time-column, block);
-            border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
-        }
-
-        .hour-label {
-            position: absolute;
-            left: 0;
-            right: 0;
-            text-align: var(--hour-text-align, center);
-            font-size: var(--hour-indicator-font-size, 0.8125em);
-            font-variant-numeric: tabular-nums;
-            line-height: 1.25;
-            color: var(--hour-indicator-color);
-        }
-
-        .hour-label .indicator {
-            display: block;
-            block-size: 1.25em;
-            white-space: nowrap;
-            transform: translateY(-50%);
         }
 
         .timed-content {
             grid-column: 2;
-            position: relative;
-            height: var(--day-total-height);
-            /* Readable late cards may extend beyond the midnight grid boundary.
-               The scroller owns a blank tail; this is not additional civil time. */
-            overflow: visible;
-            background-image: linear-gradient(to bottom, var(--separator-light) 1px, transparent 1px);
-            background-size: 100% var(--hour-height);
         }
 
         .sidebar {
@@ -290,9 +243,7 @@ export default class Day extends LitElement {
         }
     `;
 
-    private _renderIndicatorValue(hour: number) {
-        return formatLocalizedTime(hour, 0, this.locale);
-    }
+    static override styles = [timeGridStyles, Day.layoutStyles];
 
     private _isCurrentDate() {
         const today = this._today.date;
@@ -342,26 +293,13 @@ export default class Day extends LitElement {
             }
             <div class="container">
                 <div
-                    class="main ${classMap({
+                    class="main timeline ${classMap({
                         'w-100': !this._hasActiveSidebar,
                         'w-70': this._hasActiveSidebar,
                     })}"
                     tabindex="0" role="region" aria-labelledby="day-label"
                 >
-                    <div class="time-labels">
-                        ${this._hours.map(
-                            (hour) => html`
-                                <div
-                                    class="hour-label"
-                                    style="top: calc(${hour} * var(--hour-height))"
-                                >
-                                    <span class="indicator">
-                                        ${this._renderIndicatorValue(hour)}
-                                    </span>
-                                </div>
-                            `,
-                        )}
-                    </div>
+                    ${renderTimeLabels(this.locale)}
                     <div class="timed-content">
                         <slot name="timed"></slot>
                     </div>

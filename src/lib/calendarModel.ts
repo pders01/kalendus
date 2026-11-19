@@ -124,9 +124,14 @@ export function isValidCalendarTime(value: unknown, allowEndOfDay = false): valu
     );
 }
 
+/** Sortable ISO key for an already validated civil date. */
+export function civilDateKey(date: CivilDate): string {
+    return `${String(date.year).padStart(4, '0')}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+}
+
 export function calendarDateToISO(date: CivilDate): string {
     if (!isValidCalendarDate(date)) throw new RangeError('Invalid calendar date');
-    return `${String(date.year).padStart(4, '0')}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+    return civilDateKey(date);
 }
 
 export function parseCalendarDate(value: unknown): CivilDate | undefined {

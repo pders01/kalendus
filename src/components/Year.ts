@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { DateTime } from 'luxon';
 
+import { dateSlotKey } from '../lib/entrySlots.js';
 import {
     formatLocalizedDate,
     formatLocalizedYear,
@@ -12,7 +13,7 @@ import { getMessageFormatters, getMessages, normalizeLocale } from '../lib/messa
 import { getFirstDayOffset, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import type { FirstDayOfWeek } from '../lib/weekStartHelper.js';
 import { CurrentDateController } from './CurrentDateController.js';
-import { dateKey, keyboardDate } from './dateNavigation.js';
+import { keyboardDate } from './dateNavigation.js';
 
 export type DensityMode = 'dot' | 'heatmap' | 'count';
 export type DrillTarget = 'day' | 'week' | 'month';
@@ -49,6 +50,57 @@ export default class Year extends LitElement {
     @state() private _focusedDate?: CalendarDate;
     @state() private _displayYear?: number;
     @state() private _weekFocus?: string;
+    private _fitObserver?: ResizeObserver;
+
+    override connectedCallback() {
+        super.connectedCallback();
+        this._fitObserver ??= new ResizeObserver(() => this._fitMonths());
+        this._fitObserver.observe(this);
+    }
+
+    override disconnectedCallback() {
+        this._fitObserver?.disconnect();
+        super.disconnectedCallback();
+    }
+
+    override updated() {
+        this._fitMonths();
+    }
+
+    private _fitMonths() {
+        const grid = this.renderRoot.querySelector<HTMLElement>('.year-grid');
+        if (!grid) return;
+        const scroll = grid.parentElement!;
+        const styles = getComputedStyle(grid);
+        if (styles.getPropertyValue('--year-grid-columns')) return;
+        const font = parseFloat(styles.fontSize);
+        const width = scroll.clientWidth;
+        const height = scroll.clientHeight;
+        if (!height) return;
+        const capacity = width / (font * (matchMedia('(pointer: coarse)').matches ? 24 : 14));
+        const widest =
+            capacity >= 6 ? 6 : capacity >= 4 ? 4 : capacity >= 3 ? 3 : capacity >= 2 ? 2 : 1;
+        const aspect = width / height;
+        const preferred = aspect <= 2 / 3 ? 2 : aspect <= 1.25 ? 3 : aspect <= 2.1 ? 4 : 6;
+        const start = Math.min(preferred, widest);
+        // Try the preferred shape first; use fewer rows if the content needs it.
+        const top = scroll.scrollTop;
+        const left = scroll.scrollLeft;
+        for (const count of [1, 2, 3, 4, 6]) {
+            if (count < start || count > widest) continue;
+            grid.style.setProperty(
+                '--_columns',
+                count === 1
+                    ? 'var(--year-grid-columns-mobile,1)'
+                    : count === 2 && widest === 2
+                      ? 'var(--year-grid-columns-tablet,2)'
+                      : String(count),
+            );
+            if (count === widest || scroll.scrollHeight <= height) break;
+        }
+        scroll.scrollTop = top;
+        scroll.scrollLeft = left;
+    }
 
     override willUpdate(changed: Map<string, unknown>) {
         if (changed.has('locale')) {
@@ -59,7 +111,7 @@ export default class Year extends LitElement {
         const previousDate = changed.get('activeDate') as CalendarDate | undefined;
         if (
             changed.has('activeDate') &&
-            (!previousDate || dateKey(previousDate) !== dateKey(this.activeDate))
+            (!previousDate || dateSlotKey(previousDate) !== dateSlotKey(this.activeDate))
         ) {
             this._displayYear = undefined;
             this._focusedDate = this.activeDate;
@@ -79,15 +131,15 @@ export default class Year extends LitElement {
         .scroll-container {
             block-size: 100%;
             overflow: auto;
+            background: var(--background-color);
             container-type: inline-size;
             scroll-padding: 1em 0.75em;
         }
 
         .year-grid {
             display: grid;
-            --_columns: var(--year-grid-columns-mobile, 1);
             grid-template-columns: repeat(
-                var(--year-grid-columns, min(var(--_columns), var(--_shape-columns, var(--_columns)))),
+                var(--year-grid-columns, var(--_columns, 1)),
                 minmax(min-content, 1fr)
             );
             /* Let one viewport pan all months when their tracks cannot fit. */
@@ -96,56 +148,8 @@ export default class Year extends LitElement {
             min-inline-size: 100%;
             min-block-size: 100%;
             grid-auto-rows: minmax(min-content, 1fr);
-            gap: 1em;
-            padding: 0.75em;
-        }
-
-        /* Balanced divisors of twelve, never 5+5+2 or 7+5. Font-relative
-           container thresholds reserve eight targets per mini-month. */
-        @container (min-width: 28em) {
-            .year-grid {
-                --_columns: var(--year-grid-columns-tablet, 2);
-            }
-        }
-        @container (min-width: 42em) {
-            .year-grid {
-                --_columns: 3;
-            }
-        }
-        @container (min-width: 56em) {
-            .year-grid {
-                --_columns: 4;
-            }
-        }
-        @container (min-width: 84em) {
-            .year-grid {
-                --_columns: 6;
-            }
-        }
-
-        /* Width sets the safe maximum. Taller viewports can use more rows of
-           months instead of stretching two rows of dates into tall strips. */
-        @container year-viewport (min-block-size: 40em) and (max-aspect-ratio: 5/2) {
-            .year-grid {
-                --_shape-columns: 4;
-            }
-        }
-        @container year-viewport (min-block-size: 54em) and (max-aspect-ratio: 5/4) {
-            .year-grid {
-                --_shape-columns: 3;
-            }
-        }
-        @container year-viewport (min-block-size: 80em) and (max-aspect-ratio: 2/3) {
-            .year-grid {
-                --_shape-columns: 2;
-            }
-        }
-
-        /* A shallow, wide count overview needs two rows of months, not three. */
-        @container year-viewport (block-size < 47em) and (min-aspect-ratio: 2/1) {
-            .year-grid[data-density-mode='count'] {
-                --_shape-columns: 6;
-            }
+            gap: 0.25em 1em;
+            padding: 0.375em 0.75em;
         }
 
         .mini-month {
@@ -192,7 +196,7 @@ export default class Year extends LitElement {
         .weekday-header span {
             font-size: 0.925em;
             color: var(--header-text-color, CanvasText);
-            padding: 0.2em 0;
+            padding-block: 0.1em;
             font-weight: var(--year-weekday-font-weight);
             overflow-wrap: anywhere;
         }
@@ -383,34 +387,11 @@ export default class Year extends LitElement {
             :host {
                 --_target-min: max(44px, 1.85em);
             }
-            .year-grid {
-                --_columns: var(--year-grid-columns-mobile, 1);
-            }
             /* A single-column touch overview has no neighboring weeks to align. */
             @container (inline-size < 48em) {
                 .day-grid {
                     grid-template-rows: auto;
                     grid-auto-rows: minmax(auto, 1fr);
-                }
-            }
-            @container (min-width: 48em) {
-                .year-grid {
-                    --_columns: var(--year-grid-columns-tablet, 2);
-                }
-            }
-            @container (min-width: 72em) {
-                .year-grid {
-                    --_columns: 3;
-                }
-            }
-            @container (min-width: 96em) {
-                .year-grid {
-                    --_columns: 4;
-                }
-            }
-            @container (min-width: 144em) {
-                .year-grid {
-                    --_columns: 6;
                 }
             }
         }
@@ -525,7 +506,9 @@ export default class Year extends LitElement {
                                               day,
                                               currentMonth && day === todayDay,
                                               selected,
-                                              this.entrySumByDay[`${year}-${month}-${day}`] ?? 0,
+                                              this.entrySumByDay[
+                                                  dateSlotKey({ year, month, day })
+                                              ] ?? 0,
                                               daysInMonth,
                                               format.eventCount,
                                           )
@@ -567,7 +550,7 @@ export default class Year extends LitElement {
                 type="button"
                 class=${classes.join(' ')}
                 data-density=${densityAttr || nothing}
-                data-date="${year}-${month}-${day}"
+                data-date=${dateSlotKey({ year, month, day })}
                 tabindex=${!this._weekFocus?.startsWith(`${year}-${month}-`) && day === (this._focusedDate?.month === month && this._focusedDate.year === year ? this._focusedDate.day : Math.min(this.activeDate.day, daysInMonth)) ? 0 : -1}
                 aria-current=${isCurrent ? 'date' : 'false'}
                 @focus=${() => {
@@ -599,7 +582,7 @@ export default class Year extends LitElement {
         this._weekFocus = undefined;
         await this.updateComplete;
         const button = this.renderRoot.querySelector<HTMLButtonElement>(
-            `[data-date="${dateKey(date)}"]`,
+            `[data-date="${dateSlotKey(date)}"]`,
         );
         button?.focus();
         button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });

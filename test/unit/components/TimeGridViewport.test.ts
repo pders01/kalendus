@@ -71,16 +71,61 @@ describe('Day and Week viewport sizing', () => {
                 scroll.scrollTop = Math.round(inset + 530 * values.minute);
                 calendar.style.height = '1400px';
                 await settle();
-                const resized = snapshot(calendar, view);
-                expect(resized.values.minute).to.be.greaterThan(values.minute);
-                expect((scroll.scrollTop - inset) / resized.values.minute).to.be.closeTo(530, 2);
+                expect(scroll.scrollTop, 'full day no longer needs vertical scrolling').to.equal(0);
+                const resized = snapshot(calendar, view).values;
+                expect(resized.timedContent).to.be.closeTo(resized.timedViewport, 1);
             });
         }
+
+        it(`${view} adapts from 24-hour fit to native scrolling as the available text-relative height changes`, async () => {
+            const wrapper = await fixture<HTMLDivElement>(html`
+                <div style="display:grid;width:930px;height:720px">
+                    <lms-calendar .activeDate=${date} view-mode=${view} style="height:100%;font:16px Arial"
+                        .entries=${entries.slice(0, 1)}></lms-calendar>
+                </div>
+            `);
+            const calendar = wrapper.querySelector<Calendar>('lms-calendar')!;
+            await settle();
+            const { scroll } = snapshot(calendar, view);
+            const labels = [...scroll.querySelectorAll<HTMLElement>('.hour-label')];
+            const check = (step: 1 | 2) => {
+                expect(scroll.scrollHeight).to.be.closeTo(scroll.clientHeight, 1);
+                expect(labels.filter((label) => label.getClientRects().length)).to.deep.equal(
+                    labels.filter((_, hour) => hour % step === 0),
+                );
+                const rect = scroll.getBoundingClientRect();
+                expect(labels[0].getBoundingClientRect().top).to.be.at.least(rect.top - 0.5);
+                expect(labels[24].getBoundingClientRect().bottom).to.be.at.most(rect.bottom + 0.5);
+                const scale = snapshot(calendar, view).values.minute;
+                expect(
+                    labels[24].getBoundingClientRect().top - labels[0].getBoundingClientRect().top,
+                ).to.be.closeTo(1440 * scale, 0.5);
+            };
+            check(2);
+
+            wrapper.style.height = '1050px';
+            await settle();
+            check(1);
+
+            calendar.setAttribute('scroll-time-grid', '');
+            await settle();
+            expect(scroll.scrollHeight).to.be.greaterThan(scroll.clientHeight * 1.5);
+            calendar.removeAttribute('scroll-time-grid');
+            await settle();
+            check(1);
+
+            wrapper.style.height = '720px';
+            calendar.style.fontSize = '28px';
+            await settle();
+            expect(scroll.scrollHeight).to.be.greaterThan(scroll.clientHeight * 1.5);
+            scroll.scrollTop = 200;
+            expect(scroll.scrollTop).to.be.closeTo(200, 1);
+        });
 
         for (const dir of ['ltr', 'rtl'] as const) {
             it(`${view} keeps date, all-day and timed columns aligned as the all-day band scrolls (${dir})`, async () => {
                 const calendar = await fixture<Calendar>(html`
-                    <lms-calendar .initialDate=${date} view-mode=${view} dir=${dir}
+                    <lms-calendar scroll-time-grid .initialDate=${date} view-mode=${view} dir=${dir}
                         .entries=${entries.slice(0, 1)}
                         style=${`width:900px; height:${dir === 'rtl' ? 390 : 760}px; font-size:${dir === 'rtl' ? 24 : 16}px`}
                     ></lms-calendar>
@@ -174,7 +219,7 @@ describe('Day and Week viewport sizing', () => {
         for (const dense of [false, true]) {
             it(`${view} honors a supplied height and preserves its visible minute on resize (${dense ? 'dense' : 'sparse'})`, async () => {
                 const calendar =
-                    await fixture<Calendar>(html`<lms-calendar locale="en" style="width:530px;--height:900px"
+                    await fixture<Calendar>(html`<lms-calendar scroll-time-grid locale="en" style="width:530px;--height:900px"
                     .activeDate=${date} view-mode=${view} .entries=${dense ? entries : entries.slice(0, 1)}></lms-calendar>`);
                 await settle();
                 const before = snapshot(calendar, view);

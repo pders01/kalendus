@@ -193,7 +193,7 @@ describe('Narrow Week header in the library calendar', () => {
             const date = { year: 2026, month: 12, day: 31 };
             const calendar = await fixture<Calendar>(html`
                 <lms-calendar locale=${locale} .firstDayOfWeek=${firstDay} .activeDate=${date}
-                    view-mode="week" style="width:390px;height:720px;font:16px Arial"></lms-calendar>
+                    view-mode="week" scroll-time-grid style="width:390px;height:720px;font:16px Arial"></lms-calendar>
             `);
             await settle(calendar);
             const [earlier, later] = pager(calendar);

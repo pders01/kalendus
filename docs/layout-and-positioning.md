@@ -14,9 +14,17 @@ Essential information for getting `<lms-calendar>` to display correctly in your 
 
 ## Height and Scrolling
 
-Month stays in normal flow, but its six week rows share extra height when a sized Grid or flex parent stretches the calendar. If the grid or contextual list needs more room, Month grows instead of clipping the content or adding an internal vertical scroller. Use a stretched child in a sized parent for a shared layout across views; a fixed `height` or `block-size` on the calendar itself is not a Month viewport. Leave overflow visible or scrollable on the parent.
+A supplied height sizes the **whole calendar**, including its toolbar, in all four views. Give the parent a definite height, stretch the calendar in a sized Grid or flex layout, or set its height directly. The toolbar stays in the same place when the view changes; remaining space belongs to the view.
 
-Day, Week, and Year fill the supplied height, including when a CSS Grid or flex parent sizes the calendar. The toolbar takes its own space; the view fills the rest. Without a supplied height, the area below the toolbar defaults to the smaller of `36rem` and `65dvb`. Day and Week scroll their timelines. In shallow embeds, the area around the timeline can also scroll to reveal a usable time window without hiding the date or all-day controls. Year scrolls when the twelve months do not fit at readable target sizes. The shared defaults are `--height: 100%` and `--width: 100%`.
+Each view uses the same rule: use spare height when available, reduce optional spacing or detail before shrinking content past its readable minimum, then scroll when it still cannot fit.
+
+| View | With enough height | When space is limited |
+| --- | --- | --- |
+| Day / Week | Fit all 24 hours, with hourly labels or alternating labels. | Scroll the timeline at a readable scale. The all-day band can scroll independently. |
+| Month | Let six preview rows share spare height. | Show fewer previews with exact overflow counts. Scroll the view if the date grid or selected-date list still needs more room. |
+| Year | Use the preferred arrangement of twelve mini-months once its rows fit. | Try fewer rows if the width permits, then scroll without reducing date targets or hiding counts. |
+
+The cutoffs depend on available space and font size, not the window height. In extremely short embeds, the outer calendar can also scroll to keep the view reachable. Without a supplied height, Month follows its content in page flow; the other views use a bounded area of up to the smaller of `36rem` and `65dvb` below the toolbar.
 
 ```html
 <!-- ✅ Works: parent provides height -->
@@ -29,18 +37,18 @@ Day, Week, and Year fill the supplied height, including when a CSS Grid or flex 
     <lms-calendar></lms-calendar>
 </div>
 
-<!-- All four views use a sized grid; the frame scrolls if Month needs more room. -->
-<div style="display: grid; block-size: 100dvh; overflow: auto;">
+<!-- All four views share one height in a sized grid. -->
+<div style="display: grid; block-size: 100dvh;">
     <lms-calendar></lms-calendar>
 </div>
 
-<!-- Month grows naturally; Day/Week fall back to a bounded scroller -->
+<!-- Unsized Month grows naturally; Day, Week and Year use a bounded fallback. -->
 <div>
     <lms-calendar></lms-calendar>
 </div>
 ```
 
-For the bounded Day, Week, and Year views, you can also override the height token directly:
+You can also override the default `--height: 100%` for all four views:
 
 ```css
 lms-calendar {
@@ -48,7 +56,7 @@ lms-calendar {
 }
 ```
 
-Outside Month, the component sets `min-height: 0` so bounded views can shrink in Grid and flex layouts.
+Omit a fixed height (including on the parent) when you want Month to expand with its content.
 
 ---
 
@@ -144,33 +152,25 @@ Explicit timed entries instead describe one continuous interval with an exclusiv
 
 ## Entry Overlap Handling
 
-Overlapping timed events in day/week views are handled automatically by `LayoutCalculator`:
+Day and Week use `LayoutCalculator` to assign reusable side-by-side lanes. Collision checks include the card’s readable minimum height, so even appointments that do not overlap in time can need separate lanes when the timeline fits all 24 hours. A count means those cards cannot all fit at the current scale and column width; it does not mean all listed events happen at once.
 
-- Events sharing time slots are detected and grouped
-- The calendar uses reusable side-by-side lanes with opaque surfaces
-- Groups too narrow for readable cards become native event-count/range disclosures
-- A disclosure opens exactly its advertised real occurrences, not unrelated events that day
-- Closing that list restores the view, semantic time position and disclosure focus
+If the lanes are too narrow, a count opens exactly the advertised occurrences, not unrelated events from that date. The list stays within the current calendar view and doesn’t change the active date or visible range. Closing it restores the visible time and focus to the invoking count when it is still available. Use `scroll-time-grid` to favor timed detail over full-day fit.
 
 The standalone `LayoutCalculator` keeps its legacy cascade default; the calendar opts into columns. No synthetic exportable density events are introduced. Visible minimum-height previews may be taller than an event's true duration; their localized start/end range remains authoritative.
 
 ---
 
-## Free Timeline Scrolling
-
-Day and Week scroll freely, without hour or half-day snapping. Legacy snap tokens no longer enable snapping. Compatible Day/Week switches preserve the visible semantic minute, independently of each view's pixel scale and leading axis padding. There is no public automatic initial scroll-to-noon guarantee.
-
-The 24-hour grid ends at midnight, but readable minimum-height cards may extend
-into blank trailing scroll space. That space keeps late-night labels/targets
-reachable; it is **not** an additional date or proportional duration. The grid's
-coordinate height and canonical endpoints do not move. True-duration marker labels
-can instead move upward with a leader to their unchanged time mark.
-
----
-
 ## Time Grid Sizing
 
-The base `--minute-height` is `0.8px`, but day/week sizing writes an effective inline scale from the observed timed scroller below the header and all-day band: the larger of available height divided by 720 minutes and `2.75 × host font size / 60`. It also writes resolved `--hour-height`, `--day-total-height` and `--half-day-height` lengths. This aims to fit half a day when readable; short embeds and enlarged text show fewer hours and scroll rather than crushing event labels. Narrow columns stack title and time using measured two-line geometry.
+Day and Week adapt to the height left below the toolbar, date headers and all-day band, not to the window height or the number of visible Week columns:
+
+- **Tall:** the full 24-hour timeline fits, with every hour labeled.
+- **Medium:** the full timeline still fits. Every second hour is labeled, including both midnight boundaries. Hourly grid lines and event times do not change.
+- **Short:** the timeline scrolls at a more detailed scale rather than compressing events further. Larger text or more all-day rows can cause the same embed to switch to this layout.
+
+Set `scroll-time-grid` (or `calendar.scrollTimeGrid = true`) to always use the scrollable detail layout, even in a tall container. Scrolling is native, without snapping. Compatible scrollable Day/Week views preserve the visible minute when resizing or changing views. When the full day fits, no vertical scroll offset is needed.
+
+Late-night minimum-height cards have a reserved space after the midnight line so their labels and targets remain reachable. That space represents **no additional time** and does not change the grid origin, the event's start position or its canonical times. The all-day band can still scroll independently.
 
 Do not assume a host-level `--minute-height` override is a fixed zoom API: the child sizing controller recomputes its values on resize. Adjust the calendar/container height for more space. Collision layout reads effective scale and minimum entry geometry so short/point events remain separated consistently with their rendered size. See [Rendering Pipeline](./rendering-pipeline.md#6-time-grid-sizing).
 

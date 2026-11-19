@@ -60,11 +60,12 @@ function separated(a: Element, b: Element) {
 describe('Experimental presentation variants', () => {
     for (const width of [358, 1000]) {
         for (const mode of ['presence', 'previews'] as MonthPresentation[]) {
-            it(`keeps ${mode} Month inline, in normal flow and complete at ${width}px`, async () => {
+            it(`keeps ${mode} Month inline and complete at ${width}px`, async () => {
                 const supplied = Array.from({ length: 10 }, (_, i) =>
                     timed(`event-${i}`, 540 + i * 30, 545 + i * 30),
                 );
                 const calendar = await make(supplied, 'month', width);
+                calendar.style.removeProperty('height');
                 calendar.monthPresentation = mode;
                 // Explicit comparison modes override legacy drill-down; auto does not.
                 calendar.monthDayBehavior = 'day';
@@ -77,10 +78,9 @@ describe('Experimental presentation variants', () => {
                 expect(
                     getComputedStyle(month.shadowRoot!.querySelector('.month')!).overflowY,
                 ).to.equal('visible');
-                expect(
-                    getComputedStyle(calendar.shadowRoot!.querySelector('.calendar-container')!)
-                        .overflowY,
-                ).to.equal('visible');
+                const frame =
+                    calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
+                expect(frame.scrollHeight).to.be.at.most(frame.clientHeight + 1);
                 if (mode === 'previews') {
                     const visible = [...month.querySelectorAll<HTMLElement>('[slot="2026-11-17"]')];
                     const hidden = supplied.length - visible.length;

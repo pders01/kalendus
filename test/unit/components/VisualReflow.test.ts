@@ -328,7 +328,7 @@ describe('Real-root Year overview and text-size reflow', () => {
             time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
         }));
         const calendar = await fixture<Calendar>(html`<lms-calendar .activeDate=${date}
-            .entries=${sources} style="width:358px;height:660px"></lms-calendar>`);
+            .entries=${sources} style="width:358px"></lms-calendar>`);
         await settle(calendar);
         const month = calendar.shadowRoot!.querySelector<Month>('lms-calendar-month')!;
         expect(month.compact).to.equal(true);
@@ -346,7 +346,7 @@ describe('Real-root Year overview and text-size reflow', () => {
         const grid = month.shadowRoot!.querySelector<HTMLElement>('.month')!;
         const region = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
         expect(getComputedStyle(grid).overflowY).to.equal('visible');
-        expect(getComputedStyle(region).overflowY).to.equal('visible');
+        expect(region.scrollHeight).to.be.at.most(region.clientHeight + 1);
         expect(grid.scrollHeight).to.be.at.most(grid.clientHeight + 1);
         expect(calendar.getBoundingClientRect().height).to.be.greaterThan(660);
         expect(document.scrollingElement!.scrollHeight).to.be.greaterThan(window.innerHeight);
@@ -366,7 +366,7 @@ describe('Real-root Year overview and text-size reflow', () => {
             entry('Font scales too', 21),
         ];
         const calendar = await fixture<Calendar>(
-            html`<lms-calendar .activeDate=${date} .entries=${entries} .monthDayBehavior=${'day'} style="width:358px;height:660px"></lms-calendar>`,
+            html`<lms-calendar .activeDate=${date} .entries=${entries} .monthDayBehavior=${'day'} style="width:358px"></lms-calendar>`,
         );
         await settle(calendar);
         const toolbar = calendar.shadowRoot!.querySelector('lms-calendar-header')!.shadowRoot!;
@@ -387,7 +387,7 @@ describe('Real-root Year overview and text-size reflow', () => {
         expect(getComputedStyle(grid).overflowY).to.equal('visible');
         expect(grid.scrollHeight).to.be.at.most(grid.clientHeight + 1);
         const region = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
-        expect(getComputedStyle(region).overflowY).to.equal('visible');
+        expect(region.scrollHeight).to.be.at.most(region.clientHeight + 1);
         const indicator = month.shadowRoot!.querySelector<HTMLButtonElement>(
             'button.indicator[data-date="2026-6-15"]',
         )!;
@@ -408,7 +408,7 @@ describe('Real-root Year overview and text-size reflow', () => {
         const focused = month.shadowRoot!.activeElement!.getBoundingClientRect();
         expect(focused.left).to.be.at.least(strip.getBoundingClientRect().left - 1);
         expect(focused.right).to.be.at.most(strip.getBoundingClientRect().right + 1);
-        // Month owns deliberate horizontal panning, never a vertical viewport.
+        // Without a supplied height, Month pans internally but the page scrolls vertically.
         expect(document.scrollingElement!.scrollWidth).to.be.at.most(
             document.scrollingElement!.clientWidth + 1,
         );

@@ -31,8 +31,8 @@ The root normalizes when `entries` changes and computes range-dependent caches i
 Called in `willUpdate()` when entries or the committed visible range/view/week-start key changes. It:
 
 - Expands normalized entries via `expandEntries()` in `src/lib/calendarModel.ts`, clipped to `visibleRange`. Invalid records report `entries-invalid`; a visible segment-budget failure clears caches and reports `entries-error` rather than truncating.
-- Groups results into `_expandedByISODate` (`Map<string, ExpandedCalendarEntry[]>`) keyed by `YYYY-MM-DD` for O(1) per-day lookups.
-- Calls `buildMonthPreviews()` in `src/lib/monthPreviews.ts` to prepare rows by date, preserving gaps in multi-day span lanes. Month measures cell capacity before the owner creates preview elements. `_entrySumByDay` retains full per-date counts, including entries not mounted in the grid.
+- Groups results into `_expandedByISODate`, keyed by sortable `YYYY-MM-DD` for direct per-day lookups. Month and Year derive their full event counts from these same buckets.
+- Calls `buildMonthPreviews()` in `src/lib/monthPreviews.ts` to prepare rows by date, preserving gaps in multi-day span lanes. Month measures cell capacity before the owner creates preview elements. Positioning and rendering share the unpadded date and slot names in `src/lib/entrySlots.ts`; those names are not sortable ISO dates.
 - Clears `_layoutCache` and `_allDayLayoutCache` so stale layouts are recomputed.
 
 `prepareAgendaEntries()` in `src/lib/agendaEntries.ts` selects the page for a date or density disclosure. The helper retains the original segments, orders all-day before timed, and applies the appropriate shared or per-section limit. The root still owns the selected date, disclosure state, focus, and public events.
@@ -74,7 +74,7 @@ All-day date ends remain inclusive; explicit timed endpoints have an exclusive e
 
 Entries are sorted deterministically by start, descending duration, identity and input index. A sweep groups connected overlap components; heaps reuse lanes as intervals end. Equal endpoints do not collide unless minimum display geometry extends them.
 
-`layoutTimedEntries()` prepares one day of segments for `layoutMode: 'columns'`. Equal reusable lanes expose `columnIndex` and the connected group's peak `columnCount`. In marker mode, the helper can move the label collision envelope earlier near midnight, leaving the segment times and canonical endpoints untouched. `getDenseTimedGroups()` selects connected groups with multiple lanes whose measured per-lane width is strictly below the readability threshold. The host renders those groups as disclosures opening precisely the selected segments. Metadata stays next to titles; start/end ranges make minimum-height short events distinguishable from long events.
+`layoutTimedEntries()` prepares one day of segments for `layoutMode: 'columns'`. Equal reusable lanes expose `columnIndex` and the connected group's peak `columnCount`. In marker mode, the helper can move the label collision envelope earlier near midnight, leaving the segment times and canonical endpoints untouched. `getDenseTimedGroups()` selects connected groups with multiple lanes whose measured per-lane width is strictly below the readability threshold. The host renders those groups as disclosures opening precisely the selected segments. Timed groups and Week all-day totals use one scoped list renderer without writing to the view-state controller. Those lists and the Month agenda share one event-row template. Plain rows invoke the inspector; accordion rows disclose details inline. Metadata stays next to titles; start/end ranges make minimum-height short events distinguishable from long events.
 
 For compatibility, standalone `LayoutCalculator` still defaults to cascade. Only that mode uses these rules:
 
@@ -168,10 +168,12 @@ On connection and observed resize:
 
 ```
 viewportHeight = timedScroller.clientHeight
-minuteHeight = max(viewportHeight / 720, hostFontSize * 2.75 / 60)
+available = viewportHeight - axisInsets - latePreviewTail
+fits = !scrollTimeGrid && available >= 24 * max(fontSize, 1.25 * leadingAxisInset)
+minuteHeight = fits ? available / 1440 : max(viewportHeight / 720, fontSize * 2.75 / 60)
 ```
 
-**Why 720?** 720 minutes = 12 hours. At ordinary sizes this targets a half-day viewport. A font-relative hour floor preserves readable event text in short embeds and at enlarged text sizes, trading visible hours for scrolling. Root layout measures a full text line plus padding/borders, the second time line and gaps, and available inline title space; narrow columns reserve enough display height to stack both without changing canonical endpoints.
+Space is measured after the toolbar, date headers and all-day band. A fitted grid labels alternate hours if an hour is shorter than 1.5 axis label line boxes. It still draws all hour lines. The scrollable layout aims for a 12-hour window and uses a font-relative floor. Both layouts measure timed entry text and spacing to reserve a readable minimum card size without changing canonical endpoints.
 
 ### Derived tokens
 
@@ -197,7 +199,7 @@ and must not be interpreted as additional time or a change to canonical endpoint
 
 Day and Week scroll freely with no snap targets. Leading/trailing padding protects the first/last axis labels without moving event coordinates. Time restoration stores a semantic minute relative to that padding and restores it at the new view's scale. Do not rely on an automatic initial scroll-to-noon API.
 
-Month is normal flow, not a vertical scroll viewport. Its compact contextual list uses explicit continuation instead of nested vertical scrolling.
+The Month grid and its compact contextual list stay in one flow. In a sized embed, the view area scrolls as needed, not the grid and list separately. Unsized Month grows in page flow. The contextual list still uses explicit continuation.
 
 ---
 

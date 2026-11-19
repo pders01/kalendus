@@ -23,12 +23,12 @@ describe('Time-grid lifecycle and actual row geometry', () => {
             );
             const element = document.createElement(`lms-calendar-${view}`) as Day | Week;
             element.style.cssText =
-                '--view-container-height:100%;--day-header-height:40px;--calendar-grid-columns-week:60px repeat(7,minmax(0,1fr));--calendar-grid-columns-day:60px 1fr';
+                'font-size:16px;--view-container-height:100%;--day-header-height:40px;--calendar-grid-columns-week:60px repeat(7,minmax(0,1fr));--calendar-grid-columns-day:60px 1fr';
             container.append(element);
             await element.updateComplete;
             await settle();
             expect(parseFloat(element.style.getPropertyValue('--minute-height'))).to.be.closeTo(
-                560 / 720,
+                (560 - 16.25 - 48) / 1440,
                 0.01,
             );
             element.remove();
@@ -36,10 +36,10 @@ describe('Time-grid lifecycle and actual row geometry', () => {
             container.append(element);
             await settle();
             expect(parseFloat(element.style.getPropertyValue('--minute-height'))).to.be.closeTo(
-                760 / 720,
+                (760 - 16.25 - 48) / 1440,
                 0.01,
             );
-            container.style.height = '500px';
+            container.style.height = '400px';
             await settle();
             expect(parseFloat(element.style.getPropertyValue('--minute-height'))).to.be.closeTo(
                 44 / 60,

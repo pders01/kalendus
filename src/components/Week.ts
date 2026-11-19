@@ -2,17 +2,18 @@ import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
-import {
-    formatLocalizedDate,
-    formatLocalizedTime,
-    getLocalizedWeekdayShort,
-} from '../lib/localization.js';
+import { allDaySlotName, dateSlotKey, timedSlotName } from '../lib/entrySlots.js';
+import { formatLocalizedDate, getLocalizedWeekdayShort } from '../lib/localization.js';
 import { getMessages, normalizeLocale } from '../lib/messages.js';
 import { type FirstDayOfWeek, getWeekDates, getWeekdayOrder } from '../lib/weekStartHelper.js';
 import './Day.js';
 import { CurrentDateController } from './CurrentDateController.js';
-import { dateKey } from './dateNavigation.js';
-import { TimeGridSizingController, assignLegacyAllDayRows } from './TimeGridSizingController.js';
+import {
+    TimeGridSizingController,
+    assignLegacyAllDayRows,
+    renderTimeLabels,
+    timeGridStyles,
+} from './TimeGridSizingController.js';
 
 @customElement('lms-calendar-week')
 export default class Week extends LitElement {
@@ -26,6 +27,9 @@ export default class Week extends LitElement {
 
     @property({ type: Number })
     allDayRowCount = 0;
+
+    @property({ type: Boolean, attribute: 'scroll-time-grid' })
+    scrollTimeGrid = false;
 
     @property({ attribute: false })
     allDaySummary = false;
@@ -51,7 +55,7 @@ export default class Week extends LitElement {
     @property({ type: Number })
     visibleLength = 7;
 
-    static override styles = css`
+    private static layoutStyles = css`
         :host {
             display: block;
             height: 100%;
@@ -148,64 +152,16 @@ export default class Week extends LitElement {
 
         .week-scroll {
             flex: 1;
-            overflow-y: auto;
-            /* Retired snap tokens deliberately cannot re-enable snapping. */
-            scroll-snap-type: none;
-            overflow-anchor: none;
-            display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
-            grid-template-rows: 1fr;
-            gap: var(--day-gap, 1px);
-            /* Half the explicit axis line box on each end. Grid minute zero is
-               at padding-block-start; events and labels share that origin. */
-            padding-block: calc(var(--hour-indicator-font-size, 0.8125em) * 0.625);
-            padding-block-end: calc(
-                var(--hour-indicator-font-size, 0.8125em) * 0.625 +
-                    var(--_time-grid-tail, max(24px, var(--entry-min-height, 3em)))
-            );
-            padding-inline: var(--day-padding, 0.5em);
-            box-sizing: border-box;
             min-block-size: var(--_timeline-min-height, 0px);
-            position: relative;
-            contain: content;
         }
 
         .time-labels {
-            grid-column: 1;
-            position: relative;
-            height: var(--day-total-height);
-            border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
             background: var(--background-color, white);
         }
 
-        .hour-label {
-            position: absolute;
-            left: 0;
-            right: 0;
-            text-align: var(--hour-text-align, center);
-            font-size: var(--hour-indicator-font-size, 0.8125em);
-            font-variant-numeric: tabular-nums;
-            line-height: 1.25;
-            color: var(--hour-indicator-color);
-            pointer-events: none;
-        }
-
-        .hour-label .indicator {
-            display: block;
-            block-size: 1.25em;
-            white-space: nowrap;
-            transform: translateY(-50%);
-        }
-
         .day-column {
-            position: relative;
-            height: var(--day-total-height);
             border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
-            /* Readable late cards may extend beyond the midnight grid boundary.
-               The scroller owns a blank tail; this is not additional civil time. */
-            overflow: visible;
-            background-image: linear-gradient(to bottom, var(--separator-light) 1px, transparent 1px);
-            background-size: 100% var(--hour-height);
         }
 
         .day-column:last-child {
@@ -424,6 +380,8 @@ export default class Week extends LitElement {
         }
     `;
 
+    static override styles = [timeGridStyles, Week.layoutStyles];
+
     private _getWeekDates(): CalendarDate[] {
         return getWeekDates(this.activeDate, this.firstDayOfWeek);
     }
@@ -468,7 +426,7 @@ export default class Week extends LitElement {
     public async focusDate(date: CalendarDate = this.activeDate) {
         await this.updateComplete;
         this.renderRoot
-            .querySelector<HTMLButtonElement>(`button[data-date="${dateKey(date)}"]`)
+            .querySelector<HTMLButtonElement>(`button[data-date="${dateSlotKey(date)}"]`)
             ?.focus();
     }
 
@@ -505,7 +463,7 @@ export default class Week extends LitElement {
                     ${datesToRender.map((date, index) => {
                         return html`
                             <button type="button"
-                                data-date=${dateKey(date)}
+                                data-date=${dateSlotKey(date)}
                                 class="day-label ${classMap({
                                     current: this._isCurrentDate(date),
                                 })}"
@@ -556,7 +514,7 @@ export default class Week extends LitElement {
                             (date) => html`
                                 <div class="all-day-day-column">
                                     <slot
-                                        name="all-day-${date.year}-${date.month}-${date.day}"
+                                        name=${allDaySlotName(date)}
                                         @slotchange=${this.allDaySummary ? nothing : assignLegacyAllDayRows}
                                     ></slot>
                                 </div>
@@ -567,26 +525,13 @@ export default class Week extends LitElement {
                 `
                         : nothing
                 }
-                <div class="week-scroll" tabindex="0" role="region" aria-label=${windowDates}>
-                    <div class="time-labels">
-                        ${Array.from({ length: 25 }).map(
-                            (_, hour) => html`
-                                <div
-                                    class="hour-label"
-                                    style="top: calc(${hour} * var(--hour-height))"
-                                >
-                                    <span class="indicator">
-                                        ${this._renderIndicatorValue(hour)}
-                                    </span>
-                                </div>
-                            `,
-                        )}
-                    </div>
+                <div class="week-scroll timeline" tabindex="0" role="region" aria-label=${windowDates}>
+                    ${renderTimeLabels(this.locale)}
                     ${datesToRender.map(
                         (date) => html`
                             <div class="day-column">
                                 <slot
-                                    name="timed-${date.year}-${date.month}-${date.day}"
+                                    name=${timedSlotName(date)}
                                 ></slot>
                             </div>
                         `,
@@ -594,10 +539,6 @@ export default class Week extends LitElement {
                 </div>
             </div>
         `;
-    }
-
-    private _renderIndicatorValue(hour: number) {
-        return formatLocalizedTime(hour, 0, this.locale);
     }
 
     private _handleDayLabelClick(date: CalendarDate) {

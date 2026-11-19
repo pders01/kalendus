@@ -11,6 +11,7 @@
  */
 
 import { isValidCalendarDate, isValidCalendarTime } from './calendarModel.js';
+import { allDaySlotName, dateSlotKey, timedSlotName } from './entrySlots.js';
 import { getDisplayDurationMinutes } from './LayoutCalculator.js';
 import { formatLocalizedDate, formatLocalizedTime } from './localization.js';
 import { getMessages } from './messages.js';
@@ -178,7 +179,7 @@ export class SlotManager {
 
         if (isAllDay) {
             return {
-                slotName: `all-day-${date.year}-${date.month}-${date.day}`,
+                slotName: allDaySlotName(date),
                 gridColumn,
                 gridRow: '1 / 60', // All-day area spans first hour
                 useDirectGrid: false, // Use slot-based positioning for all-day events
@@ -192,7 +193,7 @@ export class SlotManager {
         }
 
         return {
-            slotName: `timed-${date.year}-${date.month}-${date.day}`,
+            slotName: timedSlotName(date),
             useDirectGrid: false,
             useAbsolutePosition: true,
             dayIndex: dayColumnIndex,
@@ -204,7 +205,7 @@ export class SlotManager {
      */
     private _calculateMonthPosition(date: CalendarDate): SlotPosition {
         return {
-            slotName: `${date.year}-${date.month}-${date.day}`,
+            slotName: dateSlotKey(date),
             useDirectGrid: false,
         };
     }
@@ -215,7 +216,7 @@ export class SlotManager {
     public calculateMonthAllDayPosition(date: CalendarDate): SlotPosition {
         if (!isValidCalendarDate(date)) throw new RangeError('Invalid entry date');
         return {
-            slotName: `all-day-${date.year}-${date.month}-${date.day}`,
+            slotName: allDaySlotName(date),
             useDirectGrid: false,
             isAllDay: true,
         };
@@ -248,12 +249,10 @@ export class SlotManager {
         if (!this._weekIndexCache || this._weekIndexCache.key !== cacheKey) {
             const weekDates = getWeekDates(activeDate, firstDayOfWeek);
             const map = new Map<string, number>();
-            weekDates.forEach((d, i) => map.set(`${d.year}-${d.month}-${d.day}`, i));
+            weekDates.forEach((d, i) => map.set(dateSlotKey(d), i));
             this._weekIndexCache = { key: cacheKey, map };
         }
-        const idx = this._weekIndexCache.map.get(
-            `${entryDate.year}-${entryDate.month}-${entryDate.day}`,
-        );
+        const idx = this._weekIndexCache.map.get(dateSlotKey(entryDate));
         // Never silently place an offscreen entry in the first column.
         return idx ?? -1;
     }

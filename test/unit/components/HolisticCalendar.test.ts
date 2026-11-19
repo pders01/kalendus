@@ -247,13 +247,24 @@ describe('Holistic calendar information architecture', () => {
             ).to.be.at.least(24);
     });
 
-    it('discloses narrow Week density as real rows and restores place without fake activation', async () => {
-        const entries = Array.from({ length: 8 }, (_, index) => timed(`dense-${index}`));
-        const element = await calendar(entries, 358, 'week');
+    it('discloses the exact timed group without changing Week state, then restores place', async () => {
+        const groupEntries = Array.from({ length: 8 }, (_, index) =>
+            timed(`dense-${index}`, tomorrow),
+        );
+        const outsideGroup = timed('elsewhere', tomorrow, {
+            time: { start: { hour: 17, minute: 0 }, end: { hour: 18, minute: 0 } },
+        });
+        const element = await calendar(
+            [...groupEntries, outsideGroup, timed('other-date')],
+            358,
+            'week',
+        );
         await waitUntil(() => !!element.shadowRoot!.querySelector('.time-group'));
-        let activations = 0;
+        const states: CalendarState[] = [];
+        const activated: CalendarEntry[] = [];
+        element.addEventListener('calendar-state-change', ({ detail }) => states.push(detail));
         element.addEventListener('entry-activate', (event) => {
-            activations++;
+            activated.push(event.detail.entry);
             event.preventDefault();
         });
         const view = element.shadowRoot!.querySelector('lms-calendar-week')!;
@@ -268,18 +279,24 @@ describe('Holistic calendar information architecture', () => {
         group.focus();
         await sendKeys({ press: 'Enter' });
         await settle(element);
-        expect(element.viewMode).to.equal('day');
-        expect(activations).to.equal(0);
-        expect(rows(element)).to.have.length(8);
-        expect(element.shadowRoot!.activeElement).to.equal(
-            element.shadowRoot!.querySelector('#agenda-date'),
+        expect(element.viewMode).to.equal('week');
+        expect(element.activeDate).to.deep.equal(date);
+        expect(element.visibleRange).to.deep.equal(originalRange);
+        expect(activated).to.have.length(0);
+        expect(rows(element).map((row) => row.dataset.eventId)).to.deep.equal(
+            groupEntries.map(({ id }) => id),
         );
+        expect(element.shadowRoot!.activeElement?.id).to.equal('agenda-date');
+        expect(element.shadowRoot!.activeElement?.textContent).to.equal('Jun 16, 2026');
         rows(element)[0].click();
         await settle(element);
-        expect(activations).to.equal(1);
-        element
-            .shadowRoot!.querySelector<HTMLButtonElement>('.date-agenda .agenda-action')!
-            .click();
+        expect(activated[0]).to.equal(groupEntries[0]);
+        const close = element.shadowRoot!.querySelector<HTMLButtonElement>('.density-list-close')!;
+        expect(close.textContent).to.equal('Close');
+        expect(close.getBoundingClientRect().height).to.be.at.least(44);
+        expect(close.getBoundingClientRect().width).to.be.at.least(44);
+        close.focus();
+        await sendKeys({ press: 'Enter' });
         await settle(element);
         expect(element.viewMode).to.equal('week');
         expect(element.visibleRange).to.deep.equal(originalRange);
@@ -288,5 +305,17 @@ describe('Holistic calendar information architecture', () => {
             .shadowRoot!.querySelector<HTMLElement>('.week-scroll')!;
         expect(restored.scrollTop).to.be.closeTo(before, 1);
         expect((element.shadowRoot!.activeElement as HTMLElement).dataset.densityKey).to.equal(key);
+        expect(states).to.have.length(0);
+
+        // A real date/view change dismisses the list without restoring stale state.
+        element.shadowRoot!.querySelector<HTMLButtonElement>('.time-group')!.click();
+        await settle(element);
+        element.activeDate = { ...date, day: 22 };
+        element.viewMode = 'day';
+        await settle(element);
+        expect(element.shadowRoot!.querySelector('[data-density-list]')).to.equal(null);
+        expect(element.shadowRoot!.querySelector('lms-calendar-day')).not.to.equal(null);
+        expect(states).to.have.length(1);
+        expect(states[0].activeDate.day).to.equal(22);
     });
 });

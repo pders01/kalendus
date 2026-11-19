@@ -47,7 +47,7 @@ const entryList = (count: number): CalendarEntry[] =>
 
 // These assert actual layout and discoverability, not just template shape or axe output.
 describe('Month visual geometry and density', () => {
-    it('keeps weekday headers and whole overflow controls separate in normal-flow Month despite a short legacy height', async () => {
+    it('keeps headers and overflow controls whole in a short bounded Month', async () => {
         const calendar = await fixture<Calendar>(
             html`<lms-calendar .activeDate=${date} .entries=${entryList(6)} .monthDayBehavior=${'day'} style="width:900px;height:380px"></lms-calendar>`,
         );
@@ -67,12 +67,11 @@ describe('Month visual geometry and density', () => {
         const grid = month.shadowRoot!.querySelector('.month')!;
         expect(grid.scrollHeight).to.be.at.most(grid.clientHeight + 1);
         expect(getComputedStyle(grid).overflowY).to.equal('visible');
-        expect(calendar.getBoundingClientRect().height).to.be.greaterThan(380);
-        expect(
-            calendar.shadowRoot!.querySelector('.calendar-view')!.getBoundingClientRect().bottom,
-        ).to.be.at.least(grid.getBoundingClientRect().bottom);
+        expect(calendar.getBoundingClientRect().height).to.equal(380);
+        const viewport = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
+        expect(viewport.scrollHeight).to.be.greaterThan(viewport.clientHeight);
         const mounted = month.querySelectorAll('lms-calendar-entry').length;
-        expect(mounted).to.be.greaterThan(0).and.lessThan(6);
+        expect(mounted).to.be.lessThan(6);
         expect(summary(month).querySelector('slot')!.textContent).to.equal(`+${6 - mounted}`);
         expect(month.shadowRoot!.querySelectorAll('button.indicator')).to.have.length(42);
         summary(month).focus();
@@ -121,9 +120,17 @@ describe('Month visual geometry and density', () => {
             1,
         );
 
+        const viewport = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
+        frame.style.blockSize = '540px';
+        await settleCalendar(calendar);
+        expect(viewport.scrollHeight).to.equal(viewport.clientHeight);
+        expect(month.querySelectorAll('lms-calendar-entry')).to.have.length(0);
+
         frame.style.blockSize = '380px';
         await settleCalendar(calendar);
-        expect(calendar.getBoundingClientRect().height).to.be.greaterThan(380);
+        expect(calendar.getBoundingClientRect().height).to.equal(380);
+        expect(viewport.scrollHeight).to.be.greaterThan(viewport.clientHeight);
+        viewport.scrollTop = viewport.scrollHeight;
         expect(grid.getBoundingClientRect().bottom).to.be.closeTo(
             calendar.getBoundingClientRect().bottom - 1,
             1,
@@ -317,7 +324,7 @@ describe('Month visual geometry and density', () => {
             const grid = month.shadowRoot!.querySelector<HTMLElement>('.month')!;
             expect(getComputedStyle(grid).overflowY).to.equal('visible');
             expect(grid.scrollHeight).to.be.at.most(grid.clientHeight + 1);
-            expect(calendar.getBoundingClientRect().height).to.be.greaterThan(380);
+            expect(calendar.getBoundingClientRect().height).to.equal(380);
         });
 
         it(`keeps narrow ${locale} presence/date controls count-named and keyboard day-drill available by opt-in`, async () => {
