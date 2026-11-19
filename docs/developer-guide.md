@@ -85,7 +85,7 @@ lms-calendar {
 
 - Unit tests live under `test/unit/`. Use `bun run test` for the Mocha suite or `bun run test -- path/to/file.test.ts` for a targeted run.
 - Week/day layout logic has dedicated tests in `test/unit/lib/allDayLayout.test.ts`, `test/unit/lib/ViewStateController.test.ts`, `test/unit/LayoutCalculator.test.ts`, and `test/unit/week-row-allocation.test.ts`.
-- When modifying CSS token behavior or condensed-week logic, add/extend tests in `test/unit/lib/weekDisplayContext.test.ts` (create this file if missing) to ensure the context math stays stable.
+- When modifying CSS token behavior or condensed-week logic, extend `test/unit/lib/weekDisplayContext.test.ts` and the browser viewport tests. Pure layout math does not capture real scrollbars, text metrics, or clipping.
 
 ### Review calendar layouts
 
@@ -103,6 +103,25 @@ Week journey and a dense all-day drill-down in shallow Week. Set
 `REVIEW_CAPTURE=1` to save screenshots alongside the ignored Playwright results.
 Use `--output` with a new directory under `screenshots/` to retain a run.
 Screenshots are for review, not pixel baselines or device certification.
+
+## Release checklist
+
+1. Use the exact candidate revision in a fresh checkout. Verify the package version, documented peer ranges, and [release notes](./release-notes.md) against its public contracts. Keep screenshots and design experiments out of the package.
+2. Run the full automated gate from the workspace root:
+
+    ```bash
+    bun install --frozen-lockfile
+    bunx playwright install chromium firefox webkit
+    bun run test:release
+    bun pm pack --dry-run
+    ```
+
+    On Linux, Playwright may need system browser dependencies; CI uses `--with-deps`. The default release gate includes Chromium, Firefox, and WebKit. A narrower `TEST_BROWSERS` run is useful for diagnosis, not a substitute for the full matrix. Keep runner startup failures visible rather than marking that engine green.
+
+3. Review the production Storybook journeys and inspect the package contents. The release script builds ESM and IIFE, checks TypeScript and browser consumers of the packed ESM and installed server migrations, validates catalogs and built documentation links, runs the production dependency audit, and checks all three size budgets. The packed browser check matters: source-based component and Storybook tests do not exercise the minified npm entry point.
+4. On a real phone, select a Month date, read and export an Agenda event, then switch to Week to compare times. Check actual Safari and enlarged text/RTL, shallow Week, compact Year drill-down, and keyboard focus return. Keep screen-reader and Expo/Metro device verification separate from browser emulation.
+
+Preparation does not publish the package or deploy the server or documentation.
 
 ## Adding a New Locale
 

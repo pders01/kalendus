@@ -200,6 +200,7 @@ See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format
 
 | Audience               | Document                                                                             | Highlights                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Upgrading              | [Release Notes](docs/release-notes.md)                                               | 0.11.0 changes and migration checklist                                     |
 | Integrators            | [Integration Guide](docs/integration-guide.md)                                       | Framework recipes, theming tokens, analytics hooks                         |
 | Application Developers | [Library Usage](docs/library-usage.md)                                               | API surface, data contracts, DOM events                                    |
 | CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                                            | CSS custom properties by category                                          |
@@ -221,7 +222,10 @@ bun run test                 # Mocha unit tests
 bun run test:watch
 bun run test:components      # Web Test Runner + Playwright
 bun run test-storybook       # Storybook interactions (Vitest)
+bun run test:release         # Full release gates (all three browser engines by default)
 ```
+
+See the [release checklist](docs/developer-guide.md#release-checklist) for browser setup, package checks, and manual acceptance.
 
 ### Test Categories
 
