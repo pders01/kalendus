@@ -74,6 +74,7 @@ export class KalendusLitAdapter implements ReactiveController {
     private _entries: CalendarEntry[] = [];
     private _loading = false;
     private _error: Error | null = null;
+    private _syncError: Error | null = null;
     private _target: CalendarTarget | null = null;
     private _connected = false;
     private _unsubInvalidate?: () => void;
@@ -101,14 +102,14 @@ export class KalendusLitAdapter implements ReactiveController {
         return this._loading;
     }
     get error(): Error | null {
-        return this._error;
+        return this._error ?? this._syncError;
     }
     get client(): KalendusApiClient {
         return this._client;
     }
 
     private _onState = (event: Event): void => {
-        if (this._target && !event.composedPath().includes(this._target)) return;
+        if (this._target ? event.composedPath()[0] !== this._target : this.options.target) return;
         this.setState((event as CustomEvent).detail);
     };
 
@@ -123,11 +124,18 @@ export class KalendusLitAdapter implements ReactiveController {
         if (!this._target && this.options.initialState) this.setState(this.options.initialState);
         if (this.options.enableSync) {
             this._unsubInvalidate = this._client.onInvalidate(this._queueRefresh);
-            this._unsubReconcile = this._client.onReconcile(this._queueRefresh);
+            this._unsubReconcile = this._client.onReconcile(() => {
+                if (this._syncError) {
+                    this._syncError = null;
+                    this._host.requestUpdate();
+                }
+                this._queueRefresh();
+            });
+            this._syncError = null;
             try {
                 this._client.connect();
             } catch (error) {
-                this._error = error instanceof Error ? error : new Error(String(error));
+                this._syncError = error instanceof Error ? error : new Error(String(error));
                 this._host.requestUpdate();
             }
         }

@@ -143,6 +143,82 @@ describe('Adapter public state contract (nonbrowser)', () => {
         adapter.hostDisconnected();
     });
 
+    it('ignores other calendars while an explicit target is absent', async () => {
+        const host = new Host();
+        const urls: string[] = [];
+        let target: Target | null = null;
+        const sibling = new Target(state('2024-12-01', '2025-01-01'));
+        host.renderRoot.querySelector = () => sibling;
+        const adapter = new KalendusLitAdapter(host as never, {
+            baseUrl: '',
+            calendarId: 'calendar',
+            target: () => target,
+            fetch: async (url) => {
+                urls.push(String(url));
+                return response('selected');
+            },
+        });
+        const siblingUpdate = () =>
+            host.dispatchEvent(
+                new CustomEvent('calendar-state-change', {
+                    detail: sibling.snapshot,
+                    bubbles: true,
+                    composed: true,
+                }),
+            );
+        adapter.hostConnected();
+        siblingUpdate();
+        await flush();
+        expect(urls).to.have.length(0);
+
+        target = new Target(state('2024-03-10', '2024-03-11', 'day'));
+        adapter.hostUpdated();
+        siblingUpdate();
+        await flush();
+        expect(urls).to.have.length(1);
+        expect(urls[0]).to.include('start=2024-03-10&end=2024-03-10');
+        expect(adapter.entries[0].id).to.equal('selected');
+        target = null;
+        adapter.hostUpdated();
+        siblingUpdate();
+        await flush();
+        expect(urls).to.have.length(1);
+        adapter.hostDisconnected();
+    });
+
+    it('does not hide a stream startup error after a late REST load', async () => {
+        const host = new Host();
+        const startup = new Error('stream not available');
+        const stream = new Stream();
+        let unavailable = true;
+        const adapter = new KalendusLitAdapter(host as never, {
+            baseUrl: '',
+            calendarId: 'calendar',
+            enableSync: true,
+            streamFactory: () => {
+                if (unavailable) throw startup;
+                return stream;
+            },
+            fetch: async () => response('available'),
+        });
+        adapter.hostConnected();
+        expect(adapter.error).to.equal(startup);
+
+        const target = new Target(state('2024-03-10', '2024-03-11', 'day'));
+        host.renderRoot.querySelector = () => target;
+        adapter.hostUpdated();
+        await flush();
+        expect(adapter.entries[0].id).to.equal('available');
+        expect(adapter.error).to.equal(startup);
+
+        unavailable = false;
+        adapter.client.connect();
+        stream.connected();
+        await flush();
+        expect(adapter.error).to.equal(null);
+        adapter.hostDisconnected();
+    });
+
     it('converts the exclusive upper civil-date sentinel into a valid inclusive query', async () => {
         const host = new Host();
         const urls: string[] = [];
