@@ -257,29 +257,46 @@ export const isLocaleLoaded = resolver.isLocaleLoaded;
 export const ensureLocale = resolver.ensureLocale;
 export const loadLocale = resolver.loadLocale;
 export const resolveLocale = resolver.resolveLocale;
-export const _resetForTesting = resolver.reset;
+
+const messageFormatters = new Map<string, ReturnType<typeof createMessageFormatters>>();
+
+export function _resetForTesting() {
+    resolver.reset();
+    messageFormatters.clear();
+}
 
 /** Complete phrases. Legacy fragment fields remain available until consumers migrate. */
 export function getMessageFormatters(locale: string) {
-    const canonical = normalizeLocale(locale);
-    const number = new Intl.NumberFormat(canonical);
-    const plural = new Intl.PluralRules(canonical);
+    const { locale: canonical } = resolveLocale(locale);
+    let formatters = messageFormatters.get(canonical);
+    if (!formatters) {
+        // Bound arbitrary formatting tags independently of the fixed set of catalogs.
+        if (messageFormatters.size >= 64)
+            messageFormatters.delete(messageFormatters.keys().next().value!);
+        formatters = createMessageFormatters(canonical);
+        messageFormatters.set(canonical, formatters);
+    }
+    return formatters;
+}
+
+function createMessageFormatters(locale: string) {
+    const number = new Intl.NumberFormat(locale);
+    const plural = new Intl.PluralRules(locale);
     const interpolate = (id: string, fallback: string, values: Record<string, string>) =>
         resolver
             .template(locale, id, fallback)
             .replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
-    const countPhrase = (count: number) => {
+    const countPhrase = (count: number, more = false) => {
         if (!Number.isSafeInteger(count) || count < 0)
             throw new RangeError('Event count must be a nonnegative safe integer');
-        const category = plural.select(count);
         return interpolate(
-            `eventCount_${category}`,
-            count === 1 ? '{count} event' : '{count} events',
+            `${more ? 'more' : 'event'}Count_${plural.select(count)}`,
+            `{count} ${more ? 'more ' : ''}event${count === 1 ? '' : 's'}`,
             { count: number.format(count) },
         );
     };
     return Object.freeze({
-        eventCount: countPhrase,
+        eventCount: (count: number) => countPhrase(count),
         agendaAction: (expanded: boolean, preview: boolean) => {
             const index = (preview ? 0 : 2) + Number(expanded);
             return resolver.template(
@@ -288,14 +305,7 @@ export function getMessageFormatters(locale: string) {
                 ['Show all', 'Show fewer', 'Show events', 'Hide events'][index],
             );
         },
-        moreEvents: (count: number) => {
-            countPhrase(count); // validate before formatting
-            return interpolate(
-                `moreCount_${plural.select(count)}`,
-                count === 1 ? '{count} more event' : '{count} more events',
-                { count: number.format(count) },
-            );
-        },
+        moreEvents: (count: number) => countPhrase(count, true),
         switchToDayView: (date: string) =>
             interpolate('openDate', 'Switch to day view for {date}', { date }),
         showWeek: (week: number) =>

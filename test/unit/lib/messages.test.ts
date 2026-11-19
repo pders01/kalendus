@@ -2,6 +2,7 @@ import { expect } from 'chai';
 
 import {
     getMessages,
+    getMessageFormatters,
     ensureLocale,
     isLocaleLoaded,
     _resetForTesting,
@@ -157,6 +158,49 @@ describe('getMessages', () => {
             await Promise.all([p1, p2]);
             const msg = getMessages('ja');
             expect(msg).to.be.an('object');
+        });
+    });
+
+    describe('Message formatting', () => {
+        it('reuses Intl formatters for canonical aliases without mixing numbering systems', () => {
+            const number = Intl.NumberFormat;
+            const plural = Intl.PluralRules;
+            const allocations = { number: 0, plural: 0 };
+            Intl.NumberFormat = new Proxy(number, {
+                construct(target, args) {
+                    allocations.number++;
+                    return Reflect.construct(target, args);
+                },
+            });
+            Object.defineProperty(Intl, 'PluralRules', {
+                value: new Proxy(plural, {
+                    construct(target, args) {
+                        allocations.plural++;
+                        return Reflect.construct(target, args);
+                    },
+                }),
+            });
+            try {
+                for (const locale of ['EN-us-u-nu-arab', 'en-US-u-nu-arab']) {
+                    const format = getMessageFormatters(locale);
+                    expect(format.eventCount(3)).to.equal('٣ events');
+                    expect(format.moreEvents(3)).to.equal('٣ more events');
+                }
+                const latin = getMessageFormatters('en-US-u-nu-latn');
+                expect(latin.showWeek(3)).to.equal('Show week 3');
+                expect(latin.eventCount(3)).to.equal('3 events');
+                expect(allocations).to.deep.equal({ number: 2, plural: 2 });
+            } finally {
+                Intl.NumberFormat = number;
+                Object.defineProperty(Intl, 'PluralRules', { value: plural });
+            }
+        });
+
+        it('reads the current catalog even from a formatter obtained before the download', async () => {
+            const format = getMessageFormatters('de-AT');
+            expect(format.eventCount(2)).to.equal('2 events');
+            await ensureLocale('de-AT');
+            expect(format.eventCount(2)).to.equal('2 Termine');
         });
     });
 
