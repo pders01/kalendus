@@ -190,6 +190,8 @@ bun run test:package   # tarball extraction, custom-path migration and exports s
 bun run test:browser   # optional workspace browser integration
 ```
 
+The package smoke test checks the packed server API and native client types in an isolated production install with strict TypeScript settings. It allows only specific known Drizzle declaration diagnostics (matched by file, code, and message); it does not certify an unfiltered strict dependency graph.
+
 The optional browser suite uses the workspace's existing Lit, @open-wc/testing, Web Test Runner/Vite plugin and Playwright/Chromium tooling; none are loaded by nonbrowser tests. It imports the real parent calendar and exercises the public contract and real controls. It is not a standalone production dependency and does not add root package dependencies. Install the workspace's browser tools/binary before running it in CI.
 
 **Integrated verification:** root release scripts/CI include server tests, typecheck, lint, build, package smoke and real-root browser adapter journeys. Public API docs use the fail-closed defaults; the reviewed root lockfile and packed consumers are integrated. The default gate includes Chromium, Firefox and Playwright WebKit; consult CI for the status of the exact candidate revision. Actual Safari, reverse-proxy, multiple-process and external identity/session behavior remain deployment verification, not claimed test passes.

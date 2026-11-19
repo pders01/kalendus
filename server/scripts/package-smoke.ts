@@ -1,6 +1,18 @@
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+    copyFileSync,
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    realpathSync,
+    rmSync,
+    symlinkSync,
+    writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import ts from 'typescript';
 
 const server = fileURLToPath(new URL('../', import.meta.url));
 const fixture = mkdtempSync(join(server, '.package-smoke-'));
@@ -15,14 +27,170 @@ function run(command: string[], cwd = fixture, env: Record<string, string | unde
         throw new Error(`${command.join(' ')} failed\n${result.stdout}\n${result.stderr}`);
     return result.stdout.toString();
 }
-try {
-    run(
-        ['bun', 'pm', 'pack', '--ignore-scripts', '--filename', join(fixture, 'server.tgz')],
-        server,
+
+// Observed with Drizzle 0.45.4 / TS 5.9 in the isolated production install. Match both
+// the declaring file and the specific issue, not an error code across the dependency.
+const knownDrizzleIssues: ReadonlyArray<[number, RegExp, RegExp]> = [
+    [
+        2307,
+        /^gel-core\/columns\/(?:date-duration|duration|localdate|localtime|relative-duration|timestamp)\.d\.ts$/,
+        /^Cannot find module 'gel' or its corresponding type declarations\.$/,
+    ],
+    [
+        2307,
+        /^(?:(?:mysql|singlestore)-core\/db|singlestore\/(?:driver|session))\.d\.ts$/,
+        /^Cannot find module 'mysql2\/promise' or its corresponding type declarations\.$/,
+    ],
+    [
+        2307,
+        /^singlestore\/driver\.d\.ts$/,
+        /^Cannot find module 'mysql2' or its corresponding type declarations\.$/,
+    ],
+    [
+        2420,
+        /^(?:(?:gel|pg|sqlite)-core\/query-builders\/query|(?:mysql|singlestore)-core\/query-builders\/delete)\.d\.ts$/,
+        /^Class '((?:Gel|Pg|SQLite)RelationalQuery|(?:MySql|SingleStore)DeleteBase)<[^\n]+>' incorrectly implements interface 'SQLWrapper'\.\n  Property 'getSQL' is missing in type '\1<[^\n]+>' but required in type 'SQLWrapper'\.$/,
+    ],
+    [
+        2559,
+        /^(?:gel|pg)-core\/roles\.d\.ts$/,
+        /^Type '((?:Gel|Pg)Role)' has no properties in common with type '\1Config'\.$/,
+    ],
+    [
+        2344,
+        /^(?:mysql|singlestore|sqlite)-core\/query-builders\/select\.d\.ts$/,
+        /^Type 'string' does not satisfy the constraint 'keyof this & string'\.[\s\S]+Type '"(?:session|config)"' is not assignable to type /,
+    ],
+    [
+        2344,
+        /^(?:mysql|singlestore|sqlite)-core\/query-builders\/select\.types\.d\.ts$/,
+        /^Type '(?:MySql|SingleStore|SQLite)SetOperatorExcludedMethods' does not satisfy the constraint [^\n]+\n  Type '"(?:session|config)"' is not assignable to type /,
+    ],
+    [
+        2515,
+        /^(?:mysql|singlestore|sqlite)-core\/query-builders\/select\.d\.ts$/,
+        /^Non-abstract class '((?:MySql|SingleStore|SQLite)Select)Base<[^\n]+>' does not implement inherited abstract member getSQL from class '\1QueryBuilderBase<[^\n]+>'\.$/,
+    ],
+    [
+        2515,
+        /^singlestore-core\/columns\/(?:bigint|binary|boolean|char|custom|date|datetime|decimal|double|float|int|json|mediumint|real|serial|smallint|text|time|timestamp|tinyint|varbinary|varchar|vector|year)\.d\.ts$/,
+        /^Non-abstract class 'SingleStore\w+Builder<T>' does not implement inherited abstract member generatedAlwaysAs from class 'SingleStore\w+Builder(?:WithAutoIncrement)?<[^\n]+>'\.$/,
+    ],
+    [
+        2416,
+        /^singlestore-core\/columns\/enum\.d\.ts$/,
+        /^Property 'generatedAlwaysAs' in type 'SingleStoreEnumColumnBuilder<T>' is not assignable to the same property in base type 'SingleStoreColumnBuilder<[^\n]+\.[\s\S]+Property 'type' is missing in type '\{\}' but required in type '\{ type: "always"; \}'\.$/,
+    ],
+];
+
+function isKnownDrizzleIssue({ file, code, messageText }: ts.Diagnostic, drizzle: string) {
+    if (!file?.isDeclarationFile || !file.fileName.startsWith(drizzle)) return false;
+    const relativeFile = file.fileName.slice(drizzle.length);
+    const message = ts.flattenDiagnosticMessageText(messageText, '\n');
+    return knownDrizzleIssues.some(
+        ([issueCode, path, issue]) =>
+            issueCode === code && path.test(relativeFile) && issue.test(message),
     );
+}
+
+function checkPackedTypes(tarball: string) {
+    const consumer = mkdtempSync(join(realpathSync(tmpdir()), 'kalendus-packed-types-'));
+    try {
+        if (consumer.startsWith(realpathSync(join(server, '..')) + sep)) {
+            throw new Error('The packed type consumer must be outside the workspace');
+        }
+        copyFileSync(tarball, join(consumer, 'server.tgz'));
+        writeFileSync(
+            join(consumer, 'package.json'),
+            JSON.stringify({
+                type: 'module',
+                dependencies: { '@jpahd/kalendus-server': 'file:./server.tgz' },
+            }),
+        );
+        // Install the tarball's production dependency graph, not the workspace's dev types.
+        // The type check doesn't need a native SQLite build or auto-installed optional peers.
+        run(
+            [
+                'bun',
+                'install',
+                '--production',
+                '--ignore-scripts',
+                '--omit=peer',
+                '--prefer-offline',
+                '--linker=hoisted',
+                '--backend=copyfile',
+            ],
+            consumer,
+        );
+        const entry = join(consumer, 'consumer.ts');
+        writeFileSync(
+            entry,
+            `
+        import { createDb, createApp, migrateDb } from '@jpahd/kalendus-server';
+        const db = createDb();
+        migrateDb(db);
+        const { app } = createApp({ db, authorize: ({ request }) => request.method === 'GET' });
+        const response: Response = await app.request('/health');
+        db.$client.close();
+        // @ts-expect-error A native SQLite statement must be a string (the client must not be any).
+        db.$client.prepare(123);
+    `,
+        );
+        const options: ts.CompilerOptions = {
+            module: ts.ModuleKind.NodeNext,
+            target: ts.ScriptTarget.ES2022,
+            lib: ['lib.es2022.d.ts'],
+            types: [],
+            strict: true,
+            skipLibCheck: false,
+            noEmit: true,
+        };
+        const host = ts.createCompilerHost(options);
+        host.getCurrentDirectory = () => consumer;
+        const program = ts.createProgram([entry], options, host);
+        const consumerRoot = consumer.replaceAll(sep, '/') + '/';
+        const outsideFixture = program
+            .getSourceFiles()
+            .find(
+                (file) =>
+                    !program.isSourceFileDefaultLibrary(file) &&
+                    !file.fileName.startsWith(consumerRoot),
+            );
+        if (outsideFixture) {
+            throw new Error(
+                `Packed consumer resolved outside its fixture: ${outsideFixture.fileName}`,
+            );
+        }
+        const diagnostics = ts.getPreEmitDiagnostics(program);
+        const drizzle = consumerRoot + 'node_modules/drizzle-orm/';
+        const failures = diagnostics.filter(
+            (diagnostic) => !isKnownDrizzleIssue(diagnostic, drizzle),
+        );
+        if (failures.length) {
+            throw new Error(
+                `Packed consumer declaration check failed\n${ts.formatDiagnostics(failures, host)}`,
+            );
+        }
+        if (diagnostics.length) {
+            console.warn(
+                `LIMIT: ${diagnostics.length} known Drizzle declaration diagnostics (optional gel/mysql2 peers and internal type errors) excluded; the strict dependency graph does not pass unfiltered.`,
+            );
+        }
+        console.log(
+            'PASS isolated packed createDb/createApp consumer and native client typing (strict, with only the listed Drizzle exceptions).',
+        );
+    } finally {
+        rmSync(consumer, { recursive: true, force: true });
+    }
+}
+
+try {
+    const tarball = join(fixture, 'server.tgz');
+    run(['bun', 'pm', 'pack', '--ignore-scripts', '--filename', tarball], server);
+    checkPackedTypes(tarball);
     const unpacked = join(fixture, 'installed');
     mkdirSync(unpacked);
-    run(['tar', '-xzf', join(fixture, 'server.tgz'), '-C', unpacked]);
+    run(['tar', '-xzf', tarball, '-C', unpacked]);
     const scope = join(fixture, 'node_modules', '@jpahd');
     mkdirSync(scope, { recursive: true });
     symlinkSync(join(unpacked, 'package'), join(scope, 'kalendus-server'), 'dir');
