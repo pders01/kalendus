@@ -91,18 +91,18 @@ Canonical original records are retained separately from display slices, so activ
 
 ### Public properties
 
-| Property          | Attribute           | Type                                   | Default                    | Notes                                                                            |
-| ----------------- | ------------------- | -------------------------------------- | -------------------------- | -------------------------------------------------------------------------------- |
-| `heading`         | `heading`           | `string`                               | unset                      | Header title.                                                                    |
-| `activeDate`      | —                   | `CalendarDate`                         | today                      | Owner can assign a date to navigate.                                             |
-| `viewMode`        | `view-mode`         | `'day' \| 'week' \| 'month' \| 'year'` | `'month'`                  | Owner can assign the displayed view.                                             |
-| `entries`         | —                   | `CalendarEntry[]`                      | `[]`                       | Use a new array reference for changes.                                           |
-| `color`           | `color`             | `string`                               | `'#000000'`                | Accent using the supported safe color formats below.                             |
-| `locale`          | `locale`            | BCP 47 `string`                        | page `<html lang>` or `en` | Per-instance formatting and catalog resolution.                                  |
-| `firstDayOfWeek`  | `first-day-of-week` | `0..6`                                 | `1`                        | Sunday = 0; Monday default is **not locale-derived**. Invalid values reset to 1. |
-| `yearDrillTarget` | `year-drill-target` | `'day' \| 'month'`                     | `'month'`                  | View opened by year day cells.                                                   |
-| `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'`        | `'dot'`                    | Per-day density visualization.                                                   |
-| `dir`             | `dir`               | `'ltr' \| 'rtl' \| 'auto'`             | `'auto'`                   | Getter retains requested mode; host attribute exposes resolved direction.        |
+| Property          | Attribute           | Type                                   | Default                    | Notes                                                                                                                                     |
+| ----------------- | ------------------- | -------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `heading`         | `heading`           | `string`                               | unset                      | Header title.                                                                                                                             |
+| `activeDate`      | —                   | `CalendarDate`                         | today                      | Owner can assign a date to navigate.                                                                                                      |
+| `viewMode`        | `view-mode`         | `'day' \| 'week' \| 'month' \| 'year'` | `'month'`                  | Owner can assign the displayed view.                                                                                                      |
+| `entries`         | —                   | `CalendarEntry[]`                      | `[]`                       | Use a new array reference for changes.                                                                                                    |
+| `color`           | `color`             | `string`                               | `'#000000'`                | An explicit value sets the accent. When unset, the getter returns `'#000000'` for compatibility, but the default style uses `CanvasText`. |
+| `locale`          | `locale`            | BCP 47 `string`                        | page `<html lang>` or `en` | Per-instance formatting and catalog resolution.                                                                                           |
+| `firstDayOfWeek`  | `first-day-of-week` | `0..6`                                 | `1`                        | Sunday = 0; Monday default is **not locale-derived**. Invalid values reset to 1.                                                          |
+| `yearDrillTarget` | `year-drill-target` | `'day' \| 'month'`                     | `'month'`                  | View opened by year day cells.                                                                                                            |
+| `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'`        | `'dot'`                    | Per-day density visualization.                                                                                                            |
+| `dir`             | `dir`               | `'ltr' \| 'rtl' \| 'auto'`             | `'auto'`                   | Getter retains requested mode; host attribute exposes resolved direction.                                                                 |
 
 Objects/arrays belong on JavaScript properties, not serialized HTML attributes. Assign new entries/objects instead of mutating them in place.
 

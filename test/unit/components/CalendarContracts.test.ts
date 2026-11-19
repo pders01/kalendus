@@ -217,6 +217,20 @@ describe('Calendar public contracts and audit regressions', () => {
         expect(el.activeDate).to.deep.equal(first);
     });
 
+    it('reconciles automatic RTL after its direction attribute is reset', async () => {
+        const el = await calendar();
+        el.locale = 'ar';
+        await settle(el);
+        for (const attribute of ['auto', null]) {
+            if (attribute) el.setAttribute('dir', attribute);
+            else el.removeAttribute('dir');
+            await settle(el);
+            expect(el.dir).to.equal('auto');
+            expect(getComputedStyle(el).direction).to.equal('rtl');
+            expect(el.getAttribute('dir')).to.equal('rtl');
+        }
+    });
+
     it('gives identical-looking entries distinct identities (C05)', async () => {
         const el = await calendar([event(), event()]);
         const entries = [...el.shadowRoot!.querySelectorAll('lms-calendar-entry')];

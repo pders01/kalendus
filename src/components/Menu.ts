@@ -386,6 +386,7 @@ export class Menu extends LitElement {
             if (key.startsWith('--')) portal.style.setProperty(key, computed.getPropertyValue(key));
         portal.style.direction = computed.direction;
         portal.style.color = computed.color;
+        portal.style.colorScheme = computed.colorScheme;
         portal.style.font = computed.font;
         portal.style.fontFamily = computed.fontFamily;
     }

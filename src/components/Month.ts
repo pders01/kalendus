@@ -330,6 +330,10 @@ export default class Month extends LitElement {
             }
         }
         @media (forced-colors: active) {
+            .activity:not([data-count-summary]) {
+                box-sizing: border-box;
+                border: 2px solid ButtonText;
+            }
             .span-mark {
                 border-color: CanvasText;
                 background: CanvasText;
@@ -623,7 +627,7 @@ export default class Month extends LitElement {
                             aria-describedby=${count ? `summary-description-${key}` : nothing}>
                             <span id=${`summary-label-${key}`}><slot name=${`summary-${key}`} @slotchange=${this._scheduleEntries}>${overflowLabel}</slot></span>
                             <span class="sr-only" id=${`summary-date-${key}`}>${dateLabel}</span>
-                            <span class="sr-only" id=${`summary-description-${key}`}>${count ? format.dateSummary(dateLabel, count) : ''}</span>
+                            <span class="sr-only" id=${`summary-description-${key}`}>${count ? format.eventCount(count) : ''}</span>
                         </button>
                     </div>`;
                 })}

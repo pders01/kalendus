@@ -41,6 +41,7 @@ export default defineConfig({
                     // Lit legacy decorators receive literal property names; those
                     // keys must agree with the emitted member accesses.
                     reserved: [
+                        '_accent',
                         '_agendaError',
                         '_agendaExpanded',
                         '_agendaLimit',

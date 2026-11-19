@@ -69,12 +69,8 @@ import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDi
 import { addDisplayDays, getMonthCalendarArray } from './lib/weekStartHelper.js';
 
 // ── RTL locale detection ───────────────────────────────────────────────
-const RTL_LOCALES = new Set(['ar', 'he', 'fa', 'ur', 'yi']);
-
-/** Resolve a BCP 47 locale to 'ltr' or 'rtl'. */
 function resolveDirection(locale: string): 'ltr' | 'rtl' {
-    const primary = locale.split('-')[0].toLowerCase();
-    return RTL_LOCALES.has(primary) ? 'rtl' : 'ltr';
+    return /^(ar|he|fa|ur|yi)(-|$)/i.test(locale) ? 'rtl' : 'ltr';
 }
 
 // ── Derived type for expanded (multi-day) entries ──────────────────────
@@ -153,9 +149,9 @@ export default class LMSCalendar extends LitElement {
 
     override set dir(value: 'ltr' | 'rtl' | 'auto') {
         if (this._reflectingDirection) return;
-        const previous = this.dir;
         this._requestedDirection = value === 'ltr' || value === 'rtl' ? value : 'auto';
-        if (previous !== this._requestedDirection) this.requestUpdate('dir', previous);
+        // Even the same request can overwrite the resolved HTML attribute.
+        this.requestUpdate('dir');
     }
 
     private _requestedDirection: 'ltr' | 'rtl' | 'auto' = 'auto';
@@ -283,10 +279,19 @@ export default class LMSCalendar extends LitElement {
     /**
      * Primary accent color used for header buttons, highlights, and gradients.
      * Accepts the documented hex, named, rgb()/rgba() and hsl()/hsla() formats.
-     * Alpha is discarded; unsupported or malformed values use a safe fallback.
+     * Alpha is discarded. Omit the accent or assign an empty string to use the theme default.
      */
-    @property({ type: String })
-    color = '#000000';
+    @property({ type: String, noAccessor: true })
+    get color(): string {
+        // Keep the legacy property default without forcing black onto dark hosts.
+        return this._accent ?? '#000000';
+    }
+
+    set color(value: string) {
+        this._accent = value || undefined;
+    }
+
+    @state() private _accent?: string;
 
     get _expandedDate(): CalendarDate | undefined {
         return this._viewState.expandedDate;
@@ -395,7 +400,7 @@ export default class LMSCalendar extends LitElement {
 
             color: CanvasText;
             --background-color: Canvas;
-            --primary-color: var(--calendar-accent, Highlight);
+            --primary-color: var(--calendar-accent, CanvasText);
 
             /* Interaction tokens — neutral by default */
             --transition-speed: 0s;
@@ -1115,9 +1120,11 @@ export default class LMSCalendar extends LitElement {
             'data-calendar-size',
             this._calendarWidth <= 480 ? 'small' : this._calendarWidth <= 768 ? 'medium' : 'large',
         );
-        if (changedProperties.has('color' as never)) {
-            const [r, g, b] = parseColorWithDefault(this.color);
-            this.style.setProperty('--calendar-accent', `rgb(${r}, ${g}, ${b})`);
+        if (changedProperties.has('_accent' as never)) {
+            this.style.setProperty(
+                '--calendar-accent',
+                this._accent ? `rgb(${parseColorWithDefault(this._accent).join(', ')})` : '',
+            );
         }
         const key = JSON.stringify(state);
         if (key !== this._lastStateKey) {
@@ -1390,11 +1397,13 @@ export default class LMSCalendar extends LitElement {
         }
         if (changedProperties.has('dir' as never) || changedProperties.has('locale' as never)) {
             const resolved = this.dir === 'auto' ? resolveDirection(this.locale) : this.dir;
-            this._reflectingDirection = true;
-            try {
-                this.setAttribute('dir', resolved);
-            } finally {
-                this._reflectingDirection = false;
+            if (this.getAttribute('dir') !== resolved) {
+                this._reflectingDirection = true;
+                try {
+                    this.setAttribute('dir', resolved);
+                } finally {
+                    this._reflectingDirection = false;
+                }
             }
         }
         if (changedProperties.has('locale' as never)) this._startLocaleLoad();
