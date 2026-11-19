@@ -588,15 +588,13 @@ export default class LMSCalendar extends LitElement {
             display: flex;
             flex-direction: column;
         }
-        /* Month participates in document flow, including inside an older
-           fixed-height embed. Its intrinsic minimum prevents overlap/clipping. */
+        /* Stretch in a sized layout without clipping Month's normal flow. */
         :host([data-view-mode='month']) {
-            /* Month deliberately has no viewport, even when the embedding
-               application supplies an inline height for the time-grid views. */
+            display: grid;
             block-size: auto !important;
-            min-block-size: max-content;
+            min-height: auto;
         }
-        .calendar-container.month-flow {
+        .month-flow {
             height: auto;
             overflow: visible;
         }
@@ -611,9 +609,11 @@ export default class LMSCalendar extends LitElement {
             flex-direction: column;
         }
         .month-flow > .calendar-view {
-            flex: 0 0 auto;
-            min-block-size: min-content;
             overflow: visible;
+        }
+        .month-flow lms-calendar-month {
+            display: grid;
+            flex: 1;
         }
         .calendar-view:is(.time-grid, .agenda-view, .year-view) {
             /* A definite flex basis is the fallback in an auto-height embed.
@@ -641,7 +641,7 @@ export default class LMSCalendar extends LitElement {
             container: week-viewport / size;
         }
         .time-grid > :is(lms-calendar-day, lms-calendar-week) {
-            min-inline-size: max(240px, 15em);
+            min-inline-size: max(240px, 11em);
             flex-shrink: 0;
         }
         .calendar-view.agenda-view {

@@ -23,7 +23,7 @@ const calendar = document.querySelector<LMSCalendar>('lms-calendar')!;
 calendar.entries = entries;
 ```
 
-The component uses Custom Elements, Shadow DOM, ResizeObserver and CSS container queries. Give it a height to fit Day, Week, and Year into a specific space, or let those views use their bounded fallback. Month stays in normal page flow. See [Layout & Positioning](./layout-and-positioning.md). Browser API support is not a claim of Safari, native-device or assistive-technology verification.
+The component uses Custom Elements, Shadow DOM, ResizeObserver and CSS container queries. Give it a height to fit Day, Week, and Year into a specific space, or let those views use their bounded fallback. Month fills extra space in a sized Grid or flex parent that stretches it, while keeping normal page flow when it needs more room. See [Layout & Positioning](./layout-and-positioning.md). Browser API support is not a claim of Safari, native-device or assistive-technology verification.
 
 ## Data contracts
 

@@ -54,7 +54,7 @@ For a static page without a bundler or import map, copy `dist/kalendus.iife.js` 
 ### Tips
 
 - Set `document.documentElement.lang` so the default locale matches your site. Override per instance with `locale`; the root manages host `lang`/automatic RTL and exposes `localeReady` / `retryLocale()` for loading/fallback. `firstDayOfWeek` defaults to **1 Monday**, not a locale-derived value.
-- Give Day, Week, and Year a definite height when fitting a fixed region; leave Month in normal flow. See [Layout & Positioning](./layout-and-positioning.md).
+- To size all four views consistently, stretch the calendar in a sized Grid or flex parent. Month expands its rows to use spare height and stays in normal flow when its content needs more room. See [Layout & Positioning](./layout-and-positioning.md).
 - Use CSS variables (`--primary-color`, `--week-mobile-day-count`, etc.) on the `<lms-calendar>` element to theme per instance.
 
 ## React

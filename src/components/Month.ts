@@ -60,6 +60,7 @@ export default class Month extends LitElement {
         }
         .month-strip {
             position: relative;
+            display: grid;
             overflow-x: auto;
         }
         .row-metrics {
@@ -71,12 +72,13 @@ export default class Month extends LitElement {
             block-size: max(24px, var(--all-day-row-height, 1.5rem));
         }
         .month {
-            height: auto;
             min-inline-size: 17.5em;
             display: grid;
-            /* Bounded, font-relative week budgets; overflow is disclosed via +N.
-               The grid itself belongs to normal document flow, never a scroller. */
-            grid-template-rows: min-content repeat(6, max(6em, var(--month-week-height, 6.5em)));
+            /* Week rows grow in a tall embed but keep their readable minimum. */
+            grid-template-rows: min-content repeat(
+                    6,
+                    minmax(max(6em, var(--month-week-height, 6.5em)), 1fr)
+                );
             overflow: visible;
         }
         .week,
@@ -84,6 +86,9 @@ export default class Month extends LitElement {
             display: grid;
             grid-template-columns: repeat(7, minmax(0, 1fr));
             min-height: 0;
+        }
+        .week {
+            contain: size;
         }
         .weekday {
             text-align: center;
@@ -307,7 +312,10 @@ export default class Month extends LitElement {
         }
         @media (pointer: coarse) {
             .month {
-                grid-template-rows: min-content repeat(6, max(7em, var(--month-week-height, 7em)));
+                grid-template-rows: min-content repeat(
+                        6,
+                        minmax(max(7em, var(--month-week-height, 7em)), 1fr)
+                    );
             }
             .indicator,
             .summary {

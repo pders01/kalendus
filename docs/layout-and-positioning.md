@@ -14,7 +14,7 @@ Essential information for getting `<lms-calendar>` to display correctly in your 
 
 ## Height and Scrolling
 
-Month is a normal-flow section: its six-week grid and optional contextual list determine its height. The embedding page owns vertical scrolling. Month intentionally ignores an explicit host height/block-size used for other views, so a long list pushes following content down instead of covering it. Do not constrain a Month wrapper with a fixed height and hidden overflow.
+Month stays in normal flow, but its six week rows share extra height when a sized Grid or flex parent stretches the calendar. If the grid or contextual list needs more room, Month grows instead of clipping the content or adding an internal vertical scroller. Use a stretched child in a sized parent for a shared layout across views; a fixed `height` or `block-size` on the calendar itself is not a Month viewport. Leave overflow visible or scrollable on the parent.
 
 Day, Week, and Year fill the supplied height, including when a CSS Grid or flex parent sizes the calendar. The toolbar takes its own space; the view fills the rest. Without a supplied height, the area below the toolbar defaults to the smaller of `36rem` and `65dvb`. Day and Week scroll their timelines. In shallow embeds, the area around the timeline can also scroll to reveal a usable time window without hiding the date or all-day controls. Year scrolls when the twelve months do not fit at readable target sizes. The shared defaults are `--height: 100%` and `--width: 100%`.
 
@@ -29,8 +29,8 @@ Day, Week, and Year fill the supplied height, including when a CSS Grid or flex 
     <lms-calendar></lms-calendar>
 </div>
 
-<!-- ✅ Works: CSS grid with row height -->
-<div style="display: grid; grid-template-rows: 1fr; height: 100vh;">
+<!-- All four views use a sized grid; the frame scrolls if Month needs more room. -->
+<div style="display: grid; block-size: 100dvh; overflow: auto;">
     <lms-calendar></lms-calendar>
 </div>
 
@@ -40,7 +40,7 @@ Day, Week, and Year fill the supplied height, including when a CSS Grid or flex 
 </div>
 ```
 
-Alternatively, override the height token directly:
+For the bounded Day, Week, and Year views, you can also override the height token directly:
 
 ```css
 lms-calendar {
@@ -48,7 +48,7 @@ lms-calendar {
 }
 ```
 
-The component sets `min-height: 0` on `:host` so it cooperates with CSS grid and flexbox containers without fighting minimum sizing.
+Outside Month, the component sets `min-height: 0` so bounded views can shrink in Grid and flex layouts.
 
 ---
 
@@ -82,7 +82,7 @@ Below the breakpoint, the component:
 2. Adds peek navigation arrows to slide through the full week
 3. Fires legacy `peek-navigate` action notifications, then reports the committed half-open visible window through `calendar-state-change`; use that range for fetching
 
-The default `--week-min-day-width: 8em` further limits visible columns using the measured embed and text size. Set it to `0` to restore fixed-count behavior. Extremely tiny timelines deliberately pan horizontally instead of reducing a lone event to an unreadable sliver.
+The default `--week-min-day-width: 8em` further limits visible columns using the measured embed and text size. Set it to `0` to restore fixed-count behavior. Day and Week fit their rendered columns without sideways scrolling unless the timeline is narrower than its readable minimum (the greater of 240px and 11em).
 
 Day and Week reserve the same inline gutter for the date header, all-day band, and timeline when the browser supports `scrollbar-gutter` and uses layout-consuming scrollbars. This keeps their columns aligned even when only one region needs to scroll. Overlay scrollbars do not reserve space.
 

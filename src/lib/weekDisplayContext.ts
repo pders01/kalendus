@@ -25,13 +25,6 @@ export interface WeekDisplayContext {
 }
 
 /**
- * Read a CSS custom property from an element, returning a trimmed string or the fallback.
- */
-function readCSSToken(hostEl: Element, prop: string, fallback: string): string {
-    return getComputedStyle(hostEl).getPropertyValue(prop).trim() || fallback;
-}
-
-/**
  * Clamp a value to [min, max].
  */
 function clamp(value: number, min: number, max: number): number {
@@ -75,12 +68,17 @@ export function computeWeekDisplayContext(
     calendarWidth: number,
     hostEl: Element,
 ): WeekDisplayContext {
-    // 1. Read CSS custom properties
-    const rawFull = Number(readCSSToken(hostEl, '--week-day-count', '7'));
-    const fullCount = clamp(Number.isInteger(rawFull) ? rawFull : 7, 1, 7);
-    const rawMobile = Number(readCSSToken(hostEl, '--week-mobile-day-count', '3'));
-    const mobileCount = clamp(Number.isInteger(rawMobile) ? rawMobile : 3, 1, 7);
-    const breakpointToken = readCSSToken(hostEl, '--week-mobile-breakpoint', '768');
+    // 1. Read CSS custom properties from one computed style.
+    const style = getComputedStyle(hostEl);
+    const token = (name: string, fallback: string) =>
+        style.getPropertyValue(name).trim() || fallback;
+    const dayCount = (name: string, fallback: number) => {
+        const count = Number(token(name, String(fallback)));
+        return Number.isInteger(count) ? clamp(count, 1, 7) : fallback;
+    };
+    const fullCount = dayCount('--week-day-count', 7);
+    const mobileCount = dayCount('--week-mobile-day-count', 3);
+    const breakpointToken = token('--week-mobile-breakpoint', '768');
     const rawBreakpoint = /^(?:\d+(?:\.\d+)?|\.\d+)(?:px)?$/.test(breakpointToken)
         ? parseFloat(breakpointToken)
         : NaN;
@@ -88,13 +86,13 @@ export function computeWeekDisplayContext(
 
     // 2. Respect the component's available width, not just its breakpoint.
     const requestedCount = calendarWidth < breakpoint ? mobileCount : fullCount;
-    const font = parseFloat(getComputedStyle(hostEl).fontSize) || 16;
+    const font = parseFloat(style.fontSize) || 16;
     const pixels = (value: string, fallback: number) => {
         const match = /^(\d+(?:\.\d+)?|\.\d+)(px|em)?$/.exec(value.trim());
         return match ? Number(match[1]) * (match[2] === 'em' ? font : 1) : fallback;
     };
-    const minimum = pixels(readCSSToken(hostEl, '--week-min-day-width', '8em'), font * 8);
-    const timeWidth = pixels(readCSSToken(hostEl, '--time-column-width', '3em'), font * 3);
+    const minimum = pixels(token('--week-min-day-width', '8em'), font * 8);
+    const timeWidth = pixels(token('--time-column-width', '3em'), font * 3);
     const available = Number.isFinite(calendarWidth)
         ? Math.max(0, calendarWidth - timeWidth - font)
         : fullCount * minimum;

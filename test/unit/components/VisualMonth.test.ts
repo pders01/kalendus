@@ -90,6 +90,46 @@ describe('Month visual geometry and density', () => {
         ).to.deep.equal(entryList(6).map((entry) => entry.id));
     });
 
+    it('fills a tall grid embed with six equal weeks, and resizes previews to fit', async () => {
+        const frame = await fixture<HTMLElement>(html`
+            <div style="display:grid;inline-size:900px;block-size:1180px">
+                <lms-calendar .activeDate=${date} .entries=${entryList(12)}
+                    .monthDayBehavior=${'day'} style="font-size:16px"></lms-calendar>
+            </div>
+        `);
+        const calendar = frame.querySelector<Calendar>('lms-calendar')!;
+        await settleCalendar(calendar);
+        const month = calendar.shadowRoot!.querySelector<Month>('lms-calendar-month')!;
+        const grid = month.shadowRoot!.querySelector('.month')!;
+        const rows = [...grid.querySelectorAll('.week')];
+        expect(rows).to.have.length(6);
+        const heights = rows.map((row) => row.getBoundingClientRect().height);
+        expect(Math.min(...heights)).to.be.greaterThan(104);
+        expect(Math.max(...heights) - Math.min(...heights)).to.be.below(0.1);
+        expect(grid.getBoundingClientRect().bottom).to.be.closeTo(
+            frame.getBoundingClientRect().bottom - 1,
+            1,
+        );
+        const tall = month.querySelectorAll('lms-calendar-entry').length;
+        expect(tall).to.be.greaterThan(3);
+
+        frame.style.blockSize = '840px';
+        await settleCalendar(calendar);
+        expect(month.querySelectorAll('lms-calendar-entry').length).to.be.lessThan(tall);
+        expect(grid.getBoundingClientRect().bottom).to.be.closeTo(
+            frame.getBoundingClientRect().bottom - 1,
+            1,
+        );
+
+        frame.style.blockSize = '380px';
+        await settleCalendar(calendar);
+        expect(calendar.getBoundingClientRect().height).to.be.greaterThan(380);
+        expect(grid.getBoundingClientRect().bottom).to.be.closeTo(
+            calendar.getBoundingClientRect().bottom - 1,
+            1,
+        );
+    });
+
     it('mounts only fitting previews for a thousand events and keeps the full date list reachable', async () => {
         const entries = entryList(1000);
         const calendar =

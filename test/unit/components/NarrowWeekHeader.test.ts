@@ -54,10 +54,10 @@ const timedEntry = {
 
 describe('Narrow Week header in the library calendar', () => {
     for (const locale of ['en', 'ar']) {
-        it(`keeps the pager in a 288px embed while dates and time pan together (${locale})`, async () => {
+        it(`keeps the pane and pager visible when a truly tiny embed needs panning (${locale})`, async () => {
             const calendar = await fixture<Calendar>(html`
                 <lms-calendar locale=${locale} .activeDate=${activeDate} .entries=${[timedEntry]}
-                    view-mode="week" style="width:288px;height:720px;font:24px Arial"></lms-calendar>
+                    view-mode="week" style="width:230px;height:720px;font:24px Arial"></lms-calendar>
             `);
             await settle(calendar);
             const view = calendarView(calendar);
@@ -94,6 +94,33 @@ describe('Narrow Week header in the library calendar', () => {
             expect(rect(label) - initial[0]).to.be.closeTo(-step * overflow, 1);
             expect(rect(grid) - initial[1]).to.be.closeTo(-step * overflow, 1);
         });
+    }
+
+    for (const locale of ['en', 'ar']) {
+        for (const viewMode of ['day', 'week'] as const) {
+            it(`fits the whole ${viewMode} column in a 288px embed with 24px text (${locale})`, async () => {
+                const calendar = await fixture<Calendar>(html`
+                    <lms-calendar locale=${locale} .activeDate=${activeDate} .entries=${[timedEntry]}
+                        .viewMode=${viewMode} style="width:288px;height:500px;font:24px Arial"></lms-calendar>
+                `);
+                await settle(calendar);
+                const pane = calendarView(calendar);
+                const root = pane.querySelector(`lms-calendar-${viewMode}`)!.shadowRoot!;
+                const timeline = root.querySelector<HTMLElement>('.main, .week-scroll')!;
+                const column = timeline.querySelector('.timed-content, .day-column')!;
+                const box = column.getBoundingClientRect();
+                const visible = timeline.getBoundingClientRect();
+                expect(box.width).to.be.at.least(128);
+                expect(box.left).to.be.at.least(visible.left);
+                expect(box.right).to.be.at.most(visible.right);
+                expect(pane.scrollWidth).to.be.at.most(pane.clientWidth + 1);
+                expect(timeline.scrollWidth).to.be.at.most(timeline.clientWidth + 1);
+                const card = pane.querySelector('lms-calendar-entry')!.getBoundingClientRect();
+                expect(card.left).to.be.at.least(box.left - 1);
+                expect(card.right).to.be.at.most(box.right + 1);
+                if (viewMode === 'week') assertPagerInView(calendar);
+            });
+        }
     }
 
     it('uses the compact pager in a wide but shallow embed without hiding the day headers', async () => {
