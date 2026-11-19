@@ -128,8 +128,8 @@ export default class Day extends LitElement {
 
         .day-label.current .day-number {
             border-radius: 50%;
-            background: var(--current-day-bg, Highlight);
-            color: var(--current-day-color, HighlightText);
+            background: var(--current-day-bg, CanvasText);
+            color: var(--current-day-color, Canvas);
             font-weight: var(--current-day-font-weight, bold);
         }
 

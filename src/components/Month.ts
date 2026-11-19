@@ -169,8 +169,8 @@ export default class Month extends LitElement {
             color: var(--header-text-color, inherit);
         }
         .indicator.current .date-value {
-            background: var(--current-day-bg, Highlight);
-            color: var(--current-day-color, HighlightText);
+            background: var(--current-day-bg, CanvasText);
+            color: var(--current-day-color, Canvas);
             font-weight: var(--indicator-font-weight, bold);
         }
         .activity {

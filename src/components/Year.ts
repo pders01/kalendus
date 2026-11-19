@@ -295,8 +295,8 @@ export default class Year extends LitElement {
         /* Today belongs to the date, never the activity slot. */
         .day-cell.current .date-number {
             border-radius: 50%;
-            background: var(--current-day-bg, Highlight);
-            color: var(--current-day-color, HighlightText);
+            background: var(--current-day-bg, CanvasText);
+            color: var(--current-day-color, Canvas);
             font-weight: var(--current-day-font-weight);
         }
 
@@ -309,7 +309,7 @@ export default class Year extends LitElement {
         }
 
         .day-cell.current.selected .date-number {
-            border-color: var(--current-day-color, HighlightText);
+            border-color: var(--current-day-color, Canvas);
         }
 
         /* Activity is centered below the date and never paints the selection. */

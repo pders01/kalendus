@@ -21,6 +21,17 @@ function contrast(foreground: string, background: string): number {
 
 describe('Neutral color scheme', () => {
     for (const scheme of ['light', 'dark']) {
+        it(`keeps the Year today badge readable in a ${scheme} host`, async () => {
+            const calendar = await fixture<HTMLElement>(html`
+                <lms-calendar view-mode="year" style=${`color-scheme:${scheme};width:900px;height:720px`}></lms-calendar>
+            `);
+            await nextFrame();
+            const year = calendar.shadowRoot!.querySelector('lms-calendar-year')!;
+            const badge = year.shadowRoot!.querySelector('[aria-current="date"] .date-number')!;
+            const { color, backgroundColor } = getComputedStyle(badge);
+            expect(contrast(color, backgroundColor)).to.be.at.least(4.5);
+        });
+
         it(`keeps the unthemed Week toolbar, time axis and focus readable in a ${scheme} host`, async () => {
             const wrapper = await fixture<HTMLDivElement>(html`
                 <div style=${`color-scheme:${scheme}; color:#555; background:Canvas`}>

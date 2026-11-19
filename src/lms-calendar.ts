@@ -554,8 +554,8 @@ export default class LMSCalendar extends LitElement {
             --month-label-font-weight: inherit;
             --cw-hover-color: inherit;
             --cw-hover-bg: transparent;
-            --current-day-bg: Highlight;
-            --current-day-color: HighlightText;
+            --current-day-bg: CanvasText;
+            --current-day-color: Canvas;
             --current-day-font-weight: inherit;
             --current-day-hover-opacity: 1;
             --current-dot-bg: Canvas;

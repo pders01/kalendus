@@ -310,7 +310,7 @@ Shared all-day rows use `--all-day-row-height: max(24px, 1.5rem)` by default. Th
 | `--month-label-font-weight`      | `inherit`     | Font weight for month labels          |
 | `--cw-hover-color`               | `inherit`     | Calendar week hover text color        |
 | `--cw-hover-bg`                  | `transparent` | Calendar week hover background        |
-| `--current-day-bg`               | `AccentColor` | Background for today's cell           |
+| `--current-day-bg`               | `CanvasText`  | Background for today's cell           |
 | `--current-day-color`            | `Canvas`      | Text color for today's cell           |
 | `--current-day-font-weight`      | `inherit`     | Font weight for today's cell          |
 | `--current-day-hover-opacity`    | `1`           | Hover opacity for today's cell        |
