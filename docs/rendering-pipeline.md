@@ -112,24 +112,11 @@ A greedy first-fit algorithm that packs all-day events into rows without visual 
 
 `totalRows` is one more than the highest occupied row index (or zero when empty). It includes any gaps in the row sequence and drives the height of the all-day container.
 
-### `computeSpanClass()`
+### `layoutAllDaySegments()` and `joinVisibleSpans()`
 
-Assigns a CSS class to each day-segment of a multi-day event:
+Month, Day, and Week allocate lanes by occurrence and keep one placement per occupied date for counts and capacity. They supply display columns, independently of the canonical dates. Day and Week cache these placements by the visible window.
 
-| Class        | Condition                                     | Effect                                   |
-| ------------ | --------------------------------------------- | ---------------------------------------- |
-| `first-day`  | First visible day of the span                 | Start border-radius, no end radius       |
-| `middle-day` | Between first and last                        | No border-radius, start separator border |
-| `last-day`   | Last visible day of the span                  | End border-radius, start separator       |
-| `single-day` | Span is 1 day, or first and last are the same | Full border-radius on both sides         |
-
-Week.ts applies corresponding CSS rules so multi-day events render as a connected strip across day columns.
-
-### `layoutAllDaySegments()`
-
-Month, Day, and Week share this step: group visible segments by occurrence, allocate rows, and attach a row and a clipped span class to each original segment in input order. The view supplies the display column; the canonical event's dates and continuation index are not used as visible boundaries. Month uses placements as sparse preview lanes, while Day and Week use them for the all-day strip.
-
-Day and Week cache the placements in `_allDayLayoutCache`. Its key includes the condensed week offset and visible length. Week still decides independently whether to render chips or per-date totals.
+Month filters the sparse lanes by each date's measured capacity. Week first decides whether to show per-date totals. Where previews are shown, `joinVisibleSpans()` joins adjacent all-day placements in the same week row. A hidden date or week break splits a bar, and open edges indicate that the event continues. Timed segments never join. A bar opens the canonical event and announces the full date range, even when only part of it is visible.
 
 ---
 
@@ -153,7 +140,7 @@ The `top` and `height` formulas use the `--minute-height` token set by the share
 
 ### All-day entries (slot-based positioning)
 
-All-day chips don't use absolute positioning. They flow inside slot containers. SlotManager still sets `--entry-width`, `--entry-margin-inline-start`, `--entry-z-index`, and `--entry-opacity` as CSS custom properties. For dense or narrow Week, date count controls use the same slots and the chips are not mounted; the timed entries are unchanged.
+All-day bars use a grid lane in their first visible date's slot. Their inline size covers the occupied columns and intervening gutters, without changing the date tracks or adding duplicate actions. Dense or narrow Week uses count controls in the date slots instead.
 
 ### Slot naming conventions
 

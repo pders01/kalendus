@@ -182,14 +182,10 @@ const sampleEntries: CalendarEntry[] = [
         heading: 'Product Sprint',
         content: 'Multi-day product development sprint',
         color: '#6a1b9a',
-        isContinuation: false,
+        kind: 'all-day',
         date: {
             start: { day: 20, month: currentMonth, year: currentYear },
             end: { day: 22, month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 8, minute: 0 },
-            end: { hour: 17, minute: 0 },
         },
     },
     {

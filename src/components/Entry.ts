@@ -97,7 +97,7 @@ export default class Entry extends LitElement {
             user-select: none;
             border-radius: var(--entry-border-radius);
             grid-row: var(--start-slot);
-            width: var(--entry-width, 100%);
+            width: var(--_span-width, var(--entry-width, 100%));
             margin-inline-start: var(--entry-margin-inline-start, var(--entry-margin-left, 0));
             background-color: var(--entry-background-color);
             color: var(--entry-readable-color, var(--text-color, CanvasText));
@@ -206,10 +206,6 @@ export default class Entry extends LitElement {
         /* The band already labels these as all-day. Do not spend scarce day-column
            width repeating that metadata on every event; the accessible name retains it. */
         :host([slot='all-day']) .time,
-        :host([slot^='all-day-']) .time {
-            display: none;
-        }
-
         /* Full mode: multi-line with all content */
         .main.full {
             flex-direction: column;
@@ -366,10 +362,6 @@ export default class Entry extends LitElement {
             font-weight: 500;
         }
 
-        :host([data-display-mode='month-span']) .time {
-            display: none;
-        }
-
         /* Spanning classes for connected multi-day bars */
         :host([data-display-mode='month-span'].first-day) {
             border-start-end-radius: 0;
@@ -400,6 +392,20 @@ export default class Entry extends LitElement {
         :host([data-display-mode='month-span'].middle-day:not(:focus-visible)) .title,
         :host([data-display-mode='month-span'].last-day:not(:focus-visible)) .title {
             visibility: hidden;
+        }
+
+        :host(.open-start) {
+            border-start-start-radius: 0;
+            border-end-start-radius: 0;
+            border-inline-start: none;
+        }
+        :host(.open-start)::before {
+            display: none;
+        }
+        :host(.open-end) {
+            border-start-end-radius: 0;
+            border-end-end-radius: 0;
+            border-inline-end: none;
         }
 
         .content {
@@ -575,10 +581,8 @@ export default class Entry extends LitElement {
     private _renderTime() {
         const msg = getMessages(this.locale);
 
-        // Month-span mode: no time labels (bars represent all-day/multi-day events)
-        if (this.displayMode === 'month-span') {
-            return nothing;
-        }
+        // Week's band already labels these events as all-day.
+        if (this.slot.startsWith('all-day-')) return nothing;
 
         // Month-dot mode: show "All Day" or start time
         if (this.displayMode === 'month-dot') {

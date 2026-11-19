@@ -212,23 +212,27 @@ describe('Real-root automatic accessibility regressions', function () {
         );
         await settle(calendar);
         const view = calendar.shadowRoot!.querySelector(`lms-calendar-${viewMode}`)!;
-        const conferenceCount =
+        const conferenceDays =
             viewMode === 'day'
-                ? 1
+                ? [date.day]
                 : [
                       ...view.shadowRoot!.querySelectorAll<HTMLButtonElement>(
                           'button.day-label[data-date]',
                       ),
-                  ].filter((button) =>
-                      ['2026-3-9', '2026-3-10', '2026-3-11', '2026-3-12'].includes(
-                          button.dataset.date!,
-                      ),
-                  ).length;
-        expect(conferenceCount, 'visible conference dates are represented').to.be.at.least(1);
+                  ]
+                      .map((button) => Number(button.dataset.date!.split('-')[2]))
+                      .filter((day) => day >= 9 && day <= 12);
+        expect(conferenceDays, 'visible conference dates are represented').not.to.be.empty;
         const cards = [...view.querySelectorAll<Entry>('lms-calendar-entry')];
-        expect(cards.map((entry) => entry.eventId).sort()).to.deep.equal(
-            [...Array(conferenceCount).fill('conference'), 'holiday', 'planning'].sort(),
-        );
+        expect(cards.map((entry) => entry.eventId).sort()).to.deep.equal([
+            'conference',
+            'holiday',
+            'planning',
+        ]);
+        expect(cards.find((card) => card.eventId === 'conference')?.date).to.deep.equal({
+            start: { ...date, day: conferenceDays[0] },
+            end: { ...date, day: conferenceDays.at(-1) },
+        });
         for (const card of cards) {
             expect(card.getBoundingClientRect().height).to.be.at.least(24);
             expect(getComputedStyle(card).display).not.to.equal('none');
@@ -284,14 +288,18 @@ describe('Real-root automatic accessibility regressions', function () {
                                 `.day[data-date="${key}"] .summary:not([hidden])`,
                             ),
                     );
-                    const rendered = Array.from(
-                        month.querySelectorAll<HTMLElement>('lms-calendar-entry'),
+                    const rendered = [...month.querySelectorAll<Entry>('lms-calendar-entry')];
+                    const onDate = rendered.filter(
+                        (entry) =>
+                            entry.date!.start.day <= date.day && entry.date!.end.day >= date.day,
                     );
-                    const onDate = rendered.filter((entry) => entry.slot === key);
                     expect(onDate.length).to.be.greaterThan(0).and.lessThan(10);
-                    expect(
-                        rendered.filter((entry) => entry.dataset.eventId === 'conference'),
-                    ).to.have.length(4);
+                    const conference = rendered.filter((entry) => entry.eventId === 'conference');
+                    expect(conference).to.have.length(1);
+                    expect(conference[0].date).to.deep.equal({
+                        start: { ...date, day: 9 },
+                        end: { ...date, day: 12 },
+                    });
                     expect(
                         rendered.every((entry) => getComputedStyle(entry).display !== 'none'),
                     ).to.equal(true);

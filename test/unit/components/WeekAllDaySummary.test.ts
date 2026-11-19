@@ -34,9 +34,10 @@ async function week(entries: CalendarEntry[], style = '') {
 }
 
 describe('Dense Week all-day summary', () => {
-    it('keeps sparse chips where their columns can show titles', async () => {
+    it('joins sparse all-day previews where their columns can show titles', async () => {
         const calendar = await week([allDay('Exhibition', 17, 18), timed]);
-        await waitUntil(() => chips(calendar).length === 2);
+        await waitUntil(() => chips(calendar).length === 1);
+        expect(chips(calendar)[0].date).to.deep.equal({ start: date(17), end: date(18) });
         expect(controls(calendar)).to.have.length(0);
     });
 

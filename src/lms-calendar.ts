@@ -23,7 +23,7 @@ import './components/Month.js';
 import type { CalendarState, CalendarVisibleRange, CalendarEntryRequest } from './contracts.js';
 import './components/Week.js';
 import { prepareAgendaEntries } from './lib/agendaEntries.js';
-import { layoutAllDaySegments } from './lib/allDayLayout.js';
+import { joinVisibleSpans, layoutAllDaySegments, type VisibleSpan } from './lib/allDayLayout.js';
 import './components/Year.js';
 import {
     normalizeEntries,
@@ -307,7 +307,7 @@ export default class LMSCalendar extends LitElement {
     private _lastStateKey = '';
     private _midnightTimer?: ReturnType<typeof setTimeout>;
     private _validationIssues: EntryValidationIssue[] = [];
-    private _focusToRestore?: { eventId: string; slot: string };
+    private _focusToRestore?: LMSCalendarEntry;
     @state() private _entriesError = '';
 
     private _processedEntries: NormalizedCalendarEntry[] = [];
@@ -987,9 +987,15 @@ export default class LMSCalendar extends LitElement {
         this.setAttribute('data-view-mode', this.viewMode);
         if (this._menuOpen) {
             const menu = this.shadowRoot?.querySelector<LMSCalendarMenu>('lms-menu');
-            if (menu)
+            if (menu) {
                 menu.containment =
                     this.shadowRoot?.querySelector<HTMLElement>('.calendar-view') ?? this;
+                const trigger = this._menuTriggerEntry;
+                menu.returnFocusTarget =
+                    trigger instanceof LMSCalendarEntry && !trigger.isConnected
+                        ? this._entryFocusTarget(trigger)
+                        : undefined;
+            }
         }
         const focus = this._focusToRestore;
         this._focusToRestore = undefined;
@@ -998,20 +1004,7 @@ export default class LMSCalendar extends LitElement {
             !this.shadowRoot?.activeElement &&
             (document.activeElement === document.body || document.activeElement === this)
         ) {
-            const entry = [
-                ...(this.shadowRoot?.querySelectorAll<LMSCalendarEntry>('lms-calendar-entry') ??
-                    []),
-            ].find(
-                (candidate) => candidate.eventId === focus.eventId && candidate.slot === focus.slot,
-            );
-            const destination =
-                entry && getComputedStyle(entry).display !== 'none'
-                    ? entry
-                    : (this.shadowRoot
-                          ?.querySelector('lms-calendar-month')
-                          ?.previewFocusTarget(focus.slot) ??
-                      this.shadowRoot?.querySelector<HTMLElement>('[data-menu-focus-fallback]'));
-            destination?.focus({ preventScroll: true });
+            this._entryFocusTarget(focus)?.focus({ preventScroll: true });
         }
         this._observeTimeGrid();
         if (changedProperties.has('entries' as never) && this._validationIssues.length) {
@@ -1274,9 +1267,7 @@ export default class LMSCalendar extends LitElement {
         if (previousGrid?.isConnected && leavingGrid)
             this._timeAnchor = this._timePosition(previousGrid);
         const focused = this.shadowRoot?.activeElement;
-        if (focused instanceof LMSCalendarEntry && focused.eventId) {
-            this._focusToRestore = { eventId: focused.eventId, slot: focused.slot };
-        }
+        if (focused instanceof LMSCalendarEntry && focused.eventId) this._focusToRestore = focused;
         if (!['auto', 'inline', 'day'].includes(this.monthDayBehavior))
             this.monthDayBehavior = 'auto';
         if (!['auto', 'presence', 'previews'].includes(this.monthPresentation))
@@ -1790,6 +1781,28 @@ export default class LMSCalendar extends LitElement {
         });
     }
 
+    private _entryFocusTarget(origin: LMSCalendarEntry) {
+        const root = this.shadowRoot!;
+        const date = origin.date && civilDateKey(origin.date.start);
+        const entry = [...root.querySelectorAll('lms-calendar-entry')].find(
+            (candidate) =>
+                candidate.eventId === origin.eventId &&
+                (candidate.slot === origin.slot ||
+                    (date &&
+                        candidate.date &&
+                        candidate.displayMode === 'month-span' &&
+                        civilDateKey(candidate.date.start) <= date &&
+                        civilDateKey(candidate.date.end) >= date)),
+        );
+        if (entry && getComputedStyle(entry).display !== 'none') return entry;
+        return (
+            root.querySelector('lms-calendar-month')?.previewFocusTarget(origin.slot) ??
+            root.querySelector<HTMLElement>(`[data-density-key="all-day:${date}"]`) ??
+            root.querySelector<HTMLElement>('[data-menu-focus-fallback]') ??
+            undefined
+        );
+    }
+
     private _handleMenuClose() {
         this._menuOpen = false;
         this._menuEventDetails = undefined;
@@ -2206,40 +2219,73 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _renderMonthEntries() {
-        const visible: EntryRender[] = [];
-        for (const [slot, rows] of Object.entries(this._monthPreviews)) {
+        const visible = [];
+        for (const [column, [slot, rows]] of Object.entries(this._monthPreviews).entries()) {
             const capacity = Math.min(rows.length, this._monthCapacity[slot] ?? 0);
             for (let row = 0; row < capacity; row++) {
-                const preview = rows[row];
-                if (!preview) continue;
-                const { entry, spanClass } = preview;
-                const index = entry.originalIndex;
-                let style: string;
-                if (entry.isAllDay) {
-                    const [r, g, b] = parseColorWithDefault(entry.color);
-                    style = `--entry-color: ${this._safeEntryColor(entry.color)}; --entry-background-color: rgba(${r}, ${g}, ${b}, 0.12); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.3); order: ${row}; z-index: ${100 + row}`;
-                } else {
-                    const [color] = getColorTextWithContrast(entry.color);
-                    style = `--entry-color: ${color}; --entry-background-color: ${color}; z-index: ${100 + index}`;
-                }
-                visible.push(
-                    this._composeEntry({
-                        index,
-                        slot,
-                        inlineStyle: `${style}; --all-day-row: ${row}`,
-                        entry,
-                        density: entry.isAllDay ? 'compact' : this._determineDensity(entry),
-                        displayMode: entry.isAllDay ? 'month-span' : 'month-dot',
-                        spanClass,
-                    }),
-                );
+                const entry = rows[row];
+                if (entry) visible.push({ entry, row, column });
             }
         }
+        const elements = joinVisibleSpans(visible).map((run) => {
+            const { entry, row } = run;
+            if (entry.isAllDay) return this._renderAllDayBar(run, 'month');
+            const { year, month, day } = entry.date.start;
+            const [color] = getColorTextWithContrast(entry.color);
+            return this._composeEntry({
+                index: entry.originalIndex,
+                slot: `${year}-${month}-${day}`,
+                inlineStyle: `--entry-color: ${color}; --entry-background-color: ${color}; --all-day-row: ${row}`,
+                entry,
+                displayMode: 'month-dot',
+            });
+        });
         return repeat(
-            visible,
+            elements,
             (item) => item.key,
             (item) => item.template,
         );
+    }
+
+    private _renderAllDayBar(
+        { entry, end, row, length }: VisibleSpan<ExpandedCalendarEntry>,
+        view: 'day' | 'week' | 'month',
+    ) {
+        const { year, month, day } = entry.date.start;
+        const slot = `${year}-${month}-${day}`;
+        const preview = view === 'month';
+        const [r, g, b] = parseColorWithDefault(entry.color);
+        const range =
+            formatMonthSpanRange(entry, this.locale) ||
+            formatLocalizedDate(day, month, year, this.locale);
+        const result = this._composeEntry({
+            index: entry.originalIndex,
+            slot: preview ? slot : view === 'week' ? `all-day-${slot}` : 'all-day',
+            inlineStyle: `--entry-color: ${this._safeEntryColor(entry.color)}; --entry-background-color: rgba(${r}, ${g}, ${b}, ${preview ? 0.12 : 0.08}); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, ${preview ? 0.3 : 0.25}); --_span-width: calc(${length * 100}% + ${length - 1} * var(--_span-gap, 1px)); --all-day-row: ${row}; --entry-z-index: ${100 + row}; ${preview ? '' : '--entry-border-inline-start: none; --entry-handle-color: var(--entry-color); --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em)'}`,
+            entry: {
+                ...entry,
+                date: { start: entry.date.start, end: end.date.end },
+                accessibility: {
+                    tabIndex: 0,
+                    role: 'button',
+                    ariaLabel: getMessageFormatters(this.locale).eventLabel(
+                        entry.heading || getMessages(this.locale).noTitle,
+                        range,
+                        getMessages(this.locale).allDay,
+                    ),
+                },
+            },
+            density: preview ? 'compact' : 'standard',
+            displayMode: preview ? 'month-span' : 'default',
+            spanClass:
+                view === 'day'
+                    ? ''
+                    : `${entry.continuation.is ? 'open-start' : ''} ${end.continuation.has ? 'open-end' : ''}`,
+        });
+        // Week has one window: keep the bar keyed to the occurrence even if
+        // its first visible date changes. Month can show several runs.
+        if (view === 'week') result.key = entry.occurrenceId;
+        return result;
     }
 
     private _renderEntriesByDate(weekCtx?: WeekDisplayContext) {
@@ -2348,31 +2394,14 @@ export default class LMSCalendar extends LitElement {
             return this._renderWeekAllDaySummary(weekCtx, allDayByDate, allElements);
         }
 
-        // Compute all-day layout declaratively (cached — only recomputes when entries change)
-        const condensedDatesForAllDay = weekCtx?.isCondensed ? weekCtx.visibleDates : undefined;
-        const allDayKey =
-            viewMode === 'week'
-                ? `${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}-${this.firstDayOfWeek}-${weekCtx?.visibleStartIndex ?? 0}-${weekCtx?.visibleLength ?? 7}`
-                : `day-${currentActiveDate.year}-${currentActiveDate.month}-${currentActiveDate.day}`;
-
+        const dates = weekCtx?.visibleDates ?? [currentActiveDate];
+        const allDayKey = `${viewMode}:${civilDateKey(dates[0])}:${dates.length}`;
         let allDayLayout = this._allDayLayoutCache.get(allDayKey);
         if (!allDayLayout) {
             allDayLayout = layoutAllDaySegments(
                 allDayEntries.map((entry) => ({
                     entry,
-                    column:
-                        viewMode === 'day'
-                            ? 0
-                            : condensedDatesForAllDay
-                              ? slotManager.getIndexInDates(
-                                    entry.date.start,
-                                    condensedDatesForAllDay,
-                                )
-                              : slotManager.getWeekDayIndex(
-                                    entry.date.start,
-                                    currentActiveDate,
-                                    this.firstDayOfWeek,
-                                ),
+                    column: slotManager.getIndexInDates(entry.date.start, dates),
                 })),
             );
             this._allDayLayoutCache.set(allDayKey, allDayLayout);
@@ -2382,43 +2411,9 @@ export default class LMSCalendar extends LitElement {
         if (weekCtx && allDayByDate && totalRows > maxPreviewRows)
             return this._renderWeekAllDaySummary(weekCtx, allDayByDate, allElements);
 
-        const allDayElements = placements.map(({ entry, row, spanClass }, index) => {
-            const [r, g, b] = parseColorWithDefault(entry.color);
-
-            const positionConfig: PositionConfig = {
-                viewMode,
-                date: entry.date.start,
-                isAllDay: true,
-                activeDate: currentActiveDate,
-                firstDayOfWeek: this.firstDayOfWeek,
-                weekDates: condensedDatesForAllDay,
-                locale: this.locale,
-            };
-
-            const position = slotManager.calculatePosition(positionConfig);
-            const accessibility = slotManager.calculateAccessibility(positionConfig);
-            const layoutDimensions: LayoutDimensions = {
-                width: 100,
-                x: 0,
-                zIndex: 100 + row,
-                opacity: 1,
-            };
-
-            const positionCSS = slotManager.generatePositionCSS(position, layoutDimensions);
-
-            return this._composeEntry({
-                index: index + entriesByDate.length,
-                slot: position.slotName,
-                inlineStyle: `--entry-color: ${this._safeEntryColor(entry.color)}; --entry-background-color: rgba(${r}, ${g}, ${b}, 0.08); --entry-border: 1px solid rgba(${r}, ${g}, ${b}, 0.25); --entry-border-inline-start: none; --entry-handle-color: ${this._safeEntryColor(entry.color)}; --entry-handle-width: 4px; --entry-handle-display: block; --entry-padding-inline-start: calc(4px + 0.35em); --all-day-row: ${row}; order: ${row}; ${positionCSS}`,
-                entry: {
-                    ...entry,
-                    accessibility: accessibility,
-                },
-                density: 'standard',
-                floatText: false,
-                spanClass,
-            });
-        });
+        const allDayElements = joinVisibleSpans(placements).map((run) =>
+            this._renderAllDayBar(run, viewMode),
+        );
 
         return {
             elements: repeat(

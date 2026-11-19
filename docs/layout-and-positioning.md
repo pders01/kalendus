@@ -106,9 +106,9 @@ Prefer `kind: 'all-day'` with inclusive civil date endpoints and no `time` for t
 
 Without `kind`, legacy promotion is retained: missing time, multi-day dates, an end-hour minus start-hour of at least 23, or `isContinuation: true` is treated as all-day. Do not create time sentinels for new all-day records. See [data contracts](./library-usage.md#data-contracts).
 
-All-day event chips are allocated into rows by `allocateAllDayRows()` to avoid visual overlap. The band is bounded so timed entries remain reachable. In Week, the band shows per-date all-day totals instead of chips when a column has less than about seven times the calendar font size in usable width or more than three rows are needed. Each count opens that date's all-day list without changing the active week. Closing it returns to the count and the prior timed scroll position. A multi-day event is counted on each date it occupies. Day retains an internally scrolling chip band. The default `--all-day-row-height: max(24px, 1.5rem)` scales with document text size; keep the row tall enough when overriding it.
+All-day events are allocated into rows by `allocateAllDayRows()` to avoid visual overlap. Sparse Week shows one bar per visible all-day occurrence, with open edges if the event continues outside the window. The band is bounded so timed entries remain reachable. Week shows per-date all-day totals instead of bars when a column has less than about seven times the calendar font size in usable width or more than three rows are needed. Each count opens that date's all-day list without changing the active week. Closing it returns to the count and the prior timed scroll position. A multi-day event is counted on each date it occupies. Day retains an internally scrolling chip band. The default `--all-day-row-height: max(24px, 1.5rem)` scales with document text size; keep the row tall enough when overriding it.
 
-Month measures each cell's preview budget and mounts only the rows that fit, rather than imposing an unconditional two-entry limit. A `+N` disclosure counts unmounted entries only, including events in higher multi-day lanes; it still gives access to the date's full event list. Compact date controls expose full date/activity descriptions for assistive technology; `month-day-behavior="day"` retains the legacy whole-day count action. Enlarged text may require horizontal panning within the Month grid, but the embedding page owns vertical scrolling.
+Month measures each cell's preview budget rather than imposing an unconditional two-entry limit. Adjacent visible dates of an all-day event share a bar within a week row; bars do not cross dates where their lane does not fit. The `+N` disclosure still counts hidden events per date and gives access to the full date list. Compact date controls expose full date/activity descriptions for assistive technology; `month-day-behavior="day"` retains the legacy whole-day count action. Enlarged text may require horizontal panning within the Month grid, but the embedding page owns vertical scrolling.
 
 ---
 
@@ -118,7 +118,7 @@ When an entry's `date.start` differs from `date.end`, the component automaticall
 
 1. **Expands** only its intersection with the half-open `visibleRange`, subject to the segment budget
 2. **Injects** continuation metadata (`continuation.is`, `continuation.has`, `continuation.index`, `continuation.total`)
-3. **Styles** the first, middle, and last slices differently
+3. **Joins** adjacent visible all-day slices into a single bar per week row in Month and per visible window in Week
 
 You don't need to manually split multi-day events — just provide the full date range:
 

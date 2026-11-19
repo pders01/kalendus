@@ -231,10 +231,12 @@ export default class Week extends LitElement {
         }
 
         .all-day-day-column {
+            --_span-gap: var(--day-gap, 1px);
             position: relative;
             min-height: 2em;
             padding: 0.25em 0;
             display: grid;
+            grid-template-columns: minmax(0, 1fr);
             grid-template-rows: repeat(
                 var(--all-day-rows, 1),
                 var(--all-day-row-height, max(24px, 1.5rem))
@@ -262,38 +264,16 @@ export default class Week extends LitElement {
             z-index: var(--entry-z-index, 1) !important;
         }
 
-        /* Enhanced multi-day spanning styles with consistent ordering */
-        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.first-day) {
+        /* Legacy segmented slots on standalone Week components. */
+        .all-day-day-column ::slotted(:is(.first-day, .middle-day)) {
             border-start-end-radius: 0 !important;
             border-end-end-radius: 0 !important;
-            border-start-start-radius: var(--entry-border-radius) !important;
-            border-end-start-radius: var(--entry-border-radius) !important;
-            position: relative !important;
         }
-
-        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.middle-day) {
-            border-start-start-radius: 0 !important;
-            border-start-end-radius: 0 !important;
-            border-end-start-radius: 0 !important;
-            border-end-end-radius: 0 !important;
-            position: relative !important;
-            border-inline-start: var(--multi-day-separator) !important;
-            margin-inline-start: -2px !important;
-        }
-
-        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.last-day) {
+        .all-day-day-column ::slotted(:is(.middle-day, .last-day)) {
             border-start-start-radius: 0 !important;
             border-end-start-radius: 0 !important;
-            border-start-end-radius: var(--entry-border-radius) !important;
-            border-end-end-radius: var(--entry-border-radius) !important;
-            position: relative !important;
             border-inline-start: var(--multi-day-separator) !important;
             margin-inline-start: -2px !important;
-        }
-
-        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry.single-day) {
-            border-radius: var(--entry-border-radius) !important;
-            position: relative !important;
         }
 
         .all-day-time-header {

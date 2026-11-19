@@ -123,9 +123,7 @@ export function allocateAllDayRows(events: AllDayEvent[]): AllDayLayoutResult {
 }
 
 /**
- * Coalesce visible segments into row requests, then return one placement per
- * input segment in the same order. The caller supplies display columns (not
- * the canonical continuation indices) so span edges follow the visible window.
+ * Allocate rows from display columns without reordering or replacing segments.
  */
 export function layoutAllDaySegments<
     T extends Pick<ExpandedCalendarEntry, 'occurrenceId' | 'continuation'>,
@@ -142,48 +140,39 @@ export function layoutAllDaySegments<
     }
 
     const { rowAssignments, totalRows } = allocateAllDayRows([...events.values()]);
-    const placements = segments.map(({ entry, column }) => {
-        const days = events.get(entry.occurrenceId)!.days;
-        return {
-            entry,
-            row: rowAssignments.get(entry.occurrenceId)!,
-            spanClass: computeSpanClass({
-                continuationIndex: column,
-                totalDays: entry.continuation.total,
-                visibleStartIndex: Math.min(...days),
-                visibleEndIndex: Math.max(...days),
-            }),
-        };
-    });
+    const placements = segments.map(({ entry, column }) => ({
+        entry,
+        column,
+        row: rowAssignments.get(entry.occurrenceId)!,
+    }));
     return { placements, totalRows };
 }
 
-/**
- * Determine the span class for an all-day entry based on its position within a multi-day span.
- */
-export function computeSpanClass(entry: {
-    continuationIndex: number;
-    totalDays: number;
-    visibleStartIndex: number;
-    visibleEndIndex: number;
-}): 'first-day' | 'middle-day' | 'last-day' | 'single-day' {
-    const { continuationIndex, totalDays, visibleStartIndex, visibleEndIndex } = entry;
+type Placement<T> = { entry: T; row: number; column: number };
+export type VisibleSpan<T> = Placement<T> & { end: T; length: number };
 
-    if (totalDays <= 1) {
-        return 'single-day';
+/** Join adjacent occupied columns, in date order per occurrence, after capacity limits. */
+export function joinVisibleSpans<T extends ExpandedCalendarEntry>(
+    placements: readonly Placement<T>[],
+): VisibleSpan<T>[] {
+    const runs: VisibleSpan<T>[] = [];
+    const previous = new Map<string, VisibleSpan<T>>();
+    for (const part of placements) {
+        const { entry, row, column } = part;
+        const run = previous.get(entry.occurrenceId);
+        if (
+            entry.isAllDay &&
+            run?.row === row &&
+            column % 7 &&
+            run.column + run.length === column
+        ) {
+            run.end = entry;
+            run.length++;
+        } else {
+            const next = { ...part, end: entry, length: 1 };
+            runs.push(next);
+            if (entry.isAllDay) previous.set(entry.occurrenceId, next);
+        }
     }
-
-    const isFirst = continuationIndex === visibleStartIndex;
-    const isLast = continuationIndex === visibleEndIndex;
-
-    if (isFirst && isLast) {
-        return 'single-day';
-    }
-    if (isFirst) {
-        return 'first-day';
-    }
-    if (isLast) {
-        return 'last-day';
-    }
-    return 'middle-day';
+    return runs;
 }

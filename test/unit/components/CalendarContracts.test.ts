@@ -395,11 +395,12 @@ describe('Calendar public contracts and audit regressions', () => {
         ]);
         el.style.setProperty('--month-week-height', '10em');
         await waitUntil(() => !!el.shadowRoot!.querySelector('[data-event-id="row-timed"]'));
-        const spans = [...el.shadowRoot!.querySelectorAll<HTMLElement>('[data-event-id="row-b"]')];
-        expect(spans).to.have.length(2);
-        expect(
-            Math.abs(spans[0].getBoundingClientRect().top - spans[1].getBoundingClientRect().top),
-        ).to.be.lessThan(1);
+        const spans = [
+            ...el.shadowRoot!.querySelectorAll('lms-calendar-entry[data-event-id="row-b"]'),
+        ];
+        expect(spans).to.have.length(1);
+        expect(spans[0].date).to.deep.equal({ start: day(10), end: day(11) });
+        expect(spans[0].style.getPropertyValue('--all-day-row')).to.equal('1');
         const timed = el.shadowRoot!.querySelector<HTMLElement>('[data-event-id="row-timed"]')!;
         expect(timed.style.getPropertyValue('--all-day-row')).to.equal('2');
     });

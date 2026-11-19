@@ -1,13 +1,9 @@
-import { layoutAllDaySegments, type computeSpanClass } from './allDayLayout.js';
+import { layoutAllDaySegments } from './allDayLayout.js';
 import type { CivilDate, ExpandedCalendarEntry } from './calendarModel.js';
 
 type OrderedEntry = ExpandedCalendarEntry & { originalIndex: number };
-type MonthPreview<T> = { entry: T; spanClass?: ReturnType<typeof computeSpanClass> };
-
-/** The array index is the visual row. Empty lanes are significant. */
-export type MonthPreviewRows<T> = Readonly<
-    Record<string, readonly (MonthPreview<T> | undefined)[]>
->;
+/** Dates are in display order; the array index is the visual row. */
+export type MonthPreviewRows<T> = Readonly<Record<string, readonly (T | undefined)[]>>;
 
 const slotKey = ({ year, month, day }: CivilDate) => `${year}-${month}-${day}`;
 
@@ -21,7 +17,9 @@ export function buildMonthPreviews<T extends OrderedEntry>(
     dates: readonly CivilDate[],
     entries: readonly T[],
 ): MonthPreviewRows<T> {
-    const previews: Record<string, Array<MonthPreview<T> | undefined>> = {};
+    const previews: Record<string, Array<T | undefined>> = Object.fromEntries(
+        dates.map((date) => [slotKey(date), []]),
+    );
     const allDay: T[] = [];
     const timed: T[] = [];
     for (const entry of entries) (entry.isAllDay ? allDay : timed).push(entry);
@@ -38,12 +36,10 @@ export function buildMonthPreviews<T extends OrderedEntry>(
 
     for (const week of weeks) {
         const { placements } = layoutAllDaySegments(week);
-        for (const { entry, row, spanClass } of placements)
-            (previews[slotKey(entry.date.start)] ??= [])[row] = { entry, spanClass };
+        for (const { entry, row } of placements) previews[slotKey(entry.date.start)][row] = entry;
     }
 
     // Timed rows start after the last occupied span lane, not the all-day count.
-    for (const entry of sortMonthEntries(timed))
-        (previews[slotKey(entry.date.start)] ??= []).push({ entry });
+    for (const entry of sortMonthEntries(timed)) previews[slotKey(entry.date.start)]?.push(entry);
     return previews;
 }

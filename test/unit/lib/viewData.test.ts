@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 
 import { prepareAgendaEntries } from '../../../src/lib/agendaEntries.js';
-import { layoutAllDaySegments } from '../../../src/lib/allDayLayout.js';
+import { joinVisibleSpans, layoutAllDaySegments } from '../../../src/lib/allDayLayout.js';
 import { expandEntries, type CalendarModelEntryInput } from '../../../src/lib/calendarModel.js';
 import { buildMonthPreviews } from '../../../src/lib/monthPreviews.js';
 import { getDenseTimedGroups, layoutTimedEntries } from '../../../src/lib/timedLayout.js';
@@ -85,12 +85,11 @@ describe('Timed layout data', () => {
 });
 
 describe('All-day placements', () => {
-    it('coalesces visible segments by occurrence without reordering or replacing them', () => {
+    it('allocates visible lanes without reordering or replacing input segments', () => {
         const span = allDay('span', 16, 20);
         const input = segments([span, allDay('single', 19)]);
         const entryOn = (day: number) =>
             input.find((entry) => entry.sourceId === 'span' && entry.date.start.day === day)!;
-        // A condensed window clips off the original first and last days.
         const visible = [
             input.find((entry) => entry.sourceId === 'single')!,
             entryOn(19),
@@ -100,32 +99,50 @@ describe('All-day placements', () => {
         const layout = layoutAllDaySegments(
             visible.map((entry) => Object.freeze({ entry, column: entry.date.start.day - 17 })),
         );
-
         expect(layout.totalRows).to.equal(2);
-        expect(layout.placements.map(({ row }) => row)).to.deep.equal([1, 0, 0, 0]);
-        expect(layout.placements.map(({ spanClass }) => spanClass)).to.deep.equal([
-            'single-day',
-            'last-day',
-            'middle-day',
-            'first-day',
+        expect(layout.placements.map(({ row, column }) => [row, column])).to.deep.equal([
+            [1, 2],
+            [0, 2],
+            [0, 1],
+            [0, 0],
         ]);
         layout.placements.forEach(({ entry }, index) => expect(entry).to.equal(visible[index]));
         expect(layout.placements[1].entry.canonicalEntry).to.equal(span);
+        expect(layoutAllDaySegments([])).to.deep.equal({ placements: [], totalRows: 0 });
     });
 
-    it('rounds both edges when a multi-day occurrence is visible in only one column', () => {
-        const input = segments([allDay('a-single', 18), allDay('z-span', 16, 20)]).filter(
-            (entry) => entry.date.start.day === 18,
+    it('joins only adjacent visible dates in one week row and never joins timed segments', () => {
+        const span = allDay('span', 14, 19);
+        const overnight: CalendarModelEntryInput = {
+            ...timed('overnight', 22),
+            date: { start: date(17), end: date(18) },
+            time: { start: { hour: 22, minute: 0 }, end: { hour: 8, minute: 0 } },
+        };
+        const parts = segments([span, overnight]).filter((entry) =>
+            entry.isAllDay ? entry.date.start.day !== 17 : true,
         );
-        const layout = layoutAllDaySegments(input.map((entry) => ({ entry, column: 0 })));
-        expect(layout.totalRows).to.equal(2);
+        const runs = joinVisibleSpans(
+            parts.map((entry) => ({
+                entry,
+                row: 0,
+                column: entry.date.start.day - 9,
+            })),
+        );
         expect(
-            layout.placements.map(({ entry, row, spanClass }) => [entry.sourceId, row, spanClass]),
-        ).to.have.deep.members([
-            ['a-single', 1, 'single-day'],
-            ['z-span', 0, 'single-day'],
+            runs.map(({ entry, end, length }) => [
+                entry.sourceId,
+                entry.date.start.day,
+                end.date.end.day,
+                length,
+            ]),
+        ).to.deep.equal([
+            ['span', 14, 15, 2],
+            ['span', 16, 16, 1],
+            ['span', 18, 19, 2],
+            ['overnight', 17, 17, 1],
+            ['overnight', 18, 18, 1],
         ]);
-        expect(layoutAllDaySegments([])).to.deep.equal({ placements: [], totalRows: 0 });
+        expect(runs[0].entry.canonicalEntry).to.equal(span);
     });
 });
 
@@ -138,31 +155,20 @@ describe('Month preview data', () => {
             span,
             timed('timed', 9, 18),
         ]);
-        const rows = buildMonthPreviews(getMonthCalendarArray(date(17), 1), input);
+        const dates = getMonthCalendarArray(date(17), 1);
+        const rows = buildMonthPreviews(dates, input);
+        expect(Object.keys(rows)).to.deep.equal(
+            dates.map(({ year, month, day }) => `${year}-${month}-${day}`),
+        );
         const day = rows['2026-11-18'];
         expect(day).to.have.length(4);
         expect(day[0]).to.equal(undefined);
         expect(day[1]).to.equal(undefined);
-        expect(day[2]?.spanClass).to.equal('last-day');
-        expect(day[2]?.entry).to.equal(
+        expect(day[2]).to.equal(
             input.find((entry) => entry.sourceId === 'span' && entry.date.start.day === 18),
         );
-        expect(day[2]?.entry.canonicalEntry).to.equal(span);
-        expect(day[3]?.entry.sourceId).to.equal('timed');
-        expect(day[3]?.spanClass).to.equal(undefined);
-    });
-
-    it('keeps bar edges clipped to the caller’s week start', () => {
-        const entries = segments([allDay('span', 14, 16)]);
-        const classes = (firstDayOfWeek: 0 | 1) => {
-            const rows = buildMonthPreviews(
-                getMonthCalendarArray(date(17), firstDayOfWeek),
-                entries,
-            );
-            return [14, 15, 16].map((day) => rows[`2026-11-${day}`][0]?.spanClass);
-        };
-        expect(classes(0)).to.deep.equal(['single-day', 'first-day', 'last-day']);
-        expect(classes(1)).to.deep.equal(['first-day', 'last-day', 'single-day']);
+        expect(day[2]?.canonicalEntry).to.equal(span);
+        expect(day[3]?.sourceId).to.equal('timed');
     });
 
     it('preserves the existing priority of continuing timed spans in Month previews', () => {
@@ -176,11 +182,11 @@ describe('Month preview data', () => {
             getMonthCalendarArray(date(17), 1),
             segments([early, overnight]),
         );
-        expect(rows['2026-11-17'].map((row) => row?.entry.sourceId)).to.deep.equal([
+        expect(rows['2026-11-17'].map((row) => row?.sourceId)).to.deep.equal([
             'overnight',
             'early',
         ]);
-        expect(rows['2026-11-18'][0]?.entry.canonicalEntry).to.equal(overnight);
+        expect(rows['2026-11-18'][0]?.canonicalEntry).to.equal(overnight);
     });
 });
 

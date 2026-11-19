@@ -1,10 +1,6 @@
 import { expect } from 'chai';
 
-import {
-    allocateAllDayRows,
-    computeSpanClass,
-    type AllDayEvent,
-} from '../../../src/lib/allDayLayout.js';
+import { allocateAllDayRows, type AllDayEvent } from '../../../src/lib/allDayLayout.js';
 
 describe('allDayLayout', () => {
     describe('allocateAllDayRows', () => {
@@ -120,87 +116,6 @@ describe('allDayLayout', () => {
             expect(result.rowAssignments.get('e2')).to.equal(1);
             expect(result.rowAssignments.get('e3')).to.equal(1);
             expect(result.totalRows).to.equal(2);
-        });
-    });
-
-    describe('computeSpanClass', () => {
-        it('should return single-day for single-day events', () => {
-            expect(
-                computeSpanClass({
-                    continuationIndex: 0,
-                    totalDays: 1,
-                    visibleStartIndex: 0,
-                    visibleEndIndex: 0,
-                }),
-            ).to.equal('single-day');
-        });
-
-        it('should return first-day for the start of a multi-day event', () => {
-            expect(
-                computeSpanClass({
-                    continuationIndex: 1,
-                    totalDays: 3,
-                    visibleStartIndex: 1,
-                    visibleEndIndex: 3,
-                }),
-            ).to.equal('first-day');
-        });
-
-        it('should return last-day for the end of a multi-day event', () => {
-            expect(
-                computeSpanClass({
-                    continuationIndex: 3,
-                    totalDays: 3,
-                    visibleStartIndex: 1,
-                    visibleEndIndex: 3,
-                }),
-            ).to.equal('last-day');
-        });
-
-        it('should return middle-day for middle of a multi-day event', () => {
-            expect(
-                computeSpanClass({
-                    continuationIndex: 2,
-                    totalDays: 4,
-                    visibleStartIndex: 1,
-                    visibleEndIndex: 4,
-                }),
-            ).to.equal('middle-day');
-        });
-
-        it('should return single-day when visible start equals visible end', () => {
-            expect(
-                computeSpanClass({
-                    continuationIndex: 2,
-                    totalDays: 5,
-                    visibleStartIndex: 2,
-                    visibleEndIndex: 2,
-                }),
-            ).to.equal('single-day');
-        });
-
-        it('should handle event starting before visible week boundary', () => {
-            // Event spans days 5-8, but only days 0-6 are visible in week
-            // If we only see day 0 (which is continuation index 5 in the original span)
-            expect(
-                computeSpanClass({
-                    continuationIndex: 0,
-                    totalDays: 4,
-                    visibleStartIndex: 0,
-                    visibleEndIndex: 2,
-                }),
-            ).to.equal('first-day');
-        });
-
-        it('should handle event ending after visible week boundary', () => {
-            expect(
-                computeSpanClass({
-                    continuationIndex: 6,
-                    totalDays: 10,
-                    visibleStartIndex: 4,
-                    visibleEndIndex: 6,
-                }),
-            ).to.equal('last-day');
         });
     });
 });

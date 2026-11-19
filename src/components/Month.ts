@@ -249,13 +249,23 @@ export default class Month extends LitElement {
             overflow: hidden;
             align-content: start;
         }
+        [data-previews] :is(.day, .entries) {
+            overflow: visible;
+        }
+        [data-previews] .indicator {
+            max-inline-size: 100%;
+            overflow: hidden;
+        }
+        .entries {
+            grid-template-columns: minmax(0, 1fr);
+        }
         slot {
             display: contents;
         }
         ::slotted(lms-calendar-entry) {
             grid-row: calc(var(--all-day-row, var(--month-entry-row, 0)) + 1);
             grid-column: 1;
-            width: 100%;
+            inline-size: var(--_span-width, 100%);
             margin: 0;
             min-block-size: 24px;
             max-block-size: max(24px, var(--all-day-row-height, 1.5rem));
@@ -526,7 +536,7 @@ export default class Month extends LitElement {
         const countsOnly =
             this.compact && this.spans.some((week) => week.some((span) => span.row > 1));
         return html`${this.trace.length ? html`<span class="sr-only" id="traced-event">${this.trace[0].heading || getMessages(this.locale).noTitle}</span>` : nothing}
-        <div class="month-strip"><div class="row-metrics" aria-hidden="true"></div><div class="month" data-span-presentation=${countsOnly ? 'counts' : 'individual'} role="grid" aria-label=${formatLocalizedDate(1, (this._displayDate ?? this.activeDate).month, (this._displayDate ?? this.activeDate).year, this.locale)}>
+        <div class="month-strip"><div class="row-metrics" aria-hidden="true"></div><div class="month" ?data-previews=${!!this.previewRows} data-span-presentation=${countsOnly ? 'counts' : 'individual'} role="grid" aria-label=${formatLocalizedDate(1, (this._displayDate ?? this.activeDate).month, (this._displayDate ?? this.activeDate).year, this.locale)}>
             <div class="weekdays" role="row">${getWeekdayOrder(this.firstDayOfWeek).map((day) => html`<span class="weekday" role="columnheader">${getLocalizedWeekdayShort(day, this.locale)}</span>`)}</div>
             ${Array.from(
                 { length: 6 },

@@ -188,17 +188,12 @@ describe('Month visual geometry and density', () => {
         expect(footer.hidden).to.equal(false);
         expect(footer.querySelector('slot')!.textContent).to.equal('+2');
         calendar.style.setProperty('--month-week-height', '14em');
-        await waitUntil(() => footer.hidden && cards().length === 2);
-        expect(
-            cards().map((card) => [
-                card.dataset.eventId,
-                card.style.getPropertyValue('--all-day-row'),
-            ]),
-        ).to.deep.equal([
-            ['d', '3'],
-            ['visual-0', '4'],
-        ]);
-        expect(cards()[0].classList.contains('last-day')).to.equal(true);
+        await waitUntil(() => footer.hidden && cards().length === 1);
+        expect(cards()[0].dataset.eventId).to.equal('visual-0');
+        expect(cards()[0].style.getPropertyValue('--all-day-row')).to.equal('4');
+        const bar = month.querySelector<Entry>('[data-event-id="d"]')!;
+        expect(bar.style.getPropertyValue('--all-day-row')).to.equal('3');
+        expect(bar.date).to.deep.equal({ start: date, end });
     });
 
     it('uses an explicit readable week budget rather than an unconditional two-row cap or redundant footer', async () => {
@@ -330,8 +325,6 @@ describe('Month visual geometry and density', () => {
         await entry.updateComplete;
         expect(entry.getAttribute('aria-label')).to.include('Design conference');
         expect(entry.getAttribute('aria-label')!.toLowerCase()).to.include('all day');
-        const time = entry.shadowRoot!.querySelector('.time');
-        expect(time).to.exist;
-        expect(getComputedStyle(time!).display).to.equal('none');
+        expect(entry.shadowRoot!.querySelector('.time')).to.equal(null);
     });
 });

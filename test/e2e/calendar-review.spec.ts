@@ -114,6 +114,47 @@ test('reads and exports from Agenda, compares Week, and returns to the open even
     await expect(workshop).toHaveAttribute('aria-expanded', 'true');
 });
 
+test('opens the same continuous all-day event from Month and Week', async ({ page }, info) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto(story('calendar-viewport-matrix--month'));
+    const calendar = page.locator('lms-calendar');
+    await calendar.evaluate((element) => {
+        const host = element as Calendar;
+        const canonical = host.entries.find((entry) => entry.id === 'exhibition');
+        host.addEventListener('export-entry', (event) => {
+            event.preventDefault();
+            host.dataset.canonicalSpanExport = String(
+                event.cancelable && event.detail.entry === canonical,
+            );
+        });
+    });
+    for (const mode of ['month', 'week']) {
+        const grid = calendar.locator(`lms-calendar-${mode}`);
+        const bar = grid.getByRole('button', { name: /^Courtyard exhibition/ });
+        await expect(bar).toHaveCount(1);
+        await capture(page, info, `${mode}-all-day-bar`);
+        const bounds = (await bar.boundingBox())!;
+        expect(bounds.width).toBeGreaterThan(400);
+        await bar.focus();
+        // Hit the opposite end, in a different date column from the anchor.
+        await bar.click({ position: { x: bounds.width - 8, y: bounds.height / 2 } });
+        const dialog = calendar.getByRole('dialog');
+        await expect(dialog).toContainText(/Nov 16, 2026.*Nov 19, 2026/);
+        await dialog.getByRole('button', { name: 'Export as ICS' }).click();
+        await expect(calendar).toHaveAttribute('data-canonical-span-export', 'true');
+        await calendar.evaluate(
+            (element) => delete (element as Calendar).dataset.canonicalSpanExport,
+        );
+        await page.keyboard.press('Escape');
+        await expect(bar).toBeFocused();
+        if (mode === 'month')
+            await calendar
+                .locator('lms-calendar-header')
+                .getByRole('button', { name: 'Week', exact: true })
+                .click();
+    }
+});
+
 test('returns from a dense all-day list to the same part of a shallow Week', async ({
     page,
 }, info) => {
