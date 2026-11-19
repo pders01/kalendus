@@ -2,25 +2,30 @@ import { expect } from 'chai';
 
 import { EventBus } from '../../src/core/event-bus.js';
 import { createApp } from '../../src/http/app.js';
+import { calendarRemovalChannel } from '../../src/http/routes/calendars.js';
 import { createCalendar } from '../helpers/fixtures.js';
 import { createTestDb } from '../helpers/test-db.js';
 
 type App = ReturnType<typeof createApp>['app'];
 
-async function read(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+async function readChunk(reader: ReadableStreamDefaultReader<Uint8Array>) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-        const chunk = await Promise.race([
+        return await Promise.race([
             reader.read(),
             new Promise<never>((_, reject) => {
                 timer = setTimeout(() => reject(new Error('SSE delivery timeout')), 1000);
             }),
         ]);
-        if (chunk.done) throw new Error('SSE stream closed before notification');
-        return new TextDecoder().decode(chunk.value);
     } finally {
         clearTimeout(timer);
     }
+}
+
+async function read(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+    const chunk = await readChunk(reader);
+    if (chunk.done) throw new Error('SSE stream closed before notification');
+    return new TextDecoder().decode(chunk.value);
 }
 
 const invalidation = 'event: invalidated\ndata: {}\n\n';
@@ -146,6 +151,83 @@ describe('Stream Routes', () => {
             );
         } finally {
             await Promise.all(readers.map((reader) => reader.cancel()));
+        }
+    });
+
+    it('sends one final payload-free invalidation to open streams after a parent delete commits', async () => {
+        const { app: wiredRoutes, syncService } = createApp({
+            db,
+            eventBus,
+            mode: 'public',
+            authorizeStreamDetails: ({ request }) => request.headers.has('X-Details'),
+        });
+        const url = `/api/calendars/${calId}`;
+        expect((await post(app, calId)).status).to.equal(201);
+        const streams = await Promise.all([
+            wiredRoutes.request(`${url}/stream`),
+            wiredRoutes.request(`${url}/stream`, { headers: { 'X-Details': 'true' } }),
+        ]);
+        const readers = streams.map((stream) => stream.body!.getReader());
+        const snapshots: unknown[] = [];
+        const unsubscribe = eventBus.subscribe(calendarRemovalChannel(calId), () => {
+            snapshots.push(
+                db.$client.prepare('SELECT count(*) AS n FROM calendars').get(),
+                db.$client.prepare('SELECT count(*) AS n FROM events').get(),
+            );
+        });
+        try {
+            for (const reader of readers) expect(await read(reader)).to.include('event: connected');
+            const terminated = readers.map(async (reader) => {
+                expect(await read(reader)).to.equal(invalidation);
+                expect(await readChunk(reader)).to.have.property('done', true);
+            });
+            const deletion = wiredRoutes.request(url, { method: 'DELETE' });
+            const [deleted] = await Promise.all([deletion, ...terminated]);
+            expect(deleted.status).to.equal(200);
+            expect((await wiredRoutes.request(`${url}/stream`)).status).to.equal(404);
+            expect((await wiredRoutes.request(url, { method: 'DELETE' })).status).to.equal(404);
+            expect(snapshots).to.deep.equal([{ n: 0 }, { n: 0 }]);
+        } finally {
+            unsubscribe();
+            await Promise.all(readers.map((reader) => reader.cancel()));
+        }
+        expect(syncService.subscriberCount(calId)).to.equal(0);
+        expect(eventBus.subscriberCount(calendarRemovalChannel(calId))).to.equal(0);
+    });
+
+    it('rejects a stream if the calendar was removed while the details policy was pending', async () => {
+        let notifyEntered!: () => void;
+        const entered = new Promise<void>((resolve) => {
+            notifyEntered = resolve;
+        });
+        let authorize!: (granted: boolean) => void;
+        const grant = new Promise<boolean>((resolve) => {
+            authorize = resolve;
+        });
+        const { app: wiredRoutes, syncService } = createApp({
+            db,
+            eventBus,
+            mode: 'public',
+            authorizeStreamDetails: () => {
+                notifyEntered();
+                return grant;
+            },
+        });
+        const url = `/api/calendars/${calId}`;
+        const opening = wiredRoutes.request(`${url}/stream`);
+        await entered;
+        try {
+            expect((await wiredRoutes.request(url, { method: 'DELETE' })).status).to.equal(200);
+        } finally {
+            authorize(true);
+        }
+        const opened = await opening;
+        try {
+            expect(opened.status).to.equal(404);
+            expect(syncService.subscriberCount(calId)).to.equal(0);
+            expect(eventBus.subscriberCount(calendarRemovalChannel(calId))).to.equal(0);
+        } finally {
+            await opened.body?.cancel();
         }
     });
 

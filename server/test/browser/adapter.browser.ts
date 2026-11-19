@@ -1,4 +1,4 @@
-import { expect, fixture, html, nextFrame } from '@open-wc/testing';
+import { expect, fixture, html, nextFrame, waitUntil } from '@open-wc/testing';
 import { LitElement } from 'lit';
 
 import type Entry from '../../../src/components/Entry.js';
@@ -47,8 +47,14 @@ customElements.define('server-adapter-contract-host', AdapterHost);
 async function settle(host: AdapterHost) {
     await host.updateComplete;
     await host.calendar.updateComplete;
+    // Frames let the calendar observe layout and commit its responsive range.
     await nextFrame();
     await nextFrame();
+    await host.updateComplete;
+    await host.calendar.updateComplete;
+    // Decoding a fetch body is independent of both frame and Lit update timing.
+    await waitUntil(() => !host.adapter.loading, 'The adapter query did not settle');
+    expect(host.adapter.error, 'The adapter query failed').to.equal(null);
     await host.updateComplete;
     await host.calendar.updateComplete;
 }

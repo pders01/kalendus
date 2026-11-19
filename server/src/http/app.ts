@@ -144,9 +144,15 @@ export function createApp(deps: AppDeps) {
     });
 
     // Routes — all under /api/calendars
-    app.route('/api/calendars', calendarRoutes(calendarService));
+    app.route('/api/calendars', calendarRoutes(calendarService, eventBus));
     app.route('/api/calendars', eventRoutes(eventService, syncService));
-    app.route('/api/calendars', streamRoutes(syncService, deps.authorizeStreamDetails));
+    app.route(
+        '/api/calendars',
+        streamRoutes(syncService, deps.authorizeStreamDetails, {
+            eventBus,
+            calendarService,
+        }),
+    );
     app.route('/api/calendars', telemetryRoutes(telemetryService));
     app.route('/api/calendars', manifestRoutes(calendarService));
 

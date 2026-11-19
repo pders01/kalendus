@@ -100,13 +100,13 @@ class RemoteCalendar extends LitElement {
 
 The adapter consumes **only public committed state**: `activeDate`, `viewMode`, `firstDayOfWeek`, `visibleRange` and `calendar-state-change`. The root emits an initial snapshot plus changed snapshots after rendering. The adapter does **not** derive windows from `switchdate.detail.direction` / `switchview.detail.view`, private `_viewState`, a hardcoded Monday or a fixed six-week grid.
 
-It converts half-open ISO `range.end` to the preceding **civil date** for inclusive server queries. Identical ranges dedupe; refreshes abort predecessors and suppress stale fulfillment/rejection. Reconnected SSE triggers full reconciliation. `refresh()` retries/refetches a current range. Multiple calendars or non-queryable hosts should use an explicit `target`, `initialState` or `setState(snapshot)` as documented in the server README. Owners still bind `.entries` and render `loading`/`error` state.
+It intersects the visible range with the server’s 1970–2100 date domain, then converts the exclusive end to the preceding **civil date** for the inclusive query. An SSE invalidation during a same-range read queues a trailing refresh without aborting the read. Reconnected SSE triggers full reconciliation. Explicit `refresh()` or `fetchRange(start, inclusiveEnd, true)` aborts and replaces a pending read so callers can recover from a stuck query. Navigation to another query range also aborts obsolete work. Superseded queries cannot publish late results or errors. Multiple calendars or non-queryable hosts should use an explicit `target`, `initialState` or `setState(snapshot)` as documented in the server README. Owners still bind `.entries` and render `loading`/`error` state.
 
 See [Events Reference](./events.md#calendar-state-change) for the canonical snapshot payload.
 
 ## Operational limits and verification
 
-SSE is best-effort **in-process invalidation**, not durable replay or cross-process pub/sub. Connections expire after five minutes to rerun authorization; revocation is not immediate on an already open stream. Slow consumers are bounded/disconnected. Production edge quotas, reverse-proxy buffering/timeouts, external identity, CSRF, durable telemetry and multiprocess reconciliation remain host responsibilities.
+SSE is best-effort **in-process invalidation**, not durable replay or cross-process pub/sub. After an HTTP calendar deletion commits, the server sends open streams one final payload-free invalidation and closes them. Otherwise connections expire after five minutes to rerun authorization; revocation is not immediate on an already open stream. Slow consumers are bounded/disconnected. Production edge quotas, reverse-proxy buffering/timeouts, external identity, CSRF, durable telemetry and multiprocess reconciliation remain host responsibilities.
 
 ```sh
 cd server
