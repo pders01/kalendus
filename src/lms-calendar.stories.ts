@@ -787,7 +787,14 @@ export const NavigateMonths: Story = {
 };
 
 // Generate heavy event load for stress testing - simulates real-world usage
+// Repeatable fixtures for a given month/year, including overlapping entries.
+const fixtureRandom = (seed: number) => () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+};
+
 const generateHeavyEventLoad = (): CalendarEntry[] => {
+    const random = fixtureRandom(currentYear * 12 + currentMonth);
     const events: CalendarEntry[] = [];
     const colors = [
         '#1976d2',
@@ -928,23 +935,23 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
         // Realistic event density based on day type
         let baseEventsPerDay: number;
         if (isWeekend) {
-            baseEventsPerDay = Math.random() < 0.3 ? 1 : 0; // Minimal weekend events
+            baseEventsPerDay = random() < 0.3 ? 1 : 0; // Minimal weekend events
         } else if (isMonday || isFriday) {
-            baseEventsPerDay = Math.floor(Math.random() * 4) + 8; // Heavy start/end of week
+            baseEventsPerDay = Math.floor(random() * 4) + 8; // Heavy start/end of week
         } else {
-            baseEventsPerDay = Math.floor(Math.random() * 6) + 6; // Normal weekday load
+            baseEventsPerDay = Math.floor(random() * 6) + 6; // Normal weekday load
         }
 
         // Some days are extra busy (realistic variability)
-        if (Math.random() < 0.15) {
-            baseEventsPerDay += Math.floor(Math.random() * 8) + 5; // Very busy days
+        if (random() < 0.15) {
+            baseEventsPerDay += Math.floor(random() * 8) + 5; // Very busy days
         }
 
         const eventsThisDay: CalendarEntry[] = [];
 
         for (let eventIndex = 0; eventIndex < baseEventsPerDay; eventIndex++) {
-            const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-            const color = colors[Math.floor(Math.random() * colors.length)];
+            const eventType = eventTypes[Math.floor(random() * eventTypes.length)];
+            const color = colors[Math.floor(random() * colors.length)];
 
             // More realistic time distribution
             let startHour: number;
@@ -952,12 +959,12 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
 
             if (eventType.typical) {
                 // Common meeting times
-                startHour = [8, 9, 10, 11, 13, 14, 15, 16, 17][Math.floor(Math.random() * 9)];
-                startMinute = [0, 15, 30, 45][Math.floor(Math.random() * 4)];
+                startHour = [8, 9, 10, 11, 13, 14, 15, 16, 17][Math.floor(random() * 9)];
+                startMinute = [0, 15, 30, 45][Math.floor(random() * 4)];
             } else {
                 // Any business hours
-                startHour = Math.floor(Math.random() * 11) + 8; // 8-18
-                startMinute = Math.random() < 0.7 ? 0 : 30; // Prefer hour boundaries
+                startHour = Math.floor(random() * 11) + 8; // 8-18
+                startMinute = random() < 0.7 ? 0 : 30; // Prefer hour boundaries
             }
 
             // Realistic meeting durations
@@ -965,7 +972,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
             const weights = [5, 40, 15, 25, 10, 3, 1, 1]; // 30min and 60min most common
 
             let durationMinutes: number;
-            const randomWeight = Math.random() * weights.reduce((a, b) => a + b, 0);
+            const randomWeight = random() * weights.reduce((a, b) => a + b, 0);
             let cumWeight = 0;
             for (let i = 0; i < durations.length; i++) {
                 cumWeight += weights[i];
@@ -986,10 +993,9 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
             if (endHour >= 22) continue;
 
             // Create overlapping events intentionally (realistic scenario)
-            const shouldOverlap = Math.random() < 0.3 && eventsThisDay.length > 0;
+            const shouldOverlap = random() < 0.3 && eventsThisDay.length > 0;
             if (shouldOverlap) {
-                const existingEvent =
-                    eventsThisDay[Math.floor(Math.random() * eventsThisDay.length)];
+                const existingEvent = eventsThisDay[Math.floor(random() * eventsThisDay.length)];
                 const existingTime = existingEvent.time;
                 if (!existingTime) throw new Error('Overlap fixture requires a timed event');
                 startHour = existingTime.start.hour;
@@ -1040,7 +1046,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
         }
 
         // Occasional all-day events (holidays, training, etc.)
-        if (Math.random() < 0.08) {
+        if (random() < 0.08) {
             // ~2-3 per month
             const allDayEvents = [
                 'Company Retreat',
@@ -1053,9 +1059,9 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
                 'Workshop Day',
             ];
             events.push({
-                heading: allDayEvents[Math.floor(Math.random() * allDayEvents.length)],
+                heading: allDayEvents[Math.floor(random() * allDayEvents.length)],
                 content: 'All-day event',
-                color: colors[Math.floor(Math.random() * colors.length)],
+                color: colors[Math.floor(random() * colors.length)],
                 isContinuation: false,
                 date: {
                     start: { day, month: currentMonth, year: currentYear },
@@ -1116,8 +1122,8 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
     ];
 
     multiDayEvents.forEach((event) => {
-        if (Math.random() < event.probability) {
-            const startDay = Math.floor(Math.random() * (daysInCurrentMonth - event.days)) + 1;
+        if (random() < event.probability) {
+            const startDay = Math.floor(random() * (daysInCurrentMonth - event.days)) + 1;
             const endDay = Math.min(startDay + event.days - 1, daysInCurrentMonth);
 
             // Create a single multi-day event with proper date range
@@ -1125,7 +1131,7 @@ const generateHeavyEventLoad = (): CalendarEntry[] => {
             events.push({
                 heading: event.heading,
                 content: event.content,
-                color: colors[Math.floor(Math.random() * colors.length)],
+                color: colors[Math.floor(random() * colors.length)],
                 isContinuation: false, // This is the original event, not a continuation
                 date: {
                     start: {
@@ -2141,6 +2147,7 @@ export const RTLOverride: Story = {
 
 // Generate year-spanning entries for year view demos
 const generateYearEntries = (): CalendarEntry[] => {
+    const random = fixtureRandom(currentYear);
     const events: CalendarEntry[] = [];
     const colors = ['#1976d2', '#2e7d32', '#ff9800', '#d32f2f', '#6a1b9a', '#00acc1'];
 
@@ -2150,13 +2157,13 @@ const generateYearEntries = (): CalendarEntry[] => {
             const dayOfWeek = new Date(currentYear, month - 1, day).getDay();
             if (dayOfWeek === 0 || dayOfWeek === 6) continue; // skip weekends
 
-            const eventsPerDay = Math.floor(Math.random() * 6);
+            const eventsPerDay = Math.floor(random() * 6);
             for (let e = 0; e < eventsPerDay; e++) {
-                const startHour = 8 + Math.floor(Math.random() * 10);
+                const startHour = 8 + Math.floor(random() * 10);
                 events.push({
                     heading: `Event ${e + 1}`,
                     content: 'Year view event',
-                    color: colors[Math.floor(Math.random() * colors.length)],
+                    color: colors[Math.floor(random() * colors.length)],
                     isContinuation: false,
                     date: {
                         start: { day, month, year: currentYear },
