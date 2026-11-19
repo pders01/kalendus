@@ -32,12 +32,13 @@ export default defineConfig({
         terserOptions: {
             ecma: 2020,
             compress: { passes: 3 },
-            // Shorten internal helpers in the single calendar chunk, not public
-            // properties, event names, or quoted Lit metadata.
+            // Lit is external in this build and has its own short property names.
+            // Put Calendar helpers in a separate namespace on Lit subclasses.
             mangle: {
                 properties: {
-                    regex: /^_(?:render|handle|compose|requestAgenda|allowEntry|dispatch|toggle|compute|focus|show|close|restore|observe|schedule|read|mount|clear|apply)/,
+                    regex: /^_(?:render|handle|compose|requestAgenda|allowEntry|dispatch|toggle|compute|focus|show|close|restore|observe|schedule|read|mount|clear|apply|weekContext|time(?:Position|Label)|safeEntryColor|entry(?:TimeLabel|FocusTarget)|rangeDescription|determineDensity|deepActiveElement|dateFromElement)/,
                     keep_quoted: true,
+                    nth_identifier: { get: (index) => `_k${index.toString(36)}` },
                 },
             },
             module: true,
