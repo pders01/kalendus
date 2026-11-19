@@ -1,6 +1,15 @@
-import { expect } from 'chai';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
+import { expect } from 'chai';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+
+import { ValidationError } from '../../src/core/errors.js';
 import { EventServiceImpl } from '../../src/core/event.service.js';
+import { createDb } from '../../src/db/connection.js';
+import { migrateDb } from '../../src/db/migrate.js';
+import * as schema from '../../src/db/schema.js';
 import { createCalendar, createEvent } from '../helpers/fixtures.js';
 import { createTestDb } from '../helpers/test-db.js';
 
@@ -165,6 +174,67 @@ describe('EventService', () => {
             });
             expect(updated!.heading).to.equal('Updated');
             expect(updated!.time!.start.hour).to.equal(14);
+        });
+
+        it('locks a concurrent writer before reading the interval used for PATCH validation', async () => {
+            const dir = mkdtempSync(join(tmpdir(), 'kalendus-patch-'));
+            const path = join(dir, 'events.db');
+            const writer = createDb(path);
+            const contender = createDb(path);
+            try {
+                migrateDb(writer);
+                const calendar = createCalendar(writer);
+                const event = createEvent(writer, calendar.id, {
+                    startYear: 2026,
+                    startMonth: 3,
+                    startDay: 15,
+                    endYear: 2026,
+                    endMonth: 3,
+                    endDay: 16,
+                });
+                contender.$client.pragma('busy_timeout = 0');
+                const conflictingWrite = contender.$client.prepare(
+                    'UPDATE events SET end_day = 15 WHERE id = ?',
+                );
+                let busy: unknown;
+                let attempted = false;
+                const observed = drizzle(writer.$client, {
+                    schema,
+                    logger: {
+                        logQuery(query) {
+                            if (attempted || !/^select .* from "events"/i.test(query)) return;
+                            attempted = true;
+                            try {
+                                conflictingWrite.run(event.id);
+                            } catch (error) {
+                                busy = error;
+                            }
+                        },
+                    },
+                });
+                const overnight = { start: { hour: 22, minute: 0 }, end: { hour: 1, minute: 0 } };
+                await new EventServiceImpl(observed).update(calendar.id, event.id, {
+                    time: overnight,
+                });
+                expect(attempted).to.equal(true);
+                expect(busy).to.have.property('code', 'SQLITE_BUSY');
+
+                const other = new EventServiceImpl(contender);
+                const sameDay = { year: 2026, month: 3, day: 15 };
+                const error = await other
+                    .update(calendar.id, event.id, {
+                        date: { start: sameDay, end: sameDay },
+                    })
+                    .catch((failure: unknown) => failure);
+                expect(error).to.be.instanceOf(ValidationError);
+                const [stored] = await other.getByRange(calendar.id, '2026-03-15', '2026-03-16');
+                expect(stored.date.end.day).to.equal(16);
+                expect(stored.time).to.deep.equal(overnight);
+            } finally {
+                contender.$client.close();
+                writer.$client.close();
+                rmSync(dir, { recursive: true, force: true });
+            }
         });
 
         it('can set time to null (convert to all-day)', async () => {

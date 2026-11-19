@@ -110,54 +110,56 @@ export class EventServiceImpl {
         this._requireCalendar(calendarId);
         validate(idSchema, eventId);
         dto = validate(updateEventSchema, dto);
-        const existing = this.db
-            .select()
-            .from(events)
-            .where(and(eq(events.id, eventId), eq(events.calendarId, calendarId)))
-            .get();
+        const where = and(eq(events.id, eventId), eq(events.calendarId, calendarId));
+        // Reserve the writer slot before reading the row: another connection's
+        // PATCH cannot change the fields our merged validation depends on.
+        return this.db.transaction(
+            (tx) => {
+                const existing = tx.select().from(events).where(where).get();
 
-        if (!existing) return null;
-        const { heading, content, color, date, time } = this._toDto(existing);
-        const patch = Object.fromEntries(
-            Object.entries(dto).filter(([, value]) => value !== undefined),
+                if (!existing) return null;
+                const { heading, content, color, date, time } = this._toDto(existing);
+                const patch = Object.fromEntries(
+                    Object.entries(dto).filter(([, value]) => value !== undefined),
+                );
+                validate(eventStateSchema, { heading, content, color, date, time, ...patch });
+
+                const now = new Date().toISOString();
+                const updates: Record<string, unknown> = { updatedAt: now };
+
+                if (dto.heading !== undefined) updates.heading = dto.heading;
+                if (dto.content !== undefined) updates.content = dto.content;
+                if (dto.color !== undefined) updates.color = dto.color;
+
+                if (dto.date !== undefined) {
+                    updates.startYear = dto.date.start.year;
+                    updates.startMonth = dto.date.start.month;
+                    updates.startDay = dto.date.start.day;
+                    updates.endYear = dto.date.end.year;
+                    updates.endMonth = dto.date.end.month;
+                    updates.endDay = dto.date.end.day;
+                }
+
+                if (dto.time !== undefined) {
+                    if (dto.time === null) {
+                        updates.startHour = null;
+                        updates.startMinute = null;
+                        updates.endHour = null;
+                        updates.endMinute = null;
+                    } else {
+                        updates.startHour = dto.time.start.hour;
+                        updates.startMinute = dto.time.start.minute;
+                        updates.endHour = dto.time.end.hour;
+                        updates.endMinute = dto.time.end.minute;
+                    }
+                }
+
+                const updated = tx.update(events).set(updates).where(where).returning().get();
+
+                return updated ? this._toDto(updated) : null;
+            },
+            { behavior: 'immediate' },
         );
-        validate(eventStateSchema, { heading, content, color, date, time, ...patch });
-
-        const now = new Date().toISOString();
-        const updates: Record<string, unknown> = { updatedAt: now };
-
-        if (dto.heading !== undefined) updates.heading = dto.heading;
-        if (dto.content !== undefined) updates.content = dto.content;
-        if (dto.color !== undefined) updates.color = dto.color;
-
-        if (dto.date !== undefined) {
-            updates.startYear = dto.date.start.year;
-            updates.startMonth = dto.date.start.month;
-            updates.startDay = dto.date.start.day;
-            updates.endYear = dto.date.end.year;
-            updates.endMonth = dto.date.end.month;
-            updates.endDay = dto.date.end.day;
-        }
-
-        if (dto.time !== undefined) {
-            if (dto.time === null) {
-                updates.startHour = null;
-                updates.startMinute = null;
-                updates.endHour = null;
-                updates.endMinute = null;
-            } else {
-                updates.startHour = dto.time.start.hour;
-                updates.startMinute = dto.time.start.minute;
-                updates.endHour = dto.time.end.hour;
-                updates.endMinute = dto.time.end.minute;
-            }
-        }
-
-        this.db.update(events).set(updates).where(eq(events.id, eventId)).run();
-
-        const updated = this.db.select().from(events).where(eq(events.id, eventId)).get();
-
-        return updated ? this._toDto(updated) : null;
     }
 
     async delete(calendarId: string, eventId: string): Promise<boolean> {
