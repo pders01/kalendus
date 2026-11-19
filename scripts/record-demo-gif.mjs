@@ -1,673 +1,161 @@
 /**
- * Record a comprehensive demo GIF of the calendar.
+ * Record the public Month → Agenda → Week story as native-resolution PNGs,
+ * then encode a looping GIF. Capturing stills avoids video blur and makes
+ * each step readable without requiring hundreds of duplicate frames.
  *
- * Showcases all views, all themes, multiple locales, and configuration
- * options across 15 scenes (~18s). Doubles as a manual e2e smoke test.
- *
- * Spins up a Vite dev server, creates a temp HTML page with diverse
- * sample entries, uses Playwright's recordVideo to capture the sequence,
- * then converts WebM → GIF with ffmpeg (two-pass palette).
- *
- * Prerequisites: ffmpeg must be installed (brew install ffmpeg).
- *
+ * Prerequisites: ffmpeg and Playwright Chromium (`bunx playwright install chromium`).
  * Run: bun run demo:gif
  */
-
-import { execSync } from 'child_process';
-import { writeFileSync, readFileSync, mkdirSync, rmSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { execFileSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { chromium } from 'playwright';
-import { createServer } from 'vite';
+import { expect } from 'playwright/test';
+import { preview } from 'vite';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, '..');
-const outDir = resolve(root, 'assets');
+const root = realpathSync(fileURLToPath(new URL('..', import.meta.url)));
+const out = join(root, 'assets');
+execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' });
+execFileSync('bun', ['run', 'build-storybook', '--', '--quiet'], {
+    cwd: root,
+    stdio: 'inherit',
+    env: { ...process.env, STORYBOOK_DISABLE_TELEMETRY: '1' },
+});
 
-// ── Preflight: check for ffmpeg ──────────────────────────────────────
+const work = mkdtempSync(join(tmpdir(), 'kalendus-demo-'));
+let server;
+let browser;
 try {
-    execSync('ffmpeg -version', { stdio: 'ignore' });
-} catch {
-    console.error(
-        '\n  ffmpeg is required but was not found.\n' +
-            '  Install it with:  brew install ffmpeg  (macOS)\n' +
-            '                    sudo apt install ffmpeg (Linux)\n',
-    );
-    process.exit(1);
-}
-
-mkdirSync(outDir, { recursive: true });
-
-// ── Read theme CSS from source (no stale copies) ────────────────────
-const readTheme = (name) =>
-    readFileSync(resolve(root, `src/themes/${name}.css`), 'utf-8').replace(
-        /^lms-calendar\s*\{/m,
-        `.theme-${name} lms-calendar {`,
-    );
-
-const themes = ['default', 'ink', 'soft', 'brutalist', 'midnight'];
-// Note: the demo starts *unstyled* (no theme class on the wrapper).
-// The 'default' theme is included so Act 2 can showcase it alongside the others.
-const allThemeCSS = themes.map(readTheme).join('\n\n');
-
-// ── Sample entries (spread across current month) ─────────────────────
-
-const currentYear = new Date().getFullYear();
-const currentMonth = new Date().getMonth() + 1;
-const currentDay = new Date().getDate();
-
-/** Clamp day to stay within the month (safe for any month) */
-const d = (offset) => Math.max(1, Math.min(currentDay + offset, 28));
-
-const sampleEntries = JSON.stringify([
-    // ── Today: overlapping entries (overlap handling demo) ──────────
-    {
-        heading: 'Morning Standup',
-        content: 'Daily team sync',
-        color: '#1976d2',
-        isContinuation: false,
-        date: {
-            start: { day: currentDay, month: currentMonth, year: currentYear },
-            end: { day: currentDay, month: currentMonth, year: currentYear },
-        },
-        time: { start: { hour: 9, minute: 0 }, end: { hour: 9, minute: 30 } },
-    },
-    {
-        heading: 'Design Review',
-        content: 'UX/UI session',
-        color: 'steelblue',
-        isContinuation: false,
-        date: {
-            start: { day: currentDay, month: currentMonth, year: currentYear },
-            end: { day: currentDay, month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 9, minute: 15 },
-            end: { hour: 10, minute: 45 },
-        },
-    },
-    {
-        heading: 'Code Review',
-        content: 'PR walkthrough',
-        color: 'hsl(160, 60%, 40%)',
-        isContinuation: false,
-        date: {
-            start: { day: currentDay, month: currentMonth, year: currentYear },
-            end: { day: currentDay, month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 10, minute: 0 },
-            end: { hour: 11, minute: 30 },
-        },
-    },
-    {
-        heading: 'Lunch & Learn',
-        content: 'Web Components talk',
-        color: 'coral',
-        isContinuation: false,
-        date: {
-            start: { day: currentDay, month: currentMonth, year: currentYear },
-            end: { day: currentDay, month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 12, minute: 30 },
-            end: { hour: 13, minute: 30 },
-        },
-    },
-    {
-        heading: 'Afternoon Focus',
-        content: 'Deep work block',
-        color: '#397cce',
-        isContinuation: false,
-        date: {
-            start: { day: currentDay, month: currentMonth, year: currentYear },
-            end: { day: currentDay, month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 14, minute: 0 },
-            end: { hour: 16, minute: 0 },
-        },
-    },
-
-    // ── Multi-day spanning events (allDay bar demo) ────────────────
-    {
-        heading: 'Product Sprint',
-        content: 'Multi-day sprint',
-        color: '#6a1b9a',
-        isContinuation: false,
-        date: {
-            start: { day: d(-1), month: currentMonth, year: currentYear },
-            end: { day: d(2), month: currentMonth, year: currentYear },
-        },
-        time: { start: { hour: 0, minute: 0 }, end: { hour: 23, minute: 59 } },
-    },
-    {
-        heading: 'Conference',
-        content: 'Tech conference',
-        color: 'tomato',
-        isContinuation: false,
-        date: {
-            start: { day: d(3), month: currentMonth, year: currentYear },
-            end: { day: d(5), month: currentMonth, year: currentYear },
-        },
-        time: { start: { hour: 0, minute: 0 }, end: { hour: 23, minute: 59 } },
-    },
-
-    // ── Entries spread across the month (density for month/year) ───
-    {
-        heading: 'Team Retro',
-        content: 'Sprint retrospective',
-        color: 'rgb(46, 125, 50)',
-        isContinuation: false,
-        date: {
-            start: { day: d(-3), month: currentMonth, year: currentYear },
-            end: { day: d(-3), month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 15, minute: 0 },
-            end: { hour: 16, minute: 0 },
-        },
-    },
-    {
-        heading: '1:1 Meeting',
-        content: 'Manager sync',
-        color: '#ff9800',
-        isContinuation: false,
-        date: {
-            start: { day: d(-5), month: currentMonth, year: currentYear },
-            end: { day: d(-5), month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 11, minute: 0 },
-            end: { hour: 11, minute: 30 },
-        },
-    },
-    {
-        heading: 'Planning',
-        content: 'Sprint planning',
-        color: 'hsl(210, 70%, 50%)',
-        isContinuation: false,
-        date: {
-            start: { day: d(4), month: currentMonth, year: currentYear },
-            end: { day: d(4), month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 10, minute: 0 },
-            end: { hour: 12, minute: 0 },
-        },
-    },
-    {
-        heading: 'Demo Day',
-        content: 'Feature demos',
-        color: '#00acc1',
-        isContinuation: false,
-        date: {
-            start: { day: d(6), month: currentMonth, year: currentYear },
-            end: { day: d(6), month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 14, minute: 0 },
-            end: { hour: 15, minute: 30 },
-        },
-    },
-    {
-        heading: 'Workshop',
-        content: 'Lit workshop',
-        color: '#ce4534',
-        isContinuation: false,
-        date: {
-            start: { day: d(8), month: currentMonth, year: currentYear },
-            end: { day: d(8), month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 9, minute: 0 },
-            end: { hour: 12, minute: 0 },
-        },
-    },
-    {
-        heading: 'Hackathon',
-        content: 'Internal hackathon',
-        color: 'rgb(211, 47, 47)',
-        isContinuation: false,
-        date: {
-            start: { day: d(10), month: currentMonth, year: currentYear },
-            end: { day: d(11), month: currentMonth, year: currentYear },
-        },
-        time: { start: { hour: 0, minute: 0 }, end: { hour: 23, minute: 59 } },
-    },
-    {
-        heading: 'Release',
-        content: 'v2.0 release',
-        color: '#2e7d32',
-        isContinuation: false,
-        date: {
-            start: { day: d(7), month: currentMonth, year: currentYear },
-            end: { day: d(7), month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 16, minute: 0 },
-            end: { hour: 17, minute: 0 },
-        },
-    },
-    {
-        heading: 'Board Sync',
-        content: 'Quarterly review',
-        color: 'hsl(280, 50%, 45%)',
-        isContinuation: false,
-        date: {
-            start: { day: d(-7), month: currentMonth, year: currentYear },
-            end: { day: d(-7), month: currentMonth, year: currentYear },
-        },
-        time: {
-            start: { hour: 13, minute: 0 },
-            end: { hour: 14, minute: 30 },
-        },
-    },
-]);
-
-// ── Translated entry labels per locale ───────────────────────────────
-// Order matches the 15 entries above. Each item is [heading, content].
-
-const entryLabels = {
-    en: [
-        ['Morning Standup', 'Daily team sync'],
-        ['Design Review', 'UX/UI session'],
-        ['Code Review', 'PR walkthrough'],
-        ['Lunch & Learn', 'Web Components talk'],
-        ['Afternoon Focus', 'Deep work block'],
-        ['Product Sprint', 'Multi-day sprint'],
-        ['Conference', 'Tech conference'],
-        ['Team Retro', 'Sprint retrospective'],
-        ['1:1 Meeting', 'Manager sync'],
-        ['Planning', 'Sprint planning'],
-        ['Demo Day', 'Feature demos'],
-        ['Workshop', 'Lit workshop'],
-        ['Hackathon', 'Internal hackathon'],
-        ['Release', 'v2.0 release'],
-        ['Board Sync', 'Quarterly review'],
-    ],
-    de: [
-        ['Morgen-Standup', 'Tägliches Team-Sync'],
-        ['Design-Review', 'UX/UI-Sitzung'],
-        ['Code-Review', 'PR-Durchsprache'],
-        ['Lunch & Learn', 'Vortrag Web Components'],
-        ['Fokuszeit', 'Deep-Work-Block'],
-        ['Produkt-Sprint', 'Mehrtägiger Sprint'],
-        ['Konferenz', 'Tech-Konferenz'],
-        ['Team-Retro', 'Sprint-Retrospektive'],
-        ['1:1-Meeting', 'Manager-Sync'],
-        ['Planung', 'Sprint-Planung'],
-        ['Demo-Tag', 'Feature-Demos'],
-        ['Workshop', 'Lit-Workshop'],
-        ['Hackathon', 'Interner Hackathon'],
-        ['Release', 'v2.0-Release'],
-        ['Board-Sync', 'Quartalsbericht'],
-    ],
-    ja: [
-        ['朝会', 'チーム同期'],
-        ['デザインレビュー', 'UX/UIセッション'],
-        ['コードレビュー', 'PRウォークスルー'],
-        ['ランチ勉強会', 'Web Componentsの話'],
-        ['集中タイム', 'ディープワーク'],
-        ['プロダクトスプリント', '複数日スプリント'],
-        ['カンファレンス', 'テックカンファレンス'],
-        ['チーム振り返り', 'スプリント振り返り'],
-        ['1on1ミーティング', 'マネージャー同期'],
-        ['プランニング', 'スプリント計画'],
-        ['デモデー', '機能デモ'],
-        ['ワークショップ', 'Litワークショップ'],
-        ['ハッカソン', '社内ハッカソン'],
-        ['リリース', 'v2.0リリース'],
-        ['役員会議', '四半期レビュー'],
-    ],
-    ar: [
-        ['اجتماع الصباح', 'مزامنة الفريق'],
-        ['مراجعة التصميم', 'جلسة UX/UI'],
-        ['مراجعة الكود', 'مراجعة PR'],
-        ['غداء تعليمي', 'محادثة Web Components'],
-        ['وقت التركيز', 'عمل معمّق'],
-        ['سباق المنتج', 'سباق متعدد الأيام'],
-        ['مؤتمر', 'مؤتمر تقني'],
-        ['استعراض الفريق', 'استعراض السبرنت'],
-        ['اجتماع فردي', 'مزامنة المدير'],
-        ['تخطيط', 'تخطيط السبرنت'],
-        ['يوم العرض', 'عروض الميزات'],
-        ['ورشة عمل', 'ورشة Lit'],
-        ['هاكاثون', 'هاكاثون داخلي'],
-        ['إصدار', 'إصدار v2.0'],
-        ['اجتماع المجلس', 'مراجعة ربع سنوية'],
-    ],
-};
-
-const serializedLabels = JSON.stringify(entryLabels);
-
-// ── HTML template ────────────────────────────────────────────────────
-
-const testHTML = `<!DOCTYPE html>
-<html lang="en" dir="ltr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=960">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #f5f5f5;
-            padding: 16px;
-            transition: background-color 0.3s;
-        }
-        #wrapper { position: relative; }
-        lms-calendar {
-            display: block;
-            height: 608px;
-        }
-        #label {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            font: 11px/1 monospace;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            z-index: 9999;
-            pointer-events: none;
-        }
-        ${allThemeCSS}
-    </style>
-</head>
-<body>
-    <div id="wrapper">
-        <div id="label">Month</div>
-        <lms-calendar></lms-calendar>
-    </div>
-    <script type="module">
-        import './src/lms-calendar.ts';
-
-        async function init() {
-            await customElements.whenDefined('lms-calendar');
-            const cal = document.querySelector('lms-calendar');
-            const wrapper = document.getElementById('wrapper');
-            const label = document.getElementById('label');
-
-            cal.heading = 'My Calendar';
-            cal.activeDate = { day: ${currentDay}, month: ${currentMonth}, year: ${currentYear} };
-            cal.entries = ${sampleEntries};
-            await cal.updateComplete;
-
-            // ── In-page helpers ──────────────────────────────────
-            window.__switchView = async (view) => {
-                const header = cal.shadowRoot.querySelector('lms-calendar-header');
-                const btn = header.shadowRoot.querySelector('[data-context="' + view + '"]');
-                if (btn) btn.click();
-                await new Promise(r => setTimeout(r, 600));
-            };
-
-            window.__navigateNext = async () => {
-                const header = cal.shadowRoot.querySelector('lms-calendar-header');
-                const btn = header.shadowRoot.querySelector('[name="next"]');
-                if (btn) btn.click();
-                await new Promise(r => setTimeout(r, 600));
-            };
-
-            window.__navigatePrevious = async () => {
-                const header = cal.shadowRoot.querySelector('lms-calendar-header');
-                const btn = header.shadowRoot.querySelector('[name="previous"]');
-                if (btn) btn.click();
-                await new Promise(r => setTimeout(r, 600));
-            };
-
-            window.__switchTheme = (name) => {
-                wrapper.className = name ? 'theme-' + name : '';
-                document.body.style.backgroundColor =
-                    name === 'midnight' ? '#121220' : '#f5f5f5';
-            };
-
-            window.__setLocale = (locale) => {
-                cal.locale = locale;
-                // dir is auto-detected from locale by the component
-            };
-
-            window.__setFirstDayOfWeek = (n) => {
-                cal.firstDayOfWeek = n;
-            };
-
-            window.__setHeading = (text) => {
-                cal.heading = text;
-            };
-
-            window.__setLabel = (text) => {
-                label.textContent = text;
-            };
-
-            const __entryLabels = ${serializedLabels};
-            window.__localizeEntries = (locale) => {
-                const labels = __entryLabels[locale] || __entryLabels.en;
-                cal.entries = cal.entries.map((entry, i) => ({
-                    ...entry,
-                    heading: labels[i][0],
-                    content: labels[i][1],
-                }));
-            };
-
-            window.__calReady = true;
-        }
-        init();
-    </script>
-</body>
-</html>`;
-
-// ── Scene definitions ────────────────────────────────────────────────
-
-const scenes = [
-    // Act 1 — Views (unstyled base, English)
-    { label: 'Month', action: null, dwell: 1500 },
-    {
-        label: 'Week',
-        action: () => window.__switchView('week'),
-        dwell: 1500,
-    },
-    {
-        label: 'Day',
-        action: () => window.__switchView('day'),
-        dwell: 1500,
-    },
-    {
-        label: 'Year',
-        action: () => window.__switchView('year'),
-        dwell: 1500,
-    },
-
-    // Act 2 — Themes (switch back to month first)
-    {
-        label: 'Default',
-        action: async () => {
-            await window.__switchView('month');
-            window.__switchTheme('default');
-        },
-        dwell: 1200,
-    },
-    {
-        label: 'Ink',
-        action: () => window.__switchTheme('ink'),
-        dwell: 1200,
-    },
-    {
-        label: 'Soft',
-        action: () => window.__switchTheme('soft'),
-        dwell: 1200,
-    },
-    {
-        label: 'Brutalist',
-        action: () => window.__switchTheme('brutalist'),
-        dwell: 1200,
-    },
-    {
-        label: 'Midnight',
-        action: () => window.__switchTheme('midnight'),
-        dwell: 1500,
-    },
-
-    // Act 3 — Locales (reset to unstyled base, month view)
-    {
-        label: 'Deutsch',
-        action: () => {
-            window.__switchTheme(null);
-            window.__setLocale('de');
-            window.__setHeading('Mein Kalender');
-            window.__localizeEntries('de');
-        },
-        dwell: 1200,
-    },
-    {
-        label: '日本語',
-        action: () => {
-            window.__setLocale('ja');
-            window.__setHeading('カレンダー');
-            window.__localizeEntries('ja');
-        },
-        dwell: 1200,
-    },
-    {
-        label: 'العربية',
-        action: () => {
-            window.__setLocale('ar');
-            window.__setHeading('التقويم');
-            window.__localizeEntries('ar');
-        },
-        dwell: 1200,
-    },
-
-    // Act 4 — Configuration & Outro
-    {
-        label: 'Sunday Start',
-        action: () => {
-            window.__setLocale('en');
-            window.__setHeading('My Calendar');
-            window.__localizeEntries('en');
-            window.__setFirstDayOfWeek(0);
-        },
-        dwell: 1200,
-    },
-    {
-        label: 'Navigate →',
-        action: () => window.__navigateNext(),
-        dwell: 1000,
-    },
-    {
-        label: 'Navigate ←',
-        action: () => window.__navigatePrevious(),
-        dwell: 800,
-    },
-    {
-        label: 'Kalendus',
-        action: () => {
-            window.__setFirstDayOfWeek(1);
-            window.__setHeading('Kalendus');
-        },
-        dwell: 1000,
-    },
-];
-
-// ── Main ─────────────────────────────────────────────────────────────
-
-async function run() {
-    const server = await createServer({
+    server = await preview({
         root,
-        server: { port: 0 },
-        logLevel: 'silent',
+        configFile: false,
+        build: { outDir: 'storybook-static' },
+        preview: { host: '127.0.0.1', port: 0 },
     });
-    await server.listen();
-
-    const address = server.httpServer.address();
-    const baseURL = `http://localhost:${address.port}`;
-    console.log(`Vite dev server running at ${baseURL}`);
-
-    // Write temp HTML
-    const htmlFileName = '__demo-recording.html';
-    const htmlPath = resolve(root, htmlFileName);
-    writeFileSync(htmlPath, testHTML);
-
-    const videoDir = resolve(root, '.demo-tmp');
-    mkdirSync(videoDir, { recursive: true });
-
-    const browser = await chromium.launch();
-    const context = await browser.newContext({
-        viewport: { width: 960, height: 640 },
-        recordVideo: {
-            dir: videoDir,
-            size: { width: 960, height: 640 },
-        },
+    browser = await chromium.launch();
+    const page = await browser.newPage({
+        viewport: { width: 390, height: 780 },
+        deviceScaleFactor: 2,
+        hasTouch: true,
+        colorScheme: 'light',
+        reducedMotion: 'reduce',
+        timezoneId: 'UTC',
+        acceptDownloads: true,
     });
+    await page.clock.setFixedTime(new Date('2026-11-18T12:00:00Z'));
+    const port = server.httpServer.address().port;
+    await page.goto(
+        `http://127.0.0.1:${port}/iframe.html?id=design-comparisons-presentation-variants--library-browse-journey&viewMode=story`,
+    );
+    const calendar = page.locator('lms-calendar');
+    await expect(calendar.locator('lms-calendar-month')).toBeVisible();
 
-    const page = await context.newPage();
-
-    try {
-        await page.goto(`${baseURL}/${htmlFileName}`, {
-            waitUntil: 'networkidle',
-        });
-        await page.waitForFunction(() => window.__calReady === true, {
-            timeout: 15000,
-        });
-
-        console.log(`Recording demo (${scenes.length} scenes)...`);
-
-        for (let i = 0; i < scenes.length; i++) {
-            const scene = scenes[i];
-            console.log(`  ${i + 1}/${scenes.length} ${scene.label}`);
-
-            // Set the label first so it's visible during the scene
-            await page.evaluate((lbl) => window.__setLabel(lbl), scene.label);
-
-            if (scene.action) {
-                // Serialize the action as a string and evaluate it in the page
-                await page.evaluate(scene.action);
-                // Small settle time for Lit re-render
-                await page.waitForTimeout(300);
-            }
-
-            await page.waitForTimeout(scene.dwell);
+    // Presentation caption outside the calendar. The demo drives only public UI.
+    await page.evaluate(() => {
+        const footer = document.createElement('footer');
+        footer.id = 'demo-caption';
+        document.body.append(footer);
+    });
+    await page.addStyleTag({
+        content: `
+        html { scroll-padding-block-end: 64px; }
+        body { background: #fff; padding-block-end: 64px; font-family: system-ui, sans-serif; }
+        #demo-caption {
+            position: fixed; inset: auto 0 0; min-height: 52px; display: grid; place-items: center;
+            background: #172138; color: #fff; text-align: center; z-index: 2; pointer-events: none;
+            font: 600 15px/1.4 system-ui, sans-serif;
         }
-
-        console.log('Recording complete.');
-    } finally {
-        await page.close();
+    `,
+    });
+    const frames = [];
+    const captionBar = page.locator('#demo-caption');
+    async function frame(caption, duration, target) {
+        await captionBar.evaluate((footer, text) => (footer.textContent = text), caption);
+        if (target) {
+            await target.scrollIntoViewIfNeeded();
+            const box = await target.boundingBox();
+            const footer = await captionBar.boundingBox();
+            const overlap = box.y + box.height - footer.y;
+            if (overlap > 0)
+                await page.evaluate((delta) => window.scrollBy(0, delta), overlap + 16);
+        } else {
+            await page.evaluate(() => window.scrollTo(0, 0));
+        }
+        const file = `frame-${frames.length}.png`;
+        await page.screenshot({ path: join(work, file), animations: 'disabled' });
+        frames.push({ file, duration });
     }
 
-    // Playwright saves video on context close
-    const videoPath = await page.video().path();
-    await context.close();
-    await browser.close();
+    const tuesday = calendar.locator('.indicator[data-date="2026-11-17"]');
+    await frame('1 · Month: pick November 17', 2.6);
+    await tuesday.tap();
+    const agenda = calendar.locator('.accordion-agenda');
+    await expect(agenda).toBeVisible();
+    await frame('2 · Agenda: browse the selected day', 2.2);
 
-    // ── Convert WebM → GIF (two-pass palette) ────────────────────────
-    const gifPath = resolve(outDir, 'demo.gif');
-    const palettePath = resolve(videoDir, 'palette.png');
+    await agenda.getByRole('button', { name: /^Exhibition/ }).tap();
+    await expect(agenda).toContainText('Drop in during gallery hours.');
+    const downloadButton = agenda.getByRole('button', { name: 'Download .ics' });
+    await frame('3 · Read the details or download the event', 3.4, downloadButton);
+    const [download] = await Promise.all([page.waitForEvent('download'), downloadButton.tap()]);
+    if (await download.failure()) throw new Error('The demo event did not download');
+    await frame(`Downloaded ${download.suggestedFilename()}`, 1.8, downloadButton);
 
-    console.log('Converting to GIF...');
+    await agenda.getByRole('button', { name: 'Timed', exact: true }).tap();
+    const briefing = agenda.getByRole('button', { name: /^Five-minute briefing/ });
+    await expect(briefing).toBeVisible();
+    await page.evaluate(() => window.scrollBy(0, -16));
+    await frame('4 · Timed: check the morning schedule', 2.4, briefing);
 
-    // Pass 1: generate optimal palette (128 colors for file size)
-    execSync(
-        `ffmpeg -y -i "${videoPath}" -vf "fps=12,scale=800:-1:flags=lanczos,palettegen=max_colors=128" "${palettePath}"`,
-        { stdio: 'inherit' },
+    await calendar
+        .locator('lms-calendar-header')
+        .getByRole('button', { name: 'Week', exact: true })
+        .tap();
+    const week = calendar.locator('lms-calendar-week');
+    await expect(week).toBeVisible();
+    const studio = week.getByRole('button', { name: /^Studio check-in/ });
+    if (!(await studio.count())) await week.locator('.peek-indicator').last().tap();
+    await studio.scrollIntoViewIfNeeded();
+    await frame('5 · Week: compare times across days', 2.4);
+    await studio.tap();
+    const inspector = calendar.getByRole('dialog');
+    await expect(inspector).toContainText(/9:00\s*AM\s*–\s*9:45\s*AM/);
+    await frame('Open an event to read its exact time', 3, inspector);
+
+    const concat = frames
+        .map(({ file, duration }) => `file '${file}'\nduration ${duration}\n`)
+        .join('');
+    writeFileSync(join(work, 'frames.txt'), concat);
+    execFileSync(
+        'ffmpeg',
+        [
+            '-hide_banner',
+            '-loglevel',
+            'error',
+            '-f',
+            'concat',
+            '-i',
+            'frames.txt',
+            '-filter_complex',
+            '[0:v]split[image][colors];[colors]palettegen[palette];[image][palette]paletteuse=dither=none',
+            '-fps_mode',
+            'vfr',
+            '-loop',
+            '0',
+            '-final_delay',
+            String(frames.at(-1).duration * 100),
+            'demo.gif',
+        ],
+        { cwd: work, stdio: 'inherit' },
     );
-
-    // Pass 2: apply palette with bayer dithering (better gradients for midnight theme)
-    execSync(
-        `ffmpeg -y -i "${videoPath}" -i "${palettePath}" -lavfi "fps=12,scale=800:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3" "${gifPath}"`,
-        { stdio: 'inherit' },
-    );
-
-    console.log(`GIF saved to ${gifPath}`);
-
-    // ── Cleanup ──────────────────────────────────────────────────────
-    rmSync(htmlPath, { force: true });
-    rmSync(videoDir, { recursive: true, force: true });
-
-    await server.close();
-    console.log('Done!');
+    mkdirSync(out, { recursive: true });
+    copyFileSync(join(work, 'demo.gif'), join(out, 'demo.gif'));
+    console.log('Wrote assets/demo.gif (780 × 1560, seven steps).');
+} finally {
+    await browser?.close();
+    await server?.close();
+    rmSync(work, { recursive: true, force: true });
 }
-
-run().catch((err) => {
-    console.error(err);
-    process.exit(1);
-});
