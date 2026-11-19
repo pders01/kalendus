@@ -124,6 +124,30 @@ window.smoke = { calendar, states, registered: calendar instanceof Calendar,
                 );
                 await calendar.locator('lms-calendar-header [data-context="week"]').click();
                 await calendar.locator('lms-calendar-week').waitFor();
+
+                // Exercise the decorated state and event routing of the new panel
+                // against external Lit, not just Storybook's source modules.
+                await calendar.evaluate((element) => {
+                    element.viewMode = 'day';
+                    const date = element.activeDate;
+                    element.entries = Array.from({ length: 6 }, (_, index) => ({
+                        id: `dense-${index}`,
+                        heading: `Packed event ${index + 1}`,
+                        kind: 'timed',
+                        date: { start: date, end: date },
+                        time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
+                    }));
+                });
+                const group = calendar.locator('.time-group');
+                await group.click();
+                const panel = calendar.locator('#timed-panel');
+                await panel.getByText('Packed event 1', { exact: true }).waitFor();
+                assert.equal(await panel.getByRole('listitem').count(), 6);
+                assert.equal(await calendar.locator('lms-calendar-day').count(), 1);
+                await page.keyboard.press('Escape');
+                await panel.waitFor({ state: 'detached' });
+                assert.equal(await group.getAttribute('aria-expanded'), 'false');
+
                 await page.goto(`${url}quick-start.html`);
                 const quickStart = page.locator('lms-calendar');
                 await quickStart.locator('lms-calendar-month').waitFor();

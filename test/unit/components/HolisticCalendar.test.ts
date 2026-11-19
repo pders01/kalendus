@@ -328,6 +328,10 @@ describe('Holistic calendar information architecture', () => {
         );
         expect(element.shadowRoot!.activeElement?.id).to.equal('agenda-date');
         expect(element.shadowRoot!.activeElement?.textContent).to.equal('Jun 16, 2026');
+        expect(element.shadowRoot!.querySelector('lms-calendar-week')).to.equal(view);
+        expect(scroller.scrollTop).to.be.closeTo(before, 1);
+        expect(group.getAttribute('aria-expanded')).to.equal('true');
+        expect(group.getAttribute('aria-controls')).to.equal('timed-panel');
         rows(element)[0].click();
         await settle(element);
         expect(activated[0]).to.equal(groupEntries[0]);
@@ -345,6 +349,7 @@ describe('Holistic calendar information architecture', () => {
             .shadowRoot!.querySelector<HTMLElement>('.week-scroll')!;
         expect(restored.scrollTop).to.be.closeTo(before, 1);
         expect((element.shadowRoot!.activeElement as HTMLElement).dataset.densityKey).to.equal(key);
+        expect(group.getAttribute('aria-expanded')).to.equal('false');
         expect(states).to.have.length(0);
 
         // A real date/view change dismisses the list without restoring stale state.

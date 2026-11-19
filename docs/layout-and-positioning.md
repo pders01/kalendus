@@ -154,7 +154,7 @@ Explicit timed entries instead describe one continuous interval with an exclusiv
 
 Day and Week use `LayoutCalculator` to assign reusable side-by-side lanes. Collision checks include the card’s readable minimum height, so even appointments that do not overlap in time can need separate lanes when the timeline fits all 24 hours. A count means those cards cannot all fit at the current scale and column width; it does not mean all listed events happen at once.
 
-If the lanes are too narrow, a count opens exactly the advertised occurrences, not unrelated events from that date. The list stays within the current calendar view and doesn’t change the active date or visible range. Closing it restores the visible time and focus to the invoking count when it is still available. Use `scroll-time-grid` to favor timed detail over full-day fit.
+If the lanes are too narrow, a count opens exactly the advertised occurrences, not unrelated events from that date. The selected block stays highlighted in the live timeline while its date, time range, and events appear in a bounded panel. Close or press Escape to return focus to the count without replacing the time grid or changing the active date or visible range.
 
 The standalone `LayoutCalculator` keeps its legacy cascade default; the calendar opts into columns. No synthetic exportable density events are introduced. Visible minimum-height previews may be taller than an event's true duration; their localized start/end range remains authoritative.
 

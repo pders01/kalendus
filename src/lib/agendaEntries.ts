@@ -10,7 +10,7 @@ interface AgendaPageOptions {
     previewSize?: number;
     expanded: boolean;
     allDayOnly?: boolean;
-    segmentIds?: readonly string[];
+    segmentIds?: ReadonlySet<string>;
 }
 
 const startMinute = (entry: OrderedEntry) =>
@@ -21,9 +21,10 @@ export function prepareAgendaEntries<T extends OrderedEntry>(
     entries: readonly T[],
     { limit, perSection, previewSize, expanded, allDayOnly, segmentIds }: AgendaPageOptions,
 ) {
-    const scope = segmentIds ? new Set(segmentIds) : undefined;
     const ordered = entries
-        .filter((entry) => (allDayOnly ? entry.isAllDay : !scope || scope.has(entry.segmentId)))
+        .filter((entry) =>
+            allDayOnly ? entry.isAllDay : !segmentIds || segmentIds.has(entry.segmentId),
+        )
         .sort(
             (a, b) =>
                 Number(b.isAllDay) - Number(a.isAllDay) ||

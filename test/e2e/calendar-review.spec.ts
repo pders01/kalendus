@@ -390,3 +390,78 @@ test('keeps the hourly five-minute appointments separate in Day and one-column W
         await expect(calendar.locator('.time-group')).toHaveCount(0);
     }
 });
+
+test('inspects one local timed group without replacing the mobile Day grid', async ({
+    page,
+}, info) => {
+    await page.setViewportSize({ width: 414, height: 896 });
+    await page.goto(story('components-kalendus--extreme-edge-cases'));
+    const calendar = page.locator('lms-calendar');
+    await calendar.evaluate((element: Calendar) => {
+        element.activeDate = { ...element.activeDate, day: 15 };
+        element.viewMode = 'day';
+    });
+    const groups = calendar.locator('.time-group');
+    await expect(groups).toHaveCount(9);
+    await expect(calendar.locator('lms-calendar-entry[slot^="timed"]')).toHaveCount(2);
+    const group = groups.first();
+    await group.scrollIntoViewIfNeeded();
+    const timeline = await calendar.locator('lms-calendar-day .timeline').elementHandle();
+    const start = await timeline.evaluate((node) => node.scrollTop);
+    await group.tap();
+    const panel = calendar.locator('#timed-panel');
+    await expect(panel.getByRole('heading')).toBeFocused();
+    await expect(panel.getByRole('listitem')).toHaveCount(3);
+    await expect(panel.getByRole('listitem').first()).toBeInViewport({ ratio: 0.99 });
+    await expect(group).toHaveAttribute('aria-expanded', 'true');
+    await expect(group).toBeInViewport();
+    expect(await timeline.evaluate((node) => [node.isConnected, node.scrollTop])).toEqual([
+        true,
+        start,
+    ]);
+    await capture(page, info, 'timed-group-in-context');
+    await page.keyboard.press('Escape');
+    await expect(panel).toHaveCount(0);
+    await expect(group).toBeFocused();
+    await expect(group).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('scrolls the timed group rows without moving the header or Week timeline', async ({
+    page,
+}, info) => {
+    await page.setViewportSize({ width: 414, height: 896 });
+    await page.goto(story('components-kalendus--extreme-edge-cases'));
+    const calendar = page.locator('lms-calendar');
+    await calendar.evaluate((element: Calendar) => {
+        element.viewMode = 'week';
+    });
+    const group = calendar.locator('.time-group').filter({ hasText: '11:45 AM' });
+    await group.scrollIntoViewIfNeeded();
+    const timeline = calendar.locator('lms-calendar-week .timeline');
+    const scrollTop = () => timeline.evaluate((element) => element.scrollTop);
+    const initialMinuteOffset = await scrollTop();
+    await group.tap();
+    const panel = calendar.locator('#timed-panel');
+    const header = panel.locator('header');
+    const close = header.getByRole('button', { name: 'Close', exact: true });
+    const rows = panel.locator('#agenda-events');
+    await expect(rows.getByRole('listitem')).toHaveCount(6);
+    const headerBefore = await header.boundingBox();
+    await rows.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+    });
+    expect(await rows.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    expect(await panel.evaluate((element) => element.scrollTop)).toBe(0);
+    expect(await header.boundingBox()).toEqual(headerBefore);
+    expect((await rows.boundingBox())!.y).toBeGreaterThanOrEqual(
+        headerBefore!.y + headerBefore!.height - 0.5,
+    );
+    await expect(rows.getByRole('listitem').last()).toBeInViewport({ ratio: 0.99 });
+    await expect(group).toBeInViewport();
+    expect(await scrollTop()).toBe(initialMinuteOffset);
+    await capture(page, info, 'week-timed-group-scrolled');
+    await close.tap();
+    await expect(panel).toHaveCount(0);
+    await expect(group).toBeFocused();
+    expect(await scrollTop()).toBe(initialMinuteOffset);
+});

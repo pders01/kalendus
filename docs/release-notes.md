@@ -13,7 +13,7 @@ section: Getting Started
 ### New public API
 
 - **App-owned timed edits.** Import `enableEntryInteractions` from `@jpahd/kalendus/entry-interactions` to opt in to desktop move and resize gestures on explicit timed Day and Week cards. App-owned controls can use `requestChange()` without dragging. The calendar emits an `entry-change-request` proposal; the app decides whether to save it and replaces `calendar.entries` after persistence. Read-only calendars load no gesture code.
-- **Scrollable time-grid detail.** Day and Week fit all 24 hours when the grid can do so readably. Set `scroll-time-grid` or `calendar.scrollTimeGrid = true` to keep the scrollable detail scale. Narrow Week adapts its visible day count; set `--week-min-day-width: 0` to retain a fixed configured count.
+- **Scrollable time-grid detail.** Day and Week fit all 24 hours when the grid can do so without merging timed cards that could be shown separately. Remaining timed groups open in context alongside the live timeline. Set `scroll-time-grid` or `calendar.scrollTimeGrid = true` to keep the scrollable detail scale. Narrow Week adapts its visible day count; set `--week-min-day-width: 0` to retain a fixed configured count.
 
 ### Upgrade from 0.11.0
 
