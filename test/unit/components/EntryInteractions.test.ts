@@ -105,6 +105,18 @@ describe('opt-in timed entry interactions', () => {
         expect(controller.requestChange(entry, resizeEnd, 15)).to.equal(true);
     });
 
+    it('only proposes edits to the accepted record for a duplicate ID', async () => {
+        const { calendar, requests } = await setup();
+        const duplicate = { ...entry, heading: 'Duplicate' };
+        const invalid = { ...entry, date: { start: { ...date, month: 0 }, end: date } };
+        calendar.entries = [invalid, entry, duplicate];
+        controller = enableEntryInteractions(calendar);
+        expect(controller.requestChange(duplicate, move, 15)).to.equal(false);
+        expect(requests).to.be.empty;
+        expect(controller.requestChange(entry, move, 15)).to.equal(true);
+        expect(requests[0].entry).to.equal(entry);
+    });
+
     it('previews a snapped Day move and emits just one bubbling request without opening details', async () => {
         const { calendar, grid, card, scale, requests, activations } = await setup();
         const [x, y] = point(card());

@@ -1,5 +1,5 @@
 import type { CalendarEntryRequest } from './contracts.js';
-import { civilDayDifference, isValidCalendarDate } from './lib/calendarModel.js';
+import { civilDayDifference, isValidCalendarDate, normalizeEntries } from './lib/calendarModel.js';
 import { timedSlotPrefix } from './lib/entrySlots.js';
 import { proposeTimedEntryChange, type TimedEntryOperation } from './lib/timedEntryChange.js';
 import type Calendar from './lms-calendar.js';
@@ -419,6 +419,12 @@ export function enableEntryInteractions(
     return {
         requestChange(entry, operation, deltaMinutes) {
             if (!allowed(entry, operation)) return false;
+            // Unlike pointer editing, there is no rendered card to prove this
+            // record survived ingestion (e.g. first valid duplicate ID wins).
+            if (
+                !normalizeEntries(calendar.entries).some(({ sourceEntry }) => sourceEntry === entry)
+            )
+                return false;
             const proposed = proposeTimedEntryChange(entry, operation, deltaMinutes);
             if (!proposed) return false;
             notify(entry, operation, proposed, 'api');
