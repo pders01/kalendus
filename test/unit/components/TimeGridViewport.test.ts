@@ -39,7 +39,7 @@ describe('Day and Week viewport sizing', () => {
         for (const height of [220, 390]) {
             it(`${view} makes the timeline reachable at ${height}px with enlarged text`, async () => {
                 const calendar = await fixture<Calendar>(html`
-                    <lms-calendar locale="ar" dir="rtl" .initialDate=${date}
+                    <lms-calendar locale="ar" dir="rtl" .activeDate=${date}
                         style=${`display:block; width:800px; height:${height}px; font-size:24px`}
                         view-mode=${view} .entries=${entries}></lms-calendar>
                 `);
@@ -59,6 +59,7 @@ describe('Day and Week viewport sizing', () => {
                     );
                 };
                 expect(values.calendar).to.equal(height);
+                expect(values.allDay).to.be.greaterThan(0);
                 expect(values.timedViewport).to.be.at.least(120);
                 const inset = parseFloat(getComputedStyle(scroll).paddingTop);
                 const timeTop = Math.round(inset + 530 * values.minute);
@@ -131,7 +132,7 @@ describe('Day and Week viewport sizing', () => {
         for (const dir of ['ltr', 'rtl'] as const) {
             it(`${view} keeps date, all-day and timed columns aligned as the all-day band scrolls (${dir})`, async () => {
                 const calendar = await fixture<Calendar>(html`
-                    <lms-calendar scroll-time-grid .initialDate=${date} view-mode=${view} dir=${dir}
+                    <lms-calendar scroll-time-grid .activeDate=${date} view-mode=${view} dir=${dir}
                         .entries=${entries.slice(0, 1)}
                         style=${`width:900px; height:${dir === 'rtl' ? 390 : 760}px; font-size:${dir === 'rtl' ? 24 : 16}px`}
                     ></lms-calendar>
