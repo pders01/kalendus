@@ -1053,7 +1053,7 @@ export default class LMSCalendar extends LitElement {
     }
 
     private _timePosition(view: LMSCalendarDay | LMSCalendarWeek) {
-        const scroller = view.shadowRoot?.querySelector<HTMLElement>('.week-scroll, .main');
+        const scroller = view.shadowRoot?.querySelector<HTMLElement>('.timeline');
         const scale = parseFloat(getComputedStyle(view).getPropertyValue('--minute-height'));
         const inset = scroller ? parseFloat(getComputedStyle(scroller).paddingTop) || 0 : 0;
         return scroller && scale > 0 ? (scroller.scrollTop - inset) / scale : 0;
@@ -1072,7 +1072,7 @@ export default class LMSCalendar extends LitElement {
             view !== this._timeGridHost
         )
             return;
-        const scroller = view.shadowRoot?.querySelector<HTMLElement>('.week-scroll, .main');
+        const scroller = view.shadowRoot?.querySelector<HTMLElement>('.timeline');
         const scale = parseFloat(getComputedStyle(view).getPropertyValue('--minute-height'));
         if (scroller && scale > 0) {
             const inset = parseFloat(getComputedStyle(scroller).paddingTop) || 0;
@@ -1482,6 +1482,31 @@ export default class LMSCalendar extends LitElement {
         );
     }
 
+    private _handleTimelineFocus(event: FocusEvent) {
+        const timeline = event.composedPath()[0];
+        if (!(timeline instanceof Element) || !timeline.matches('.timeline')) return;
+        const view = event.currentTarget as HTMLElement;
+        requestAnimationFrame(() => {
+            if (!timeline.matches(':focus')) return;
+            // Native focus can leave a nested timeline partly clipped. Reveal it
+            // inside the calendar without scrolling the page or changing the time.
+            let { top, bottom } = timeline.getBoundingClientRect();
+            for (const port of [view, view.parentElement!]) {
+                const start = port.getBoundingClientRect().top + port.clientTop;
+                const end = start + port.clientHeight;
+                const before = top - start;
+                const after = bottom - end;
+                const offset = port.scrollTop;
+                if (before * after > 0)
+                    port.scrollTop += Math.abs(before) < Math.abs(after) ? before : after;
+                // Reveal only the part that the inner scrollport can show.
+                const moved = offset - port.scrollTop;
+                top = Math.max(top + moved, start);
+                bottom = Math.min(bottom + moved, end);
+            }
+        });
+    }
+
     override render() {
         const viewMode = this._viewState.viewMode;
         const currentActiveDate = this._viewState.activeDate;
@@ -1519,7 +1544,7 @@ export default class LMSCalendar extends LitElement {
 
                 <slot name="status">${this.error ? html`<p class="calendar-error" role="alert">${this.error}</p>` : this.loading ? html`<progress class="calendar-progress" aria-label=${getMessages(this.locale).calendarView}></progress>` : nothing}</slot>
                 <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${rangeDescription}</p>
-                <section class="calendar-view${viewMode === 'day' || viewMode === 'week' ? (list ? ' agenda-view' : ' time-grid') : viewMode === 'year' ? ' year-view' : ''}" style=${styleMap({ '--_time-grid-tail': `${this.timedEntryPresentation === 'card' ? this._timeGridMinimum : 0}px` })} role="region" data-menu-focus-fallback tabindex="-1" aria-label=${rangeDescription} aria-busy=${this.loading ? 'true' : 'false'} @open-menu=${this._handleOpenMenu}>
+                <section class="calendar-view${viewMode === 'day' || viewMode === 'week' ? (list ? ' agenda-view' : ' time-grid') : viewMode === 'year' ? ' year-view' : ''}" style=${styleMap({ '--_time-grid-tail': `${this.timedEntryPresentation === 'card' ? this._timeGridMinimum : 0}px` })} role="region" data-menu-focus-fallback tabindex="-1" aria-label=${rangeDescription} aria-busy=${this.loading ? 'true' : 'false'} @open-menu=${this._handleOpenMenu} @focusin=${this._handleTimelineFocus}>
                     ${this._entriesError ? html`<slot name="entries-error"><p role="alert" lang="en">${this._entriesError}</p></slot>` : nothing}
                     ${viewMode === 'month' ? this._renderMonthView() : nothing}
                     ${

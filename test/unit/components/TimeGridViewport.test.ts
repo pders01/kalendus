@@ -60,18 +60,24 @@ describe('Day and Week viewport sizing', () => {
                 };
                 expect(values.calendar).to.equal(height);
                 expect(values.timedViewport).to.be.at.least(120);
-                // A focused timeline must actually be visible, not just have a
-                // large clientHeight behind an ancestor's clipping boundary.
-                scroll.focus();
+                const inset = parseFloat(getComputedStyle(scroll).paddingTop);
+                const timeTop = Math.round(inset + 530 * values.minute);
+                scroll.scrollTop = timeTop;
+                // At 220px, also exercise the fallback without native focus
+                // scrolling: some engines leave a partly visible timeline alone.
+                scroll.focus({ preventScroll: height === 220 });
                 await nextFrame();
                 expect(visibleHeight()).to.be.at.least(118);
                 expect(scroll.getRootNode()).to.have.property('activeElement', scroll);
+                expect(scroll.scrollTop).to.equal(timeTop);
 
-                const inset = parseFloat(getComputedStyle(scroll).paddingTop);
-                scroll.scrollTop = Math.round(inset + 530 * values.minute);
                 calendar.style.height = '1400px';
                 await settle();
-                expect(scroll.scrollTop, 'full day no longer needs vertical scrolling').to.equal(0);
+                // Engines can retain a fractional scroll offset at the fit boundary.
+                expect(
+                    scroll.scrollTop,
+                    'full day no longer needs vertical scrolling',
+                ).to.be.closeTo(0, 0.5);
                 const resized = snapshot(calendar, view).values;
                 expect(resized.timedContent).to.be.closeTo(resized.timedViewport, 1);
             });
