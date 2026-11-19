@@ -10,7 +10,7 @@ section: Reference
 
 > **Historical document.** This was the original rendering calculations reference written for the CSS grid system (`repeat(1440, 1fr)`). The calendar now uses absolute positioning with `--minute-height`. See the [Rendering Pipeline](./rendering-pipeline.md) for the current system.
 
-This document describes all the rendering calculations used throughout the LMS Calendar component system to ensure pixel-perfect alignment and consistent behavior across all views.
+The calculations and code examples below record the earlier implementation. They are kept for historical reference, not as integration instructions.
 
 ## Table of Contents
 

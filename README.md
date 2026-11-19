@@ -2,7 +2,7 @@
 
 A responsive calendar web component built with Lit 3.x and TypeScript. Multiple view modes, overlapping event handling, per-instance localization, and CSS design tokens.
 
-![demo](assets/demo.gif)
+Try [the live examples in local Storybook](#storybook), including the narrow-screen Month → Agenda → Week journey.
 
 ## Installation
 
@@ -21,7 +21,6 @@ html`<lms-calendar
     view-mode="month"
     .entries=${myEvents}
     color="#1976d2"
-    style="height: 600px"
 ></lms-calendar>`;
 ```
 
@@ -39,7 +38,7 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 
 ### Multiple View Modes
 
-- **Month View**: Traditional monthly calendar with color-coded event indicators
+- **Month View**: Calendar grid with event previews or compact activity indicators; select a date to browse its events
 - **Week View**: 7-day view with hourly time slots and condensed windows (e.g., 3-day peeks) driven by CSS tokens
 - **Day View**: Single-day view with detailed hourly scheduling
 - **Year View**: 12 mini-month grids with density indicators (dot, heatmap, or count) and configurable drill targets for instant navigation
@@ -55,7 +54,6 @@ Each instance auto-detects its locale from `<html lang="...">`. Override per-ins
 ### Modern Design
 
 - **Responsive Design**: Mobile-first approach with adaptive layouts and container queries
-- **Color Dot Indicators**: Scalable month view with color-coded event dots
 - **Keyboard & Semantics**: Keyboard date navigation, labeled controls, and focus management; the non-modal detail inspector does not trap focus
 - **CSS Custom Properties**: Design tokens for theming
 
@@ -137,7 +135,7 @@ Set `calendar.loading = true` or `calendar.error = '…'` to distinguish pending
 
 ### Supported Locales
 
-These are catalog codes, not a restriction on BCP 47 formatting tags. Regional aliases (for example `de-AT` → `de`) and Simplified Chinese aliases resolve to a catalog; unsupported tags fall back to English. Traditional Chinese does not silently select Simplified Chinese. The recommendations below do not change the Monday default. Translation maintenance uses canonical JSON catalogs; see [locale workflow](src/locales/README.md).
+These are catalog codes, not a restriction on BCP 47 formatting tags. Regional aliases (for example `de-AT` → `de`) and Simplified Chinese aliases resolve to a catalog; unsupported tags fall back to English. Traditional Chinese does not silently select Simplified Chinese. The recommendations below do not change the Monday default. Translation maintenance uses canonical JSON catalogs; see [locale workflow](https://github.com/pders01/kalendus/blob/main/src/locales/README.md).
 
 <!-- GENERATED:LOCALE_TABLE:START -->
 
@@ -200,21 +198,21 @@ See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format
 
 ## Documentation Map
 
-| Audience               | Document                                                     | Highlights                                                                 |
-| ---------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| Integrators            | [Integration Guide](docs/integration-guide.md)               | Framework recipes, theming tokens, analytics hooks                         |
-| Application Developers | [Library Usage](docs/library-usage.md)                       | API surface, data contracts, DOM events                                    |
-| CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                    | CSS custom properties by category                                          |
-| CSS / Design Systems   | [Theming Reference](docs/theming.md)                         | Built-in themes, color formats, quick-start examples                       |
-| Events                 | [Events Reference](docs/events.md)                           | State snapshots, cancelable requests, diagnostics and legacy notifications |
-| Layout                 | [Layout & Positioning](docs/layout-and-positioning.md)       | Height requirements, responsive behavior, all-day events                   |
-| Troubleshooting        | [Troubleshooting](docs/troubleshooting.md)                   | Top consumer issues and fixes                                              |
-| Component Contributors | [Developer Guide](docs/developer-guide.md)                   | Internal architecture, debugging tips, adding locales                      |
-| Rendering Internals    | [Rendering Calculations](docs/rendering-calculations.md)     | Grid math, condensed weeks, density modes                                  |
-| Architecture           | [Architecture Overview](docs/architecture.md)                | Component tree, technologies, design patterns                              |
-| Design Tokens          | [Design Token Refactoring](docs/design-token-refactoring.md) | Historical: token audit and proposed hierarchy                             |
-| Backend/API            | [API Server Guide](docs/api-server.md)                       | Private-by-default REST + SSE backend and adapters                         |
-| Expo / React Native    | [Native Bridge](expo-bridge/README.md)                       | Self-contained build, public events and native verification gates          |
+| Audience               | Document                                                                             | Highlights                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Integrators            | [Integration Guide](docs/integration-guide.md)                                       | Framework recipes, theming tokens, analytics hooks                         |
+| Application Developers | [Library Usage](docs/library-usage.md)                                               | API surface, data contracts, DOM events                                    |
+| CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                                            | CSS custom properties by category                                          |
+| CSS / Design Systems   | [Theming Reference](docs/theming.md)                                                 | Built-in themes, color formats, quick-start examples                       |
+| Events                 | [Events Reference](docs/events.md)                                                   | State snapshots, cancelable requests, diagnostics and legacy notifications |
+| Layout                 | [Layout & Positioning](docs/layout-and-positioning.md)                               | Height requirements, responsive behavior, all-day events                   |
+| Troubleshooting        | [Troubleshooting](docs/troubleshooting.md)                                           | Top consumer issues and fixes                                              |
+| Component Contributors | [Developer Guide](docs/developer-guide.md)                                           | Internal architecture, debugging tips, adding locales                      |
+| Rendering Internals    | [Rendering Pipeline](docs/rendering-pipeline.md)                                     | Segment preparation, time-grid layout, condensed weeks and density         |
+| Architecture           | [Architecture Overview](docs/architecture.md)                                        | Component tree, technologies, design patterns                              |
+| Design Tokens          | [Design Token Refactoring](docs/design-token-refactoring.md)                         | Historical: token audit and proposed hierarchy                             |
+| Backend/API            | [API Server Guide](docs/api-server.md)                                               | Private-by-default REST + SSE backend and adapters                         |
+| Expo / React Native    | [Native Bridge](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) | Self-contained build, public events and native verification gates          |
 
 ## Testing
 
@@ -239,20 +237,14 @@ Explore all features and variations in Storybook:
 bun run storybook
 ```
 
-### Available Stories
+### Where to start
 
-- **Default**: Basic calendar with sample events
-- **Theme stories**: Default, Ink, Soft, Brutalist, Midnight — one story per built-in theme
-- **Custom Theming**: Inline CSS variable overrides
-- **Locale stories**: Individual stories for each supported locale (German, French, Spanish, Japanese, etc.)
-- **LocaleShowcase**: Multiple calendars on one page, each with a different locale
-- **WeekStartComparison**: Side-by-side Monday-first vs Sunday-first
-- **Heavy Event Load**: Stress testing with 200+ events
-- **Overlapping Events**: Extreme overlap scenarios
-- **Tall Container**: Verifies layout in oversized containers
-- **RTLShowcase**: Side-by-side Arabic and Hebrew calendars with automatic RTL layout
-- **RTLOverride**: Demonstrates explicit `dir="ltr"` override on an RTL locale
-- **Mobile View**: Responsive mobile experience
+- **Visual review → Library scenarios → Library: Month → Agenda → Week**: Select Nov 17, open an event and download its `.ics`, then switch to Week to compare times. This story opts into the Agenda accordion.
+- **Visual review → Viewport matrix → Matrix**: Compare Day, Week, Month, Agenda, and Year at the same embed sizes. Use Controls to vary event density, text size, and locale. Presets are CSS sizes, not device emulation.
+- **Components → Kalendus → Overview**: Choose **Default** for the neutral component, **Default Theme** for the opt-in stylesheet, or **Mobile View** for a 375 × 667 CSS pixel canvas.
+- **Components → Kalendus → Layout**: **Condensed Week (Up to 3 Days)** opens directly in Week. The calendar shows fewer days when the embed cannot fit three readable columns.
+
+The sidebar also includes the other built-in themes, locale and RTL examples, Year drill-down, and stress tests. See [Review calendar layouts](docs/developer-guide.md#review-calendar-layouts) for the automated journeys and capture commands.
 
 ## Development
 
@@ -267,9 +259,10 @@ bun run demo:gif             # Record demo GIF (requires ffmpeg)
 bun scripts/check-locales.mjs --write # Regenerate from canonical JSON catalogs
 bun run i18n:check           # Check completeness, preservation and roundtrip
 bun run docs:sync:check      # Check generated documentation sections
+bun run docs:build           # Build the docs site and check internal links
 ```
 
-Do not translate generated TypeScript/XLIFF or run extraction as the translation source workflow. Edit the canonical catalogs described in [src/locales/README.md](src/locales/README.md).
+Do not translate generated TypeScript/XLIFF or run extraction as the translation source workflow. Edit the canonical catalogs described in [the canonical locale guide](https://github.com/pders01/kalendus/blob/main/src/locales/README.md).
 
 See `docs/developer-guide.md` for internal architecture notes, troubleshooting checklists, and tips on extending condensed week layouts or localization.
 
@@ -286,11 +279,11 @@ bun run db:seed # optional demo data
 KALENDUS_PUBLIC_DEMO=true bun run dev
 ```
 
-[server/README.md](server/README.md) is the authoritative API, authorization, CORS, range-limit and deployment guide; [API Server Guide](docs/api-server.md) provides an overview.
+[server/README.md](https://github.com/pders01/kalendus/blob/main/server/README.md) is the authoritative API, authorization, CORS, range-limit and deployment guide; [API Server Guide](docs/api-server.md) provides an overview.
 
 ### Expo / React Native (optional)
 
-The [source bridge guide](expo-bridge/README.md) covers `bun run build:iife`, self-contained inline document generation, `bun scripts/check-bridge.mjs`, and the separate Expo app typecheck/device gates. The development shell is not a standalone Metro asset. Browser checks do not establish native-device or screen-reader compatibility.
+The [source bridge guide](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) covers `bun run build:iife`, self-contained inline document generation, `bun scripts/check-bridge.mjs`, and the separate Expo app typecheck/device gates. The development shell is not a standalone Metro asset. Browser checks do not establish native-device or screen-reader compatibility.
 
 ## License
 

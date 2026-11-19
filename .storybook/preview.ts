@@ -40,7 +40,7 @@ const preview: Preview = {
                                 'Sunday-First Week',
                                 'Saturday-First Week',
                                 'Week Start Comparison',
-                                'Condensed Week (3-Day)',
+                                'Condensed Week (Up to 3 Days)',
                                 'Condensed Week Modes',
                             ],
                             'Stress Tests',

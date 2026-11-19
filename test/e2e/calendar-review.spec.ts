@@ -16,6 +16,30 @@ async function capture(page: Page, info: TestInfo, name: string) {
     await page.screenshot({ path: info.outputPath(`${name}.png`), animations: 'disabled' });
 }
 
+test('opens Mobile View inside the configured phone canvas', async ({ page }) => {
+    // Leave enough room for the Storybook toolbar and addon panel.
+    await page.setViewportSize({ width: 1400, height: 1200 });
+    await page.goto('/?path=/story/components-kalendus--mobile-view');
+    const frame = page.locator('#storybook-preview-iframe');
+    await expect(
+        frame.contentFrame().locator('lms-calendar').locator('lms-calendar-month'),
+    ).toBeVisible();
+    await expect.poll(async () => (await frame.boundingBox())?.width).toBe(375);
+    await expect.poll(async () => (await frame.boundingBox())?.height).toBe(667);
+});
+
+test('starts Condensed Week with three readable days and fits fewer in a narrower canvas', async ({
+    page,
+}) => {
+    await page.goto(story('components-kalendus--condensed-week-view'));
+    const week = page.locator('lms-calendar-week');
+    await expect(week.locator('.peek-indicators')).toBeVisible();
+    await expect(week).toHaveJSProperty('visibleLength', 3);
+
+    await page.setViewportSize({ width: 430, height: 900 });
+    await expect(week).toHaveJSProperty('visibleLength', 2);
+});
+
 test('reads and exports from Agenda, compares Week, and returns to the open event', async ({
     page,
     browserName,

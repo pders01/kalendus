@@ -22,11 +22,11 @@ This guide documents the internal mechanisms of Kalendus so contributors can dia
 
 ### Typical render flow
 
-1. **Inputs change** (usually `.entries`, `.locale`, or CSS width) → `willUpdate` validates entries, sorts timed items, and precomputes derived caches.
-2. **Expanded entries** are stored once per update, along with: ISO-date buckets (`_expandedByISODate`), per-day counts (`_entrySumByDay`), and layout caches invalidated for day/week views.
+1. **Entry input changes** → `willUpdate` normalizes `.entries`. A visible range change can reuse the normalized records.
+2. **Entry caches** use bounded expansion to prepare ISO-date buckets (`_expandedByISODate`) and date counts (`_entrySumByDay`). Rebuilding these caches invalidates the Day and Week layouts.
 3. **View selection** uses `ViewStateController` and user events (`switchview`, `switchdate`, `jumptoday`).
 4. **Week context** (`computeWeekDisplayContext`) reads CSS tokens to decide how many day columns to render and whether the “peek” navigation should be shown.
-5. **SlotManager + LayoutCalculator** convert expanded entries into positioned `<lms-calendar-entry>` elements for each view, reusing memoized layout results whenever possible.
+5. **View-data helpers** prepare timed boxes, all-day placements, Month previews, and Agenda pages. The root binds that data to Lit templates and owns measurement, focus, and events.
 
 ## Key Mechanisms
 
@@ -40,15 +40,16 @@ This guide documents the internal mechanisms of Kalendus so contributors can dia
 
 ### Layout pipeline
 
-- **Timed entries**: `_renderDayEntriesWithSlotManager` maps each entry to a `LayoutCalculator` box. Results are cached per ISO date, so repeated renders only reconstruct DOM nodes when data changes.
-- **All-day entries**: `allocateAllDayRows` receives normalized `AllDayEvent` records (`id`, `days`, `isMultiDay`) to determine row stacking. Cache keys include the condensed-week offsets so each peek window reuses assignments.
-- **SlotManager** abstracts slot naming and CSS generation. Prefer `slotManager.generatePositionCSS` + `slotManager.calculateAccessibility` instead of duplicating grid math.
+- **Timed entries**: `layoutTimedEntries()` prepares `LayoutCalculator` boxes cached by ISO date and card/marker presentation. `getDenseTimedGroups()` uses the current lane width to decide which groups need disclosure.
+- **All-day entries**: `layoutAllDaySegments()` assigns rows and visible span edges in Month, Day, and Week. Day and Week cache placements by display window.
+- **Month and Agenda**: `buildMonthPreviews()` preserves sparse preview lanes. `prepareAgendaEntries()` orders and pages the real segments for date and density lists.
+- **SlotManager** owns slot naming, position CSS, and entry accessibility labels. See the [Rendering Pipeline](./rendering-pipeline.md) for the full path.
 
 ### Condensed week views
 
 `computeWeekDisplayContext(activeDate, firstDayOfWeek, calendarWidth, hostEl)` returns:
 
-- `visibleDates`, `visibleStartIndex`, `visibleLength`: used by `<lms-calendar-week>` to render 3-day peeks (or any other configured size).
+- `visibleDates`, `visibleStartIndex`, `visibleLength`: used by `<lms-calendar-week>` to render the current day window. A configured maximum can be reduced to keep lanes readable.
 - `gridColumns`: CSS string applied to the week component (`var(--time-column-width) repeat(n, 1fr)`).
 - `isCondensed`: enables peek navigation. The root assigns the target active date and reports the resulting visible window in committed state.
 

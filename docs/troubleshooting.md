@@ -146,45 +146,27 @@ The inspector is non-modal: Tab may leave it and background controls remain usab
 
 ## Week View Shows Wrong Number of Columns
 
-**Symptoms:** Week view shows 3 days instead of 7, or vice versa.
+**Symptoms:** Week shows fewer days than the configured count, even in a wide browser window.
 
-**Cause:** The condensed week mode is controlled by CSS tokens read at runtime:
-
-```css
-lms-calendar {
-    --week-day-count: 7; /* full-width columns */
-    --week-mobile-day-count: 3; /* columns below breakpoint */
-    --week-mobile-breakpoint: 768px;
-}
-```
-
-If the calendar's container is narrower than `--week-mobile-breakpoint`, it switches to `--week-mobile-day-count` columns automatically.
+**Cause:** Week measures the calendar, not the window. The two count tokens are maxima above and below `--week-mobile-breakpoint` (default `768px`). The default `--week-min-day-width: 8em` can reduce either count to keep lanes readable; enlarged text can reduce it further.
 
 **Fixes:**
 
-- To always show 7 days: `--week-mobile-day-count: 7;`
-- To change the threshold: `--week-mobile-breakpoint: 480px;`
-- Widen the container if the calendar is in a narrow sidebar
+- To keep readable lanes, widen the embed or use the day-window pager to see the rest of the week.
+- To customize the maxima, set `--week-day-count` (default `7`) and `--week-mobile-day-count` (default `3`).
+- To restore fixed counts, set `--week-min-day-width: 0`. Set both count tokens to `7` only if all seven columns are usable in the intended embed.
+
+See [Week View Condensed Mode](./layout-and-positioning.md#week-view-condensed-mode).
 
 ---
 
 ## Year View Not Responsive
 
-**Symptoms:** Year view shows all 12 months in 3 columns regardless of screen size.
+**Symptoms:** Year stays at the same number of columns when the embed changes size, or uses fewer columns than expected.
 
-**Cause:** The year view uses container queries with these tokens:
+**Cause:** An explicit `--year-grid-columns` pins the count. With automatic layout, Year responds to the space below the toolbar, text size, pointer targets, and whether dates show counts. The same width can fit different arrangements at different heights.
 
-```css
-lms-calendar {
-    --year-grid-columns: 3;
-    --year-grid-columns-tablet: 2;
-    --year-grid-columns-mobile: 1;
-}
-```
-
-If the container doesn't support container queries (very old browsers), the grid falls back to the desktop value.
-
-**Fix:** Ensure your browser supports CSS container queries, or override with a fixed column count.
+**Fix:** Remove a pinned `--year-grid-columns` to restore automatic layout. Resize the actual embed rather than just the window. In very narrow embeds, Year can pan horizontally instead of shrinking date targets. See [Year View Grid Columns](./layout-and-positioning.md#year-view-grid-columns).
 
 ---
 
@@ -212,14 +194,16 @@ If the container doesn't support container queries (very old browsers), the grid
 
 ## Month View Shows Dots Instead of Full Entries
 
-**Symptoms:** Month view renders small colored dots instead of entry chips with text.
+**Symptoms:** Month shows activity indicators or per-date counts instead of event previews.
 
-**Cause:** This is expected responsive behavior. When the calendar's container width is below **768px**, month view switches to dot mode for readability.
+**Cause:** With `month-presentation="auto"`, Month uses compact indicators when the calendar is narrower than the larger of **768px** and **48 times its font size**. The measured embed can be narrow even on a wide screen. Explicit `month-presentation="presence"` or `month-day-behavior="inline"` can also keep the grid compact.
 
 **Fixes:**
 
-- Widen the container
-- This behavior is based on `ResizeObserver` measuring the actual container width, not the viewport — so a calendar in a narrow sidebar will show dots even on a wide screen
+- Select a date to browse its events. The default behavior leaves compact selection in Month; `month-day-behavior="day"` opens Day instead.
+- Widen the embed, or set `month-presentation="previews"` to opt into previews. Only rows that fit are mounted; **+N** counts the hidden events and opens the full date list.
+
+See [Month Recognition and Selection](./layout-and-positioning.md#month-recognition-and-selection).
 
 ---
 

@@ -13,5 +13,6 @@ test-results/
 playwright-report/
 coverage/
 docs/internal/
+TODO.md
 HANDOFF.md
 screenshots/

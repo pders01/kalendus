@@ -1,7 +1,25 @@
 import syntaxHighlight from '@11ty/eleventy-plugin-syntaxhighlight';
+import GithubSlugger from 'github-slugger';
+
+export const pathPrefix = '/kalendus/';
+
+function headingIds(markdown) {
+    markdown.core.ruler.push('heading-ids', ({ tokens }) => {
+        const slugger = new GithubSlugger();
+        for (let i = 0; i < tokens.length; i++) {
+            if (tokens[i].type !== 'heading_open' || tokens[i].attrGet('id')) continue;
+            const text = tokens[i + 1].children
+                ?.filter(({ type }) => type === 'text' || type === 'code_inline')
+                .map(({ content }) => content)
+                .join('');
+            if (text) tokens[i].attrSet('id', slugger.slug(text));
+        }
+    });
+}
 
 export default function (eleventyConfig) {
     eleventyConfig.addPlugin(syntaxHighlight);
+    eleventyConfig.amendLibrary('md', (markdown) => markdown.use(headingIds));
 
     eleventyConfig.addPassthroughCopy('assets');
 
@@ -19,7 +37,7 @@ export default function (eleventyConfig) {
                 /href="(\.\/|docs\/)?([a-z][-a-z0-9]*)\.md(#[^"]*)?"/g,
                 (_, prefix, slug, hash) => {
                     // All doc links resolve to /kalendus/docs/<slug>/
-                    return `href="/kalendus/docs/${slug}/${hash || ''}"`;
+                    return `href="${pathPrefix}docs/${slug}/${hash || ''}"`;
                 },
             );
         }
@@ -32,7 +50,7 @@ export default function (eleventyConfig) {
             includes: 'docs/_includes',
             output: '_site',
         },
-        pathPrefix: '/kalendus/',
+        pathPrefix,
         markdownTemplateEngine: false,
     };
 }

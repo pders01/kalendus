@@ -642,11 +642,18 @@ export const MobileView: Story = {
     },
     parameters: {
         viewport: {
-            defaultViewport: 'mobile1',
+            options: {
+                compactPhone: {
+                    name: 'Compact phone (375 × 667)',
+                    styles: { width: '375px', height: '667px' },
+                    type: 'mobile',
+                },
+            },
         },
     },
+    globals: { viewport: { value: 'compactPhone', isRotated: false } },
     render: (args) => html`
-        <div style="width: 375px; max-width: 100%; height: 667px;">
+        <div style="max-inline-size: 375px; block-size: min(667px, calc(100dvb - 32px));">
             <lms-calendar
                 .heading=${args.heading}
                 .activeDate=${args.activeDate}
@@ -1701,14 +1708,15 @@ export const TinyEmbed: Story = {
 // --- Condensed week view stories ---
 
 export const CondensedWeekView: Story = {
-    name: storyName(STORY_GROUPS.LAYOUT, 'Condensed Week (3-Day)'),
+    name: storyName(STORY_GROUPS.LAYOUT, 'Condensed Week (Up to 3 Days)'),
     args: {
-        heading: 'Condensed Week (3-Day)',
+        heading: 'Condensed Week',
         entries: sampleEntries,
     },
     render: (args) => html`
-        <div style="width: 400px; max-width: 100%; box-sizing: border-box; height: 720px; margin: 0 auto; border: 1px dashed #ccc;">
+        <div style="max-inline-size: 480px; block-size: 720px; margin-inline: auto;">
             <lms-calendar
+                view-mode="week"
                 .heading=${args.heading}
                 .activeDate=${args.activeDate}
                 .entries=${args.entries}
@@ -1719,29 +1727,16 @@ export const CondensedWeekView: Story = {
             ></lms-calendar>
         </div>
     `,
-    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        const calendar = canvasElement.querySelector('lms-calendar') as LMSCalendar;
-        await expect(calendar).toBeInTheDocument();
-
-        // Switch to week view
-        const shadowRoot = calendar.shadowRoot;
-        const header = shadowRoot?.querySelector('lms-calendar-header');
-        if (header) {
-            const headerShadow = header.shadowRoot;
-            const weekButton = headerShadow?.querySelector('[data-context="week"]') as HTMLElement;
-            if (weekButton) {
-                await userEvent.click(weekButton);
-                await new Promise((resolve) => setTimeout(resolve, 300));
-
-                const weekView = shadowRoot?.querySelector('lms-calendar-week');
-                await expect(weekView).toBeInTheDocument();
-            }
-        }
+    play: async ({ canvasElement }) => {
+        const calendar = canvasElement.querySelector<LMSCalendar>('lms-calendar')!;
+        await waitFor(() =>
+            expect(calendar.shadowRoot?.querySelector('lms-calendar-week')).toBeTruthy(),
+        );
     },
     parameters: {
         docs: {
             description: {
-                story: 'Week view in a narrow container (400px) automatically condenses to show 3 day columns centered on the active date. Subtle peek indicators appear at the edges when there are hidden days. Navigating with arrows moves the active date and re-centers the visible window.',
+                story: 'Week opens in an embed up to 480px wide. The default readable lane width fits up to three days; narrower embeds or larger text can show fewer. Use the day-window pager to browse the rest of the week.',
             },
         },
     },
