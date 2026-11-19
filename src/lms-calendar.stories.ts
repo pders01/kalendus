@@ -18,7 +18,6 @@ import softThemeCSS from './themes/soft.css?raw';
 const meta: Meta<LMSCalendar> = {
     title: 'Components/Kalendus',
     component: 'lms-calendar',
-    tags: ['autodocs'],
     parameters: {
         layout: 'fullscreen',
     },
@@ -1744,71 +1743,39 @@ export const CondensedWeekModes: Story = {
         entries: sampleEntries,
     },
     render: (args) => html`
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); grid-auto-rows: minmax(720px, auto); gap: 1em;">
-            <lms-calendar
-                .heading=${'1-Day Peek'}
-                .activeDate=${args.activeDate}
-                .entries=${args.entries}
-                .color=${args.color}
-                .firstDayOfWeek=${args.firstDayOfWeek}
-                .locale=${args.locale}
-                style="height: 720px; display: block; --week-mobile-day-count: 1; --week-mobile-breakpoint: 9999px;"
-            ></lms-calendar>
-            <lms-calendar
-                .heading=${'2-Day Peek'}
-                .activeDate=${args.activeDate}
-                .entries=${args.entries}
-                .color=${args.color}
-                .firstDayOfWeek=${args.firstDayOfWeek}
-                .locale=${args.locale}
-                style="height: 720px; display: block; --week-mobile-day-count: 2; --week-mobile-breakpoint: 9999px;"
-            ></lms-calendar>
-            <lms-calendar
-                .heading=${'3-Day Peek'}
-                .activeDate=${args.activeDate}
-                .entries=${args.entries}
-                .color=${args.color}
-                .firstDayOfWeek=${args.firstDayOfWeek}
-                .locale=${args.locale}
-                style="height: 720px; display: block; --week-mobile-day-count: 3; --week-mobile-breakpoint: 9999px;"
-            ></lms-calendar>
-            <lms-calendar
-                .heading=${'5-Day Peek'}
-                .activeDate=${args.activeDate}
-                .entries=${args.entries}
-                .color=${args.color}
-                .firstDayOfWeek=${args.firstDayOfWeek}
-                .locale=${args.locale}
-                style="height: 720px; display: block; --week-mobile-day-count: 5; --week-mobile-breakpoint: 9999px;"
-            ></lms-calendar>
+        <div style="display: flex; flex-wrap: wrap; gap: 1em;">
+            ${[1, 2, 3, 5].map(
+                (count) => html`
+                    <lms-calendar
+                        view-mode="week"
+                        .heading=${`Up to ${count} ${count === 1 ? 'day' : 'days'}`}
+                        .activeDate=${args.activeDate}
+                        .entries=${args.entries}
+                        .color=${args.color}
+                        .firstDayOfWeek=${args.firstDayOfWeek}
+                        .locale=${args.locale}
+                        style="inline-size: min(100%, ${96 + 140 * count}px); height: 720px; --week-mobile-day-count: ${count}; --week-mobile-breakpoint: 9999px;"
+                    ></lms-calendar>
+                `,
+            )}
         </div>
     `,
-    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        const calendars = canvasElement.querySelectorAll('lms-calendar') as NodeListOf<LMSCalendar>;
-        for (const calendar of calendars) {
-            await expect(calendar).toBeInTheDocument();
-            const shadowRoot = calendar.shadowRoot;
-            const header = shadowRoot?.querySelector('lms-calendar-header');
-            if (header) {
-                const headerShadow = header.shadowRoot;
-                const weekButton = headerShadow?.querySelector(
-                    '[data-context="week"]',
-                ) as HTMLElement;
-                if (weekButton) {
-                    await userEvent.click(weekButton);
-                    await new Promise((resolve) => setTimeout(resolve, 200));
-                    // An auto-growing comparison row must not make a 100%-height
-                    // timeline feed its intrinsic day height back into that row.
-                    await expect(calendar.getBoundingClientRect().height).toBeLessThanOrEqual(721);
-                    await expect(calendar.getBoundingClientRect().height).toBeGreaterThan(600);
-                }
+    play: async ({ canvasElement }) => {
+        const calendars = [...canvasElement.querySelectorAll('lms-calendar')];
+        await expect(calendars).toHaveLength(4);
+        await waitFor(() => {
+            for (const calendar of calendars) {
+                expect(calendar.viewMode).toBe('week');
+                expect(calendar.shadowRoot?.querySelector('lms-calendar-week')).not.toBeNull();
+                expect(calendar.getBoundingClientRect().height).toBeLessThanOrEqual(721);
+                expect(calendar.getBoundingClientRect().height).toBeGreaterThan(600);
             }
-        }
+        });
     },
     parameters: {
         docs: {
             description: {
-                story: 'Side-by-side comparison of condensed week view modes: 1-day, 2-day, 3-day, and 5-day. Each calendar uses `--week-mobile-breakpoint: 9999px` to force condensed mode regardless of container width, showing different `--week-mobile-day-count` values.',
+                story: 'Compare requested maxima of 1, 2, 3, and 5 visible days. Each calendar has room to reach its maximum on a wide canvas. Narrow canvases can show fewer days to keep the time lanes readable.',
             },
         },
     },
@@ -2264,6 +2231,7 @@ export const YearViewDensityModes: Story = {
     render: (args) => html`
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); grid-auto-rows: minmax(720px, auto); gap: 1em;">
             <lms-calendar
+                view-mode="year"
                 .heading=${'Dot Mode'}
                 .activeDate=${args.activeDate}
                 .entries=${args.entries}
@@ -2274,6 +2242,7 @@ export const YearViewDensityModes: Story = {
                 style="height: 720px; display: block;"
             ></lms-calendar>
             <lms-calendar
+                view-mode="year"
                 .heading=${'Heatmap Mode'}
                 .activeDate=${args.activeDate}
                 .entries=${args.entries}
@@ -2284,6 +2253,7 @@ export const YearViewDensityModes: Story = {
                 style="height: 720px; display: block;"
             ></lms-calendar>
             <lms-calendar
+                view-mode="year"
                 .heading=${'Count Mode'}
                 .activeDate=${args.activeDate}
                 .entries=${args.entries}
@@ -2295,23 +2265,15 @@ export const YearViewDensityModes: Story = {
             ></lms-calendar>
         </div>
     `,
-    play: async ({ canvasElement }: { canvasElement: HTMLElement }) => {
-        const calendars = canvasElement.querySelectorAll('lms-calendar') as NodeListOf<LMSCalendar>;
-        for (const calendar of calendars) {
-            await expect(calendar).toBeInTheDocument();
-            const shadowRoot = calendar.shadowRoot;
-            const header = shadowRoot?.querySelector('lms-calendar-header');
-            if (header) {
-                const headerShadow = header.shadowRoot;
-                const yearButton = headerShadow?.querySelector(
-                    '[data-context="year"]',
-                ) as HTMLElement;
-                if (yearButton) {
-                    await userEvent.click(yearButton);
-                    await new Promise((resolve) => setTimeout(resolve, 200));
-                }
+    play: async ({ canvasElement }) => {
+        const calendars = [...canvasElement.querySelectorAll('lms-calendar')];
+        await expect(calendars).toHaveLength(3);
+        await waitFor(() => {
+            for (const calendar of calendars) {
+                expect(calendar.viewMode).toBe('year');
+                expect(calendar.shadowRoot?.querySelector('lms-calendar-year')).not.toBeNull();
             }
-        }
+        });
     },
     parameters: {
         docs: {

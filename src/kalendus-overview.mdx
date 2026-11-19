@@ -1,0 +1,18 @@
+import { Canvas, Meta } from '@storybook/addon-docs/blocks';
+import * as CalendarStories from './lms-calendar.stories';
+
+<Meta of={CalendarStories} name="Docs" />
+
+# Kalendus
+
+A responsive web component for viewing events in Day, Week, Month, and Year. This preview uses the neutral calendar styling. Open a story in the sidebar to use its controls or try a device-sized canvas.
+
+<Canvas of={CalendarStories.Default} sourceState="none" />
+
+## Start with a task
+
+- <a href="./?path=/story/design-comparisons-presentation-variants--library-browse-journey" target="_top">Browse Month → Agenda → Week</a>: pick Nov 17, read or download an event, then compare times in Week.
+- <a href="./?path=/story/calendar-viewport-matrix--matrix" target="_top">Review one view at several embed sizes</a>: choose a cell, then use Controls for locale, text size, and event density.
+- <a href="./?path=/story/components-kalendus--default-theme" target="_top">Compare with the opt-in Default Theme</a>, or open **Mobile View** for a 375 × 667 CSS pixel canvas.
+
+For package setup, data contracts, and custom events, see [Library Usage](https://pders01.github.io/kalendus/docs/library-usage/). Storybook viewport sizes don't emulate a physical device.

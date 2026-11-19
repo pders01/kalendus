@@ -40,6 +40,73 @@ test('starts Condensed Week with three readable days and fits fewer in a narrowe
     await expect(week).toHaveJSProperty('visibleLength', 2);
 });
 
+test('compares the requested Week maxima and adapts when the canvas narrows', async ({ page }) => {
+    await page.goto(story('components-kalendus--condensed-week-modes'));
+    const weeks = page.locator('lms-calendar-week');
+    await expect(weeks).toHaveCount(4);
+    const columns = () =>
+        weeks.evaluateAll((nodes) =>
+            nodes.map((node) => (node as HTMLElement & { visibleLength: number }).visibleLength),
+        );
+    await expect.poll(columns).toEqual([1, 2, 3, 5]);
+    await page.setViewportSize({ width: 375, height: 667 });
+    await expect
+        .poll(async () =>
+            (await columns()).every((value, i) => value > 0 && value <= [1, 2, 3, 5][i]),
+        )
+        .toBe(true);
+    await expect.poll(async () => (await columns()).at(-1)).toBeLessThan(5);
+});
+
+test.describe('Desktop Month', () => {
+    test.use({ hasTouch: false, viewport: { width: 1440, height: 960 } });
+    test('keeps the overflow button clear of previews at fractional row heights', async ({
+        page,
+    }) => {
+        await page.goto(story('components-kalendus--default'));
+        const month = page.locator('lms-calendar-month');
+        const overflow = month.locator('.summary[data-date="2026-11-15"]');
+        await expect(overflow).toBeVisible();
+        await expect
+            .poll(() =>
+                overflow.evaluate((button) => {
+                    const target = button.getBoundingClientRect();
+                    const week = button.closest('.week')!;
+                    return [...week.querySelectorAll('.entries slot')]
+                        .flatMap((slot) => (slot as HTMLSlotElement).assignedElements())
+                        .every((entry) => {
+                            const box = entry.getBoundingClientRect();
+                            return (
+                                box.right <= target.left ||
+                                box.left >= target.right ||
+                                box.bottom <= target.top ||
+                                box.top >= target.bottom
+                            );
+                        });
+                }),
+            )
+            .toBe(true);
+        const bounds = (await overflow.boundingBox())!;
+        expect(bounds.width).toBeGreaterThanOrEqual(24);
+        expect(bounds.height).toBeGreaterThanOrEqual(24);
+    });
+});
+
+test('loads the Kalendus Docs entry with one live calendar at phone width', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('/iframe.html?id=components-kalendus--docs&viewMode=docs');
+    await expect(page.getByRole('heading', { level: 1, name: /Kalendus$/ })).toBeVisible();
+    await expect(page.locator('lms-calendar')).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Browse Month → Agenda → Week' })).toBeVisible();
+    await expect
+        .poll(() =>
+            page.evaluate(
+                () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+            ),
+        )
+        .toBeLessThanOrEqual(1);
+});
+
 test('reads and exports from Agenda, compares Week, and returns to the open event', async ({
     page,
     browserName,
