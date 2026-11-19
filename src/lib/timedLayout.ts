@@ -47,3 +47,23 @@ export function getDenseTimedGroups(
     });
     return groups;
 }
+
+/** Compare the amount of detail hidden behind group buttons at the same width. */
+export function gainsTimedDetail(
+    entries: readonly TimedSegment[],
+    fit: number,
+    detail: number,
+    eventMinHeight: number,
+    columnWidth: number,
+    minimumLaneWidth: number,
+): boolean {
+    const cost = (minuteHeight: number) => {
+        const { boxes } = layoutTimedEntries(entries, { minuteHeight, eventMinHeight }, false);
+        let hiddenPairs = 0;
+        for (const { length } of getDenseTimedGroups(boxes, columnWidth, minimumLaneWidth).values())
+            hiddenPairs += length * (length - 1);
+        return hiddenPairs;
+    };
+    const fitted = cost(fit);
+    return fitted > 0 && cost(detail) < fitted;
+}

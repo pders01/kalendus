@@ -353,7 +353,9 @@ test('returns from a dense all-day list to the same part of a shallow Week', asy
     await expect.poll(async () => Math.abs((await visibleMinute()) - before)).toBeLessThan(2);
 });
 
-test('keeps separate appointments available as Week fits the full day', async ({ page }, info) => {
+test('keeps separate appointments visible as Week gains enough space to fit the day', async ({
+    page,
+}, info) => {
     await page.setViewportSize({ width: 422, height: 900 });
     await page.goto(
         `${story('design-comparisons-presentation-variants--timed-density')}&args=embedHeight:640`,
@@ -363,19 +365,28 @@ test('keeps separate appointments available as Week fits the full day', async ({
     const group = calendar.getByRole('button', { name: /^5 events:.*Nov 17/ });
     await expect(cards).toHaveCount(7);
     await expect(group).toHaveCount(0);
-    await capture(page, info, 'separate-appointments-detail');
 
     await calendar.evaluate((element: Calendar) => (element.style.blockSize = '720px'));
-    await expect(group).toBeVisible();
-    await expect(cards).toHaveCount(2);
-    await capture(page, info, 'separate-appointments-fit');
-    await group.tap();
-    const list = calendar.locator('[data-density-list]');
-    await expect(list.getByRole('heading', { name: 'Nov 17, 2026' })).toBeFocused();
-    await expect(list.getByRole('listitem')).toHaveCount(5);
-    await expect(calendar).toHaveAttribute('data-view-mode', 'week');
-    await capture(page, info, 'scoped-timed-list-in-week');
-    await list.getByRole('button', { name: 'Close', exact: true }).tap();
-    await expect(group).toBeFocused();
-    await expect(group).toBeInViewport();
+    await expect(calendar.locator('lms-calendar-week')).toHaveJSProperty('scrollTimeGrid', true);
+    await expect(cards).toHaveCount(7);
+    await expect(group).toHaveCount(0);
+    await capture(page, info, 'separate-appointments-detail');
+});
+
+test('keeps the hourly five-minute appointments separate in Day and one-column Week', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.goto(story('components-kalendus--extreme-edge-cases'));
+    const calendar = page.locator('lms-calendar');
+    const cards = calendar.locator('lms-calendar-entry[slot^="timed"]');
+    for (const mode of ['day', 'week'] as const) {
+        await calendar.evaluate((element: Calendar, mode) => {
+            element.activeDate = { ...element.activeDate, day: 12 };
+            element.viewMode = mode;
+        }, mode);
+        await expect(calendar).toHaveAttribute('data-view-mode', mode);
+        await expect(cards).toHaveCount(12);
+        await expect(calendar.locator('.time-group')).toHaveCount(0);
+    }
 });

@@ -70,27 +70,9 @@ export default class Week extends LitElement {
             position: relative;
         }
 
-        /* Classic scrollbars must reserve the same inline space in all three grids. */
-        .week-header,
-        .all-day-wrapper,
-        .week-scroll {
-            scrollbar-gutter: stable;
-        }
-
         .week-header {
-            display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
-            min-block-size: var(--day-header-height, 2.5em);
-            flex-shrink: 0;
-            border-bottom: var(--separator-border);
-            gap: var(--day-gap, 1px);
-            padding: 0 var(--day-padding, 0.5em);
             position: relative;
-            overflow: hidden;
-        }
-
-        .time-header {
-            border-inline-end: 1px solid var(--separator-light);
         }
 
         .day-label {
@@ -170,22 +152,14 @@ export default class Week extends LitElement {
 
         /* All-day events section */
         .all-day-wrapper {
-            display: block;
-            max-block-size: min(35%, var(--all-day-max-height, 12rem));
-            overflow-y: auto;
-            overscroll-behavior: contain;
-            flex-shrink: 0;
             border-bottom: var(--separator-border);
             background: var(--background-color);
             z-index: 2;
             position: relative;
-            /* Bounded scroller: the timed grid always retains usable space. */
         }
 
         .all-day-container {
-            display: grid;
             grid-template-columns: var(--calendar-grid-columns-week);
-            gap: var(--day-gap, 1px);
             padding: var(--day-padding, 0.5em);
             min-height: 0;
             overflow: hidden;
@@ -196,32 +170,14 @@ export default class Week extends LitElement {
             position: relative;
             min-height: 2em;
             padding: 0.25em 0;
-            display: grid;
             grid-template-columns: minmax(0, 1fr);
-            grid-template-rows: repeat(
-                var(--all-day-rows, 1),
-                var(--all-day-row-height, max(24px, 1.5rem))
-            );
-            grid-auto-rows: var(--all-day-row-height, max(24px, 1.5rem));
-            gap: 4px;
         }
         .all-day-wrapper[data-summary] .all-day-day-column {
             grid-template-rows: auto;
             grid-auto-rows: auto;
         }
-        .all-day-day-column slot {
-            display: contents;
-        }
-
-        /* Stack all-day events vertically with consistent positioning */
-        .all-day-container .all-day-day-column ::slotted(lms-calendar-entry) {
-            position: relative !important;
+        .all-day-day-column ::slotted(lms-calendar-entry) {
             display: block !important;
-            grid-column: 1 !important;
-            grid-row: calc(var(--all-day-row, var(--legacy-all-day-row, 0)) + 1) !important;
-            min-height: 24px !important;
-            height: var(--all-day-row-height, max(24px, 1.5rem)) !important;
-            margin-block: 0 !important;
             z-index: var(--entry-z-index, 1) !important;
         }
 
@@ -238,14 +194,7 @@ export default class Week extends LitElement {
         }
 
         .all-day-time-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: var(--hour-indicator-font-size);
-            color: var(--hour-indicator-color);
-            font-weight: var(--day-label-font-weight);
             border-inline-end: var(--separator-border);
-            overflow-wrap: anywhere;
         }
 
         .peek-indicators {
@@ -354,19 +303,6 @@ export default class Week extends LitElement {
             background: none;
             min-inline-size: 24px;
             min-block-size: 24px;
-        }
-        button:focus-visible,
-        .week-scroll:focus-visible,
-        .all-day-wrapper:focus-visible {
-            outline: 2px solid currentColor;
-            outline-offset: -2px;
-        }
-        @media (forced-colors: active) {
-            button:focus-visible,
-            .week-scroll:focus-visible,
-            .all-day-wrapper:focus-visible {
-                outline-color: Highlight;
-            }
         }
         .peek-indicator:disabled {
             cursor: default;

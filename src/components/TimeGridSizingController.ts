@@ -19,6 +19,77 @@ export const timeGridStyles = css`
         contain: content;
     }
 
+    /* Classic scrollbars must reserve the same inline space in all three grids. */
+    .day-header,
+    .week-header,
+    .all-day-wrapper,
+    .timeline {
+        scrollbar-gutter: stable;
+    }
+    .day-header,
+    .week-header,
+    .all-day-container {
+        display: grid;
+        gap: var(--day-gap, 1px);
+    }
+    .day-header,
+    .week-header {
+        min-block-size: var(--day-header-height, 2.5em);
+        flex-shrink: 0;
+        border-bottom: var(--separator-border);
+        padding: 0 var(--day-padding, 0.5em);
+        overflow: hidden;
+    }
+    .time-header {
+        border-inline-end: 1px solid var(--separator-light);
+    }
+    .all-day-wrapper {
+        display: block;
+        max-block-size: min(35%, var(--all-day-max-height, 12rem));
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        flex-shrink: 0;
+    }
+    .all-day-time-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--hour-indicator-font-size);
+        color: var(--hour-indicator-color);
+        font-weight: var(--day-label-font-weight);
+        overflow-wrap: anywhere;
+    }
+    .all-day,
+    .all-day-day-column {
+        display: grid;
+        grid-template-rows: repeat(
+            var(--all-day-rows, 1),
+            var(--all-day-row-height, max(24px, 1.5rem))
+        );
+        grid-auto-rows: var(--all-day-row-height, max(24px, 1.5rem));
+        gap: 4px;
+    }
+    :is(.all-day, .all-day-day-column) slot {
+        display: contents;
+    }
+    :is(.all-day, .all-day-day-column) ::slotted(lms-calendar-entry) {
+        position: relative !important;
+        grid-column: 1 !important;
+        grid-row: calc(var(--all-day-row, var(--legacy-all-day-row, 0)) + 1) !important;
+        min-height: 24px !important;
+        height: var(--all-day-row-height, max(24px, 1.5rem)) !important;
+        margin-block: 0 !important;
+    }
+    :is(.timeline, .all-day-wrapper, .day-label, button):focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: -2px;
+    }
+    @media (forced-colors: active) {
+        :is(.timeline, .all-day-wrapper, .day-label, button):focus-visible {
+            outline-color: Highlight;
+        }
+    }
+
     .time-labels,
     .timed-content,
     .day-column {
@@ -60,6 +131,21 @@ export const timeGridStyles = css`
         background-size: 100% var(--hour-height);
     }
 `;
+
+export function measureTimeGrid(scroll: HTMLElement) {
+    const height = scroll.clientHeight;
+    const { fontSize, paddingTop, paddingBottom } = getComputedStyle(scroll);
+    const font = parseFloat(fontSize);
+    const inset = parseFloat(paddingTop);
+    // Pay for the axis labels and late preview tail before sizing the day.
+    const available = height - inset - parseFloat(paddingBottom);
+    return {
+        height,
+        inset,
+        fit: available >= 24 * Math.max(font, inset * 1.25) ? available / 1440 : 0,
+        detail: Math.max(height / 720, (font * 2.75) / 60),
+    };
+}
 
 const hours = Array.from({ length: 25 }, (_, hour) => hour);
 export function renderTimeLabels(locale: string): TemplateResult<1> {
@@ -121,17 +207,13 @@ export class TimeGridSizingController implements ReactiveController {
         this.unlisten = () => scroll.removeEventListener('scroll', rememberScroll);
         const sync = () => {
             this.lastScroll = this.host.scrollTimeGrid;
-            const height = scroll.clientHeight;
+            const { height, inset, fit, detail } = measureTimeGrid(scroll);
             if (!height) return;
-            const { fontSize, paddingTop, paddingBottom } = getComputedStyle(scroll);
-            const font = parseFloat(fontSize);
-            const inset = parseFloat(paddingTop);
-            const available = height - inset - parseFloat(paddingBottom);
-            // Pay for the axis labels and late preview tail before sizing the day.
-            const fit = !this.lastScroll && available >= 24 * Math.max(font, inset * 1.25);
-            const minute = fit ? available / 1440 : Math.max(height / 720, (font * 2.75) / 60);
-            this.host.toggleAttribute('data-spaced-hours', fit && minute * 60 < inset * 3);
-            if (Math.abs(minute - this.lastMinute) > 0.0001) {
+            const chosenFit = !this.lastScroll && fit;
+            const minute = chosenFit || detail;
+            const changed = Math.abs(minute - this.lastMinute) > 0.0001;
+            this.host.toggleAttribute('data-spaced-hours', !!chosenFit && minute * 60 < inset * 3);
+            if (changed) {
                 const top = scroll.scrollTop;
                 const clamped = height > previousHeight && top >= scroll.scrollHeight - height - 1;
                 const position =
@@ -147,8 +229,9 @@ export class TimeGridSizingController implements ReactiveController {
                 // Avoid cumulative subpixel truncation during repeated restores.
                 if (position !== undefined)
                     scroll.scrollTop = Math.round(inset + position * minute);
-                this.host.dispatchEvent(new Event('time-grid-resize'));
             }
+            if (changed || height !== previousHeight || inset !== previousInset)
+                this.host.dispatchEvent(new Event('time-grid-resize'));
             previousHeight = height;
             previousInset = inset;
             previousTop = scroll.scrollTop;

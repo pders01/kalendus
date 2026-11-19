@@ -208,7 +208,7 @@ The optional [entry interactions module](./events.md#entry-change-requests-opt-i
 
 ## Entry layout and year controls
 
-Day and Week fit all 24 hours when the space below their headers and all-day band allows it. Shorter embeds scroll at a readable scale; use `scroll-time-grid` to always use that detail layout. See [Time Grid Sizing](./layout-and-positioning.md#time-grid-sizing).
+Day and Week fit all 24 hours when the space below their headers and all-day band allows it without hiding more timed-card detail. Otherwise they scroll at a readable scale. Use `scroll-time-grid` to always use that detail layout. See [Time Grid Sizing](./layout-and-positioning.md#time-grid-sizing).
 
 Timed entries use minute-based absolute positioning with overlap layout calculated from effective grid scale/minimum geometry; they are not fixed at one pixel per minute. All-day entries use row allocation. Narrow month layouts use compact indicators; condensed weeks use the actual visible window for both rendering and range reporting.
 

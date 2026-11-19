@@ -8,12 +8,13 @@ import LMSCalendarContext from './components/Context.js';
 import LMSCalendarDay from './components/Day.js';
 import LMSCalendarEntry from './components/Entry.js';
 import { downloadEntryIcs } from './components/entryExport.js';
-import './components/Context.js';
 import LMSCalendarHeader from './components/Header.js';
-import './components/Day.js';
+import './components/Context.js';
 import LMSCalendarMenu from './components/Menu.js';
-import './components/Entry.js';
+import './components/Day.js';
 import LMSCalendarMonth from './components/Month.js';
+import './components/Entry.js';
+import { measureTimeGrid } from './components/TimeGridSizingController.js';
 import './components/Header.js';
 import LMSCalendarWeek from './components/Week.js';
 import LMSCalendarYear from './components/Year.js';
@@ -56,7 +57,7 @@ import {
     type PositionConfig,
     type FirstDayOfWeek,
 } from './lib/SlotManager.js';
-import { getDenseTimedGroups, layoutTimedEntries } from './lib/timedLayout.js';
+import { gainsTimedDetail, getDenseTimedGroups, layoutTimedEntries } from './lib/timedLayout.js';
 import type { ViewMode } from './lib/ViewStateController.js';
 import { ViewStateController } from './lib/ViewStateController.js';
 import { computeWeekDisplayContext, type WeekDisplayContext } from './lib/weekDisplayContext.js';
@@ -338,6 +339,8 @@ export default class LMSCalendar extends LitElement {
         ReturnType<typeof layoutAllDaySegments<ExpandedCalendarEntry>>
     >();
 
+    @state() private _preferTimeGridScroll = false;
+    private _timeFitKey = '';
     @state() private _timeGridScale = 0.8;
     @state() private _timeGridMinimum = 24;
     @state() private _timeGridStackMinimum = 40;
@@ -1149,6 +1152,7 @@ export default class LMSCalendar extends LitElement {
             Math.ceil(contentMinimum),
             forceStack ? stackMinimum : 0,
         );
+        this._preferTimeGridScroll = this._prefersDetail(view, columnWidth, minimum);
         if (
             (Number.isFinite(scale) &&
                 scale > 0 &&
@@ -1165,6 +1169,43 @@ export default class LMSCalendar extends LitElement {
             this._timeGridColumnWidth = columnWidth;
             this._layoutCache.clear();
         }
+    }
+
+    private _prefersDetail(view: LMSCalendarDay | LMSCalendarWeek, width: number, minimum: number) {
+        const timeline = view.shadowRoot?.querySelector<HTMLElement>('.timeline');
+        if (timeline && !this.scrollTimeGrid && this.timedEntryPresentation === 'card' && width) {
+            const { fit, detail } = measureTimeGrid(timeline);
+            if (fit && fit < detail) {
+                const dates = (view instanceof LMSCalendarWeek ? view.visibleDates : undefined) ?? [
+                    this.activeDate,
+                ];
+                const days = dates.map(civilDateKey);
+                const key = [fit, detail, width, minimum, this._densityMinimumWidth, ...days].join(
+                    ':',
+                );
+                if (key === this._timeFitKey) return this._preferTimeGridScroll;
+                this._timeFitKey = key;
+                return days.some((day) => {
+                    const entries = this._expandedByISODate[day]?.filter(
+                        (entry) => !entry.isAllDay,
+                    );
+                    return (
+                        entries &&
+                        entries.length > 1 &&
+                        gainsTimedDetail(
+                            entries,
+                            fit,
+                            detail,
+                            minimum,
+                            width,
+                            this._densityMinimumWidth,
+                        )
+                    );
+                });
+            }
+        }
+        this._timeFitKey = '';
+        return false;
     }
 
     protected override firstUpdated(
@@ -1285,6 +1326,7 @@ export default class LMSCalendar extends LitElement {
         ]);
         if (!entriesChanged && rangeKey === this._derivedRangeKey) return;
         this._derivedRangeKey = rangeKey;
+        this._timeFitKey = '';
 
         const list = this._densityList;
         const date = list && civilDateKey(list.date);
@@ -1512,6 +1554,7 @@ export default class LMSCalendar extends LitElement {
         const currentActiveDate = this._viewState.activeDate;
         const weekContext = viewMode === 'week' ? this._weekContext() : undefined;
         const list = this._densityList;
+        const scrollTimeGrid = this.scrollTimeGrid || this._preferTimeGridScroll;
         const rangeDescription = this._rangeDescription();
 
         return html`
@@ -1560,7 +1603,7 @@ export default class LMSCalendar extends LitElement {
                                           @peek-navigate=${this._handlePeekNavigate}
                                           @clear-other-selections=${this._handleClearOtherSelections}
                                           @time-grid-resize=${this._handleTimeGridResize}
-                                          .scrollTimeGrid=${this.scrollTimeGrid}
+                                          .scrollTimeGrid=${scrollTimeGrid}
                                           .activeDate=${currentActiveDate}
                                           .allDayRowCount=${result.allDayRowCount}
                                           .allDaySummary=${result.allDaySummary}
@@ -1585,7 +1628,7 @@ export default class LMSCalendar extends LitElement {
                                       <lms-calendar-day
                                           @clear-other-selections=${this._handleClearOtherSelections}
                                           @time-grid-resize=${this._handleTimeGridResize}
-                                          .scrollTimeGrid=${this.scrollTimeGrid}
+                                          .scrollTimeGrid=${scrollTimeGrid}
                                           .allDayRowCount=${result.allDayRowCount}
                                           .activeDate=${currentActiveDate}
                                           .firstDayOfWeek=${this.firstDayOfWeek}

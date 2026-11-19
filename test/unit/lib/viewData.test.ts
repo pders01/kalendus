@@ -4,7 +4,11 @@ import { prepareAgendaEntries } from '../../../src/lib/agendaEntries.js';
 import { joinVisibleSpans, layoutAllDaySegments } from '../../../src/lib/allDayLayout.js';
 import { expandEntries, type CalendarModelEntryInput } from '../../../src/lib/calendarModel.js';
 import { buildMonthPreviews } from '../../../src/lib/monthPreviews.js';
-import { getDenseTimedGroups, layoutTimedEntries } from '../../../src/lib/timedLayout.js';
+import {
+    gainsTimedDetail,
+    getDenseTimedGroups,
+    layoutTimedEntries,
+} from '../../../src/lib/timedLayout.js';
 import { getMonthCalendarArray } from '../../../src/lib/weekStartHelper.js';
 
 const date = (day: number) => ({ year: 2026, month: 11, day });
@@ -65,6 +69,25 @@ describe('Timed layout data', () => {
         expect(boxes.map((box) => box.columnCount)).to.deep.equal([1, 1]);
         expect(boxes[1].y + boxes[1].height).to.equal(boxes[0].y);
         expect(boxes[0].group).not.to.equal(boxes[1].group);
+    });
+
+    it('prefers scrollable detail when fitting creates or joins groups', () => {
+        const hourly = segments([
+            interval('early', 540, 545),
+            interval('middle', 600, 605),
+            interval('late', 660, 665),
+        ]);
+        expect(gainsTimedDetail(hourly, 0.3, 0.75, 42, 200, 128)).to.equal(true);
+        expect(gainsTimedDetail(hourly, 0.3, 0.75, 42, 400, 128)).to.equal(false);
+
+        const twoGroups = segments([
+            interval('a', 480, 540),
+            interval('b', 480, 540),
+            interval('c', 555, 615),
+            interval('d', 555, 615),
+        ]);
+        expect(gainsTimedDetail(twoGroups, 0.3, 0.75, 42, 200, 128)).to.equal(true);
+        expect(gainsTimedDetail(twoGroups.slice(0, 2), 0.3, 0.75, 42, 200, 128)).to.equal(false);
     });
 
     it('uses peak lane count to disclose an entire connected group only below the width threshold', () => {
@@ -245,9 +268,14 @@ describe('Agenda page data', () => {
         expect(allDayPage.total).to.equal(4);
         expect(allDayPage.timed).to.have.length(0);
         const segment = input.find((entry) => entry.sourceId === 'early-b')!;
-        const scoped = prepareAgendaEntries(input, { ...options, segmentIds: [segment.segmentId] });
+        const scoped = prepareAgendaEntries(input, {
+            ...options,
+            segmentIds: new Set([segment.segmentId]),
+        });
         expect(scoped.total).to.equal(1);
         expect(scoped.timed[0]).to.equal(segment);
-        expect(prepareAgendaEntries(input, { ...options, segmentIds: [] }).total).to.equal(0);
+        expect(prepareAgendaEntries(input, { ...options, segmentIds: new Set() }).total).to.equal(
+            0,
+        );
     });
 });

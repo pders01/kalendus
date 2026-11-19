@@ -70,27 +70,8 @@ export default class Day extends LitElement {
             overflow: var(--_time-grid-overflow, hidden);
         }
 
-        /* Classic scrollbars must reserve the same inline space in all three grids. */
-        .day-header,
-        .all-day-wrapper,
-        .main {
-            scrollbar-gutter: stable;
-        }
-
-        /* Match .week-header so day/week have equal scroll viewports. */
         .day-header {
-            display: grid;
             grid-template-columns: var(--day-grid-columns, var(--calendar-grid-columns-day));
-            min-block-size: var(--day-header-height, 2.5em);
-            flex-shrink: 0;
-            border-bottom: var(--separator-border);
-            gap: var(--day-gap, 1px);
-            padding: 0 var(--day-padding, 0.5em);
-            overflow: hidden;
-        }
-
-        .day-header .time-header {
-            border-inline-end: 1px solid var(--separator-light);
         }
 
         .day-header .day-label {
@@ -177,30 +158,15 @@ export default class Day extends LitElement {
         }
 
         .all-day-wrapper {
-            display: block;
-            max-block-size: min(35%, var(--all-day-max-height, 12rem));
-            overflow-y: auto;
-            overscroll-behavior: contain;
-            flex-shrink: 0;
             border-bottom: 1px solid var(--separator-light, rgba(0, 0, 0, 0.1));
-            /* This bounded scroller retains every all-day entry. */
         }
 
         .all-day-container {
-            display: grid;
             grid-template-columns: var(--day-grid-columns, var(--calendar-grid-columns-day));
-            gap: var(--day-gap, 1px);
             padding-inline: var(--day-padding, 0.5em);
         }
         .all-day-time-header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: var(--hour-indicator-font-size);
-            color: var(--hour-indicator-color);
-            font-weight: var(--day-label-font-weight);
             border-inline-end: var(--sidebar-border, 1px solid var(--separator-light));
-            overflow-wrap: anywhere;
         }
         .all-day {
             font-size: var(--day-all-day-font-size, 16px);
@@ -209,37 +175,6 @@ export default class Day extends LitElement {
             margin-inline-end: var(--day-all-day-margin-inline-end, 0);
             min-height: 0;
             padding: 0.5em 0;
-            display: grid;
-            grid-template-rows: repeat(
-                var(--all-day-rows, 1),
-                var(--all-day-row-height, max(24px, 1.5rem))
-            );
-            grid-auto-rows: var(--all-day-row-height, max(24px, 1.5rem));
-            gap: 4px;
-        }
-        .all-day slot {
-            display: contents;
-        }
-        .all-day ::slotted(lms-calendar-entry) {
-            grid-column: 1 !important;
-            grid-row: calc(var(--all-day-row, var(--legacy-all-day-row, 0)) + 1) !important;
-            position: relative !important;
-            min-height: 24px !important;
-            height: var(--all-day-row-height, max(24px, 1.5rem)) !important;
-            margin-block: 0 !important;
-        }
-        .main:focus-visible,
-        .all-day-wrapper:focus-visible,
-        .day-label:focus-visible {
-            outline: 2px solid currentColor;
-            outline-offset: -2px;
-        }
-        @media (forced-colors: active) {
-            .main:focus-visible,
-            .all-day-wrapper:focus-visible,
-            .day-label:focus-visible {
-                outline-color: Highlight;
-            }
         }
     `;
 
