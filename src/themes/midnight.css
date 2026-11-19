@@ -24,7 +24,6 @@ lms-calendar {
 
     /* ── Typography ─────────────────────────────── */
     --system-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --monospace-ui: 'JetBrains Mono', 'Fira Code', monospace;
     --header-text-color: #b8bacf;
     --indicator-color: var(--primary-color);
     --indicator-font-weight: 600;

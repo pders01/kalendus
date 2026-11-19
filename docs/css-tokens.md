@@ -49,10 +49,10 @@ All properties are defined in the `:host` block of the component's Shadow DOM st
 
 ## Typography — Fonts
 
-| Token            | Default     | Description                    |
-| ---------------- | ----------- | ------------------------------ |
-| `--system-ui`    | `inherit`   | Primary font family            |
-| `--monospace-ui` | `monospace` | Monospace font (time displays) |
+| Token            | Default             | Description                                     |
+| ---------------- | ------------------- | ----------------------------------------------- |
+| `--system-ui`    | Inherited page font | Primary font family; built-in themes set this   |
+| `--monospace-ui` | Unset               | Optional fallback for Month preview time labels |
 
 ## Border Radius
 
@@ -106,41 +106,41 @@ All properties are defined in the `:host` block of the component's Shadow DOM st
 
 ## Entry Design — Core
 
-| Token                      | Default                                            | Description                     | Views |
-| -------------------------- | -------------------------------------------------- | ------------------------------- | ----- |
-| `--entry-font-size`        | `0.75rem`                                          | Base font size for entry chips  | All   |
-| `--entry-line-height`      | `1.2`                                              | Line height for entry text      | All   |
-| `--entry-min-height`       | `1.2em`                                            | Minimum height of an entry chip | All   |
-| `--entry-border-radius`    | `0`                                                | Border radius of entry chips    | All   |
-| `--entry-background-color` | `transparent`                                      | Default background for entries  | All   |
-| `--entry-color`            | `inherit`                                          | Text color for entries          | All   |
-| `--entry-highlight-color`  | `color-mix(in srgb, AccentColor 12%, transparent)` | Highlight/selection color       | All   |
-| `--entry-focus-color`      | `var(--primary-color)`                             | Focus ring color                | All   |
-| `--entry-padding`          | `0.15em 0.3em`                                     | Padding inside entry chips      | All   |
-| `--entry-font-family`      | `system-ui`                                        | Font family for entries         | All   |
-| `--entry-gap`              | `0.25em`                                           | Gap between stacked entries     | All   |
+| Token                      | Default                                            | Description                     | Views     |
+| -------------------------- | -------------------------------------------------- | ------------------------------- | --------- |
+| `--entry-font-size`        | `0.75rem`                                          | Base font size for entry chips  | All       |
+| `--entry-line-height`      | `1.2`                                              | Line height for entry text      | All       |
+| `--entry-min-height`       | `1.2em`                                            | Minimum height of an entry chip | All       |
+| `--entry-border-radius`    | `0`                                                | Border radius of entry chips    | All       |
+| `--entry-background-color` | `transparent`                                      | Default background for entries  | All       |
+| `--entry-color`            | `inherit`                                          | Text color for entries          | All       |
+| `--entry-highlight-color`  | `color-mix(in srgb, AccentColor 12%, transparent)` | Highlight/selection color       | All       |
+| `--entry-focus-color`      | `var(--primary-color)`                             | Focus ring color                | All       |
+| `--entry-padding`          | `0.15em 0.3em`                                     | Padding inside entry chips      | All       |
+| `--entry-font-family`      | Calendar font                                      | Font override for time labels   | Day, Week |
+| `--entry-gap`              | `0.25em`                                           | Gap between stacked entries     | All       |
 
 ## Entry Design — Month View
 
-| Token                      | Default                  | Description                       |
-| -------------------------- | ------------------------ | --------------------------------- |
-| `--entry-dot-size`         | `6px`                    | Size of color dot indicators      |
-| `--entry-dot-margin`       | `0.25em`                 | Margin around dot indicators      |
-| `--entry-month-background` | `transparent`            | Background for month-view entries |
-| `--entry-month-padding`    | `0.05em 0.25em 0.05em 0` | Padding for month-view entries    |
-| `--entry-time-font`        | `var(--monospace-ui)`    | Font for time display             |
-| `--entry-time-align`       | `right`                  | Text alignment for time display   |
-| `--entry-month-text-color` | `var(--separator-dark)`  | Text color for month-view entries |
+| Token                      | Default                                              | Description                                 |
+| -------------------------- | ---------------------------------------------------- | ------------------------------------------- |
+| `--entry-dot-size`         | `6px`                                                | Size of color dot indicators                |
+| `--entry-dot-margin`       | `0.25em`                                             | Margin around dot indicators                |
+| `--entry-month-background` | `transparent`                                        | Background for month-view entries           |
+| `--entry-month-padding`    | `0.05em 0.25em 0.05em 0`                             | Padding for month-view entries              |
+| `--entry-time-font`        | `--monospace-ui` if set; otherwise the calendar font | Font override for Month preview time labels |
+| `--entry-time-align`       | `right`                                              | Text alignment for time display             |
+| `--entry-month-text-color` | `var(--separator-dark)`                              | Text color for month-view entries           |
 
 ## Entry Design — Typography
 
-| Token                    | Default                                             | Description                            |
-| ------------------------ | --------------------------------------------------- | -------------------------------------- |
-| `--entry-title-weight`   | `600` for Day/Week timed cards; `inherit` otherwise | Font weight for entry title            |
-| `--entry-title-wrap`     | `nowrap`                                            | Wrapping behavior for entry title      |
-| `--entry-time-font-size` | `0.85em`                                            | Font size for time display             |
-| `--entry-time-opacity`   | `1`                                                 | Opacity of time display                |
-| `--title-column-weight`  | `inherit`                                           | Font weight for title in column layout |
+| Token                    | Default                                             | Description                               |
+| ------------------------ | --------------------------------------------------- | ----------------------------------------- |
+| `--entry-title-weight`   | `600` for Day/Week timed cards; `inherit` otherwise | Font weight for entry title               |
+| `--entry-title-wrap`     | `nowrap`                                            | Wrapping behavior for entry title         |
+| `--entry-time-font-size` | `0.85em`                                            | Time label size, with a `0.75rem` minimum |
+| `--entry-time-opacity`   | `1`                                                 | Opacity of time display                   |
+| `--title-column-weight`  | `inherit`                                           | Font weight for title in column layout    |
 
 ## Entry Design — Density Mode
 

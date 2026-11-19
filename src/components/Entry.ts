@@ -88,7 +88,7 @@ export default class Entry extends LitElement {
             /* Use shared design tokens from root component */
             font-size: var(--entry-font-size);
             line-height: var(--entry-line-height);
-            font-family: var(--system-ui);
+            font-family: var(--system-ui, inherit);
             contain: layout style;
 
             grid-column: 2;
@@ -203,9 +203,6 @@ export default class Entry extends LitElement {
             min-inline-size: min(100%, 8ch);
         }
 
-        /* The band already labels these as all-day. Do not spend scarce day-column
-           width repeating that metadata on every event; the accessible name retains it. */
-        :host([slot='all-day']) .time,
         /* Full mode: multi-line with all content */
         .main.full {
             flex-direction: column;
@@ -229,8 +226,9 @@ export default class Entry extends LitElement {
 
         .time {
             max-inline-size: 100%;
-            font-family: var(--entry-font-family, var(--system-ui));
-            font-size: max(12px, var(--entry-time-font-size, 0.85em));
+            font-family: var(--entry-font-family, inherit);
+            font-size: max(0.75rem, var(--entry-time-font-size, 0.85em));
+            font-variant-numeric: tabular-nums;
             opacity: var(--entry-time-opacity);
             white-space: nowrap;
             flex-shrink: 0;
@@ -291,32 +289,14 @@ export default class Entry extends LitElement {
         :host([data-display-mode='month-dot']) .main {
             padding: 0;
             padding-inline-start: calc(var(--entry-handle-width, 2px) + 0.35em);
-            align-items: center;
-            gap: 0.5em;
-            flex-wrap: nowrap;
-            overflow: hidden;
-            flex-direction: row !important;
-            height: 100%;
-            min-height: 0;
         }
-
-        :host([data-display-mode='month-dot']) .title {
-            color: inherit;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            flex: 1 1 0;
-            min-inline-size: 0;
+        :host([data-display-mode='month-dot']) .main:has(.time) {
+            grid-template-columns: auto minmax(0, 1fr);
         }
 
         :host([data-display-mode='month-dot']) .time {
-            font-family: var(--entry-time-font);
+            font-family: var(--entry-time-font, var(--monospace-ui, inherit));
             text-align: var(--entry-time-align);
-            white-space: nowrap;
-            margin-inline-start: 0;
-            color: inherit;
-            font-variant-numeric: tabular-nums;
-            flex: 0 0 auto;
         }
 
         /* Month view connected bar styles for all-day/multi-day events */
@@ -335,7 +315,7 @@ export default class Entry extends LitElement {
             min-height: 24px;
             max-height: var(--all-day-row-height, max(24px, 1.5rem));
             font-size: var(--entry-font-size, 0.75rem);
-            line-height: 1.6em;
+            padding: 0;
             margin-inline-start: -1px;
             margin-inline-end: -1px;
             contain: style;
@@ -343,22 +323,9 @@ export default class Entry extends LitElement {
 
         :host([data-display-mode='month-span']) .main {
             padding: 0 0.5em;
-            align-items: center;
-            gap: 0;
-            flex-wrap: nowrap;
-            overflow: hidden;
-            flex-direction: row !important;
-            height: 100%;
-            min-height: 0;
         }
 
         :host([data-display-mode='month-span']) .title {
-            color: inherit;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            flex: 1;
-            min-width: 0;
             font-weight: 500;
         }
 
@@ -437,14 +404,22 @@ export default class Entry extends LitElement {
             word-wrap: break-word;
         }
 
-        /* Month owns fixed parent rows, regardless of timed-card density tokens. */
-        :host([data-display-mode='month-dot']) .title,
-        :host([data-display-mode='month-span']) .title {
+        /* Center the row, not each label: different sizes share one baseline. */
+        :host([data-display-mode^='month-']) .main {
+            display: grid;
+            align-items: baseline;
+            align-content: center;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0.5em;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+        }
+        :host([data-display-mode^='month-']) :is(.title, .time) {
+            color: inherit;
             white-space: nowrap;
             line-height: 1.2;
-        }
-        :host([data-display-mode='month-dot']) .time {
-            line-height: 1.2;
+            min-inline-size: 0;
         }
 
         /* ── Interactive state overrides ──────────────────────────
@@ -581,8 +556,8 @@ export default class Entry extends LitElement {
     private _renderTime() {
         const msg = getMessages(this.locale);
 
-        // Week's band already labels these events as all-day.
-        if (this.slot.startsWith('all-day-')) return nothing;
+        // The band already labels these events as all-day.
+        if (this.slot === 'all-day' || this.slot.startsWith('all-day-')) return nothing;
 
         // Month-dot mode: show "All Day" or start time
         if (this.displayMode === 'month-dot') {

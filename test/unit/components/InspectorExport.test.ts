@@ -143,7 +143,7 @@ describe('Non-modal event inspector interactions', () => {
     it('provides a visible unclipped fallback portal with Escape, light-dismiss and cleanup when Popover is unavailable', async () => {
         const el = await fixture<Menu>(
             html`
-                <lms-menu></lms-menu>
+                <lms-menu style="font-family: Georgia, serif"></lms-menu>
             `,
         );
         Object.defineProperty(el, '_hasPopover', { get: () => false });
@@ -153,6 +153,7 @@ describe('Non-modal event inspector interactions', () => {
         const portal = document.querySelector<HTMLElement>('[data-calendar-inspector]')!;
         expect(portal).to.exist;
         const card = portal.shadowRoot!.querySelector<HTMLDialogElement>('.card')!;
+        expect(getComputedStyle(card).fontFamily).to.equal(getComputedStyle(el).fontFamily);
         expect(card.open).to.be.true;
         expect(card.getBoundingClientRect().width).to.be.greaterThan(100);
         expect(portal.shadowRoot!.activeElement).to.equal(card.querySelector('.close-btn'));

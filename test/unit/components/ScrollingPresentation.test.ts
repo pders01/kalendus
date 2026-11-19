@@ -187,7 +187,6 @@ describe('Free scrolling and bounded entry presentation', () => {
                     const title = main.querySelector<HTMLElement>('.title')!;
                     inside(main, entry);
                     inside(title, entry);
-                    expect(getComputedStyle(main).flexWrap).to.equal('nowrap');
                     expect(getComputedStyle(title).whiteSpace).to.equal('nowrap');
                     expect(getComputedStyle(title).textOverflow).to.equal('ellipsis');
                     expect(title.scrollWidth).to.be.greaterThan(title.clientWidth);
@@ -196,6 +195,11 @@ describe('Free scrolling and bounded entry presentation', () => {
                         expect(metadata!.textContent).to.equal(formatLocalizedTime(9, 0, 'en'));
                         expect(metadata!.scrollWidth).to.be.at.most(metadata!.clientWidth + 1);
                         inside(metadata!, entry);
+                        const label = metadata!.getBoundingClientRect();
+                        const heading = title.getBoundingClientRect();
+                        expect(
+                            dir === 'rtl' ? label.left - heading.right : heading.left - label.right,
+                        ).to.be.at.least(0);
                     }
                 }
                 expect(entries[0].getBoundingClientRect().bottom).to.equal(

@@ -39,6 +39,12 @@ CSS custom properties used by themes are a separate styling surface. A browser a
 
 Override tokens on `<lms-calendar>` to fine-tune any theme or build your own from scratch.
 
+### Typography
+
+By default, the toolbar, date and time labels, event lists, and inspector all use the calendar's font. The neutral calendar inherits the page's family; the built-in themes supply their own `--system-ui` stacks. Time labels request tabular numerals where the font supports them.
+
+Set `--entry-time-font` for a different Month preview time font, or `--entry-font-family` for Day and Week event times. Existing explicit `--monospace-ui` values still serve as a fallback for Month previews; built-in themes no longer apply a separate monospace family by default.
+
 ### Quick Examples
 
 ```css

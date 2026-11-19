@@ -377,9 +377,6 @@ export default class LMSCalendar extends LitElement {
             --separator-dark: color-mix(in srgb, CanvasText 70%, transparent);
             --_muted-color: color-mix(in srgb, CanvasText 60%, transparent);
 
-            --system-ui: inherit;
-            --monospace-ui: monospace;
-
             --border-radius-sm: 0;
             --border-radius-md: 0;
             --border-radius-lg: 0;
@@ -421,7 +418,6 @@ export default class LMSCalendar extends LitElement {
             --entry-highlight-color: color-mix(in srgb, var(--primary-color) 12%, transparent);
             --entry-focus-color: var(--primary-color);
             --entry-padding: 0.15em 0.3em;
-            --entry-font-family: system-ui;
             --entry-gap: 0.25em;
 
             /* Month view dot indicator tokens */
@@ -429,7 +425,6 @@ export default class LMSCalendar extends LitElement {
             --entry-dot-margin: 0.25em;
             --entry-month-background: transparent;
             --entry-month-padding: 0.05em 0.25em 0.05em 0;
-            --entry-time-font: var(--monospace-ui);
             --entry-time-align: right;
             --entry-month-text-color: var(--separator-dark);
 
@@ -584,7 +579,7 @@ export default class LMSCalendar extends LitElement {
             background-color: var(--background-color);
             border-radius: var(--calendar-border-radius, var(--border-radius-lg));
             border: 1px solid var(--calendar-border-color);
-            font-family: var(--system-ui);
+            font-family: var(--system-ui, inherit);
             color: inherit;
             box-shadow: var(--calendar-shadow, none);
             contain: layout style;
@@ -822,7 +817,7 @@ export default class LMSCalendar extends LitElement {
         .agenda-event {
             display: grid;
             grid-template-columns: minmax(0, 1fr);
-            align-items: start;
+            align-items: baseline;
             gap: 0.65em;
             inline-size: 100%;
             box-sizing: border-box;
@@ -841,9 +836,13 @@ export default class LMSCalendar extends LitElement {
                 grid-template-columns: minmax(0, 8.5em) minmax(0, 1fr);
             }
         }
+        .agenda-time,
+        .agenda-span-range,
+        .group-meta {
+            font-variant-numeric: tabular-nums;
+        }
         .agenda-time {
             font-size: 0.8em;
-            padding-block-start: 0.1em;
             overflow-wrap: anywhere;
         }
         .agenda-title {

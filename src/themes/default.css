@@ -24,8 +24,6 @@ lms-calendar {
     --system-ui:
         system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji',
         'Segoe UI Emoji', 'Segoe UI Symbol';
-    --monospace-ui:
-        'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
 
     --header-text-color: rgba(0, 0, 0, 0.6);
     --indicator-color: var(--primary-color);

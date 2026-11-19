@@ -88,10 +88,10 @@ export default class Week extends LitElement {
             font-weight: var(--day-label-font-weight);
             border-inline-end: var(--separator-border);
             display: flex;
-            flex-direction: row;
             flex-wrap: wrap;
             justify-content: center;
-            align-items: center;
+            align-items: baseline;
+            align-content: center;
             gap: 0.1em 0.35em;
             padding-block: 0.15em;
             cursor: pointer;
@@ -108,11 +108,8 @@ export default class Week extends LitElement {
         .day-number {
             font-size: 0.95em;
             font-weight: var(--day-label-number-font-weight);
-            line-height: 1;
-            display: inline-grid;
-            place-items: center;
+            line-height: 1.65;
             min-inline-size: 1.65em;
-            min-block-size: 1.65em;
         }
 
         .day-label.current .day-number {
@@ -180,6 +177,7 @@ export default class Week extends LitElement {
             right: 0;
             text-align: var(--hour-text-align, center);
             font-size: var(--hour-indicator-font-size, 0.8125em);
+            font-variant-numeric: tabular-nums;
             line-height: 1.25;
             color: var(--hour-indicator-color);
             pointer-events: none;

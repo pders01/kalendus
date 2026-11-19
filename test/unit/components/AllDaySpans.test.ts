@@ -25,6 +25,16 @@ async function mount(view: 'month' | 'week', entries: CalendarEntry[], dir: 'ltr
     return calendar;
 }
 
+function baseline(label: Element) {
+    // An empty inline block has its baseline at its bottom border edge.
+    const marker = document.createElement('span');
+    marker.style.cssText = 'display:inline-block;width:0;height:0';
+    label.append(marker);
+    const y = marker.getBoundingClientRect().bottom;
+    marker.remove();
+    return y;
+}
+
 function expectSameColumns(bar: HTMLElement, dates: Element[]) {
     const positions = dates.map((element) => element.getBoundingClientRect());
     const bounds = bar.getBoundingClientRect();
@@ -57,6 +67,27 @@ for (const dir of ['ltr', 'rtl'] as const) {
             expect(getComputedStyle(first).borderStartEndRadius).to.equal('0px');
             expect(getComputedStyle(second).borderStartStartRadius).to.equal('0px');
             expect(getComputedStyle(second).borderStartEndRadius).to.equal('6px');
+        });
+
+        it('aligns the baselines of Month preview times and titles in the same lane', async () => {
+            const timed: CalendarEntry = {
+                id: 'review',
+                heading: 'Code Review',
+                kind: 'timed',
+                date: { start: date(18), end: date(18) },
+                time: { start: { hour: 14, minute: 0 }, end: { hour: 15, minute: 30 } },
+            };
+            const calendar = await mount('month', [timed, allDay('Product Sprint', 20, 22)], dir);
+            calendar.style.setProperty('--system-ui', 'system-ui, sans-serif');
+            calendar.style.setProperty('--entry-font-size-lg', '16px');
+            const [card] = bars(calendar, 'review');
+            const [span] = bars(calendar, 'Product Sprint');
+            const time = card.shadowRoot!.querySelector('.time')!;
+            const title = card.shadowRoot!.querySelector('.title')!;
+            const spanTitle = span.shadowRoot!.querySelector('.title')!;
+            expect(getComputedStyle(time).fontSize).not.to.equal(getComputedStyle(title).fontSize);
+            expect(baseline(time)).to.be.closeTo(baseline(title), 0.125);
+            expect(baseline(spanTitle)).to.be.closeTo(baseline(title), 0.125);
         });
 
         it('renders one Week bar across the visible dates, without merging timed sessions', async () => {

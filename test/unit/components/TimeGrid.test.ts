@@ -92,6 +92,7 @@ describe('Time-grid lifecycle and actual row geometry', () => {
         expect(band.tabIndex).to.equal(0);
         expect(schedule.getBoundingClientRect().height).to.be.greaterThan(300);
         const last = el.querySelector<HTMLElement>('lms-calendar-entry:last-child')!;
+        expect(last.shadowRoot!.querySelector('.time')).to.equal(null);
         last.focus();
         last.scrollIntoView({ block: 'nearest' });
         await settle();

@@ -87,8 +87,8 @@ describe('Holistic time-grid and entry presentation', () => {
         expect(getComputedStyle(metadata).display).not.to.equal('none');
         expect(metadata.textContent).to.equal(formatLocalizedTime(9, 30, 'en'));
         expect(metadata.scrollWidth).to.be.at.most(metadata.clientWidth + 1);
-        expect(getComputedStyle(el.shadowRoot!.querySelector('.main')!).flexWrap).to.equal(
-            'nowrap',
+        expect(title.getBoundingClientRect().left).to.be.at.least(
+            metadata.getBoundingClientRect().right,
         );
         expect(el.getBoundingClientRect().height).to.equal(24);
         expectInside(title, el);

@@ -91,7 +91,7 @@ export class Menu extends LitElement {
             border-radius: var(--border-radius-md, 7px);
             box-shadow: var(--shadow-lg, 0 2px 8px #0003);
             border: 1px solid var(--separator-light, GrayText);
-            font-family: var(--system-ui, system-ui);
+            font-family: var(--system-ui, inherit);
             padding: 0;
         }
         .card:is([open], :popover-open) {
@@ -161,6 +161,7 @@ export class Menu extends LitElement {
             background: var(--hover-bg, #8882);
         }
         .meta {
+            font-variant-numeric: tabular-nums;
             overflow-wrap: anywhere;
             font-size: var(--menu-content-font-size, 0.875em);
             color: inherit;
@@ -386,6 +387,7 @@ export class Menu extends LitElement {
         portal.style.direction = computed.direction;
         portal.style.color = computed.color;
         portal.style.font = computed.font;
+        portal.style.fontFamily = computed.fontFamily;
     }
     private _computePosition() {
         if (this._portal) this._copyInheritedStyles(this._portal);
