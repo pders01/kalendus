@@ -1,6 +1,6 @@
 import type { ConnectMessage, InboundMessage, OutboundMessage, Snapshot } from './types.js';
 
-export const VERSION = 1;
+export const VERSION = 2;
 export const MAX_MESSAGE_BYTES = 1_048_576;
 export const MAX_ENTRIES = 2000;
 export const PROP_KEYS = [
@@ -112,6 +112,7 @@ export function isEntry(v: unknown): boolean {
         record(v) &&
         keys(v, [
             'id',
+            'calendarId',
             'kind',
             'timeZone',
             'date',
@@ -127,6 +128,7 @@ export function isEntry(v: unknown): boolean {
         optional(v, 'content', (x) => text(x, 32768)) &&
         optional(v, 'color', color) &&
         optional(v, 'id', identity) &&
+        optional(v, 'calendarId', identity) &&
         optional(v, 'kind', (x) => choice(x, ['all-day', 'timed'])) &&
         optional(v, 'timeZone', zone) &&
         optional(v, 'time', times) &&
@@ -177,7 +179,8 @@ function theme(v: unknown): boolean {
 function snapshot(v: unknown): boolean {
     return (
         record(v) &&
-        keys(v, ['props', 'theme', 'capabilities']) &&
+        keys(v, ['props', 'theme', 'capabilities', 'navigationRevision']) &&
+        optional(v, 'navigationRevision', (x) => integer(x, 0, Number.MAX_SAFE_INTEGER)) &&
         props(v.props) &&
         theme(v.theme) &&
         record(v.capabilities) &&
@@ -252,17 +255,11 @@ function detail(name: unknown, v: unknown): boolean {
     }
 }
 function envelope(v: RecordValue): boolean {
-    return (
-        v.version === VERSION &&
-        token(v.session) &&
-        token(v.document) &&
-        integer(v.seq, 1, Number.MAX_SAFE_INTEGER)
-    );
+    return token(v.session) && token(v.document) && integer(v.seq, 1, Number.MAX_SAFE_INTEGER);
 }
 function inbound(v: unknown): v is InboundMessage | ConnectMessage {
-    if (!record(v)) return false;
-    if (v.type === 'connect')
-        return keys(v, ['version', 'type', 'session']) && v.version === VERSION && token(v.session);
+    if (!record(v) || v.version !== VERSION) return false;
+    if (v.type === 'connect') return keys(v, ['version', 'type', 'session']) && token(v.session);
     return (
         keys(v, ['version', 'type', 'session', 'document', 'seq', 'snapshot']) &&
         envelope(v) &&
@@ -271,7 +268,8 @@ function inbound(v: unknown): v is InboundMessage | ConnectMessage {
     );
 }
 function outbound(v: unknown): v is OutboundMessage {
-    if (!record(v) || !envelope(v)) return false;
+    // Gate ready as well as events/errors: only a matching shell can bind native.
+    if (!record(v) || v.version !== VERSION || !envelope(v)) return false;
     if (v.type === 'ready') return keys(v, ['version', 'type', 'session', 'document', 'seq']);
     if (v.type === 'error')
         return (
@@ -331,7 +329,7 @@ export function validateSnapshot(v: unknown): v is Snapshot {
     return (
         encode(
             {
-                version: 1,
+                version: VERSION,
                 session: 'validate',
                 document: 'validate',
                 seq: 1,

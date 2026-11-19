@@ -13,8 +13,10 @@ import {
     parseInbound,
     parseOutbound,
     validateSnapshot,
+    VERSION,
 } from '../../../expo-bridge/protocol.js';
 import type { CalendarEntry, CalendarState, Snapshot } from '../../../expo-bridge/types.js';
+import { toCalendarEntry } from '../../../server/src/adapters/kalendus-api-client.js';
 
 const html = readFileSync(new URL('../../../expo-bridge/kalendus.html', import.meta.url), 'utf8');
 const script = html.match(/<script>\n([\s\S]*?)\n<\/script>/)![1];
@@ -47,7 +49,7 @@ const packet = (
     seq = 1,
     session = 'native_session',
     document = 'document_id',
-) => ({ version: 1, type: 'snapshot', session, document, seq, snapshot: value });
+) => ({ version: VERSION, type: 'snapshot', session, document, seq, snapshot: value });
 const flush = async () => {
     for (let i = 0; i < 12; i++) await Promise.resolve();
 };
@@ -126,7 +128,7 @@ function fixture() {
         await flush();
     }
     const connect = (session = 'native_session') =>
-        receive(JSON.stringify({ version: 1, type: 'connect', session }));
+        receive(JSON.stringify({ version: VERSION, type: 'connect', session }));
     const decoded = () => messages.map((raw) => JSON.parse(raw));
     async function apply(value: Snapshot, seq = 1, session = 'native_session') {
         const ready = decoded().find((m) => m.type === 'ready');
@@ -166,6 +168,45 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             expect(raw).to.be.a('string');
             expect(parseInbound(raw)).to.deep.equal(JSON.parse(JSON.stringify(value)));
         });
+        it('rejects invalid calendar metadata on snapshots and requests without widening entry keys', () => {
+            for (const fields of [
+                { calendarId: '' },
+                { calendarId: 'x'.repeat(257) },
+                { calendarId: 1 },
+                { calendarId: null },
+                { calendarId: {} },
+                { calendarId: 'valid', unknownMetadata: 'no' },
+            ]) {
+                const invalid = { ...entry, ...fields };
+                const inbound = {
+                    ...packet(snapshot()),
+                    snapshot: { ...snapshot(), props: { entries: [invalid] } },
+                };
+                const outbound = {
+                    version: VERSION,
+                    type: 'event',
+                    session: 'native_session',
+                    document: 'document_id',
+                    seq: 1,
+                    name: 'entry-activate',
+                    detail: { entry: invalid, eventId: entry.id },
+                };
+                expect(encodeInbound(inbound)).to.equal(null);
+                expect(parseInbound(JSON.stringify(inbound))).to.equal(null);
+                expect(encodeOutbound(outbound)).to.equal(null);
+                expect(parseOutbound(JSON.stringify(outbound))).to.equal(null);
+            }
+        });
+        it('rejects invalid navigation revisions before either endpoint can use them', () => {
+            for (const navigationRevision of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, '1', null]) {
+                const value = {
+                    ...packet(snapshot()),
+                    snapshot: { ...snapshot(), navigationRevision },
+                };
+                expect(encodeInbound(value)).to.equal(null);
+                expect(parseInbound(JSON.stringify(value))).to.equal(null);
+            }
+        });
         it('accepts valid end-only 24:00, leap days and half-open state', () => {
             expect(
                 validateSnapshot(
@@ -185,7 +226,7 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             ).to.equal(true);
             expect(
                 encodeOutbound({
-                    version: 1,
+                    version: VERSION,
                     type: 'event',
                     session: 'native_session',
                     document: 'document_id',
@@ -197,7 +238,7 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
         });
         it('accepts the bounded public range and exclusive upper sentinel without lexical-order mistakes', () => {
             const envelope = {
-                version: 1,
+                version: VERSION,
                 type: 'event',
                 session: 'native_session',
                 document: 'document_id',
@@ -240,7 +281,7 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
                 expect(parseOutbound(raw)).to.equal(null);
             }
             for (const change of [
-                { version: 2 },
+                { version: VERSION + 1 },
                 { seq: 0 },
                 { seq: -1 },
                 { seq: 1.1 },
@@ -323,7 +364,7 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
         });
         it('validates event payloads in both directions instead of trusting a type discriminator', () => {
             const envelope = {
-                version: 1,
+                version: VERSION,
                 type: 'event',
                 session: 'native_session',
                 document: 'document_id',
@@ -393,6 +434,38 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             expect(f.decoded()[0].type).to.equal('ready');
             f.connect();
             expect(f.messages).to.have.length(1);
+        });
+        it('never binds on v1 connect or ready, but accepts the new fields with matching peers', async () => {
+            const native = new NativeSession();
+            const f = fixture();
+            const connect = native.connect();
+            f.receive(JSON.stringify({ ...JSON.parse(connect), version: 1 }));
+            await f.boot();
+            expect(f.messages).to.have.length(0);
+
+            // Even a v1 ready with the current session cannot enable snapshot dispatch/onReady.
+            const oldReady = JSON.stringify({
+                version: 1,
+                type: 'ready',
+                session: native.session,
+                document: 'legacy_document',
+                seq: 1,
+            });
+            const current = {
+                ...snapshot({ entries: [{ ...entry, calendarId: 'server-calendar' }] }),
+                navigationRevision: 0,
+            };
+            expect(native.receive(oldReady)).to.equal(null);
+            expect(native.document).to.equal(null);
+            expect(native.synchronize(current)).to.deep.equal({ raw: null, invalid: false });
+
+            f.receive(connect);
+            expect(native.receive(f.messages[0])?.type).to.equal('ready');
+            const first = native.synchronize(current);
+            expect(first.initial).to.equal(true);
+            f.receive(first.raw!);
+            await flush();
+            expect(f.cal.entries).to.deep.equal(current.props.entries);
         });
         it('uses the latest current props/theme on first ready, not the queued startup snapshot', async () => {
             const native = new NativeSession();
@@ -490,7 +563,7 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             await f.apply(snapshot({}, { '--primary-color': 'blue' }), 2);
             expect(f.cal.heading).to.equal(undefined);
             expect(f.cal.locale).to.equal('en');
-            expect(f.cal.color).to.equal('#000000');
+            expect(f.cal.color).to.equal(''); // setter input, not the real element's legacy getter
             expect(f.cal.firstDayOfWeek).to.equal(1);
             expect(f.cal.yearDensityMode).to.equal('dot');
             expect(f.cal.yearDrillTarget).to.equal('month');
@@ -512,6 +585,106 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             await f.apply(snapshot({ heading: 'two' }), 2);
             expect(f.cal.activeDate).to.deep.equal(date(20));
             expect(f.cal.viewMode).to.equal('week');
+        });
+        it('does not replay unchanged supplied axes on unrelated snapshots, and applies changed axes independently', async () => {
+            const f = fixture();
+            f.connect();
+            await f.boot();
+            await f.apply(snapshot({ activeDate: date(7), viewMode: 'month' }));
+            f.cal.activeDate = date(20);
+            f.cal.viewMode = 'week';
+            await f.apply(
+                snapshot(
+                    { activeDate: { day: 7, month: 3, year: 2026 }, viewMode: 'month' },
+                    { '--primary-color': 'blue' },
+                ),
+                2,
+            );
+            expect(f.cal.activeDate).to.deep.equal(date(20));
+            expect(f.cal.viewMode).to.equal('week');
+            await f.apply(snapshot({ activeDate: date(7), viewMode: 'day' }), 3);
+            expect(f.cal.activeDate).to.deep.equal(date(20));
+            expect(f.cal.viewMode).to.equal('day');
+            await f.apply(snapshot({ activeDate: date(9), viewMode: 'day' }), 4);
+            expect(f.cal.activeDate).to.deep.equal(date(9));
+        });
+        it('seeds an explicit revision from the latest props, mirrors without navigation, and reasserts unchanged values on a bump', async () => {
+            const native = new NativeSession();
+            const f = fixture();
+            const owner = (
+                activeDate: CalendarState['activeDate'],
+                navigationRevision: number,
+            ) => ({
+                ...snapshot({ activeDate, viewMode: 'day' }),
+                navigationRevision,
+            });
+            expect(native.synchronize(owner(date(2), 0)).raw).to.equal(null);
+            f.receive(native.connect());
+            await f.boot();
+            native.receive(f.messages[0]);
+            let current = owner(date(7), 1);
+            const deliver = async () => {
+                const next = native.synchronize(current);
+                expect(next.raw).to.be.a('string');
+                f.receive(next.raw!);
+                await flush();
+                return next.raw!;
+            };
+            await deliver();
+            expect(f.cal.activeDate).to.deep.equal(date(7));
+            expect(f.cal.viewMode).to.equal('day');
+            let observed: CalendarState | undefined;
+            const navigate = (
+                activeDate: CalendarState['activeDate'],
+                viewMode: CalendarState['viewMode'],
+            ) => {
+                f.cal.activeDate = activeDate;
+                f.cal.viewMode = viewMode;
+                f.cal.dispatchEvent(
+                    new DetailEvent('calendar-state-change', {
+                        ...canonicalState,
+                        activeDate,
+                        viewMode,
+                    }),
+                );
+                const message = native.receive(f.messages[f.messages.length - 1]);
+                if (message?.type !== 'event' || message.name !== 'calendar-state-change')
+                    throw new Error('Expected a committed navigation event');
+                observed = message.detail;
+            };
+            navigate(date(10), 'week');
+            // Owner accepts that callback, but its render is delivered after another navigation.
+            current = {
+                ...current,
+                props: { activeDate: observed!.activeDate, viewMode: observed!.viewMode },
+            };
+            navigate(date(15), 'month');
+            const delayedMirror = await deliver();
+            expect(f.cal.activeDate).to.deep.equal(date(15));
+            expect(f.cal.viewMode).to.equal('month');
+            expect(native.synchronize(current).raw).to.equal(null);
+
+            expect(native.synchronize({ ...current, navigationRevision: -1 }).invalid).to.equal(
+                true,
+            );
+            current = { ...current, navigationRevision: 2 };
+            await deliver();
+            expect(f.cal.activeDate).to.deep.equal(date(10));
+            expect(f.cal.viewMode).to.equal('week');
+            f.receive(delayedMirror);
+            expect(f.cal.activeDate).to.deep.equal(date(10));
+            expect(native.synchronize(current).raw).to.equal(null);
+
+            native.reset();
+            expect(native.synchronize(current).raw).to.equal(null);
+            const replacement = fixture();
+            replacement.receive(native.connect());
+            await replacement.boot();
+            native.receive(replacement.messages[0]);
+            replacement.receive(native.synchronize(current).raw!);
+            await flush();
+            expect(replacement.cal.activeDate).to.deep.equal(date(10));
+            expect(replacement.cal.viewMode).to.equal('week');
         });
         it('forwards canonical committed state with the half-open range and deduplicates it', async () => {
             const f = fixture();
@@ -583,6 +756,57 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
                 displayTime: '23:30–01:00',
             });
             expect(exports[0].detail.entry.date.end).to.deep.equal(date(10));
+        });
+        it('applies an actual server-mapped snapshot and returns its original metadata on activation and export', async () => {
+            const mapped = toCalendarEntry({
+                id: 'server-event',
+                calendarId: 'server-calendar',
+                heading: 'Server title',
+                content: null,
+                color: '#123456',
+                date: entry.date,
+                time: entry.time!,
+                createdAt: '2026-03-01T00:00:00Z',
+                updatedAt: '2026-03-02T00:00:00Z',
+            });
+            expect(mapped.calendarId).to.equal('server-calendar');
+            const native = new NativeSession();
+            const f = fixture();
+            f.receive(native.connect());
+            await f.boot();
+            native.receive(f.messages[0]);
+            const current = snapshot({ entries: [mapped], heading: 'Server entries' }, {}, true);
+            current.capabilities.entryActivation = true;
+            const result = native.synchronize(current);
+            expect(result.invalid).to.equal(false);
+            expect(result.initial).to.equal(true);
+            f.receive(result.raw!);
+            await flush();
+            expect(f.cal.heading).to.equal('Server entries');
+            expect(f.cal.entries).to.deep.equal([mapped]);
+            for (const [type, name] of [
+                ['entry-activate', 'entry-activate'],
+                ['export-entry', 'export-ics'],
+            ] as const) {
+                const detail = { entry: f.cal.entries[0], eventId: mapped.id };
+                const event = new DetailEvent(type, detail, { cancelable: true });
+                expect(f.cal.dispatchEvent(event)).to.equal(false);
+                const message = native.receive(f.messages[f.messages.length - 1]);
+                expect(message).to.include({ type: 'event', name });
+                expect(message).to.have.nested.property('detail.eventId', mapped.id);
+                expect(message).to.have.nested.property(
+                    'detail.entry.calendarId',
+                    mapped.calendarId,
+                );
+                expect(message).to.have.nested.property('detail.entry').that.deep.equals(mapped);
+
+                const invalid = { ...detail, entry: { ...mapped, calendarId: null } };
+                const count = f.messages.length;
+                expect(
+                    f.cal.dispatchEvent(new DetailEvent(type, invalid, { cancelable: true })),
+                ).to.equal(true);
+                expect(f.messages).to.have.length(count);
+            }
         });
         it('accepts and exports minimal public entries without optional notes or colors', async () => {
             const minimal: CalendarEntry = {
@@ -671,7 +895,12 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
     describe('native lifecycle state machine', () => {
         it('requires ready before events and rejects duplicates, wrong versions/documents and stale sequences', () => {
             const native = new NativeSession();
-            const base = { version: 1, session: native.session, document: 'document_id', seq: 1 };
+            const base = {
+                version: VERSION,
+                session: native.session,
+                document: 'document_id',
+                seq: 1,
+            };
             const event = {
                 ...base,
                 type: 'event',
@@ -689,14 +918,16 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             expect(
                 native.receive(JSON.stringify({ ...event, seq: 2, document: 'other_document' })),
             ).to.equal(null);
-            expect(native.receive(JSON.stringify({ ...event, seq: 2, version: 2 }))).to.equal(null);
+            expect(
+                native.receive(JSON.stringify({ ...event, seq: 2, version: VERSION + 1 })),
+            ).to.equal(null);
             expect(native.receive(JSON.stringify({ ...event, seq: 2 }))?.type).to.equal('event');
         });
         it('marks only the first accepted snapshot ready, including after startup rejection', () => {
             const native = new NativeSession();
             native.receive(
                 JSON.stringify({
-                    version: 1,
+                    version: VERSION,
                     session: native.session,
                     document: 'document_id',
                     seq: 1,

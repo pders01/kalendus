@@ -28,6 +28,7 @@ let applying = false;
 let failure: string | null = null;
 let previousProps: KalendusProps = {};
 let previousTheme: ThemeVars = {};
+let previousNavigationRevision: number | undefined;
 let capabilities: Snapshot['capabilities'] = { exportICS: false, entryActivation: false };
 let defaults: Record<string, unknown> = {};
 let lastState = '';
@@ -72,20 +73,44 @@ function readState(): CalendarState {
         range: cal.visibleRange,
     };
 }
+function sameDate(a: KalendusProps['activeDate'], b: KalendusProps['activeDate']): boolean {
+    return a?.year === b?.year && a?.month === b?.month && a?.day === b?.day;
+}
 async function apply(snapshot: Snapshot, revision: number): Promise<void> {
     applying = true;
     try {
+        const { props, navigationRevision } = snapshot;
+        const applyNavigation =
+            !configured ||
+            (navigationRevision !== undefined && navigationRevision !== previousNavigationRevision);
         for (const key of PROP_KEYS) {
-            if (key in snapshot.props || key in previousProps) {
-                Reflect.set(cal, key, key in snapshot.props ? snapshot.props[key] : defaults[key]);
+            if (!(key in props)) {
+                // The color getter's legacy #000000 is not the unset accent.
+                if (key in previousProps)
+                    Reflect.set(cal, key, key === 'color' ? '' : defaults[key]);
+                continue;
             }
+            // Full configuration updates must not replay old navigation. In explicit
+            // mode even changed values may be delayed echoes of an earlier web state.
+            if (!applyNavigation) {
+                const explicit = navigationRevision !== undefined;
+                if (
+                    key === 'activeDate' &&
+                    (explicit || sameDate(props.activeDate, previousProps.activeDate))
+                )
+                    continue;
+                if (key === 'viewMode' && (explicit || props.viewMode === previousProps.viewMode))
+                    continue;
+            }
+            Reflect.set(cal, key, props[key]);
         }
         for (const key of Object.keys(previousTheme))
             if (!(key in snapshot.theme)) cal.style.removeProperty(key);
         for (const [key, value] of Object.entries(snapshot.theme))
             cal.style.setProperty(key, value);
-        previousProps = snapshot.props;
+        previousProps = props;
         previousTheme = snapshot.theme;
+        previousNavigationRevision = navigationRevision;
         capabilities = snapshot.capabilities;
         document.documentElement.lang =
             Intl.getCanonicalLocales(String(Reflect.get(cal, 'locale')))[0] || 'en';

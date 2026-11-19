@@ -16,7 +16,7 @@
 <script>
 (() => {
   // expo-bridge/protocol.ts
-  var VERSION = 1;
+  var VERSION = 2;
   var MAX_MESSAGE_BYTES = 1048576;
   var MAX_ENTRIES = 2000;
   var PROP_KEYS = [
@@ -92,6 +92,7 @@
   function isEntry(v) {
     return record(v) && keys(v, [
       "id",
+      "calendarId",
       "kind",
       "timeZone",
       "date",
@@ -101,7 +102,7 @@
       "color",
       "isContinuation",
       "continuation"
-    ]) && dates(v.date) && text(v.heading, 2048) && optional(v, "content", (x) => text(x, 32768)) && optional(v, "color", color) && optional(v, "id", identity) && optional(v, "kind", (x) => choice(x, ["all-day", "timed"])) && optional(v, "timeZone", zone) && optional(v, "time", times) && (v.kind !== "timed" || times(v.time)) && timeOrder(v) && optional(v, "isContinuation", (x) => typeof x === "boolean") && optional(v, "continuation", (x) => record(x) && keys(x, ["has", "is", "index", "total"]) && typeof x.has === "boolean" && typeof x.is === "boolean" && integer(x.total, 1, 3652059) && integer(x.index, 0, x.total - 1));
+    ]) && dates(v.date) && text(v.heading, 2048) && optional(v, "content", (x) => text(x, 32768)) && optional(v, "color", color) && optional(v, "id", identity) && optional(v, "calendarId", identity) && optional(v, "kind", (x) => choice(x, ["all-day", "timed"])) && optional(v, "timeZone", zone) && optional(v, "time", times) && (v.kind !== "timed" || times(v.time)) && timeOrder(v) && optional(v, "isContinuation", (x) => typeof x === "boolean") && optional(v, "continuation", (x) => record(x) && keys(x, ["has", "is", "index", "total"]) && typeof x.has === "boolean" && typeof x.is === "boolean" && integer(x.total, 1, 3652059) && integer(x.index, 0, x.total - 1));
   }
   function props(v) {
     return record(v) && keys(v, PROP_KEYS) && optional(v, "heading", (x) => text(x, 2048)) && optional(v, "firstDayOfWeek", (x) => integer(x, 0, 6)) && optional(v, "locale", locale) && optional(v, "yearDrillTarget", drill) && optional(v, "yearDensityMode", (x) => choice(x, ["dot", "heatmap", "count"])) && optional(v, "entries", (x) => Array.isArray(x) && x.length <= MAX_ENTRIES && x.every(isEntry)) && optional(v, "color", color) && optional(v, "activeDate", isDate) && optional(v, "viewMode", view);
@@ -110,7 +111,7 @@
     return record(v) && Object.keys(v).length <= 128 && Object.entries(v).every(([k, value]) => /^--[a-z][a-z0-9-]{0,79}$/.test(k) && cssValue(value));
   }
   function snapshot(v) {
-    return record(v) && keys(v, ["props", "theme", "capabilities"]) && props(v.props) && theme(v.theme) && record(v.capabilities) && keys(v.capabilities, ["exportICS", "entryActivation"]) && typeof v.capabilities.exportICS === "boolean" && typeof v.capabilities.entryActivation === "boolean";
+    return record(v) && keys(v, ["props", "theme", "capabilities", "navigationRevision"]) && optional(v, "navigationRevision", (x) => integer(x, 0, Number.MAX_SAFE_INTEGER)) && props(v.props) && theme(v.theme) && record(v.capabilities) && keys(v.capabilities, ["exportICS", "entryActivation"]) && typeof v.capabilities.exportICS === "boolean" && typeof v.capabilities.entryActivation === "boolean";
   }
   function request(v) {
     return record(v) && keys(v, ["entry", "eventId"]) && isEntry(v.entry) && optional(v, "eventId", identity);
@@ -148,17 +149,17 @@
     }
   }
   function envelope(v) {
-    return v.version === VERSION && token(v.session) && token(v.document) && integer(v.seq, 1, Number.MAX_SAFE_INTEGER);
+    return token(v.session) && token(v.document) && integer(v.seq, 1, Number.MAX_SAFE_INTEGER);
   }
   function inbound(v) {
-    if (!record(v))
+    if (!record(v) || v.version !== VERSION)
       return false;
     if (v.type === "connect")
-      return keys(v, ["version", "type", "session"]) && v.version === VERSION && token(v.session);
+      return keys(v, ["version", "type", "session"]) && token(v.session);
     return keys(v, ["version", "type", "session", "document", "seq", "snapshot"]) && envelope(v) && v.type === "snapshot" && snapshot(v.snapshot);
   }
   function outbound(v) {
-    if (!record(v) || !envelope(v))
+    if (!record(v) || v.version !== VERSION || !envelope(v))
       return false;
     if (v.type === "ready")
       return keys(v, ["version", "type", "session", "document", "seq"]);
@@ -214,6 +215,7 @@
   var failure = null;
   var previousProps = {};
   var previousTheme = {};
+  var previousNavigationRevision;
   var capabilities = { exportICS: false, entryActivation: false };
   var defaults = {};
   var lastState = "";
@@ -262,21 +264,37 @@
       range: cal.visibleRange
     };
   }
+  function sameDate(a, b) {
+    return a?.year === b?.year && a?.month === b?.month && a?.day === b?.day;
+  }
   async function apply(snapshot, revision) {
     applying = true;
     try {
+      const { props, navigationRevision } = snapshot;
+      const applyNavigation = !configured || navigationRevision !== undefined && navigationRevision !== previousNavigationRevision;
       for (const key of PROP_KEYS) {
-        if (key in snapshot.props || key in previousProps) {
-          Reflect.set(cal, key, key in snapshot.props ? snapshot.props[key] : defaults[key]);
+        if (!(key in props)) {
+          if (key in previousProps)
+            Reflect.set(cal, key, key === "color" ? "" : defaults[key]);
+          continue;
         }
+        if (!applyNavigation) {
+          const explicit = navigationRevision !== undefined;
+          if (key === "activeDate" && (explicit || sameDate(props.activeDate, previousProps.activeDate)))
+            continue;
+          if (key === "viewMode" && (explicit || props.viewMode === previousProps.viewMode))
+            continue;
+        }
+        Reflect.set(cal, key, props[key]);
       }
       for (const key of Object.keys(previousTheme))
         if (!(key in snapshot.theme))
           cal.style.removeProperty(key);
       for (const [key, value] of Object.entries(snapshot.theme))
         cal.style.setProperty(key, value);
-      previousProps = snapshot.props;
+      previousProps = props;
       previousTheme = snapshot.theme;
+      previousNavigationRevision = navigationRevision;
       capabilities = snapshot.capabilities;
       document.documentElement.lang = Intl.getCanonicalLocales(String(Reflect.get(cal, "locale")))[0] || "en";
       configured = true;

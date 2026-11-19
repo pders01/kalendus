@@ -79,17 +79,25 @@ The wrapper calls `Asset.fromModule(module).downloadAsync()`, waits for an actua
 | `firstDayOfWeek`  | `0..6` (Sunday = 0)            | `1`                         |
 | `yearDrillTarget` | `day \| week \| month`         | `month`                     |
 | `yearDensityMode` | `dot \| heatmap \| count`      | `dot`                       |
-| `color`           | CSS color string               | `#000000`                   |
+| `color`           | non-empty CSS color string     | theme accent                |
 | `activeDate`      | `{year, month, day}`           | document's initial today    |
 | `viewMode`        | `month \| week \| day \| year` | `month`                     |
 
 Bridge-only inputs: exactly one of `htmlSource: string` / `assetSource: number`; optional `theme: Record<string,string>`, `style: StyleProp<ViewStyle>` and `showLoadingIndicator: boolean` (default true).
 
-Every update is a **complete configuration replacement**, not a patch. Removing a previously provided prop (including setting it to `undefined`) restores the initial public root default captured after upgrade/render. Removing theme keys calls `style.removeProperty`; removing `theme` clears every prior bridge override. Unprovided navigation props are left alone during ordinary updates, so changing a heading/theme does not reset user navigation. Invalid snapshots are rejected atomically; the last valid configuration remains installed.
+Every update is a **complete configuration replacement**, not a patch. Removing a previously provided calendar prop (including setting it to `undefined`) restores the initial public root default captured after upgrade/render. For `color`, omission clears the explicit `--calendar-accent` override and lets the theme supply the accent. The element's `color` getter still returns the legacy `#000000` when unset; passing `#000000` as a prop explicitly sets black. Removing theme keys calls `style.removeProperty`; removing `theme` clears every prior bridge override. Invalid snapshots are rejected atomically; the last valid configuration remains installed.
+
+### Navigation ownership and reassertion
+
+- By default, supplying or changing `activeDate` or `viewMode` navigates that axis independently. Unchanged values (including a new date object for the same civil date) and axes never supplied do not override web navigation on unrelated snapshots. These are navigation inputs, not continuously enforced React control values.
+- To give the owner explicit control, pass `navigationRevision` (a non-negative safe integer) from the first render. The first valid snapshot still applies supplied date/view. After that, change `navigationRevision` to apply **all supplied navigation axes**, even if their values did not change. A snapshot with the same revision does not navigate, even if its date/view changed. To control only one axis, leave the other unspecified.
+- Keep the revision unchanged when mirroring `onCalendarStateChange` into owner state. This saves the observed values for reloads without replaying an earlier web navigation if that render arrives after a newer navigation. To reject web navigation or deliberately jump, update the desired values and bump the revision in the same owner update. Removing a previously supplied date/view resets that axis to its document default even in explicit mode; removing `navigationRevision` returns to per-axis change tracking.
+
+For example, keep `{ activeDate, viewMode, revision }` together in owner state. In `onCalendarStateChange`, update only the date/view; in a “go to my selected date” action, set the desired date/view and increment `revision`. Pass `revision` as `navigationRevision`. The shell does not infer whether an ordinary prop change without a revision is an acceptance or an intentional navigation command.
 
 Each new document receives the **latest current complete props/theme/capabilities**, even if they did not change since the preceding document. Updates during startup are read at handshake time, not from a queued/stale closure. Keep `activeDate`/`viewMode` in owner state via `onCalendarStateChange` if navigation must survive a reload; uncontrolled navigation starts from the new document's defaults. Source replacement remounts the WebView immediately. Native `onLoadStart` resets session/readiness/deduplication, and old session/document/sequence messages are rejected. Native loading, HTTP, renderer termination and handshake-timeout errors call `onError` and render an error label; remount the wrapper to retry a failed document.
 
-`onReady` means the custom element is defined, its initial root `updateComplete` has settled, a frame has passed, the bridge listeners are installed, and native has dispatched the latest snapshot. It is **not** a guarantee that descendant layout/locale loading or owner snapshot rendering has completed. `onCalendarStateChange` provides committed state after snapshot application. A missing bundle or failed initial render cannot report ready. If the initial props/theme are invalid or oversized, `onError` fires and `onReady` waits until a valid snapshot is dispatched. Correcting the props does not require a reload.
+`onReady` means the custom element is defined, its initial root `updateComplete` has settled, a frame has passed, the bridge listeners are installed, the protocol version matches, and native has dispatched the latest snapshot. It is **not** a guarantee that descendant layout/locale loading or owner snapshot rendering has completed. `onCalendarStateChange` provides committed state after snapshot application. A missing bundle or failed initial render cannot report ready. If the initial props/theme are invalid or oversized, `onError` fires and `onReady` waits until a valid snapshot is dispatched. Correcting the props does not require a reload.
 
 ## Callbacks and public events
 
@@ -117,29 +125,32 @@ Only public, cancelable, composed requests are intercepted. No component private
 - `entry-activate` is intercepted only with `onEntryActivate`. Without it the built-in inspector continues to work. `onEntryPress` remains a compatibility notification and does not itself cancel activation.
 - Capability changes are synchronized snapshots; as with any asynchronous bridge, a handler update/removal has a short transport window before the document applies it. Keep native handlers installed for the document lifetime when interception is required.
 
-`onExportICS` is an **export request, not prebuilt ICS text**. Use `detail.entry` and `detail.eventId` for native serialization/sharing, never the displayed chip's slice/date. Original multi-day endpoints, `id`, `kind` and `timeZone` are preserved. Compatibility `date` is the original start; `displayTime` is always a string (`HH:mm–HH:mm` or empty for no time). It is not a localized inspector label. Legacy/all-day `date.end` is inclusive; ICS DATE ends must be advanced to an exclusive next day. Timed entries have original continuous endpoints when `kind: 'timed'`. Preserve identity for UID, honor the explicit zone (or floating semantics), and validate the file in target calendar clients. Native ICS creation, filesystem writes and share sheets belong to the app and are not implemented/tested by this bridge.
+`onExportICS` is an **export request, not prebuilt ICS text**. Use `detail.entry` and `detail.eventId` for native serialization/sharing, never the displayed chip's slice/date. Original multi-day endpoints, `id`, `kind`, `timeZone` and the server adapter's optional `calendarId` are preserved. The latter is opaque metadata, not a render setting or an authorization claim. Compatibility `date` is the original start; `displayTime` is always a string (`HH:mm–HH:mm` or empty for no time). It is not a localized inspector label. Legacy/all-day `date.end` is inclusive; ICS DATE ends must be advanced to an exclusive next day. Timed entries have original continuous endpoints when `kind: 'timed'`. Preserve identity for UID, honor the explicit zone (or floating semantics), and validate the file in target calendar clients. Native ICS creation, filesystem writes and share sheets belong to the app and are not implemented/tested by this bridge.
 
 ```ts
 type CalendarEntry = {
     id?: string;
+    calendarId?: string; // optional server adapter metadata
     kind?: 'all-day' | 'timed';
     timeZone?: string; // valid IANA zone, e.g. Europe/Berlin
     date: { start: CalendarDate; end: CalendarDate };
     time?: { start: CalendarTime; end: CalendarTime }; // 24:00 only as an end boundary
     heading: string;
-    content: string;
-    color: string;
+    content?: string;
+    color?: string;
     isContinuation?: boolean;
     continuation?: { has: boolean; is: boolean; index: number; total: number };
 };
 ```
 
-## Wire protocol v1 and trust boundary
+## Wire protocol v2 and trust boundary
+
+**Update the copied wrapper/protocol sources and regenerate the inline shell artifacts together.** Protocol v2 supports `calendarId` and `navigationRevision`; the v1 schema strictly rejects those fields. The endpoints require an exact version match, with no fallback to v1: incompatible `connect` and `ready` messages cannot bind a session or fire `onReady`. Mixed wrapper/shell versions surface through the handshake timeout (`onError`), even when neither new field is used.
 
 - The shell installs **no ordinary `window`/`document` `message` listeners**. Native uses `injectJavaScript` to call the dedicated `window.__kalendusReceive(JSON-string)` endpoint. iOS/Android `postMessage` origin/source discrepancies are therefore not papered over with a permissive browser origin check. Ordinary browser `postMessage`, including `origin: 'null'`, cannot issue commands.
 - Native sends a fresh `connect {version, session}` at load completion; the shell binds once and responds only after real readiness with `{version, session, document, seq, type:'ready'}`. Configuration and subsequent notifications carry that session/document pair and monotonically increasing sequence numbers. These are freshness markers, **not authentication credentials**; same-document malicious JavaScript can access the native bridge. Only trusted generated HTML/bundles may run here.
 - Native validates JSON before invoking callbacks; the shell validates JSON before touching public properties/styles. Both validate outbound objects before **and** after serialization. Unsupported versions/types/keys, null/arrays instead of objects, invalid enum/date/time/zone fields, malformed JSON, stale documents and repeated sequences are rejected without throwing into the transport.
-- Maximum message size: **1,048,576 UTF-8 bytes**, maximum **2,000 entries**, heading **2,048**, content **32,768**, ID **256** characters. Years `1..9999`, actual leap/calendar dates, clock bounds, valid BCP 47 locales. Oversized data is rejected, not silently truncated. Filter entries by the canonical visible range; do not send your whole database.
+- Maximum message size: **1,048,576 UTF-8 bytes**, maximum **2,000 entries**, heading **2,048**, content **32,768**, `id` and `calendarId` **1–256** characters when present. Years `1..9999`, actual leap/calendar dates, clock bounds, valid BCP 47 locales. Oversized data is rejected, not silently truncated. Filter entries by the canonical visible range; do not send your whole database.
 - Themes: at most **128** keys, matching `--[a-z][a-z0-9-]{0,79}`, string values up to **512** characters. Declaration delimiters, markup, control characters, escapes, comments, resource-loading functions (including `url()`/`image-set()`), `expression()` and at-rules are rejected. Colors have a similar safe value constraint (128 characters). These constraints protect the transport/sinks; they do not promise that every CSS value is supported by the calendar/device. Use the tokens in the root theme source; unknown custom properties have no effect unless consumed by your theme.
 - Inline HTML requires RN WebView's wildcard `originWhitelist`; it is **not** the authorization boundary. `onShouldStartLoadWithRequest` permits only `about:blank` or the exact resolved local asset URI. Links/navigation elsewhere are denied, and `onOpenWindow` deliberately does nothing rather than launching a new browsing context/external app. No arbitrary network navigation is enabled.
 
@@ -155,7 +166,7 @@ bun scripts/check-bridge.mjs
 
 # Real root + real Menu click in a browser iframe, using the generated shell
 bun scripts/check-bridge.mjs --browser
-TEST_BROWSERS=chromium,firefox,webkit bun run web-test-runner --config expo-bridge/web-test-runner.config.mjs
+TEST_BROWSERS=chromium,webkit bun run web-test-runner --config expo-bridge/web-test-runner.config.mjs
 
 # Also exercise the generated production IIFE/inline HTML, not just Vite's source modules
 bun run build:iife
@@ -163,7 +174,7 @@ bun expo-bridge/build-shell.mjs --inline
 BRIDGE_TEST_INLINE=1 bun run web-test-runner --config expo-bridge/web-test-runner.config.mjs
 ```
 
-`test/unit/lib/expoBridge.test.ts` is included by the existing root Mocha test glob. It tests the actual generated shell in a VM and the same `NativeSession` state machine used by React: readiness timing/failure, startup props race, reload replay, stale/replayed messages, malformed/oversized data, atomic rejection, defaults/theme clearing, canonical state, conditional export/activation and transport failure. Browser tests under `expo-bridge/test/` exercise the real root/Menu public export button and verify one native export/no Blob download versus the uncanceled browser default.
+`test/unit/lib/expoBridge.test.ts` is included by the existing root Mocha test glob. It tests the generated shell in a VM and the same `NativeSession` used by React, including readiness, mixed-version rejection, replay rejection, invalid snapshots, navigation reassertion and delayed owner echoes. Browser tests under `expo-bridge/test/` verify removal of an explicit accent on the real calendar and pass a server-mapped entry through the shell: delegated activation and export retain the original record, while export without a native handler keeps the browser default.
 
 The root package now provides `bun run check:bridge`, `bun run test:bridge`, and `bun run test:bridge:inline`. CI runs the source and production-inline browser checks in its Chromium/Firefox/WebKit matrix; this configuration is not a claim that every browser passed locally. The root unit glob also includes protocol/VM regressions. Regenerate/check the shell on protocol/shell changes. Before packaging an Expo app, rebuild the IIFE and regenerate inline artifacts; actual Expo typechecking and release-device testing remain separate gates.
 

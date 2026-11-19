@@ -1,21 +1,22 @@
 import { expect, waitUntil, nextFrame } from '@open-wc/testing';
 
+import { toCalendarEntry } from '../../server/src/adapters/kalendus-api-client.js';
 import type Menu from '../../src/components/Menu.js';
 import type LMSCalendar from '../../src/lms-calendar.js';
 import { injection, NativeSession, parseOutbound } from '../protocol.js';
-import type { CalendarEntry, Snapshot } from '../types.js';
+import type { Snapshot } from '../types.js';
 
 declare const __BRIDGE_INLINE__: boolean;
 
-/** Real root + real Menu, executing the exact generated bridge in its own document. */
-describe('Expo shell public export integration', () => {
+/** Real calendar, executing the exact generated bridge in its own document. */
+describe('Expo shell public integration', () => {
     let frame: HTMLIFrameElement | undefined;
     afterEach(() => {
         frame?.remove();
         frame = undefined;
     });
 
-    async function mount(exportICS: boolean) {
+    async function mountShell() {
         const shell = await (
             await fetch(
                 __BRIDGE_INLINE__
@@ -23,10 +24,9 @@ describe('Expo shell public export integration', () => {
                     : '/expo-bridge/kalendus.html',
             )
         ).text();
-        const markup = shell
-            .replace(
-                '<body>',
-                `<body><script>
+        const markup = shell.replace(
+            '<body>',
+            `<body><script>
             window.__bridgeMessages = [];
             window.__browserDownloads = 0;
             window.ReactNativeWebView = { postMessage: function(raw) { window.__bridgeMessages.push(raw); } };
@@ -34,14 +34,15 @@ describe('Expo shell public export integration', () => {
             URL.revokeObjectURL = function() {};
             HTMLAnchorElement.prototype.click = function() {};
         </script>`,
-            )
-            .replace(
-                '<script src="kalendus.iife.js"></script>',
-                '<script type="module" src="/src/lms-calendar.ts"></script>',
-            );
+        );
         frame = document.createElement('iframe');
         frame.style.cssText = 'width:900px;height:700px';
-        frame.srcdoc = markup;
+        frame.srcdoc = __BRIDGE_INLINE__
+            ? markup
+            : markup.replace(
+                  '<script src="kalendus.iife.js"></script>',
+                  '<script type="module" src="/src/lms-calendar.ts"></script>',
+              );
         document.body.append(frame);
         const win = frame.contentWindow!;
         await waitUntil(
@@ -65,21 +66,23 @@ describe('Expo shell public export integration', () => {
             { timeout: 10000 },
         );
         const ready = messages().find((raw) => parseOutbound(raw)?.type === 'ready')!;
-        native.receive(ready);
-        const snapshot: Snapshot = {
-            props: { activeDate: { year: 2026, month: 3, day: 7 }, locale: 'ar', viewMode: 'week' },
-            theme: {},
-            capabilities: { exportICS, entryActivation: false },
-        };
-        inject(native.synchronize(snapshot).raw!);
+        expect(native.receive(ready)?.type).to.equal('ready');
         const cal = frame.contentDocument!.querySelector('lms-calendar') as LMSCalendar;
-        await cal.updateComplete;
-        await nextFrame();
-        const menu = cal.shadowRoot!.querySelector('lms-menu') as Menu;
-        const entry: CalendarEntry = {
+        const apply = async (snapshot: Snapshot) => {
+            const { raw } = native.synchronize(snapshot);
+            expect(raw, 'snapshot accepted by native').to.be.a('string');
+            inject(raw!);
+            await cal.updateComplete;
+            await nextFrame();
+        };
+        return { win, cal, messages, apply };
+    }
+
+    async function mount(exportICS: boolean, entryActivation = false) {
+        const { win, cal, messages, apply } = await mountShell();
+        const entry = toCalendarEntry({
             id: 'persisted-42',
-            kind: 'timed',
-            timeZone: 'Europe/Berlin',
+            calendarId: 'server-calendar',
             date: {
                 start: { year: 2026, month: 3, day: 7 },
                 end: { year: 2026, month: 3, day: 10 },
@@ -88,19 +91,53 @@ describe('Expo shell public export integration', () => {
             heading: 'Canonical original',
             content: 'Original notes',
             color: '#123456',
-        };
-        menu.eventDetails = {
-            heading: 'Displayed segment',
-            content: 'Segment notes',
-            displayTime: 'Shown time',
-            date: { year: 2026, month: 3, day: 9 },
-            entry,
-            eventId: entry.id,
-        };
-        menu.open = true;
-        await menu.updateComplete;
+            createdAt: '2026-03-01T00:00:00Z',
+            updatedAt: '2026-03-02T00:00:00Z',
+        });
+        await apply({
+            props: {
+                activeDate: entry.date.start,
+                locale: 'ar',
+                viewMode: 'week',
+                entries: [entry],
+            },
+            theme: {},
+            capabilities: { exportICS, entryActivation },
+        });
+        expect(cal.entries).to.deep.equal([entry]);
+        const menu = cal.shadowRoot!.querySelector('lms-menu') as Menu;
+        const card = cal.shadowRoot!.querySelector<HTMLElement>(
+            'lms-calendar-entry[data-event-id="persisted-42"]',
+        );
+        if (!card) throw new Error('Expected the server entry to be rendered');
+        card.click();
+        if (!entryActivation) {
+            await waitUntil(() => menu.open, 'default inspector opens');
+            await menu.updateComplete;
+        }
         return { win, cal, menu, messages, entry };
     }
+
+    it('clears the real calendar accent when a replacement snapshot omits color', async () => {
+        const { cal, apply } = await mountShell();
+        const snapshot: Snapshot = {
+            props: {},
+            theme: {},
+            capabilities: { exportICS: false, entryActivation: false },
+        };
+        const accent = () => cal.style.getPropertyValue('--calendar-accent');
+        await apply(snapshot);
+        expect(cal.color).to.equal('#000000');
+        expect(accent()).to.equal('');
+
+        // Supplying the legacy getter value explicitly is different from omitting it.
+        await apply({ ...snapshot, props: { color: '#000000' } });
+        expect(accent()).to.equal('rgb(0, 0, 0)');
+
+        await apply(snapshot);
+        expect(cal.color).to.equal('#000000');
+        expect(accent()).to.equal('');
+    });
 
     it('a real Menu export-button click posts exactly one canonical native export and no download', async () => {
         const { win, menu, messages, entry, cal } = await mount(true);
@@ -134,6 +171,17 @@ describe('Expo shell public export integration', () => {
         expect(message.detail.displayTime).to.equal('23:30–01:00');
         expect(message.detail.date).to.deep.equal(entry.date.start);
         expect(Reflect.get(win, '__browserDownloads')).to.equal(0);
+    });
+
+    it('a real entry click sends the original server record on delegated activation', async () => {
+        const { menu, messages, entry } = await mount(false, true);
+        await nextFrame();
+        const activations = messages()
+            .map(parseOutbound)
+            .filter((message) => message?.type === 'event' && message.name === 'entry-activate');
+        expect(activations).to.have.length(1);
+        expect(activations[0]?.detail).to.deep.equal({ entry, eventId: entry.id });
+        expect(menu.open).not.to.equal(true);
     });
 
     it('without an explicit capability the same real click keeps the browser default', async () => {

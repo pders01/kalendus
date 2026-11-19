@@ -1,5 +1,5 @@
 import { Asset } from 'expo-asset';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     StyleSheet,
@@ -20,6 +20,8 @@ export type KalendusWebViewProps = KalendusProps &
         /** Static HTML require() module, downloaded/resolved with Expo Asset (never cast to a URI). */
         assetSource?: number;
         theme?: ThemeVars;
+        /** With this non-negative safe integer set, change it to apply/reassert the supplied date and view. */
+        navigationRevision?: number;
         style?: StyleProp<ViewStyle>;
         showLoadingIndicator?: boolean;
     };
@@ -40,7 +42,10 @@ function BridgeDocument(props: KalendusWebViewProps) {
     if (!sessionRef.current) sessionRef.current = new NativeSession();
     const session = sessionRef.current;
     const latest = useRef(props);
-    latest.current = props;
+    // A native event can arrive during a concurrent render; don't send uncommitted props.
+    useLayoutEffect(() => {
+        latest.current = props;
+    }, [props]);
     const failed = useRef(false);
     const mounted = useRef(true);
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -83,6 +88,7 @@ function BridgeDocument(props: KalendusWebViewProps) {
         const snapshot: Snapshot = {
             props: calendarProps,
             theme: current.theme === undefined ? {} : current.theme,
+            navigationRevision: current.navigationRevision,
             capabilities: {
                 exportICS: typeof current.onExportICS === 'function',
                 entryActivation: typeof current.onEntryActivate === 'function',
@@ -214,7 +220,10 @@ function BridgeDocument(props: KalendusWebViewProps) {
                         if (failed.current || session.document !== null) return;
                         clearTimeout(timeoutRef.current);
                         timeoutRef.current = setTimeout(
-                            () => loadError('Calendar bridge handshake timed out'),
+                            () =>
+                                loadError(
+                                    'Calendar bridge handshake timed out; check that the wrapper and shell artifacts match',
+                                ),
                             20000,
                         );
                         send(session.connect());

@@ -1,3 +1,5 @@
+import type { VERSION } from './protocol.js';
+
 /** Serializable mirrors of the public calendar contract; no React Native dependency. */
 export type CalendarDate = { day: number; month: number; year: number };
 export type CalendarTime = { hour: number; minute: number };
@@ -5,6 +7,8 @@ export type CalendarTimeInterval = { start: CalendarTime; end: CalendarTime };
 export type CalendarDateInterval = { start: CalendarDate; end: CalendarDate };
 export type CalendarEntry = {
     id?: string;
+    /** Opaque calendar identity from the server adapter; not used for rendering. */
+    calendarId?: string;
     kind?: 'all-day' | 'timed';
     timeZone?: string;
     date: CalendarDateInterval;
@@ -43,9 +47,11 @@ export type Snapshot = {
     props: KalendusProps;
     theme: ThemeVars;
     capabilities: { exportICS: boolean; entryActivation: boolean };
+    /** Opt in to explicit navigation commands. Changes to this value reapply supplied axes. */
+    navigationRevision?: number;
 };
-export type Envelope = { version: 1; session: string; document: string; seq: number };
-export type ConnectMessage = { version: 1; type: 'connect'; session: string };
+export type Envelope = { version: typeof VERSION; session: string; document: string; seq: number };
+export type ConnectMessage = { version: typeof VERSION; type: 'connect'; session: string };
 export type InboundMessage = Envelope & { type: 'snapshot'; snapshot: Snapshot };
 export type EntryPressDetail = {
     heading: string;
