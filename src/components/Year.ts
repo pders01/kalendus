@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { DateTime } from 'luxon';
 
@@ -415,7 +415,7 @@ export default class Year extends LitElement {
         }
     `;
 
-    override render() {
+    override render(): TemplateResult<1> {
         const year = this._displayYear ?? this.activeDate.year;
         const today = this._today.date;
         const todayDay = today.getDate();

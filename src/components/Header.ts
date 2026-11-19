@@ -1,4 +1,4 @@
-import { LitElement, css, html } from 'lit';
+import { LitElement, css, html, type TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import {
@@ -287,7 +287,7 @@ export default class Header extends LitElement {
         }
     `;
 
-    override render() {
+    override render(): TemplateResult<1> {
         const now = new Date();
         const date = this.activeDate ?? {
             year: now.getFullYear(),

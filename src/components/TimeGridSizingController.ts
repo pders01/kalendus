@@ -1,4 +1,4 @@
-import { css, html, type LitElement, type ReactiveController } from 'lit';
+import { css, html, type LitElement, type ReactiveController, type TemplateResult } from 'lit';
 
 import { formatLocalizedTime } from '../lib/localization.js';
 
@@ -62,7 +62,7 @@ export const timeGridStyles = css`
 `;
 
 const hours = Array.from({ length: 25 }, (_, hour) => hour);
-export function renderTimeLabels(locale: string) {
+export function renderTimeLabels(locale: string): TemplateResult<1> {
     return html`<div class="time-labels">
         ${hours.map(
             (hour) => html`<div class="hour-label" style="top: calc(${hour} * var(--hour-height))">

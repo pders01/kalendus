@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { DateTime } from 'luxon';
 
@@ -636,7 +636,7 @@ export default class Entry extends LitElement {
         this.toggleAttribute('data-highlighted', !!this._highlighted);
     }
 
-    override render() {
+    override render(): TemplateResult<1> {
         const mainClass = `main ${this.density}`;
 
         if (this.displayMode === 'month-dot') {

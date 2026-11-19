@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
@@ -264,7 +264,7 @@ export default class Day extends LitElement {
         return jsDay === 0 ? 7 : jsDay;
     }
 
-    override render() {
+    override render(): TemplateResult<1> {
         const hasAllDay = this.allDayRowCount > 0;
 
         const luxonWeekday = this._getWeekday();

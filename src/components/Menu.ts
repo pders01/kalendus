@@ -1,4 +1,4 @@
-import { css, html, LitElement, nothing } from 'lit';
+import { css, html, LitElement, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { DateTime } from 'luxon';
@@ -567,7 +567,7 @@ export class Menu extends LitElement {
             ? `${formatLocalizedTimeRange(entry.time.start.hour, entry.time.start.minute, entry.time.end.hour, entry.time.end.minute, this.locale)}${entry.timeZone ? ` (${entry.timeZone})` : ''}`
             : msg.noTime;
     }
-    override render() {
+    override render(): TemplateResult<1> {
         const msg = getMessages(this.locale);
         const hasNotes = this.eventDetails.content && this.eventDetails.content !== msg.noContent;
         const dateDescription = this._dateDescription();

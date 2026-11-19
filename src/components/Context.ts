@@ -1,4 +1,4 @@
-import { LitElement, css, html } from 'lit';
+import { LitElement, css, html, type TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import { getLocalizedWeekdayShort } from '../lib/localization.js';
@@ -33,7 +33,7 @@ export default class Context extends LitElement {
         }
     `;
 
-    override render() {
+    override render(): TemplateResult<1> {
         const order = getWeekdayOrder(this.firstDayOfWeek);
         return html` <div>
             ${order.map((luxonDay) => html`<span>${getLocalizedWeekdayShort(luxonDay, this.locale)}</span>`)}

@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -536,7 +536,7 @@ export default class Month extends LitElement {
         </span>`;
     }
 
-    override render() {
+    override render(): TemplateResult<1> {
         const dates = getMonthCalendarArray(
             this._displayDate ?? this.activeDate,
             this.firstDayOfWeek,

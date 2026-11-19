@@ -167,7 +167,8 @@ try {
     const installed = join(dependencies, '@jpahd', 'kalendus');
     mkdirSync(installed, { recursive: true });
     run('tar', ['-xzf', join(temporary, archive), '--strip-components=1', '-C', installed]);
-    for (const dependency of ['lit', 'lit-html', 'luxon', '@types']) {
+    // Do not expose transitive dependencies to the packed component.
+    for (const dependency of ['lit', 'luxon', '@types']) {
         const target = join(dependencies, dependency);
         mkdirSync(dirname(target), { recursive: true });
         symlinkSync(join(root, 'node_modules', dependency), target, 'dir');

@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from 'lit';
+import { LitElement, css, html, nothing, type TemplateResult } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 
@@ -430,7 +430,7 @@ export default class Week extends LitElement {
             ?.focus();
     }
 
-    override render() {
+    override render(): TemplateResult<1> {
         const datesToRender = this._getDatesToRender();
         const weekdayOrder = this._getVisibleWeekdayOrder();
         const hasAllDay = this.allDayRowCount > 0;
