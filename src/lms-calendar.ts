@@ -628,7 +628,7 @@ export default class LMSCalendar extends LitElement {
         .calendar-body.timeline-body {
             display: grid;
             grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-            container-type: inline-size;
+            container-type: size;
             min-block-size: min(100%, 5em);
         }
         .timeline-body,
@@ -679,6 +679,10 @@ export default class LMSCalendar extends LitElement {
             max-block-size: min(100%, max(9em, 46%));
             display: flex;
             flex-direction: column;
+            /* Normally only the rows scroll. Extremely short embeds can also
+               scroll the header out of the way to reach the rows. */
+            overflow: auto;
+            overscroll-behavior: contain;
             background: var(--background-color);
             border: 1px solid var(--separator-mid);
             box-shadow: var(--shadow-lg);
@@ -691,8 +695,17 @@ export default class LMSCalendar extends LitElement {
             flex: none;
         }
         .timed-panel > #agenda-events {
+            min-block-size: 44px;
             overflow: auto;
-            overscroll-behavior: contain;
+        }
+        @container (block-size < 14em) {
+            .timed-panel {
+                max-block-size: 100%;
+            }
+            .timed-panel > #agenda-events {
+                flex: none;
+                overflow: visible;
+            }
         }
         @container (min-width: 48em) {
             .timed-panel {
@@ -1060,9 +1073,17 @@ export default class LMSCalendar extends LitElement {
             this._entryFocusTarget(focus)?.focus({ preventScroll: true });
         }
         this._observeTimeGrid();
+        const list = this._densityList;
         if (
-            this._densityList?.timed &&
-            !this.shadowRoot?.querySelector('.time-group[aria-expanded="true"]')
+            list &&
+            (list.timed
+                ? !this.shadowRoot?.querySelector('.time-group[aria-expanded="true"]')
+                : !this.loading &&
+                  !this.error &&
+                  !this._entriesError &&
+                  !this._expandedByISODate[civilDateKey(list.date)]?.some(
+                      (entry) => entry.isAllDay,
+                  ))
         )
             void this._closeDensityList(
                 !!this.shadowRoot?.activeElement?.closest('[data-density-list]'),
@@ -2194,9 +2215,7 @@ export default class LMSCalendar extends LitElement {
                 ${renderRows(timed, false)}
                 ${
                     remaining > 0
-                        ? html`<button type="button" class="agenda-action agenda-more" @click=${() => {
-                              this._agendaLimit += 50;
-                          }}>+${format.moreEvents(remaining)}</button>`
+                        ? html`<button type="button" class="agenda-action agenda-more" @click=${this._showMoreAgenda}>+${format.moreEvents(remaining)}</button>`
                         : nothing
                 }
             </div>
@@ -2705,10 +2724,26 @@ export default class LMSCalendar extends LitElement {
         };
         this._densityList = list;
         await this.updateComplete;
-        if (this._densityList === list)
-            this.shadowRoot
-                ?.querySelector<HTMLElement>('#agenda-date')
-                ?.focus({ preventScroll: true });
+        if (this._densityList !== list) return;
+        const panel = this.shadowRoot?.querySelector<HTMLElement>('#timed-panel');
+        if (panel) {
+            panel.scrollTop = 0;
+            panel.querySelector<HTMLElement>('#agenda-events')!.scrollTop = 0;
+        }
+        this.shadowRoot?.querySelector<HTMLElement>('#agenda-date')?.focus({ preventScroll: true });
+    }
+
+    private async _showMoreAgenda(event: Event) {
+        const trigger = event.currentTarget as HTMLElement;
+        this._agendaLimit += 50;
+        if (this.shadowRoot?.activeElement !== trigger) return;
+        const agenda = trigger.closest('.date-agenda')!;
+        const before = new Set(agenda.querySelectorAll('.agenda-event'));
+        await this.updateComplete;
+        if (!agenda.isConnected) return;
+        [...agenda.querySelectorAll<HTMLButtonElement>('.agenda-event')]
+            .find((row) => !before.has(row))
+            ?.focus();
     }
 
     private _handleDensityKeydown(event: KeyboardEvent) {
@@ -2731,7 +2766,23 @@ export default class LMSCalendar extends LitElement {
         const trigger = [
             ...(this.shadowRoot?.querySelectorAll<HTMLElement>('[data-density-key]') ?? []),
         ].find((button) => button.dataset.densityKey === previous.key);
-        if (trigger) trigger.focus({ preventScroll: true });
+        const timeline =
+            previous.timed &&
+            this._timeGridHost?.shadowRoot?.querySelector<HTMLElement>('.timeline');
+        if (timeline) {
+            const rect = trigger?.getBoundingClientRect();
+            const port = timeline.getBoundingClientRect();
+            const frame = this.getBoundingClientRect();
+            const visible =
+                rect &&
+                Math.min(rect.bottom, port.bottom, frame.bottom, innerHeight) -
+                    Math.max(rect.top, port.top, frame.top, 0) >=
+                    Math.min(24, rect.height) &&
+                Math.min(rect.right, port.right, frame.right, innerWidth) -
+                    Math.max(rect.left, port.left, frame.left, 0) >=
+                    Math.min(24, rect.width);
+            (visible ? trigger : timeline)?.focus({ preventScroll: true });
+        } else if (trigger) trigger.focus({ preventScroll: true });
         else await this._focusView();
     }
 

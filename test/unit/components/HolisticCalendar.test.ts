@@ -287,6 +287,148 @@ describe('Holistic calendar information architecture', () => {
         });
     }
 
+    it('can reach timed rows after opening or resizing to a shallow Arabic embed', async () => {
+        const element = await calendar(
+            Array.from({ length: 8 }, (_, index) => timed(`event-${index}`)),
+            400,
+            'day',
+        );
+        element.locale = 'ar';
+        element.style.fontSize = '24px';
+        await element.localeReady;
+        const root = element.shadowRoot!;
+        const open = async () => {
+            const group = root.querySelector<HTMLButtonElement>('.time-group')!;
+            group.focus();
+            await sendKeys({ press: 'Enter' });
+            await settle(element);
+        };
+        const assertReachable = async () => {
+            const panel = root.querySelector<HTMLElement>('#timed-panel')!;
+            const list = panel.querySelector<HTMLElement>('#agenda-events')!;
+            expect(list.clientHeight, 'rows have a usable scrollport').to.be.at.least(44);
+            const last = rows(element).at(-1)!;
+            last.focus();
+            await nextFrame();
+            expect(root.activeElement).to.equal(last);
+            const row = last.getBoundingClientRect();
+            const port = panel.getBoundingClientRect();
+            expect(Math.min(port.bottom, row.bottom) - Math.max(port.top, row.top)).to.be.at.least(
+                24,
+            );
+        };
+        await open();
+        element.style.height = '220px';
+        await settle(element);
+        await assertReachable();
+        await sendKeys({ press: 'Escape' });
+        await settle(element);
+        await open();
+        await assertReachable();
+    });
+
+    it('opens another timed group at its first row, not the previous panel scroll position', async () => {
+        const element = await calendar(
+            Array.from({ length: 24 }, (_, i) =>
+                timed(`switch-${i}`, date, {
+                    time: {
+                        start: { hour: i < 12 ? 9 : 14, minute: 0 },
+                        end: { hour: i < 12 ? 10 : 15, minute: 0 },
+                    },
+                }),
+            ),
+            400,
+            'day',
+        );
+        const root = element.shadowRoot!;
+        const groups = root.querySelectorAll<HTMLButtonElement>('.time-group');
+        expect(groups).to.have.length(2);
+        groups[0].click();
+        await settle(element);
+        const list = root.querySelector<HTMLElement>('#timed-panel #agenda-events')!;
+        list.scrollTop = list.scrollHeight;
+        expect(list.scrollTop).to.be.greaterThan(0);
+        groups[1].click();
+        await settle(element);
+        expect(root.querySelector<HTMLElement>('#timed-panel #agenda-events')!.scrollTop).to.equal(
+            0,
+        );
+        expect(rows(element)[0].dataset.eventId).to.equal('switch-12');
+        expect(root.activeElement?.id).to.equal('agenda-date');
+    });
+
+    it('returns focus to the timeline if the open group was scrolled out of view', async () => {
+        const element = await calendar(
+            Array.from({ length: 8 }, (_, index) => timed(`event-${index}`)),
+            400,
+            'day',
+        );
+        element.scrollTimeGrid = true;
+        await settle(element);
+        const root = element.shadowRoot!;
+        const day = root.querySelector('lms-calendar-day')!;
+        const timeline = day.shadowRoot!.querySelector<HTMLElement>('.timeline')!;
+        const trigger = root.querySelector<HTMLButtonElement>('.time-group')!;
+        trigger.focus();
+        await sendKeys({ press: 'Enter' });
+        await settle(element);
+        timeline.scrollTop = timeline.scrollHeight;
+        const top = timeline.scrollTop;
+        expect(trigger.getBoundingClientRect().bottom).to.be.lessThan(
+            timeline.getBoundingClientRect().top,
+        );
+        await sendKeys({ press: 'Escape' });
+        await settle(element);
+        expect(root.querySelector('#timed-panel')).to.equal(null);
+        expect(day.shadowRoot!.activeElement).to.equal(timeline);
+        expect(timeline.scrollTop).to.equal(top);
+    });
+
+    it('returns to Week after a settled refresh removes the open date’s all-day entries', async () => {
+        const allDay = Array.from({ length: 4 }, (_, index) => ({
+            ...timed(`event-${index}`),
+            kind: 'all-day' as const,
+            time: undefined,
+        }));
+        const element = await calendar(allDay, 358, 'week');
+        element.scrollTimeGrid = true;
+        await settle(element);
+        const root = element.shadowRoot!;
+        const state = element.visibleRange;
+        const scroll = () =>
+            root
+                .querySelector('lms-calendar-week')!
+                .shadowRoot!.querySelector<HTMLElement>('.timeline')!;
+        scroll().scrollTop = 150;
+        const before = scroll().scrollTop;
+        expect(before).to.be.greaterThan(0);
+        root.querySelector<HTMLButtonElement>('.all-day-count')!.click();
+        await settle(element);
+        expect(rows(element)).to.have.length(4);
+        element.loading = true;
+        element.entries = [];
+        await settle(element);
+        expect(root.querySelector('[data-density-list]')).not.to.equal(null);
+        element.loading = false;
+        await waitUntil(() => !root.querySelector('[data-density-list]'));
+        await settle(element);
+        expect(scroll().scrollTop).to.be.closeTo(before, 1);
+        expect(element.visibleRange).to.deep.equal(state);
+    });
+
+    it('moves focus to the newly mounted row at the end of agenda pagination', async () => {
+        const element = await calendar(
+            Array.from({ length: 51 }, (_, index) => timed(`page-${index}`)),
+        );
+        const root = element.shadowRoot!;
+        expect(rows(element)).to.have.length(50);
+        root.querySelector<HTMLButtonElement>('.agenda-more')!.focus();
+        await sendKeys({ press: 'Enter' });
+        await settle(element);
+        expect(rows(element)).to.have.length(51);
+        expect(root.activeElement).to.equal(rows(element)[50]);
+    });
+
     it('renders overnight continuations before morning cards in Day and Week reading order', async () => {
         const element = await calendar(
             [
