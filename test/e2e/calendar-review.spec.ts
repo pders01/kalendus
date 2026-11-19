@@ -107,6 +107,52 @@ test('loads the Kalendus Docs entry with one live calendar at phone width', asyn
         .toBeLessThanOrEqual(1);
 });
 
+test('shares Year panning at phone width and keeps the Arabic date controls reachable', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 320, height: 740 });
+    await page.goto(
+        `${story('calendar-viewport-matrix--year')}&args=locale:ar;fontSize:24;yearDensity:count;events:dense`,
+    );
+    const calendar = page.locator('lms-calendar');
+    await expect(calendar).toHaveAttribute('dir', 'rtl');
+    const year = calendar.locator('lms-calendar-year');
+    const viewport = year.locator('.scroll-container');
+    const shift = await viewport.evaluate((scroller) => {
+        const months = [...scroller.querySelectorAll('.mini-month')];
+        const read = (selector: string) =>
+            months.map((month) => month.querySelector(selector)!.getBoundingClientRect().left);
+        const heading = '.month-label';
+        const days = '.weekday-header';
+        const headings = read(heading);
+        const weekdays = read(days);
+        scroller.scrollLeft = -scroller.scrollWidth;
+        return {
+            pan: -scroller.scrollLeft,
+            labelDrift: Math.max(...read(heading).map((left, i) => Math.abs(left - headings[i]))),
+            gridDrift: Math.max(
+                ...read(days).map((left, i) => Math.abs(left - weekdays[i] + scroller.scrollLeft)),
+            ),
+            pageOverflow: document.documentElement.scrollWidth - innerWidth,
+        };
+    });
+    expect(shift.pan).toBeGreaterThan(0);
+    expect(shift.labelDrift).toBeLessThan(1);
+    expect(shift.gridDrift).toBeLessThan(1);
+    expect(shift.pageOverflow).toBeLessThanOrEqual(1);
+
+    const date = year.locator('[data-date="2026-11-17"]');
+    await expect(date.locator('.event-count')).toHaveText(new Intl.NumberFormat('ar').format(70));
+    const bounds = (await date.boundingBox())!;
+    expect(bounds.width).toBeGreaterThanOrEqual(44);
+    expect(bounds.height).toBeGreaterThanOrEqual(44);
+    await date.focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(year.locator('[data-date="2026-11-18"]')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(calendar.locator('lms-calendar-month')).toBeVisible();
+});
+
 test('reads and exports from Agenda, compares Week, and returns to the open event', async ({
     page,
     browserName,

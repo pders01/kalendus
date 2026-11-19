@@ -31,8 +31,8 @@ async function yearFixture(width: number, fontSize = 16, direction = 'ltr') {
 
 describe('Year / Header visual geometry regressions', () => {
     for (const { width, fontSize, columns, direction } of [
-        { width: 1136, fontSize: 16, columns: 3, direction: 'ltr' },
-        { width: 680, fontSize: 16, columns: 2, direction: 'ltr' },
+        { width: 1136, fontSize: 16, columns: 4, direction: 'ltr' },
+        { width: 680, fontSize: 16, columns: 3, direction: 'ltr' },
         { width: 358, fontSize: 16, columns: 1, direction: 'ltr' },
         { width: 358, fontSize: 16, columns: 1, direction: 'rtl' },
         { width: 752, fontSize: 32, columns: 1, direction: 'ltr' },
@@ -58,11 +58,10 @@ describe('Year / Header visual geometry regressions', () => {
                     const cells = [...row.children];
                     cells.forEach((cell, index) => {
                         const header = bounds(headers[index]);
-                        const cellRect = bounds(cell);
+                        const date = bounds(cell.querySelector('.date-number') ?? cell);
                         expect(
                             Math.abs(
-                                (cellRect.left + cellRect.right) / 2 -
-                                    (header.left + header.right) / 2,
+                                (date.left + date.right) / 2 - (header.left + header.right) / 2,
                             ),
                         ).to.be.lessThan(1);
                     });

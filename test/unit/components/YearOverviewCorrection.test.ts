@@ -82,7 +82,7 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
     for (const density of ['dot', 'heatmap', 'count'] as const) {
         it(`fits all twelve ${density} mini-months in the default 1408 × 644 content area`, async () => {
             const element = await overview(1408, density);
-            const columns = density === 'count' ? 4 : 6;
+            const columns = 6;
             expect(rowLengths(element)).to.deep.equal(Array(12 / columns).fill(columns));
             const scroller = element.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
             expect(scroller.scrollHeight).to.be.at.most(scroller.clientHeight + 1);
@@ -359,12 +359,50 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         expect(getComputedStyle(slot).backgroundColor).to.equal('rgba(0, 0, 0, 0)');
         contains(number, button);
         contains(slot, button);
-        expect(rect(number).right).to.be.at.most(rect(slot).left + 0.5);
+        expect(rect(number).bottom).to.be.at.most(rect(slot).top + 0.5);
         const count = slot.querySelector<HTMLElement>('.event-count')!;
         expect(count.textContent).to.equal('123,456,789');
         expect(count.scrollWidth).to.be.at.most(count.clientWidth + 1);
         usableMonths(element);
     });
+
+    for (const dir of ['ltr', 'rtl']) {
+        it(`pans all months together while keeping their labels visible in ${dir}`, async () => {
+            const element = await overview(288, 'count', 24);
+            element.dir = dir;
+            element.locale = dir === 'rtl' ? 'ar' : 'en';
+            await element.updateComplete;
+            await frame();
+            const root = element.shadowRoot!;
+            const scroller = root.querySelector<HTMLElement>('.scroll-container')!;
+            const monthHeaders = [...root.querySelectorAll('.month-heading')];
+            const weekdayHeaders = [...root.querySelectorAll('.weekday-header')];
+            const startX = weekdayHeaders.map((header) => rect(header).left);
+            const labelX = monthHeaders.map((label) => rect(label).left);
+
+            expect(scroller.scrollWidth).to.be.greaterThan(scroller.clientWidth);
+            for (const label of weekdayHeaders[0].querySelectorAll('[role="columnheader"]')) {
+                const text = document.createRange();
+                text.selectNodeContents(label);
+                expect(text.getClientRects()).to.have.length(1);
+            }
+            scroller.scrollLeft = dir === 'rtl' ? -scroller.scrollWidth : scroller.scrollWidth;
+            await frame();
+            expect(Math.abs(scroller.scrollLeft)).to.be.greaterThan(16);
+            for (let i = 0; i < 12; i++) {
+                expect(rect(weekdayHeaders[i]).left - startX[i]).to.be.closeTo(
+                    -scroller.scrollLeft,
+                    1,
+                );
+                expect(rect(monthHeaders[i]).left).to.be.closeTo(labelX[i], 1);
+            }
+            await element.focusDate({ year: 2026, month: 11, day: 22 });
+            await frame();
+            const focused = root.activeElement!;
+            expect(focused.getAttribute('data-date')).to.equal('2026-11-22');
+            contains(focused, scroller);
+        });
+    }
 
     it('retains explicit legacy grid and cell tokens, with scrolling rather than clipped targets', async () => {
         const element = await overview(680);
@@ -374,8 +412,9 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         await frame();
         expect(rowLengths(element)).to.deep.equal(Array(6).fill(2));
         const month = element.shadowRoot!.querySelector<HTMLElement>('.mini-month')!;
-        expect(month.scrollWidth).to.be.greaterThan(month.clientWidth);
-        expect(getComputedStyle(month).overflowX).to.equal('auto');
+        const scroller = element.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
+        expect(scroller.scrollWidth).to.be.greaterThan(scroller.clientWidth);
+        expect(month.scrollWidth).to.be.at.most(month.clientWidth + 1);
         for (const target of month.querySelectorAll('.day-cell')) {
             expect(rect(target).width).to.be.at.least(52);
             expect(rect(target).height).to.be.at.least(52);

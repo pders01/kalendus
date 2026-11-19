@@ -73,14 +73,14 @@ export default class Year extends LitElement {
             block-size: 100%;
             min-block-size: 0;
             contain: layout style;
-            container-type: inline-size;
             --_target-min: max(24px, 1.85em);
         }
 
         .scroll-container {
             block-size: 100%;
             overflow: auto;
-            scroll-padding-block: 1em;
+            container-type: inline-size;
+            scroll-padding: 1em 0.75em;
         }
 
         .year-grid {
@@ -88,10 +88,12 @@ export default class Year extends LitElement {
             --_columns: var(--year-grid-columns-mobile, 1);
             grid-template-columns: repeat(
                 var(--year-grid-columns, min(var(--_columns), var(--_shape-columns, var(--_columns)))),
-                minmax(0, 1fr)
+                minmax(min-content, 1fr)
             );
-            /* Fill a sized embed without compressing the dates in a short one. */
+            /* Let one viewport pan all months when their tracks cannot fit. */
             box-sizing: border-box;
+            inline-size: fit-content;
+            min-inline-size: 100%;
             min-block-size: 100%;
             grid-auto-rows: minmax(min-content, 1fr);
             gap: 1em;
@@ -121,31 +123,6 @@ export default class Year extends LitElement {
             }
         }
 
-        /* Counts need an adjacent home wider than presence/heat marks. */
-        .year-grid[data-density-mode='count'] {
-            --_columns: var(--year-grid-columns-mobile, 1);
-        }
-        @container (min-width: 40em) {
-            .year-grid[data-density-mode='count'] {
-                --_columns: var(--year-grid-columns-tablet, 2);
-            }
-        }
-        @container (min-width: 60em) {
-            .year-grid[data-density-mode='count'] {
-                --_columns: 3;
-            }
-        }
-        @container (min-width: 80em) {
-            .year-grid[data-density-mode='count'] {
-                --_columns: 4;
-            }
-        }
-        @container (min-width: 120em) {
-            .year-grid[data-density-mode='count'] {
-                --_columns: 6;
-            }
-        }
-
         /* Width sets the safe maximum. Taller viewports can use more rows of
            months instead of stretching two rows of dates into tall strips. */
         @container year-viewport (min-block-size: 40em) and (max-aspect-ratio: 5/2) {
@@ -164,13 +141,18 @@ export default class Year extends LitElement {
             }
         }
 
+        /* A shallow, wide count overview needs two rows of months, not three. */
+        @container year-viewport (block-size < 47em) and (min-aspect-ratio: 2/1) {
+            .year-grid[data-density-mode='count'] {
+                --_shape-columns: 6;
+            }
+        }
+
         .mini-month {
             display: flex;
             flex-direction: column;
             gap: 0.15em;
             min-inline-size: 0;
-            /* Retain access for intentionally oversized consumer cell tokens. */
-            overflow-x: auto;
         }
 
         .month-label {
@@ -224,8 +206,22 @@ export default class Year extends LitElement {
             --_week-inline: max(var(--_target-min), var(--year-cw-width, 1.8em));
             --_day-inline: max(var(--_target-min), var(--year-cell-size, 1.8em));
         }
-        [data-density-mode='count'] .day-grid {
-            --_day-inline: max(var(--_target-min), var(--year-cell-size, 1.8em), 2.9em);
+        /* Headers can widen a track without splitting words or moving dates off center. */
+        @supports (grid-template-columns: subgrid) {
+            .day-grid {
+                grid-template-columns: var(--_week-inline) repeat(7, minmax(min-content, 1fr));
+            }
+            :is(.weekday-header, .day-row) {
+                grid-column: 1 / -1;
+                grid-template-columns: subgrid;
+            }
+            .weekday-header > :not(:first-child) {
+                white-space: nowrap;
+                padding-inline: 0.15em;
+            }
+            .day-row > [role='gridcell']:not(:first-child) {
+                min-inline-size: var(--_day-inline);
+            }
         }
         .day-row {
             grid-auto-rows: minmax(var(--_target-min), auto);
@@ -312,8 +308,7 @@ export default class Year extends LitElement {
             border-color: var(--current-day-color, HighlightText);
         }
 
-        /* Two in-flow homes inside one target: a four-pixel mark strip or an
-           adjacent count. Activity never paints the date/selection background. */
+        /* Activity is centered below the date and never paints the selection. */
         .activity-slot {
             display: grid;
             place-items: center;
@@ -325,9 +320,8 @@ export default class Year extends LitElement {
             overflow-wrap: anywhere;
         }
 
-        [data-density-mode='count'] .day-cell {
-            display: grid;
-            grid-template-columns: max-content minmax(0, 1fr);
+        [data-density-mode='count'] .activity-slot {
+            min-block-size: 1.1em;
         }
 
         .activity-mark {
@@ -371,6 +365,9 @@ export default class Year extends LitElement {
             display: grid;
         }
         .month-heading {
+            position: sticky;
+            inset-inline-start: 0.75em;
+            max-inline-size: calc(100cqi - 1.5em);
             margin: 0;
             font-size: inherit;
         }
@@ -386,8 +383,7 @@ export default class Year extends LitElement {
             :host {
                 --_target-min: max(44px, 1.85em);
             }
-            .year-grid,
-            .year-grid[data-density-mode='count'] {
+            .year-grid {
                 --_columns: var(--year-grid-columns-mobile, 1);
             }
             /* A single-column touch overview has no neighboring weeks to align. */
@@ -398,26 +394,22 @@ export default class Year extends LitElement {
                 }
             }
             @container (min-width: 48em) {
-                .year-grid,
-                .year-grid[data-density-mode='count'] {
+                .year-grid {
                     --_columns: var(--year-grid-columns-tablet, 2);
                 }
             }
             @container (min-width: 72em) {
-                .year-grid,
-                .year-grid[data-density-mode='count'] {
+                .year-grid {
                     --_columns: 3;
                 }
             }
             @container (min-width: 96em) {
-                .year-grid,
-                .year-grid[data-density-mode='count'] {
+                .year-grid {
                     --_columns: 4;
                 }
             }
             @container (min-width: 144em) {
-                .year-grid,
-                .year-grid[data-density-mode='count'] {
+                .year-grid {
                     --_columns: 6;
                 }
             }

@@ -356,9 +356,7 @@ describe('Holistic Header / Year spatial grammar', () => {
                 const slot = button.querySelector('.activity-slot')!;
                 contained(number, button);
                 contained(slot, button);
-                if (densityMode === 'count')
-                    expect(rect(slot).left).to.be.at.least(rect(number).right - 1);
-                else expect(rect(slot).top).to.be.at.least(rect(number).bottom - 1);
+                expect(rect(slot).top).to.be.at.least(rect(number).bottom - 1);
                 expect(slot.getAttribute('aria-hidden')).to.equal('true');
                 expect(slot.querySelectorAll('button, [tabindex]')).to.have.length(0);
                 expect(getComputedStyle(slot).position).to.equal('static');

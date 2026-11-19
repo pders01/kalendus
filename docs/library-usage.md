@@ -208,7 +208,11 @@ Both requests are cancelable and carry canonical original `{ entry, eventId? }`,
 
 Timed entries use minute-based absolute positioning with overlap layout calculated from effective grid scale/minimum geometry; they are not fixed at one pixel per minute. All-day entries use row allocation. Narrow month layouts use compact indicators; condensed weeks use the actual visible window for both rendering and range reporting.
 
-Year shows twelve months with localized month and weekday names. `year-density-mode` selects dots (presence), heatmap buckets, or counts. These signals describe the number of events on a date, not availability. `year-drill-target` controls what opens when selecting a date; month labels always open Month, and week numbers open Week. Use committed state for routing/fetches; legacy `expand` remains useful for action analytics.
+Year shows twelve months with localized month and weekday names. `year-density-mode` selects dots (presence), heatmap buckets, or exact counts below the dates. These signals describe the number of events on a date, not availability.
+
+When the weekday columns don’t fit, scroll sideways anywhere in Year to pan all months together. Month labels stay at the leading edge of the visible area while their panel is in view. Moving focus with the date keys also scrolls the focused date into view.
+
+`year-drill-target` controls what opens when selecting a date; month labels always open Month, and week numbers open Week. Use committed state for routing/fetches; legacy `expand` remains useful for action analytics.
 
 ## Styling and theming
 
