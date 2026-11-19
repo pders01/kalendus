@@ -62,8 +62,7 @@ export default class Week extends LitElement {
             display: flex;
             flex-direction: column;
             height: var(--view-container-height, 100%);
-            /* Clip at the grid boundary without taking over inline scrolling. */
-            overflow: clip;
+            overflow: var(--_time-grid-overflow, clip);
             position: relative;
         }
 
@@ -162,7 +161,7 @@ export default class Week extends LitElement {
             );
             padding-inline: var(--day-padding, 0.5em);
             box-sizing: border-box;
-            min-height: 0;
+            min-block-size: var(--_timeline-min-height, 0px);
             position: relative;
             contain: content;
         }

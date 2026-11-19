@@ -36,6 +36,47 @@ function snapshot(calendar: Calendar, view: 'day' | 'week') {
 
 describe('Day and Week viewport sizing', () => {
     for (const view of ['day', 'week'] as const) {
+        for (const height of [220, 390]) {
+            it(`${view} makes the timeline reachable at ${height}px with enlarged text`, async () => {
+                const calendar = await fixture<Calendar>(html`
+                    <lms-calendar locale="ar" dir="rtl" .initialDate=${date}
+                        style=${`display:block; width:800px; height:${height}px; font-size:24px`}
+                        view-mode=${view} .entries=${entries}></lms-calendar>
+                `);
+                await calendar.localeReady;
+                await settle();
+                const { scroll, values } = snapshot(calendar, view);
+                const bounds = [
+                    calendar,
+                    ...calendar.shadowRoot!.querySelectorAll('.calendar-container, .time-grid'),
+                    scroll,
+                ];
+                const visibleHeight = () => {
+                    const rects = bounds.map((el) => el.getBoundingClientRect());
+                    return (
+                        Math.min(...rects.map(({ bottom }) => bottom)) -
+                        Math.max(...rects.map(({ top }) => top))
+                    );
+                };
+                expect(values.calendar).to.equal(height);
+                expect(values.timedViewport).to.be.at.least(120);
+                // A focused timeline must actually be visible, not just have a
+                // large clientHeight behind an ancestor's clipping boundary.
+                scroll.focus();
+                await nextFrame();
+                expect(visibleHeight()).to.be.at.least(118);
+                expect(scroll.getRootNode()).to.have.property('activeElement', scroll);
+
+                const inset = parseFloat(getComputedStyle(scroll).paddingTop);
+                scroll.scrollTop = Math.round(inset + 530 * values.minute);
+                calendar.style.height = '1400px';
+                await settle();
+                const resized = snapshot(calendar, view);
+                expect(resized.values.minute).to.be.greaterThan(values.minute);
+                expect((scroll.scrollTop - inset) / resized.values.minute).to.be.closeTo(530, 2);
+            });
+        }
+
         for (const dense of [false, true]) {
             it(`${view} settles without an explicit height (${dense ? 'dense' : 'sparse'})`, async () => {
                 const calendar =

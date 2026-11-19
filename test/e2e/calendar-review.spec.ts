@@ -118,7 +118,7 @@ test('returns from a dense all-day list to the same part of a shallow Week', asy
     page,
 }, info) => {
     await page.setViewportSize({ width: 844, height: 390 });
-    await page.goto(`${story('calendar-viewport-matrix--week')}&args=events:dense`);
+    await page.goto(`${story('calendar-viewport-matrix--week')}&args=events:dense;fontSize:24`);
     const calendar = page.locator('lms-calendar');
     const week = calendar.locator('lms-calendar-week');
     const count = calendar.locator('.all-day-count').first();
@@ -127,6 +127,10 @@ test('returns from a dense all-day list to the same part of a shallow Week', asy
     await expect(pager).toBeVisible();
     expect((await pager.boundingBox())!.height).toBeLessThan(48);
     const scroller = week.locator('.week-scroll');
+    await scroller.focus();
+    await expect(scroller).toBeFocused();
+    await expect(scroller).toBeInViewport({ ratio: 0.9 });
+    expect((await scroller.boundingBox())!.height).toBeGreaterThanOrEqual(120);
     await scroller.evaluate((element) => {
         const style = getComputedStyle(element);
         const scale = parseFloat(style.getPropertyValue('--minute-height'));
@@ -151,5 +155,6 @@ test('returns from a dense all-day list to the same part of a shallow Week', asy
     await capture(page, info, 'shallow-week-all-day-list');
     await list.getByRole('button', { name: 'Close', exact: true }).tap();
     await expect(count).toBeFocused();
+    await expect(count).toBeInViewport();
     await expect.poll(async () => Math.abs((await visibleMinute()) - before)).toBeLessThan(2);
 });

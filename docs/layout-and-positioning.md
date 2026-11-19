@@ -16,7 +16,7 @@ Essential information for getting `<lms-calendar>` to display correctly in your 
 
 Month is a normal-flow section: its six-week grid and optional contextual list determine its height. The embedding page owns vertical scrolling. Month intentionally ignores an explicit host height/block-size used for other views, so a long list pushes following content down instead of covering it. Do not constrain a Month wrapper with a fixed height and hidden overflow.
 
-Day, Week, and Year fill the supplied height, including when a CSS Grid or flex parent sizes the calendar. The toolbar takes its own space; the view fills the rest. Without a supplied height, the area below the toolbar defaults to the smaller of `36rem` and `65dvb`. Day and Week scroll their timelines; Year scrolls when the twelve months do not fit at readable target sizes. The shared defaults are `--height: 100%` and `--width: 100%`.
+Day, Week, and Year fill the supplied height, including when a CSS Grid or flex parent sizes the calendar. The toolbar takes its own space; the view fills the rest. Without a supplied height, the area below the toolbar defaults to the smaller of `36rem` and `65dvb`. Day and Week scroll their timelines. In shallow embeds, the area around the timeline can also scroll to reveal a usable time window without hiding the date or all-day controls. Year scrolls when the twelve months do not fit at readable target sizes. The shared defaults are `--height: 100%` and `--width: 100%`.
 
 ```html
 <!-- ✅ Works: parent provides height -->

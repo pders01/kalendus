@@ -627,9 +627,17 @@ export default class LMSCalendar extends LitElement {
             block-size: min(36rem, 65vh);
             block-size: min(36rem, 65dvb);
         }
+        .calendar-container:has(> .time-grid) {
+            /* When the toolbar nearly fills the embed, keep the grid reachable. */
+            overflow: var(--calendar-overflow, auto);
+        }
         .calendar-view.time-grid {
-            overflow-x: auto;
-            overflow-y: hidden;
+            --_time-grid-overflow: visible;
+            --_timeline-min-height: 5em;
+            min-block-size: min(100%, var(--_timeline-min-height));
+            /* Allow the date header, pager and all-day area to scroll out of
+               the way rather than reducing the timeline to a sliver. */
+            overflow: auto;
         }
         .year-view {
             container: year-viewport / size;

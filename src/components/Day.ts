@@ -57,11 +57,8 @@ export default class Day extends LitElement {
             display: block;
             height: 100%;
             width: 100%;
-            /* Flex item in lms-calendar's <main> — allow shrinking below
-               content height so the outer container doesn't scroll and
-               clip the day header */
             min-height: 0;
-            overflow: hidden;
+            overflow: var(--_time-grid-overflow, hidden);
         }
 
         .wrapper {
@@ -69,7 +66,7 @@ export default class Day extends LitElement {
             flex-direction: column;
             height: var(--view-container-height, 100%);
             width: 100%;
-            overflow: hidden;
+            overflow: var(--_time-grid-overflow, hidden);
         }
 
         /* Match .week-header so day/week have equal scroll viewports. */
@@ -139,7 +136,7 @@ export default class Day extends LitElement {
         .container {
             display: flex;
             flex: 1;
-            min-height: 0;
+            min-block-size: var(--_timeline-min-height, 0px);
             width: 100%;
         }
 
