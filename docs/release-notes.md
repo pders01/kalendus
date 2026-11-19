@@ -8,6 +8,21 @@ section: Getting Started
 
 # Release Notes
 
+## 0.12.0
+
+### New public API
+
+- **App-owned timed edits.** Import `enableEntryInteractions` from `@jpahd/kalendus/entry-interactions` to opt in to desktop move and resize gestures on explicit timed Day and Week cards. App-owned controls can use `requestChange()` without dragging. The calendar emits an `entry-change-request` proposal; the app decides whether to save it and replaces `calendar.entries` after persistence. Read-only calendars load no gesture code.
+- **Scrollable time-grid detail.** Day and Week fit all 24 hours when the grid can do so readably. Set `scroll-time-grid` or `calendar.scrollTimeGrid = true` to keep the scrollable detail scale. Narrow Week adapts its visible day count; set `--week-min-day-width: 0` to retain a fixed configured count.
+
+### Upgrade from 0.11.0
+
+- An explicit height now bounds the **whole calendar** in all four views, including Month. Remove the height to let Month grow in page flow. Within a sized embed, the toolbar stays separate from view scrolling except when the embed is too short for both.
+- Timed collision counts and all-day counts open scoped lists without navigating or changing the committed `visibleRange`. Closing a list restores the trigger and timeline position when still available. Keep fetching from `calendar-state-change`, not disclosure clicks.
+- The optional server still accepts its own floating-time API format. Do not send a proposed component entry directly to the server: map it to your persistence contract and validate it there.
+
+See [Events Reference](./events.md#entry-change-requests-opt-in) and [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling).
+
 ## 0.11.0
 
 This release makes the calendar fit its embed, keeps dates and events readable on small screens, and gives consumers explicit contracts for fetching entries, opening details, and exporting events.

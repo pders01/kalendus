@@ -128,9 +128,9 @@ All-day date ends are inclusive. Explicit timed entries require `time` and descr
 
 ### Month Flow and Owner-Supplied Status
 
-Month grows with its content; the embedding page owns vertical scrolling. Compact date selection keeps Month open and shows a contextual event list below the grid. Use `month-day-behavior="day"` for legacy Day drilling, or `inline` for contextual selection even at wide sizes (`auto` is the default).
+All four views share the supplied embed height. Month uses spare height for more previews, then scrolls if the grid or selected-date list needs more space. Without a supplied height, Month grows in page flow. Compact date selection keeps Month open and shows the selected day's events below the grid. Use `month-day-behavior="day"` for legacy Day drilling, or `inline` for contextual selection even at wide sizes (`auto` is the default).
 
-Day/Week retain bounded timelines with free scrolling and preserve time position across view switches. They honor a supplied height and use a viewport-based fallback otherwise. Do not use a fixed-height, overflow-hidden wrapper around Month. Late minimum-height cards remain reachable in blank trailing scroll space; their geometry is still a preview, not a true-duration measurement.
+Day and Week fit the full day where space permits. Short timelines scroll freely and preserve time position between compatible scrollable views. Year reduces spacing before it scrolls at readable date sizes. See [Height and Scrolling](docs/layout-and-positioning.md#height-and-scrolling).
 
 Use `month-agenda-presentation="accordion"` to opt into a dedicated selected-day list within Month, with inline descriptions and on-demand `.ics` export. The existing defaults (`auto`, `full`, `card`) are unchanged. See [presentation choices](docs/library-usage.md#experimental-presentation-choices) for dense Month counts and the other list and time-grid options.
 
@@ -210,7 +210,7 @@ See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format
 
 | Audience               | Document                                                                             | Highlights                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| Upgrading              | [Release Notes](docs/release-notes.md)                                               | 0.11.0 changes and migration checklist                                     |
+| Upgrading              | [Release Notes](docs/release-notes.md)                                               | 0.12.0 changes and migration checklist                                     |
 | Integrators            | [Integration Guide](docs/integration-guide.md)                                       | Framework recipes, theming tokens, analytics hooks                         |
 | Application Developers | [Library Usage](docs/library-usage.md)                                               | API surface, data contracts, DOM events                                    |
 | CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                                            | CSS custom properties by category                                          |
