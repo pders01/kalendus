@@ -2,6 +2,7 @@ import { expect, fixture, html, nextFrame, waitUntil } from '@open-wc/testing';
 
 import type Calendar from '../../../src/lms-calendar.js';
 import '../../../src/lms-calendar.js';
+import brutalist from '../../../src/themes/brutalist.css?raw';
 import defaultTheme from '../../../src/themes/default.css?raw';
 import ink from '../../../src/themes/ink.css?raw';
 
@@ -115,6 +116,33 @@ for (const locale of ['en', 'ar']) {
         expect(badge.textContent).to.equal(new Intl.NumberFormat(locale).format(now.getDate()));
         const center = ({ left, right }: DOMRect) => (left + right) / 2;
         expect(center(textBounds(badge))).to.be.closeTo(center(badge.getBoundingClientRect()), 0.5);
+    });
+
+    it(`aligns the toolbar period and subtitle on one inline start edge (${locale})`, async () => {
+        const calendar = await mount(brutalist);
+        calendar.locale = locale;
+        calendar.heading = locale === 'ar' ? 'تقويمي' : 'My Calendar';
+        await calendar.updateComplete;
+        await calendar.localeReady;
+        const header = calendar.shadowRoot!.querySelector('lms-calendar-header')!;
+        await header.updateComplete;
+        const period = header.shadowRoot!.querySelector('.view-detail.active')!;
+        const subtitle = header.shadowRoot!.querySelector('.calendar-title')!;
+        const edge = locale === 'ar' ? 'right' : 'left';
+        for (const [width, font, padding] of [
+            [1100, 16, 16],
+            [360, 24, 36],
+        ]) {
+            calendar.style.width = `${width}px`;
+            calendar.style.fontSize = `${font}px`;
+            if (width === 360) calendar.style.setProperty('--header-info-padding-left', '1.5em');
+            await nextFrame();
+            expect(textBounds(period)[edge]).to.be.closeTo(textBounds(subtitle)[edge], 0.5);
+            expect(getComputedStyle(subtitle).paddingInlineStart).to.equal(`${padding}px`);
+            expect(getComputedStyle(subtitle.firstElementChild!).fontSize).to.equal(
+                `${font * 0.875}px`,
+            );
+        }
     });
 
     it(`aligns Day and Week weekday and date labels on one baseline (${locale})`, async () => {

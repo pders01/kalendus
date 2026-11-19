@@ -59,17 +59,21 @@ export default class Header extends LitElement {
             border-block-end: 1px solid var(--separator-light);
         }
 
-        .info {
-            grid-area: info;
+        .info,
+        .calendar-title {
+            /* Resolve the shared inset before scaling the text on either line. */
             padding-inline-start: var(
                 --header-info-padding-inline-start,
                 var(--header-info-padding-left, 1em)
             );
-            text-align: start;
             display: grid;
-            justify-self: stretch;
             min-inline-size: 0;
             overflow-wrap: anywhere;
+            text-align: start;
+        }
+        .info {
+            grid-area: info;
+            justify-self: stretch;
         }
 
         /* A normal phone gets period + compact navigation, then view controls.
@@ -84,7 +88,7 @@ export default class Header extends LitElement {
                 min-block-size: 2.6em;
             }
             .info,
-            .info + .calendar-title {
+            .calendar-title {
                 padding-inline-start: var(
                     --header-info-padding-inline-start,
                     var(--header-info-padding-left, 0)
@@ -126,17 +130,13 @@ export default class Header extends LitElement {
 
         .calendar-title {
             grid-area: identity;
-            min-inline-size: 0;
-            overflow-wrap: anywhere;
-            padding-inline-start: var(
-                --header-info-padding-inline-start,
-                var(--header-info-padding-left, 1em)
-            );
             margin: 0;
-            font-size: 0.875em;
             font-weight: 400;
             line-height: 1.4;
             color: var(--header-text-color, CanvasText);
+        }
+        .calendar-title > span {
+            font-size: 0.875em;
         }
 
         /* Reserve space for the longest period label at this width without
@@ -318,7 +318,7 @@ export default class Header extends LitElement {
                 </span>
                 </h2>
             </div>
-            <p class="calendar-title">${this.heading || msg.calendarView}</p>
+            <p class="calendar-title"><span>${this.heading || msg.calendarView}</span></p>
             <div class="buttons" role="group" aria-label=${msg.date} @click=${this._dispatchSwitchDate}>
                 <button type="button" name="previous" aria-label="${msg.previous}">«</button>
                 <button type="button" name="today" @click=${this._handleTodayClick}>
