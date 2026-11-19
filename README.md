@@ -82,7 +82,7 @@ Safari, device, and screen-reader verification remain separate manual checks.
 - **Localized UI Strings**: Per-instance catalogs, with explicit English fallback for untranslated phrases
 - **Localized Date Formatting**: Weekday names, month names, and date formats use the instance's locale
 - **Configurable Week Start**: `firstDayOfWeek` supports any day; the default is always `1` (Monday), not language-derived
-- **Locale Readiness**: Await `localeReady`; failed catalog loads expose fallback/error state and can be retried with `retryLocale()`
+- **Locale Readiness**: Await `localeReady`; failed catalog loads expose fallback/error state. Try `retryLocale()`; if the browser cached a failed module request, reload the page.
 
 ## Properties
 

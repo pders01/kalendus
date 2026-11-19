@@ -166,7 +166,7 @@ defaults.
 
 - **`visibleRange`** (read-only): `{ start, end }` in ISO `YYYY-MM-DD`, half-open `[start, end)`. Includes Month grid spillover and actual condensed-week columns. Day and Month's opt-in Agenda cover one day; Year covers the active year. These are dates, not UTC timestamps.
 - **`localeReady: Promise<void>`**: waits for the current load/fallback and root render. It settles even on a failed catalog import; it does not assert every translation or descendant layout is complete.
-- **`retryLocale(): Promise<void>`**: retries the requested locale after a load failure without toggling the property.
+- **`retryLocale(): Promise<void>`**: reruns catalog resolution after a load failure without toggling the property. A browser-cached module failure may require a page reload.
 - **`openMenu(details)`**: opens the built-in inspector with `{ heading, content, displayTime, time?, date?, anchorRect?, entry?, eventId? }`. Supply the canonical `entry` and stable `eventId` for correct multi-day export. A display-only call without a date/entry cannot export an event.
 
 ## Committed state and requests

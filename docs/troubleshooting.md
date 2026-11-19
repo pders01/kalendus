@@ -117,7 +117,7 @@ lms-calendar {
 
 3. **`<html lang>` mismatch** — If `locale` is not set, the component reads `document.documentElement.lang`. Ensure this matches your desired locale.
 
-> **Note:** Await `calendar.localeReady` for the current load/fallback and root render. Pending catalogs hide header/main content; failed imports emit `locale-error`, restore usable English fallback and expose retry UX (`await calendar.retryLocale()`). `locale-ready` includes `catalogLocale` and `fallback`, even for English/unsupported tags. Some new phrases deliberately remain English pending review. See [Events Reference](./events.md#locale-ready).
+> **Note:** Await `calendar.localeReady` for the current load/fallback and root render. Pending catalogs hide header/main content; failed imports emit `locale-error`, restore usable English fallback and expose retry UX (`await calendar.retryLocale()`). If retry keeps showing the fallback after the connection recovers, reload the page: browsers can keep failed module requests cached for the current document. `locale-ready` includes `catalogLocale` and `fallback`, even for English/unsupported tags. See [Events Reference](./events.md#locale-ready).
 
 Regional aliases retain formatting preferences (`de-AT` resolves to German); Simplified Chinese aliases use `zh-Hans`, while Traditional Chinese does not silently use Simplified Chinese. The root manages host `lang` and automatic RTL. Week starts are separate: `firstDayOfWeek` defaults to **1 Monday**, never language-derived. For translation changes edit canonical JSON and follow [src/locales/README.md](https://github.com/pders01/kalendus/blob/main/src/locales/README.md), not generated templates/XLIFF.
 

@@ -78,7 +78,7 @@ jobs:
                   TEST_BROWSERS: ${{ matrix.browser }}
 
     storybook-e2e:
-        name: Storybook & production E2E
+        name: Storybook & production E2E (Chromium)
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -145,5 +145,6 @@ jobs:
             - run: bunx playwright install --with-deps chromium
             - run: bun run build:all
             - run: bun run analyze
-            - run: bun run test:package
+            - name: Packed consumers (Chromium, locked peers)
+              run: bun run test:package
             - run: bun run checksize

@@ -19,6 +19,7 @@ import { build, preview } from 'vite';
 
 const root = resolve('.');
 const temporary = mkdtempSync(join(tmpdir(), 'kalendus-consumers-'));
+const fixtureDate = { year: 2026, month: 11, day: 17 };
 function run(command, args, cwd = root) {
     const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
     if (result.error) throw result.error;
@@ -34,6 +35,99 @@ function docsExample(path, section, language) {
     const snippet = body.match(/^```(\w+)\n([\s\S]*?)\n```$/m);
     assert.equal(snippet?.[1], language, `Missing ${language} example for ${section}`);
     return snippet[2];
+}
+
+async function expectCatalog(page, locale, catalogLocale) {
+    await page.evaluate(() => window.smoke.calendar.localeReady);
+    const calendar = page.locator('lms-calendar');
+    assert.equal(await calendar.getAttribute('dir'), locale === 'ar' ? 'rtl' : 'ltr');
+    assert.equal(await calendar.getAttribute('lang'), catalogLocale);
+    assert.deepEqual(await page.evaluate(() => window.smoke.localeResults.at(-1)), {
+        locale,
+        catalogLocale,
+        fallback: locale !== catalogLocale,
+    });
+    await calendar
+        .getByRole('button', { name: catalogLocale === 'ar' ? 'أسبوع' : 'Week', exact: true })
+        .waitFor();
+}
+
+async function expectEnglishMount(page) {
+    await expectCatalog(page, 'en', 'en');
+    const calendar = page.locator('lms-calendar');
+    await calendar.locator('lms-calendar-month').waitFor();
+    assert.deepEqual(await calendar.evaluate((element) => element.activeDate), fixtureDate);
+}
+
+async function requestArabic(page) {
+    await page.evaluate(() => {
+        window.smoke.calendar.locale = 'ar';
+    });
+}
+
+async function checkLocaleOutage(browser, url, chunkUrl, localeProbe) {
+    const page = await browser.newPage();
+    localeProbe.path = new URL(chunkUrl).pathname;
+    localeProbe.unavailable = true;
+    const responses = localeProbe.responses;
+    responses.length = 0;
+    try {
+        const errors = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        await page.goto(url);
+        await expectEnglishMount(page);
+        assert.deepEqual(responses, [], 'English mount fetched the outage chunk');
+        await requestArabic(page);
+        await expectCatalog(page, 'ar', 'en');
+        assert.ok(
+            responses.includes(503),
+            `Expected the locale server to return 503: ${responses}`,
+        );
+        assert.deepEqual(await page.evaluate(() => window.smoke.localeErrors), ['ar']);
+        const calendar = page.locator('lms-calendar');
+        const retry = calendar.getByRole('button', { name: 'Retry translations', exact: true });
+        await retry.waitFor();
+        await calendar.getByRole('button', { name: 'Week', exact: true }).click();
+        await calendar.locator('lms-calendar-week').waitFor();
+
+        localeProbe.unavailable = false;
+        const responsesBeforeRetry = responses.length;
+        const resultsBeforeRetry = await page.evaluate(() => window.smoke.localeResults.length);
+        await page.evaluate(() => window.smoke.calendar.retryLocale());
+        const { length, fallback } = await page.evaluate(() => ({
+            length: window.smoke.localeResults.length,
+            fallback: window.smoke.localeResults.at(-1)?.fallback,
+        }));
+        assert.equal(length, resultsBeforeRetry + 1, 'The retry did not settle with a new result');
+        // The browser may retain a failed module in this document's module map.
+        // Verify the observed retry result without requiring a new network request.
+        await expectCatalog(page, 'ar', fallback ? 'en' : 'ar');
+        assert.deepEqual(
+            await page.evaluate(() => window.smoke.localeErrors),
+            fallback ? ['ar', 'ar'] : ['ar'],
+        );
+        assert.equal(await calendar.evaluate((element) => element.viewMode), 'week');
+        assert.deepEqual(await calendar.evaluate((element) => element.activeDate), fixtureDate);
+        console.log(
+            `  After HTTP 503: same-document retry ${fallback ? 'kept English fallback' : 'loaded Arabic'}; chunk responses: ${responses.length - responsesBeforeRetry}`,
+        );
+
+        await page.reload();
+        await expectEnglishMount(page);
+        const responsesBeforeReloadLoad = responses.length;
+        await requestArabic(page);
+        await expectCatalog(page, 'ar', 'ar');
+        assert.ok(
+            responses.slice(responsesBeforeReloadLoad).includes(200),
+            'Reload did not fetch a healthy catalog',
+        );
+        assert.deepEqual(await page.evaluate(() => window.smoke.localeErrors), []);
+        assert.deepEqual(errors, []);
+    } finally {
+        localeProbe.path = '';
+        localeProbe.unavailable = false;
+        await page.close();
+    }
 }
 
 async function checkRuntime(consumer, installed) {
@@ -64,17 +158,21 @@ import Calendar from '@jpahd/kalendus';
 import '@jpahd/kalendus/themes/default.css';
 const calendar = document.createElement('lms-calendar');
 const states = [];
+const localeResults = [];
+const localeErrors = [];
 calendar.addEventListener('calendar-state-change', event => states.push(event.detail));
-const date = { year: 2026, month: 11, day: 17 };
-calendar.initialDate = date;
-calendar.locale = 'ar';
+calendar.addEventListener('locale-ready', event => localeResults.push(event.detail));
+calendar.addEventListener('locale-error', event => localeErrors.push(event.detail.locale));
+const date = ${JSON.stringify(fixtureDate)};
+calendar.activeDate = date;
+calendar.locale = 'en';
 calendar.entries = [{ id: 'workshop', kind: 'timed', heading: 'Packed workshop', content: '',
     date: { start: date, end: date }, time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } } }];
 calendar.monthPresentation = 'presence';
 calendar.monthAgendaPresentation = 'accordion';
 calendar.style.cssText = 'width: 390px; height: 750px';
 document.body.append(calendar);
-window.smoke = { calendar, states, registered: calendar instanceof Calendar,
+window.smoke = { calendar, states, localeResults, localeErrors, registered: calendar instanceof Calendar,
     async propose() {
         const { enableEntryInteractions } = await import('@jpahd/kalendus/entry-interactions');
         const edits = enableEntryInteractions(calendar);
@@ -97,7 +195,30 @@ window.smoke = { calendar, states, registered: calendar instanceof Calendar,
             },
         },
     });
-    const server = await preview({ ...config, preview: { host: '127.0.0.1', port: 0 } });
+    const localeProbe = { path: '', unavailable: false, responses: [] };
+    const server = await preview({
+        ...config,
+        preview: { host: '127.0.0.1', port: 0 },
+        plugins: [
+            {
+                name: 'packed-locale-outage',
+                configurePreviewServer({ middlewares }) {
+                    middlewares.use((req, res, next) => {
+                        const path = req.url?.split('?')[0];
+                        if (!/\/locales-[^/]+\.js$/.test(path ?? '')) return next();
+                        // Use a real HTTP response, without Playwright network interception.
+                        // Avoid HTTP caching while leaving the browser's module map alone.
+                        res.setHeader('Cache-Control', 'no-store');
+                        if (path !== localeProbe.path) return next();
+                        res.once('finish', () => localeProbe.responses.push(res.statusCode));
+                        if (!localeProbe.unavailable) return next();
+                        res.writeHead(503, { 'Content-Type': 'text/plain' });
+                        res.end('Locale catalog unavailable');
+                    });
+                },
+            },
+        ],
+    });
     try {
         const url = `http://127.0.0.1:${server.httpServer.address().port}/`;
         const engines = { chromium, firefox, webkit };
@@ -108,21 +229,28 @@ window.smoke = { calendar, states, registered: calendar instanceof Calendar,
                 const page = await browser.newPage({ viewport: { width: 440, height: 830 } });
                 const errors = [];
                 page.on('pageerror', (error) => errors.push(error.message));
-                await page.goto(url);
-                await page.evaluate(async () => {
-                    await window.smoke.calendar.localeReady;
-                    await window.smoke.calendar.updateComplete;
+                const localeChunks = new Set();
+                page.on('request', (request) => {
+                    const resource = request.url();
+                    if (/\/locales-[^/]+\.js$/.test(resource)) localeChunks.add(resource);
                 });
+                await page.goto(url);
+                await expectEnglishMount(page);
+                assert.equal(localeChunks.size, 0, 'English mount requested a locale chunk');
+                await requestArabic(page);
+                await expectCatalog(page, 'ar', 'ar');
+                assert.deepEqual(await page.evaluate(() => window.smoke.localeErrors), []);
+                assert.equal(localeChunks.size, 1, 'Expected one lazy locale chunk for Arabic');
+                const [arabicChunkUrl] = localeChunks;
                 assert.equal(await page.evaluate(() => window.smoke.registered), true);
                 assert.equal(await page.evaluate(() => window.smoke.propose()), true);
                 const calendar = page.locator('lms-calendar');
-                assert.equal(await calendar.getAttribute('dir'), 'rtl');
                 await calendar.locator('.indicator[data-date="2026-11-17"]').click();
                 await calendar.locator('.agenda-event').getByText('Packed workshop').waitFor();
                 await page.waitForFunction(
                     () => window.smoke.states.at(-1)?.range.end === '2026-11-18',
                 );
-                await calendar.locator('lms-calendar-header [data-context="week"]').click();
+                await calendar.getByRole('button', { name: 'أسبوع', exact: true }).click();
                 await calendar.locator('lms-calendar-week').waitFor();
 
                 // Exercise the decorated state and event routing of the new panel
@@ -170,8 +298,9 @@ window.smoke = { calendar, states, registered: calendar instanceof Calendar,
                 assert.equal(await year.evaluate((node) => node.yearDensityMode), 'heatmap');
                 assert.equal(await year.evaluate((node) => node.yearDrillTarget), 'day');
                 assert.deepEqual(errors, []);
+                await checkLocaleOutage(browser, url, arabicChunkUrl, localeProbe);
                 console.log(
-                    `PASS packed ${name} runtime: lazy locale, Month → Agenda → Week and README/static recipes`,
+                    `PASS packed ${name} runtime: lazy Arabic catalog, HTTP 503 fallback and recovery after reload, Month → Agenda → Week, timed inspector and README/static recipes`,
                 );
             } finally {
                 await browser.close();

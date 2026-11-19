@@ -99,9 +99,7 @@ calendar.addEventListener('entry-change-request', ({ detail }) => {
     const { entry, proposed } = detail;
     // This example adopts the request locally. For persistence, let your app
     // authorize, save, and reconcile the result before replacing entries.
-    calendar.entries = calendar.entries.map((current) =>
-        current === entry ? proposed : current,
-    );
+    calendar.entries = calendar.entries.map((current) => (current === entry ? proposed : current));
 });
 
 // From an app-owned button with the current canonical selected entry:
@@ -180,7 +178,7 @@ await calendar.localeReady; // current load/fallback and root render, not just a
 await calendar.retryLocale();
 ```
 
-`localeReady` settles even after a failed import/fallback. `retryLocale()` retries the requested locale without requiring a different property value. See [Localization](./library-usage.md#localization).
+`localeReady` settles even after a failed import/fallback. `retryLocale()` reruns catalog resolution without requiring a different property value. If the browser cached a failed module request, reload the page. See [Localization](./library-usage.md#localization).
 
 ## Legacy action notifications
 

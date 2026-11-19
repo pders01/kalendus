@@ -66,17 +66,6 @@ async function artifact(path, content) {
         );
 }
 
-// Snapshot files are immutable evidence: all original keys and values must survive.
-const manifest = JSON.parse(await read('src/locales/preserved/sha256.json'));
-for (const [path, digest] of Object.entries(manifest)) {
-    const original = await read(`src/locales/preserved/${path}.txt`);
-    assert.equal(
-        createHash('sha256').update(original).digest('hex'),
-        digest,
-        `Changed preservation snapshot: ${path}`,
-    );
-}
-await artifact('src/locales/source.ts', sourceText);
 const catalogs = new Map();
 for (const locale of config.targetLocales) {
     const templates = JSON.parse(await read(`src/locales/catalogs/${locale}.json`));
@@ -85,22 +74,6 @@ for (const locale of config.targetLocales) {
         Object.keys(source).sort(),
         `Incomplete keys: ${locale}`,
     );
-    const original = await read(`src/locales/preserved/src/generated/locales/${locale}.ts.txt`);
-    const originalRuntime = new Map(
-        [...original.matchAll(/(\w+): `([^`]*)`/g)].map(([, id, value]) => [id, value]),
-    );
-    for (const [id, value] of originalRuntime)
-        assert.equal(templates[id], value, `Lost original translation: ${locale}/${id}`);
-    const originalXlf = await read(`src/locales/preserved/xliff/${locale}.xlf.txt`);
-    for (const [, id, value] of originalXlf.matchAll(
-        /<trans-unit[^>]*id="([^"]+)"[^>]*>[\s\S]*?<target[^>]*>([\s\S]*?)<\/target>/g,
-    )) {
-        assert.equal(
-            templates[id],
-            unescapeXML(value),
-            `Lost original XLIFF translation: ${locale}/${id}`,
-        );
-    }
     for (const [id, value] of Object.entries(templates)) {
         assert.equal(typeof value, 'string');
         assert.ok(value.length, `Empty ${locale}/${id}`);
@@ -112,14 +85,60 @@ for (const locale of config.targetLocales) {
         );
     }
     catalogs.set(locale, templates);
-    // These obsolete inspector actions were XLIFF-only, never original runtime
-    // keys. Keep their values in the authoritative catalogs and regenerated XLIFF,
-    // but do not ship unused text. No original runtime key may be removed.
+}
+
+// Pin the original inventory and its digests independently of today's target
+// locales. New locales need no snapshots; removing or rehashing an old one fails.
+const manifestBytes = await readFile(resolve(root, 'src/locales/preserved/sha256.json'));
+assert.equal(
+    createHash('sha256').update(manifestBytes).digest('hex'),
+    '470149d3beb6cf199ad5bdf9bdae3f405a192725c20f900e7cb985af1fc6320a',
+    'Changed frozen preservation manifest (historical runtime and XLIFF snapshots)',
+);
+const manifest = JSON.parse(manifestBytes.toString('utf8'));
+const historicalRuntime = new Map();
+for (const [path, digest] of Object.entries(manifest)) {
+    const snapshot = await readFile(resolve(root, `src/locales/preserved/${path}.txt`));
+    assert.equal(
+        createHash('sha256').update(snapshot).digest('hex'),
+        digest,
+        `Changed preservation snapshot: ${path}`,
+    );
+    const original = snapshot.toString('utf8');
+    const runtimeMatch = /^src\/generated\/locales\/([^/]+)\.ts$/.exec(path);
+    const locale = runtimeMatch?.[1] ?? /^xliff\/([^/]+)\.xlf$/.exec(path)?.[1];
+    const templates = catalogs.get(locale);
+    assert.ok(templates, `Missing catalog for preservation snapshot: ${path}`);
+    if (runtimeMatch) {
+        const values = new Map(
+            [...original.matchAll(/(\w+): `([^`]*)`/g)].map(([, id, value]) => [id, value]),
+        );
+        for (const [id, value] of values)
+            assert.equal(
+                templates[id],
+                value,
+                `Lost original runtime translation: ${locale}/${id}`,
+            );
+        historicalRuntime.set(locale, values);
+    } else {
+        for (const [, id, value] of original.matchAll(
+            /<trans-unit[^>]*id="([^"]+)"[^>]*>[\s\S]*?<target[^>]*>([\s\S]*?)<\/target>/g,
+        ))
+            assert.equal(
+                templates[id],
+                unescapeXML(value),
+                `Lost original XLIFF translation: ${locale}/${id}`,
+            );
+    }
+}
+
+await artifact('src/locales/source.ts', sourceText);
+for (const [locale, templates] of catalogs) {
+    // Keep obsolete inspector actions in JSON and XLIFF, but only ship them if
+    // they were already part of that locale's original runtime.
     const runtime = { ...templates };
     for (const id of ['s1c109a21525649fd', 's7264933e3c515250'])
-        if (!originalRuntime.has(id)) delete runtime[id];
-    for (const [id, value] of originalRuntime)
-        assert.equal(runtime[id], value, `Lost original runtime value: ${locale}/${id}`);
+        if (!historicalRuntime.get(locale)?.has(id)) delete runtime[id];
     await artifact(`src/generated/locales/${locale}.ts`, moduleText(runtime));
     await artifact(`xliff/${locale}.xlf`, xlfText(locale, templates));
 }

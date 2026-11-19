@@ -68,7 +68,8 @@ lms-calendar {
 - **[src/locales/README.md](https://github.com/pders01/kalendus/blob/main/src/locales/README.md) is authoritative.** Edit English `src/locales/source.json` and translations in `src/locales/catalogs/<locale>.json`; never translate generated TypeScript or XLIFF.
 - Run `bun scripts/check-locales.mjs --write`, then `bun run i18n:check`. The check validates completeness, placeholders, preservation and extraction/build roundtrips in a disposable fixture. Raw `i18n:extract` / `i18n:build` are derivative tooling, not the normal source workflow.
 - Retrieve legacy fields through `getMessages(locale)` and complete phrases/plurals through `getMessageFormatters(locale)` during render. Preserve stable IDs and all original translations; structural checks do not establish linguistic quality.
-- The resolver retains formatting preferences while resolving aliases/catalog fallback. The root owns the current load promise/generation guard, `localeReady`, `retryLocale()`, `locale-error`/`locale-ready`, fallback UX and host `lang`/requested-versus-resolved `dir`. Failed imports settle with usable fallback and remain retryable; stale loads must not update the current instance.
+- The resolver retains formatting preferences while resolving aliases/catalog fallback. The root owns the current load promise/generation guard, `localeReady`, `retryLocale()`, `locale-error`/`locale-ready`, fallback UX and host `lang`/requested-versus-resolved `dir`. Failed imports settle with usable English fallback; stale loads must not update the current instance.
+- The resolver evicts rejected loader promises so `retryLocale()` can invoke the loader again in the same document. That does not clear the browser's module map: after a built chunk fails to load, the browser may remember the failure for that URL and reject a retry without fetching it again. If retry still shows English, reload the page after the chunk is available again.
 - Monday (`firstDayOfWeek = 1`) is the explicit default, independent of locale. Recommended week starts are not automatic policy.
 
 ### Common Use Cases / Troubleshooting
@@ -104,6 +105,23 @@ Week journey and a dense all-day drill-down in shallow Week. Set
 Use `--output` with a new directory under `screenshots/` to retain a run.
 Screenshots are for review, not pixel baselines or device certification.
 
+### Automated test matrix
+
+| Suite | Standalone default | `test:release` default | CI |
+| --- | --- | --- | --- |
+| `test:components` (Web Test Runner) | Chromium | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
+| `test:bridge` (external shell) and `test:bridge:inline` (inline IIFE shell) | Chromium | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
+| `bun run --cwd server test:browser` (real calendar adapter) | Chromium | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
+| `test:package` (packed calendar browser smoke) | Chromium | Chromium, Firefox, WebKit | Chromium |
+| `test-storybook` (Vitest browser project) | Chromium | Chromium | Chromium |
+| `test:e2e` (production Storybook via Playwright) | Chromium | Chromium | Chromium |
+
+`TEST_BROWSERS=chromium,firefox,webkit` selects engines only for the first four rows. For E2E, use Playwright's `--browser` flag (for example, `bun run test:e2e -- --browser=webkit`). Storybook's Vitest project explicitly configures Chromium. The nonbrowser root Mocha suite runs on Node 22 and 24 in CI; the server unit and installed-package checks run on Node 24. Playwright WebKit is not shipping Safari.
+
+The packed calendar check validates Bundler and NodeNext declaration consumers with `skipLibCheck: false`, plus runtime behavior using the **locked** peers (Lit 3.3.2 and Luxon 3.7.2). It does not verify the declared minimum versions (Lit 3.0.0 and Luxon 3.4.4). Before claiming coverage at those floors, repeat the strict declaration and packed browser checks with both minimum peers in an isolated consumer.
+
+The packed browser smoke asserts a fixed public `activeDate`, checks that mounting in English requests no locale chunks, then verifies the rendered Arabic catalog after switching. A separate run serves HTTP 503 for the built Arabic chunk and checks the error event, usable English fallback, and Arabic direction. It observes the result of a same-document retry without requiring recovery, then reloads and verifies HTTP 200 and Arabic rendering. The resolver unit test separately shows that the same resolver can recover if its loader rejects once and succeeds on the next call; it does not simulate the browser's module map.
+
 ## Release checklist
 
 1. Use the exact candidate revision in a fresh checkout. Verify the package version, documented peer ranges, and [release notes](./release-notes.md) against its public contracts. Keep screenshots and design experiments out of the package.
@@ -116,7 +134,7 @@ Screenshots are for review, not pixel baselines or device certification.
     bun pm pack --dry-run
     ```
 
-    On Linux, Playwright may need system browser dependencies; CI uses `--with-deps`. The default release gate includes Chromium, Firefox, and WebKit. A narrower `TEST_BROWSERS` run is useful for diagnosis, not a substitute for the full matrix. Keep runner startup failures visible rather than marking that engine green.
+    On Linux, Playwright may need system browser dependencies; CI uses `--with-deps`. Use the suite-specific matrix above when reporting verification. A narrower `TEST_BROWSERS` run does not replace the full matrix for suites that honor it. Keep runner startup failures visible rather than marking that engine green.
 
 3. Review the production Storybook journeys and inspect the package contents. The release script builds ESM and IIFE, checks TypeScript and browser consumers of the packed ESM and installed server migrations, validates catalogs and built documentation links, runs the production dependency audit, and checks all three size budgets. The packed browser check matters: source-based component and Storybook tests do not exercise the minified npm entry point.
 4. On a real phone, select a Month date, read and export an Agenda event, then switch to Week to compare times. Check actual Safari and enlarged text/RTL, shallow Week, compact Year drill-down, and keyboard focus return. Keep screen-reader and Expo/Metro device verification separate from browser emulation.
@@ -128,7 +146,7 @@ Preparation does not publish the package or deploy the server or documentation.
 1. Read [the canonical catalog guide](https://github.com/pders01/kalendus/blob/main/src/locales/README.md) and use its stable source IDs/placeholders.
 2. Add the catalog code to `lit-localize.json` target locales and create `src/locales/catalogs/<locale>.json` with complete keys; explicitly retain English fallback where translation is pending review.
 3. Register the loader/resolution in `src/lib/messages.ts` as needed without changing other instances' active locale.
-4. Run `bun scripts/check-locales.mjs --write` and `bun run i18n:check`; do not copy derivative output over canonical dictionaries or edit preservation snapshots.
+4. Run `bun scripts/check-locales.mjs --write` and `bun run i18n:check`. The checker pins the frozen manifest and verifies every historical runtime and XLIFF snapshot against it. New locales do not need preservation snapshots. Do not edit the frozen manifest or snapshots, or copy derivative output over canonical dictionaries.
 5. Run `bun run docs:sync`, add relevant component/resolver tests and obtain native-speaker review. ISO week numbering stays independent of the explicit week-start policy.
 
 ## Formatting and types

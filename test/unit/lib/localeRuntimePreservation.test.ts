@@ -7,13 +7,24 @@ const read = (path: string) => readFile(new URL(path, root), 'utf8');
 const retired = ['s1c109a21525649fd', 's7264933e3c515250'];
 
 describe('Locale runtime consolidation', () => {
+    it('keeps one historical XLIFF snapshot for every historical runtime snapshot', async () => {
+        const paths = Object.keys(JSON.parse(await read('src/locales/preserved/sha256.json')));
+        const runtime = paths.filter((path) => path.startsWith('src/generated/locales/'));
+        const expectedXliff = runtime.map((path) =>
+            path.replace(/^src\/generated\/locales\/(.+)\.ts$/, 'xliff/$1.xlf'),
+        );
+        expect(runtime).to.have.lengthOf(27);
+        expect(paths.sort()).to.deep.equal([...runtime, ...expectedXliff].sort());
+    });
+
     it('preserves all 810 original runtime values while omitting only unused XLIFF-only actions', async () => {
-        const { targetLocales } = JSON.parse(await read('lit-localize.json'));
+        const manifest = JSON.parse(await read('src/locales/preserved/sha256.json'));
         let retained = 0;
-        for (const locale of targetLocales as string[]) {
-            const original = await read(
-                `src/locales/preserved/src/generated/locales/${locale}.ts.txt`,
-            );
+        for (const path of Object.keys(manifest)) {
+            const match = /^src\/generated\/locales\/([^/]+)\.ts$/.exec(path);
+            if (!match) continue;
+            const [, locale] = match;
+            const original = await read(`src/locales/preserved/${path}.txt`);
             const expected = new Map(
                 [...original.matchAll(/(\w+): `([^`]*)`/g)].map(([, id, value]) => [id, value]),
             );
