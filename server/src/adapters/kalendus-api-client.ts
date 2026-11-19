@@ -46,6 +46,17 @@ function notify<Args extends unknown[]>(
     }
 }
 
+export class KalendusHttpError extends Error {
+    constructor(
+        public readonly status: number,
+        method: string,
+        path: string,
+    ) {
+        super(`Kalendus ${method} ${path} failed: ${status}`);
+        this.name = 'KalendusHttpError';
+    }
+}
+
 /** Authenticated fetch plus an injectable SSE transport; safe to import without a DOM. */
 export class KalendusApiClient {
     private readonly _baseUrl: string;
@@ -83,14 +94,25 @@ export class KalendusApiClient {
             credentials: this.options.credentials ?? 'same-origin',
         });
         if (!res.ok)
-            throw new Error(
-                `Kalendus ${init.method ?? 'GET'} ${path.split('?')[0]} failed: ${res.status}`,
-            );
+            throw new KalendusHttpError(res.status, init.method ?? 'GET', path.split('?')[0]);
         return res;
     }
 
     async fetchEvents(start: string, end: string, signal?: AbortSignal): Promise<CalendarEntry[]> {
-        return (await this.fetchRawEvents(start, end, signal)).map(toCalendarEntry);
+        return (await this.fetchRawEvents(start, end, signal)).map((api) => {
+            const entry = toCalendarEntry(api);
+            const time = api.time;
+            if (
+                time?.start.hour === 0 &&
+                time.start.minute === 0 &&
+                time.end.hour === 23 &&
+                time.end.minute === 59 &&
+                this.options.isLegacyAllDay?.(api) === true
+            ) {
+                entry.kind = 'all-day';
+            }
+            return entry;
+        });
     }
 
     async fetchRawEvents(

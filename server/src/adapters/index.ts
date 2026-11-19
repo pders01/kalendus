@@ -5,7 +5,7 @@
  */
 
 // Vanilla fetch client
-export { KalendusApiClient, toCalendarEntry } from './kalendus-api-client.js';
+export { KalendusApiClient, KalendusHttpError, toCalendarEntry } from './kalendus-api-client.js';
 
 // Lit ReactiveController adapter
 export { KalendusLitAdapter } from './kalendus-lit-adapter.js';

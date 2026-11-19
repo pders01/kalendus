@@ -29,6 +29,43 @@ describe('KalendusApiClient', () => {
         expect(calls).to.have.length(4);
     });
 
+    it('interprets only explicitly identified legacy sentinels as all-day', async () => {
+        const legacy: ApiCalendarEntry = {
+            id: 'legacy-all-day',
+            calendarId: 'cal1',
+            heading: 'Imported all-day event',
+            content: null,
+            color: '#000',
+            date: {
+                start: { year: 2026, month: 3, day: 15 },
+                end: { year: 2026, month: 3, day: 17 },
+            },
+            time: { start: { hour: 0, minute: 0 }, end: { hour: 23, minute: 59 } },
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+        };
+        const modern = { ...legacy, id: 'modern-timed' };
+        const nearMatch = {
+            ...legacy,
+            id: 'near-match',
+            time: { start: { hour: 0, minute: 1 }, end: { hour: 23, minute: 59 } },
+        };
+        const rows = [legacy, modern, nearMatch];
+        const options = { baseUrl: '', calendarId: 'cal1', fetch: async () => Response.json(rows) };
+        const range = ['2026-03-15', '2026-03-17'] as const;
+        const defaults = await new KalendusApiClient(options).fetchEvents(...range);
+        expect(defaults.map(({ kind }) => kind)).to.deep.equal(['timed', 'timed', 'timed']);
+
+        const optedIn = new KalendusApiClient({
+            ...options,
+            isLegacyAllDay: ({ id }) => id === legacy.id || id === nearMatch.id,
+        });
+        const entries = await optedIn.fetchEvents(...range);
+        expect(entries.map(({ kind }) => kind)).to.deep.equal(['all-day', 'timed', 'timed']);
+        expect(entries[0].time).to.deep.equal(legacy.time);
+        expect(await optedIn.fetchRawEvents(...range)).to.deep.equal(rows);
+    });
+
     describe('toCalendarEntry', () => {
         it('maps a timed event correctly', () => {
             const api: ApiCalendarEntry = {

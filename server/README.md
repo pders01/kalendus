@@ -8,7 +8,7 @@ Optional Hono/SQLite server and browser/Lit adapters. Use Bun as the package man
 - **Public mode is intentionally unauthenticated**, not a substitute for private deployment. A configured policy still takes precedence over public mode. The standalone CLI is closed unless `KALENDUS_PUBLIC_DEMO=true` is explicitly set; it binds to `127.0.0.1` unless `HOST` is deliberately changed.
 - No wildcard CORS default. Cross-origin browser requests require an exact `allowedOrigins` entry; credentialed CORS requires `allowCredentials: true`. Same-origin browser requests and nonbrowser clients still require authorization. CORS is not identity or authorization.
 - Dates must be real Gregorian dates in 1970–2100; inclusive date ends and floating wall-clock times remain the legacy server API. Same-day timed intervals must end strictly after they start. An overnight interval needs a later end **date**. PATCH validates the resulting stored event, not just the submitted fields. Unknown write fields, including supplied IDs/foreign calendar IDs, are rejected. Invalid IDs/input are 400, nonexistent parents/resources 404, malformed JSON 400, oversized bodies 413, policy denial 403 and telemetry rate exhaustion 429.
-- Mapped client entries retain persistent `id` and `calendarId` and copy nested date/time values. A non-null server `time` maps to `kind: 'timed'` with continuous, floating endpoints (including overnight and multi-day events). Null `time` maps to `kind: 'all-day'`; the legacy `00:00`–`23:59` time object is still supplied for adapter consumers, but the calendar ignores it for all-day entries.
+- Mapped client entries retain persistent `id` and `calendarId` and copy nested date/time values. By default a non-null server `time` maps to `kind: 'timed'` with continuous, floating endpoints (including overnight and multi-day events). Null `time` maps to `kind: 'all-day'`; the legacy `00:00`–`23:59` time object is still supplied for adapter consumers, but the calendar ignores it for all-day entries.
 - The Lit adapter consumes only the public `calendar-state-change` contract; old header details are not a data-loading API.
 
 ## Install / build / migration
@@ -37,6 +37,18 @@ const { app } = createApp({ db, authorize });
 ```
 
 Installed migration CLI: `DATABASE_URL=/your/custom/path.db node node_modules/@jpahd/kalendus-server/dist/db/migrate.js`. `migrateDb` is also exported from `@jpahd/kalendus-server/migrate` without import-time DB side effects.
+
+### Repairing old event rows
+
+The original SQLite schema did not enforce date ordering. Summaries now skip reversed legacy date intervals so they cannot subtract from valid counts; this does not rewrite the database or hide those rows from all range queries. Back up the database and identify affected rows before repairing them:
+
+```sql
+SELECT calendar_id, id, start_year, start_month, start_day, end_year, end_month, end_day
+FROM events
+WHERE (start_year, start_month, start_day) > (end_year, end_month, end_day);
+```
+
+Use a trusted source to determine the intended interval; don't automatically swap endpoints. Repair each row with an authorized event `PATCH` supplying the corrected `date` (and `time` if needed), or delete it if it should not exist. Current writes still reject invalid intervals.
 
 ## Host authorization boundary
 
@@ -108,6 +120,8 @@ const controller = new AbortController();
 const entries = await client.fetchEvents('2026-03-01', '2026-03-31', controller.signal);
 // API query ends are inclusive.
 ```
+
+For imported rows that encoded all-day events with a non-null `00:00`–`23:59` sentinel, pass `isLegacyAllDay: ({ id }) => knownImportedAllDayIds.has(id)` to the API client or Lit adapter. It is consulted only for that exact time pair and applies only to mapped `fetchEvents()` results. An identical time pair on a new timed record is valid and cannot be distinguished by times alone. Use known provenance rather than opting in for every row. To repair known legacy rows permanently, send an authorized event `PATCH` with `{ "time": null }` for those IDs. Raw reads and wire writes are unchanged.
 
 Every fetch path (queries, CRUD, manifest and telemetry) uses the supplied fetch, dynamic headers and credentials. `streamFactory(url, { withCredentials, credentials })` returns `{ addEventListener(type, listener), close() }`; it must deliver named events including `connected` after **every** successful connection, `invalidated` for payload-free changes, and compatibility `created`, `updated`, `deleted` events with JSON `MessageEvent.data` when present. It must implement reconnect/cleanup itself. `client.onInvalidate()` listens to both default and compatibility changes; `client.onReconcile()` signals a fresh connection; `client.onSync()` receives only record-bearing messages. All return unsubscribe callbacks. Dispose with `disconnect()`.
 

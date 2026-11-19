@@ -62,6 +62,38 @@ describe('SQLite event range queries', () => {
         });
     });
 
+    it('does not let a reversed legacy row cancel valid summary counts', async () => {
+        // The existing SQL migration permits these older rows, unlike current writes.
+        createEvent(db, calendarId, {
+            id: 'legacy-reversed',
+            startYear: 2024,
+            startMonth: 3,
+            startDay: 2,
+            endYear: 2024,
+            endMonth: 2,
+            endDay: 29,
+        });
+        createEvent(db, calendarId, {
+            id: 'valid',
+            startYear: 2024,
+            startMonth: 2,
+            startDay: 29,
+            endYear: 2024,
+            endMonth: 3,
+            endDay: 2,
+        });
+
+        const service = new EventServiceImpl(db);
+        expect(
+            (await service.getByRange(calendarId, start, '2024-03-02')).map(({ id }) => id),
+        ).to.have.members(['legacy-reversed', 'valid']);
+        expect(await service.getSummary(calendarId, start, '2024-03-02')).to.deep.equal({
+            [start]: 1,
+            [end]: 1,
+            '2024-03-02': 1,
+        });
+    });
+
     it('uses the installed migration index for both calendar and start-date bounds', async () => {
         let boundQuery: { sql: string; params: unknown[] } | undefined;
         const loggedDb = drizzle(db.$client, {

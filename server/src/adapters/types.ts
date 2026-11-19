@@ -67,6 +67,8 @@ export interface KalendusClientOptions {
     fetch?: typeof globalThis.fetch;
     credentials?: RequestCredentials;
     headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+    /** Opt in per known legacy record; consulted only for exact 00:00–23:59 times. */
+    isLegacyAllDay?: (entry: ApiCalendarEntry) => boolean;
     /** Supply an authenticated/reconnecting transport for bearer-token SSE. */
     streamFactory?: (
         url: string,
