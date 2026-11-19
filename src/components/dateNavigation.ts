@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 
+import { isValidCalendarDate } from '../lib/calendarModel.js';
 import type { CalendarDate } from '../lms-calendar.js';
 
 /** Civil-date keyboard navigation shared by the two date grids (not spatial dashboards). */
@@ -46,5 +47,6 @@ export function keyboardDate(
         default:
             return undefined;
     }
-    return next.isValid ? { year: next.year, month: next.month, day: next.day } : undefined;
+    const target = { year: next.year, month: next.month, day: next.day };
+    return isValidCalendarDate(target) ? target : undefined;
 }

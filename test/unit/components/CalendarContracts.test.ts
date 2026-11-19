@@ -422,6 +422,32 @@ describe('Calendar public contracts and audit regressions', () => {
         }
     });
 
+    for (const view of ['month', 'year'] as const) {
+        it(`keeps ${view} keyboard navigation inside the supported civil years`, async () => {
+            const el = await calendar();
+            el.viewMode = view;
+            for (const [active, direction, page] of [
+                [{ year: 1, month: 1, day: 1 }, 'ArrowLeft', 'PageUp'],
+                [{ year: 9999, month: 12, day: 31 }, 'ArrowRight', 'PageDown'],
+            ] as const) {
+                el.activeDate = active;
+                await settle(el);
+                const grid = el.shadowRoot!.querySelector(`lms-calendar-${view}`)!;
+                const key = `${active.year}-${active.month}-${active.day}`;
+                const button = grid.shadowRoot!.querySelector<HTMLButtonElement>(
+                    `button[data-date="${key}"]`,
+                )!;
+                button.focus();
+                for (const press of [direction, page]) {
+                    await sendKeys({ press });
+                    await grid.updateComplete;
+                    expect(grid.shadowRoot!.activeElement).to.equal(button);
+                    expect(el.activeDate).to.deep.equal(active);
+                }
+            }
+        });
+    }
+
     it('rejects duplicate authoritative records before all-day allocation (C05/C06)', async () => {
         const el = await calendar();
         let rejected = 0;
