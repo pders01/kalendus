@@ -89,7 +89,34 @@ function firstBaseline(element: Element) {
     return baseline;
 }
 
+function textBounds(element: Element) {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    return range.getBoundingClientRect();
+}
+
 for (const locale of ['en', 'ar']) {
+    it(`centers the date number inside the Day today badge (${locale})`, async () => {
+        const calendar = await mount();
+        const now = new Date();
+        calendar.activeDate = {
+            year: now.getFullYear(),
+            month: now.getMonth() + 1,
+            day: now.getDate(),
+        };
+        calendar.viewMode = 'day';
+        calendar.locale = locale;
+        calendar.style.fontSize = '24px';
+        await calendar.updateComplete;
+        await calendar.localeReady;
+        const day = calendar.shadowRoot!.querySelector('lms-calendar-day')!;
+        await day.updateComplete;
+        const badge = day.shadowRoot!.querySelector('[aria-current="date"] .day-number')!;
+        expect(badge.textContent).to.equal(new Intl.NumberFormat(locale).format(now.getDate()));
+        const center = ({ left, right }: DOMRect) => (left + right) / 2;
+        expect(center(textBounds(badge))).to.be.closeTo(center(badge.getBoundingClientRect()), 0.5);
+    });
+
     it(`aligns Day and Week weekday and date labels on one baseline (${locale})`, async () => {
         const calendar = await mount();
         calendar.locale = locale;
