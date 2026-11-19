@@ -57,7 +57,7 @@ lms-calendar {
     /* ── Hover / Focus / Active ─────────────────── */
     --hover-bg: #c40000;
     --hover-color: #fff;
-    --focus-bg: #c40000;
+    --focus-bg: #ffd9d9;
     --peek-active-bg: #000;
     --current-day-hover-opacity: 1;
     --export-hover-opacity: 1;

@@ -423,8 +423,13 @@ export default class Month extends LitElement {
             const summary = cell.querySelector<HTMLElement>('.summary')!;
             const margins = (style: CSSStyleDeclaration) =>
                 (parseFloat(style.marginBlockStart) || 0) + (parseFloat(style.marginBlockEnd) || 0);
+            const badge = getComputedStyle(indicator);
+            // Keep fractional row sizes; rounded client/offset heights can admit
+            // a preview that covers the edge of the 24px overflow button.
             const available =
-                cell.clientHeight - indicator.offsetHeight - margins(getComputedStyle(indicator));
+                parseFloat(getComputedStyle(cell).height) -
+                parseFloat(badge.height) -
+                margins(badge);
             const fit = (height: number) =>
                 Math.max(0, Math.min(ceiling, Math.floor((height + gap) / (rowHeight + gap))));
             // Decide overflow before reserving a footer. Measuring the flexed entries
@@ -438,7 +443,10 @@ export default class Month extends LitElement {
                 const style = getComputedStyle(summary);
                 capacity = fit(
                     available -
-                        Math.max(summary.offsetHeight, parseFloat(style.minBlockSize) || 24) -
+                        Math.max(
+                            parseFloat(style.height) || 0,
+                            parseFloat(style.minBlockSize) || 24,
+                        ) -
                         margins(style),
                 );
             }

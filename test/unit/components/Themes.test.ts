@@ -9,6 +9,7 @@ import soft from '../../../src/themes/soft.css?raw';
 import '../../../src/components/Year.ts';
 import '../../../src/components/Entry.ts';
 import '../../../src/components/Day.ts';
+import '../../../src/components/Month.ts';
 import '../../../src/components/Week.ts';
 
 function rgb(value: string): number[] {
@@ -33,6 +34,27 @@ function contrast(foreground: string, background: string, surface: string): numb
     const levels = [luminance(fg), luminance(bg)].sort((a, b) => b - a);
     return (levels[0] + 0.05) / (levels[1] + 0.05);
 }
+
+it('keeps the selected number readable in the compact Brutalist Month', async () => {
+    const date = { year: 2020, month: 11, day: 17 };
+    const wrapper = await fixture<HTMLDivElement>(html`<div><lms-calendar>
+        <lms-calendar-month compact .activeDate=${date} .selectedDate=${date}></lms-calendar-month>
+    </lms-calendar></div>`);
+    const sheet = document.createElement('style');
+    sheet.textContent = brutalist;
+    wrapper.prepend(sheet);
+    await nextFrame();
+    const month = wrapper.querySelector('lms-calendar-month')!.shadowRoot!;
+    const selected = month.querySelector('[aria-selected="true"] .indicator')!;
+    const label = selected.querySelector('.date-value')!;
+    expect(
+        contrast(
+            getComputedStyle(label).color,
+            getComputedStyle(selected).backgroundColor,
+            'rgb(255, 255, 255)',
+        ),
+    ).to.be.at.least(4.5);
+});
 
 for (const [name, source] of Object.entries({
     default: defaultTheme,
