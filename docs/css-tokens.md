@@ -41,11 +41,11 @@ All properties are defined in the `:host` block of the component's Shadow DOM st
 
 ## Separators
 
-| Token               | Default              | Description                            |
-| ------------------- | -------------------- | -------------------------------------- |
-| `--separator-light` | `rgba(0, 0, 0, 0.1)` | Light separator (grid lines, borders)  |
-| `--separator-mid`   | `rgba(0, 0, 0, 0.4)` | Medium separator                       |
-| `--separator-dark`  | `rgba(0, 0, 0, 0.7)` | Dark separator (text, strong dividers) |
+| Token               | Default                     | Description                            |
+| ------------------- | --------------------------- | -------------------------------------- |
+| `--separator-light` | `CanvasText` at 10% opacity | Subtle separator (grid lines, borders) |
+| `--separator-mid`   | `CanvasText` at 40% opacity | Medium separator                       |
+| `--separator-dark`  | `CanvasText` at 70% opacity | Strong separator and period text       |
 
 ## Typography — Fonts
 
@@ -220,15 +220,15 @@ These tokens are read at runtime by `computeWeekDisplayContext`. Below the break
 
 ## Day / Week View — Typography
 
-| Token                            | Default                                        | Description                           |
-| -------------------------------- | ---------------------------------------------- | ------------------------------------- |
-| `--hour-indicator-font-size`     | `0.8125em`                                     | Font size for hour labels             |
-| `--hour-indicator-color`         | `var(--header-text-color, rgba(0, 0, 0, 0.6))` | Color for hour labels                 |
-| `--day-label-font-weight`        | `inherit`                                      | Font weight for day labels            |
-| `--day-label-name-font-size`     | `0.75em`                                       | Font size for day name (e.g., "Mon")  |
-| `--day-label-number-font-size`   | `1.125em`                                      | Font size for day number (e.g., "15") |
-| `--day-label-number-font-weight` | `inherit`                                      | Font weight for day number            |
-| `--day-label-gap`                | `0.15em`                                       | Gap between day name and number       |
+| Token                            | Default                                              | Description                           |
+| -------------------------------- | ---------------------------------------------------- | ------------------------------------- |
+| `--hour-indicator-font-size`     | `0.8125em`                                           | Font size for hour labels             |
+| `--hour-indicator-color`         | `--header-text-color` or `CanvasText` at 60% opacity | Color for hour labels                 |
+| `--day-label-font-weight`        | `inherit`                                            | Font weight for day labels            |
+| `--day-label-name-font-size`     | `0.75em`                                             | Font size for day name (e.g., "Mon")  |
+| `--day-label-number-font-size`   | `1.125em`                                            | Font size for day number (e.g., "15") |
+| `--day-label-number-font-weight` | `inherit`                                            | Font weight for day number            |
+| `--day-label-gap`                | `0.15em`                                             | Gap between day name and number       |
 
 ## Header
 

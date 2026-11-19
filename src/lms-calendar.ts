@@ -371,9 +371,11 @@ export default class LMSCalendar extends LitElement {
             --breakpoint-sm: 768px;
             --breakpoint-md: 1024px;
 
-            --separator-light: rgba(0, 0, 0, 0.1);
-            --separator-mid: rgba(0, 0, 0, 0.4);
-            --separator-dark: rgba(0, 0, 0, 0.7);
+            /* Match Canvas in the embedding page's used color scheme. */
+            --separator-light: color-mix(in srgb, CanvasText 10%, transparent);
+            --separator-mid: color-mix(in srgb, CanvasText 40%, transparent);
+            --separator-dark: color-mix(in srgb, CanvasText 70%, transparent);
+            --_muted-color: color-mix(in srgb, CanvasText 60%, transparent);
 
             --system-ui: inherit;
             --monospace-ui: monospace;
@@ -382,6 +384,7 @@ export default class LMSCalendar extends LitElement {
             --border-radius-md: 0;
             --border-radius-lg: 0;
 
+            color: CanvasText;
             --background-color: Canvas;
             --primary-color: var(--calendar-accent, Highlight);
 
@@ -497,7 +500,7 @@ export default class LMSCalendar extends LitElement {
 
             /* Typography tokens */
             --hour-indicator-font-size: 0.8125em;
-            --hour-indicator-color: var(--header-text-color, rgba(0, 0, 0, 0.6));
+            --hour-indicator-color: var(--header-text-color, var(--_muted-color));
             --day-label-font-weight: inherit;
             --day-label-name-font-size: 0.75em;
             --day-label-number-font-size: 1.125em;

@@ -163,7 +163,7 @@ export default class Header extends LitElement {
             background: none;
             font: inherit;
             font-size: 0.875em;
-            color: var(--header-text-color, rgba(0, 0, 0, 0.6));
+            color: var(--header-text-color, var(--_muted-color, CanvasText));
             cursor: pointer;
             border-radius: var(--border-radius-sm);
             transition:
@@ -173,7 +173,7 @@ export default class Header extends LitElement {
 
         button:hover {
             background: var(--hover-bg);
-            color: var(--hover-color, var(--header-text-color, rgba(0, 0, 0, 0.6)));
+            color: var(--hover-color, var(--header-text-color, var(--_muted-color, CanvasText)));
         }
 
         .context {
@@ -193,7 +193,7 @@ export default class Header extends LitElement {
         .context button {
             padding-inline: 0.25em;
             border-radius: calc(var(--border-radius-sm) - 1px);
-            color: var(--context-text-color, var(--header-text-color, rgba(0, 0, 0, 0.6)));
+            color: var(--context-text-color, var(--header-text-color, var(--_muted-color, CanvasText)));
         }
 
         .context button[data-active] {
@@ -201,7 +201,7 @@ export default class Header extends LitElement {
             text-decoration: underline;
             text-underline-offset: 0.25em;
             background: var(--active-indicator-bg);
-            color: var(--separator-dark, rgba(0, 0, 0, 0.7));
+            color: var(--separator-dark, CanvasText);
             box-shadow: var(--active-indicator-shadow);
         }
 

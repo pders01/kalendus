@@ -8,7 +8,7 @@ section: Usage
 
 # Theming & CSS Custom Properties
 
-Kalendus ships **unstyled by default** — it renders with a neutral base that respects OS light/dark mode via CSS system colors (`Canvas`, `CanvasText`, `AccentColor`). Import a built-in theme to apply an opinionated design, or override individual tokens to match your design system.
+Kalendus ships with a **neutral base** that follows the embedding page’s CSS `color-scheme`. Its surface and foreground use `Canvas` and `CanvasText`; muted text and dividers use tints of `CanvasText`. Import a built-in theme for an opinionated design, or set `color` and the individual tokens on `lms-calendar` to match your design system.
 
 ## Built-in Themes
 
