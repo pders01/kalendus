@@ -133,22 +133,14 @@ describe('Day Component', () => {
 
             const indicators = el.shadowRoot?.querySelectorAll('.hour-label .indicator');
             expect(indicators).to.have.length(25);
-
-            // Check first hour (0:00) — hour: 'numeric' omits leading zero
-            const firstHour = indicators?.[0];
-            expect(firstHour?.textContent?.trim()).to.equal('0:00');
-
-            // Check 10th hour (9:00)
-            const tenthHour = indicators?.[9];
-            expect(tenthHour?.textContent?.trim()).to.equal('9:00');
-
-            // Check 11th hour (10:00)
-            const eleventhHour = indicators?.[10];
-            expect(eleventhHour?.textContent?.trim()).to.equal('10:00');
-
-            // Check last hour (24 wraps to 0:00 via Intl.DateTimeFormat)
-            const lastHour = indicators?.[24];
-            expect(lastHour?.textContent?.trim()).to.equal('0:00');
+            indicators!.forEach((label, hour) => {
+                // Intl may zero-pad German hours even when `hour` is numeric.
+                const clockHour = String(hour % 24);
+                expect(label.textContent?.trim(), `hour ${hour}`).to.be.oneOf([
+                    `${clockHour}:00`,
+                    `${clockHour.padStart(2, '0')}:00`,
+                ]);
+            });
         });
 
         it('should show sidebar when _hasActiveSidebar is true', async () => {
