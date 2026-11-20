@@ -51,6 +51,10 @@ jobs:
     component-tests:
         name: Components (${{ matrix.browser }})
         runs-on: ubuntu-latest
+        # Keep the image version in sync with Playwright in bun.lock.
+        container: &playwright-container
+            image: mcr.microsoft.com/playwright:v1.65.1-noble
+            options: --user 1001
         strategy:
             fail-fast: false
             matrix:
@@ -62,7 +66,6 @@ jobs:
               with:
                   node-version: 24
             - run: bun install --frozen-lockfile
-            - run: bunx playwright install --with-deps ${{ matrix.browser }}
             - run: bun run test:components
               env:
                   TEST_BROWSERS: ${{ matrix.browser }}
@@ -79,6 +82,7 @@ jobs:
     storybook-e2e:
         name: Storybook & production E2E (Chromium)
         runs-on: ubuntu-latest
+        container: *playwright-container
         steps:
             - uses: actions/checkout@v4
             - uses: oven-sh/setup-bun@v2
@@ -86,7 +90,6 @@ jobs:
               with:
                   node-version: 24
             - run: bun install --frozen-lockfile
-            - run: bunx playwright install --with-deps chromium
             - run: bun run test-storybook
             # playwright.config.ts owns production build/start/cleanup.
             - run: bun run test:e2e
@@ -133,6 +136,7 @@ jobs:
     build:
         name: Packages & size budgets
         runs-on: ubuntu-latest
+        container: *playwright-container
         needs: [lint, unit-tests, component-tests, storybook-e2e, server, dependency-audit]
         steps:
             - uses: actions/checkout@v4
@@ -141,7 +145,6 @@ jobs:
               with:
                   node-version: 24
             - run: bun install --frozen-lockfile
-            - run: bunx playwright install --with-deps chromium
             - run: bun run build:all
             - run: bun run analyze
             - name: Packed consumers (Chromium, locked peers)
