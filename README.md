@@ -8,9 +8,13 @@ Select the preview to play the GIF. See overlapping and multi-day events, five t
 
 ## Installation
 
+The published release is **0.11.0**:
+
 ```bash
-bun add @jpahd/kalendus lit luxon
+bun add @jpahd/kalendus@0.11.0 lit luxon
 ```
+
+For that version, use the [0.11.0 documentation](https://github.com/pders01/kalendus/tree/v0.11.0). This README and the guides linked below describe `main`, the **unreleased 0.12.0 candidate**, unless noted otherwise. The quick start below works with both versions.
 
 ## Quick Usage
 
@@ -40,7 +44,7 @@ document.body.append(calendar);
 
 For a page without a bundler, see the [static HTML recipe](docs/integration-guide.md#vanilla-js--html).
 
-In plain JavaScript, assign objects and arrays through `calendar.activeDate` and `calendar.entries`, not HTML attributes. `activeDate` and `viewMode` are public owner controls; read `visibleRange` or listen for the initial and changed `calendar-state-change` snapshots to synchronize fetching. Ranges are half-open ISO civil dates (`start` included, `end` excluded), not timestamps. See [Library Usage](docs/library-usage.md).
+In plain JavaScript, assign objects and arrays through `calendar.activeDate` and `calendar.entries`, not HTML attributes. Use the initial and changed `calendar-state-change` snapshots to synchronize fetching. On the 0.12.0 candidate, `visibleRange` returns the last committed range after first render; `activeDate` and `viewMode` express the requested navigation. Ranges are half-open civil dates (`start` included, `end` excluded), not timestamps. The exclusive upper bound can be `10000-01-01`. See [Library Usage](docs/library-usage.md).
 
 Each instance auto-detects its locale from `<html lang="...">`. Override per-instance:
 
@@ -78,7 +82,7 @@ Safari, device, and screen-reader verification remain separate manual checks.
 ### Per-Instance Localization
 
 - **Independent Locale Per Instance**: Multiple calendars on the same page can each display a different locale
-- **28 Built-in Locales**: See [Supported Locales](#supported-locales) below for the full list
+- **28 Listed Locale Codes**: See [Supported Locales](#supported-locales) below; `de-DE` uses the same runtime catalog as `de`
 - **Localized UI Strings**: Per-instance catalogs, with explicit English fallback for untranslated phrases
 - **Localized Date Formatting**: Weekday names, month names, and date formats use the instance's locale
 - **Configurable Week Start**: `firstDayOfWeek` supports any day; the default is always `1` (Monday), not language-derived
@@ -94,7 +98,7 @@ Safari, device, and screen-reader verification remain separate manual checks.
 | `color`           | `string`                        | `'#000000'`                               | Accent color: supported hex, named, rgb/rgba or hsl/hsla formats                              |
 | `locale`          | `string`                        | `document.documentElement.lang \|\| 'en'` | Locale for UI strings and date formatting (auto-detected from page, overridable per-instance) |
 | `firstDayOfWeek`  | `0-6`                           | `1`                                       | First day of the week (0=Sun, 1=Mon, ..., 6=Sat)                                              |
-| `yearDrillTarget` | `'day' \| 'month'`              | `'month'`                                 | Determines whether a year-view click opens day or month view                                  |
+| `yearDrillTarget` | `'day' \| 'week' \| 'month'`    | `'month'`                                 | View opened by a Year date cell                                                               |
 | `yearDensityMode` | `'dot' \| 'heatmap' \| 'count'` | `'dot'`                                   | Chooses how per-day entry density is visualized in year view                                  |
 | `dir`             | `'ltr' \| 'rtl' \| 'auto'`      | `'auto'`                                  | Text direction; auto-detected from locale (RTL for `ar`, `he`, etc.)                          |
 
@@ -122,17 +126,17 @@ interface CalendarEntry {
 }
 ```
 
-All-day date ends are inclusive. Explicit timed entries require `time` and describe one continuous interval with an exclusive end; `24:00` is allowed only as an end boundary. Without `kind`, legacy inclusive dates/daily windows and multi-day all-day promotion remain compatible. Zoned DST gaps and ambiguous endpoints are rejected. Duplicate caller IDs use the first valid record; expansion is limited to the visible range and a segment budget, with `entries-invalid` / `entries-error` diagnostics. See [data contracts](docs/library-usage.md#data-contracts).
+All-day date ends are inclusive and explicit all-day records ignore `time`. Explicit timed entries require `time` and describe one continuous interval with an exclusive end; `24:00` is allowed only as an end boundary. Without `kind`, a reversed daily time window such as `23:00`–`02:00` is rejected before legacy all-day promotion; use explicit `kind: 'timed'` with a later end date for overnight events. Zoned DST gaps and ambiguous endpoints are rejected. Duplicate caller IDs use the first valid record; expansion is limited to the visible range and a segment budget, with `entries-invalid` / `entries-error` diagnostics. See [data contracts](docs/library-usage.md#data-contracts).
 
-`entry-activate` and `export-entry` are cancelable requests carrying the canonical original `{ entry, eventId }`. Call `preventDefault()` synchronously to replace the inspector or download, **not** `stopPropagation()`. Legacy action notifications remain available; do not derive fetch ranges from their `detail.direction` or `detail.view`. See [Events Reference](docs/events.md).
+Listen on the host for `entry-activate` and `export-entry`. The requests for rendered entries carry the original `{ entry, eventId? }` rather than a day slice. Ordinary entries open the inspector; accordion Agenda rows disclose details inline and export from their own download button. Call `preventDefault()` synchronously to replace those defaults, **not** `stopPropagation()`. Owner calls to `openMenu()` open the inspector without emitting activation. Do not derive fetch ranges from legacy `detail.direction` or `detail.view`. See [Events Reference](docs/events.md).
 
 ### Month Flow and Owner-Supplied Status
 
-All four views share the supplied embed height. Month uses spare height for more previews, then scrolls if the grid or selected-date list needs more space. Without a supplied height, Month grows in page flow. Compact date selection keeps Month open and shows the selected day's events below the grid. Use `month-day-behavior="day"` for legacy Day drilling, or `inline` for contextual selection even at wide sizes (`auto` is the default).
+**Sizing on the unreleased 0.12.0 candidate:** a definite embed height bounds all four views. Month uses spare height for more previews, then scrolls the grid or selected-date list inside the view. Without a supplied height, Month grows in page flow; Day, Week, and Year use bounded fallbacks. Day and Week fit the full day where space permits, or scroll at a readable scale (`scroll-time-grid` opts into the scrollable detail scale). Year reduces spacing before it scrolls at readable date sizes. In 0.11.0 Month stays in page flow even with a supplied height, and Day and Week use the detail scale. See [Height and Scrolling](docs/layout-and-positioning.md#height-and-scrolling).
 
-Day and Week fit the full day where space permits. Short timelines scroll freely and preserve time position between compatible scrollable views. Year reduces spacing before it scrolls at readable date sizes. See [Height and Scrolling](docs/layout-and-positioning.md#height-and-scrolling).
+Compact Month date selection keeps Month open and shows the selected day's events below the grid. The default wide Month `+N` drills into Day. Use `month-day-behavior="inline"` to keep selection in Month at wide sizes, or `day` for legacy Day drilling with the default `month-presentation="auto"`.
 
-Use `month-agenda-presentation="accordion"` to opt into a dedicated selected-day list within Month, with inline descriptions and on-demand `.ics` export. The existing defaults (`auto`, `full`, `card`) are unchanged. See [presentation choices](docs/library-usage.md#experimental-presentation-choices) for dense Month counts and the other list and time-grid options.
+Use `month-agenda-presentation="accordion"` to opt into a dedicated selected-day list within Month, with inline descriptions and `.ics` export. Setting `month-day-behavior="day"` disables the accordion; explicit `month-presentation="presence"` or `month-presentation="previews"` still selects inline. The defaults (`auto`, `full`, `card`) are unchanged. See [presentation choices](docs/library-usage.md#experimental-presentation-choices) for the standard and experimental values.
 
 Set `calendar.loading = true` or `calendar.error = '…'` to distinguish pending/failed data from an empty result. The `status` slot can replace fallback status content. These are owner-controlled presentation inputs, not an automatic fetch implementation; adapters and Expo do not infer them from `entries`.
 
@@ -144,12 +148,12 @@ After registering the element as above, use these attributes to open in Year. As
 <lms-calendar view-mode="year" year-drill-target="day" year-density-mode="heatmap"></lms-calendar>
 ```
 
-- `year-drill-target` (`day` \| `month`): picking a day can either open the specific day or simply focus its month.
+- `year-drill-target` (`day` \| `week` \| `month`): picking a date opens Day, Week, or Month for that date. Month labels always open Month; week numbers always open Week.
 - `year-density-mode` (`dot` \| `heatmap` \| `count`): swap between subtle dots, tonal heatmaps, or explicit counts for per-day density.
 
 ### Supported Locales
 
-These are catalog codes, not a restriction on BCP 47 formatting tags. Regional aliases (for example `de-AT` → `de`) and Simplified Chinese aliases resolve to a catalog; unsupported tags fall back to English. Traditional Chinese does not silently select Simplified Chinese. The recommendations below do not change the Monday default. Translation maintenance uses canonical JSON catalogs; see [locale workflow](https://github.com/pders01/kalendus/blob/main/src/locales/README.md).
+These codes are not a restriction on BCP 47 formatting tags. Historical `de-DE` and regional aliases such as `de-AT` resolve to the `de` runtime catalog. Simplified Chinese aliases resolve to `zh-Hans`; unsupported tags fall back to English. Traditional Chinese does not silently select Simplified Chinese. The recommendations below do not change the Monday default. Translation maintenance uses canonical JSON catalogs; see [locale workflow](https://github.com/pders01/kalendus/blob/main/src/locales/README.md).
 
 <!-- GENERATED:LOCALE_TABLE:START -->
 
@@ -194,23 +198,24 @@ Kalendus has a **neutral base style** that follows the embedding page’s color 
 import '@jpahd/kalendus/themes/default.css'; // or choose ink, soft, brutalist, or midnight
 ```
 
-Override individual CSS custom properties to fine-tune any theme:
+For example, customize the neutral base while keeping its scheme-aware foreground and background:
 
 ```css
 lms-calendar {
+    color: CanvasText;
     --primary-color: #1976d2;
-    --background-color: #ffffff;
+    --background-color: Canvas;
     --entry-border-radius: 6px;
 }
 ```
 
-See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format support, and quick-start examples. For the complete token list, see the [CSS Token Reference](docs/css-tokens.md).
+See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format support, and quick-start examples. For supported overrides, see the [CSS Token Reference](docs/css-tokens.md).
 
 ## Documentation Map
 
 | Audience               | Document                                                                             | Highlights                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| Upgrading              | [Release Notes](docs/release-notes.md)                                               | 0.12.0 changes and migration checklist                                     |
+| Upgrading              | [Release Notes](docs/release-notes.md)                                               | Unreleased 0.12.0 changes and 0.11.0 migration notes                       |
 | Integrators            | [Integration Guide](docs/integration-guide.md)                                       | Framework recipes, theming tokens, analytics hooks                         |
 | Application Developers | [Library Usage](docs/library-usage.md)                                               | API surface, data contracts, DOM events                                    |
 | CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                                            | CSS custom properties by category                                          |
@@ -222,8 +227,8 @@ See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format
 | Rendering Internals    | [Rendering Pipeline](docs/rendering-pipeline.md)                                     | Segment preparation, time-grid layout, condensed weeks and density         |
 | Architecture           | [Architecture Overview](docs/architecture.md)                                        | Component tree, technologies, design patterns                              |
 | Design Tokens          | [Design Token Refactoring](docs/design-token-refactoring.md)                         | Historical: token audit and proposed hierarchy                             |
-| Backend/API            | [API Server Guide](docs/api-server.md)                                               | Private-by-default REST + SSE backend and adapters                         |
-| Expo / React Native    | [Native Bridge](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) | Self-contained build, public events and native verification gates          |
+| Backend/API            | [API Server Guide](docs/api-server.md)                                               | Source/local-tarball REST + SSE backend and adapters                       |
+| Expo / React Native    | [Native Bridge](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) | Source bridge, self-contained build and separate native verification       |
 
 ## Testing
 
@@ -254,9 +259,9 @@ bun run storybook
 ### Where to start
 
 - **Visual review → Library scenarios → Library: Month → Agenda → Week**: Select Nov 17, open an event and download its `.ics`, then switch to Week to compare times. This story opts into the Agenda accordion.
-- **Visual review → Viewport matrix → Matrix**: Compare Day, Week, Month, Agenda, and Year at the same embed sizes. Use Controls to vary event density, text size, and locale. Presets are CSS sizes, not device emulation.
-- **Components → Kalendus**: Choose **Default** for the neutral component, **Default Theme** for the opt-in stylesheet, or **Mobile View** for a 375 × 667 CSS pixel canvas.
-- **Components → Kalendus → Condensed Week View**: Starts in Week with up to three days. The calendar shows fewer when the embed cannot fit three readable columns.
+- **Visual review → Viewport matrix → Matrix**: Open a cell for a live Day, Week, Month, Agenda, or Year story. Controls are on the live stories, not on Matrix. Vary event density, text size, and locale there. As a navigation check, open **Large text + RTL → Week** and confirm the 320 × 740 preset, Arabic locale, and 24px text setting. Presets describe CSS dimensions for the preview frame. The calendar embed subtracts 16px of padding on each edge and may make a smaller preview frame scroll. Neither size emulates a physical device.
+- **Components → Kalendus → Overview**: Choose **Default** for the neutral component, **Default Theme** for the opt-in stylesheet, or **Mobile View** for the 375 × 667 CSS-pixel preview preset.
+- **Components → Kalendus → Layout → Condensed Week (Up to 3 Days)**: Starts in Week with up to three days. The calendar shows fewer when the embed cannot fit three readable columns.
 
 The sidebar also includes the other built-in themes, locale and RTL examples, Year drill-down, and stress tests. See [Review calendar layouts](docs/developer-guide.md#review-calendar-layouts) for the automated journeys and capture commands.
 
@@ -282,24 +287,13 @@ See `docs/developer-guide.md` for internal architecture notes, troubleshooting c
 
 ### API Server (optional)
 
-The repository includes `@jpahd/kalendus-server`, a Hono + SQLite backend with REST/SSE endpoints.
+The repository includes `@jpahd/kalendus-server`, a Hono + SQLite backend with REST/SSE endpoints. It is available from the source workspace or a locally built tarball, **not** the public registry.
 
-The server is **private-deny by default**: inject a host `authorize` policy for every calendar route. CORS uses exact allowed origins and is not authorization. Only an explicitly public local demo should use:
-
-```bash
-bun install --frozen-lockfile
-cd server
-bun run build
-bun run db:migrate
-bun run db:seed # optional demo data
-KALENDUS_PUBLIC_DEMO=true bun run dev
-```
-
-[server/README.md](https://github.com/pders01/kalendus/blob/main/server/README.md) is the authoritative API, authorization, CORS, range-limit and deployment guide; [API Server Guide](docs/api-server.md) provides an overview.
+The server is **private-deny by default**: inject a host `authorize` policy for every calendar route. CORS uses exact allowed origins and is not authorization. For a deliberately unauthenticated demo, follow the [loopback demo using a fresh database](docs/api-server.md#local-demo-and-build). [server/README.md](https://github.com/pders01/kalendus/blob/main/server/README.md) is the authoritative API, authorization, CORS, range-limit, and deployment guide.
 
 ### Expo / React Native (optional)
 
-The [source bridge guide](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) covers `bun run build:iife`, self-contained inline document generation, `bun scripts/check-bridge.mjs`, and the separate Expo app typecheck/device gates. The development shell is not a standalone Metro asset. Browser checks do not establish native-device or screen-reader compatibility.
+The [source bridge guide](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) covers `bun run build:iife`, self-contained inline document generation, `bun scripts/check-bridge.mjs`, and the separate Expo app typecheck/device gates. The 0.12.0 candidate uses protocol v2; update the copied wrapper and regenerate the shell together from the same source revision. The development shell is not a standalone Metro asset. Browser checks do not establish native-device or screen-reader compatibility.
 
 ## License
 

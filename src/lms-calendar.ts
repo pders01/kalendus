@@ -91,11 +91,11 @@ function groupByDate(entries: ExpandedCalendarEntry[]) {
 
 /** Auto keeps compact Month context inline; day preserves the legacy drill action. */
 export type MonthDayBehavior = 'auto' | 'inline' | 'day';
-/** Experimental comparison modes; auto preserves the existing responsive policy. */
+/** Auto is the default responsive policy; presence and previews are experimental. */
 export type MonthPresentation = 'auto' | 'presence' | 'previews';
 /** Selected-date list presentation; density lists retain their existing policy. */
 export type MonthAgendaPresentation = 'full' | 'preview' | 'on-demand' | 'accordion';
-/** Experimental: separate proportional duration marks from readable label envelopes. */
+/** Marker is experimental; card is the default timed-entry presentation. */
 export type TimedEntryPresentation = 'card' | 'marker';
 type DensityList = {
     date: CalendarDate;
@@ -159,8 +159,9 @@ export default class LMSCalendar extends LitElement {
 
     /**
      * Determines which view opens when a day cell is clicked in the year overview.
-     * - `'month'` — zooms into the month grid (default).
-     * - `'day'` — jumps straight to the 24-hour day view.
+     * - `'month'` — opens the month grid (default).
+     * - `'week'` — opens Week for the selected date.
+     * - `'day'` — opens Day for the selected date.
      */
     @property({ type: String, attribute: 'year-drill-target' })
     yearDrillTarget: DrillTarget = 'month';
@@ -174,11 +175,18 @@ export default class LMSCalendar extends LitElement {
     @property({ type: String, attribute: 'year-density-mode' })
     yearDensityMode: DensityMode = 'dot';
 
-    /** Compact Month selects a date inline by default. Use day for legacy drill-down. */
+    /**
+     * Compact Month selects inline by default. Use day to disable accordion Agenda
+     * and drill into Day when monthPresentation is auto. Explicit presence and
+     * previews still select inline.
+     */
     @property({ type: String, attribute: 'month-day-behavior' })
     monthDayBehavior: MonthDayBehavior = 'auto';
 
-    /** Experimental Month comparison. Explicit modes keep selected-date details inline. */
+    /**
+     * Experimental presence and previews modes keep selection in Month even with
+     * monthDayBehavior set to day. Auto uses the default responsive policy.
+     */
     @property({ type: String, attribute: 'month-presentation' })
     monthPresentation: MonthPresentation = 'auto';
 
@@ -186,11 +194,11 @@ export default class LMSCalendar extends LitElement {
     monthAgendaPresentation: MonthAgendaPresentation = 'full';
     private _monthSpans: MonthSpan[][] = [];
 
-    /** Experimental timed-event comparison; all-day entries are unaffected. */
+    /** Marker is experimental; all-day entries are unaffected. */
     @property({ type: String, attribute: 'timed-entry-presentation' })
     timedEntryPresentation: TimedEntryPresentation = 'card';
 
-    /** Keep Day and Week at a scrollable detail scale instead of fitting 24 hours. */
+    /** Keep Day and Week at a scrollable detail scale instead of fitting 24 hours. Defaults to false. */
     @property({ type: Boolean, attribute: 'scroll-time-grid' })
     scrollTimeGrid = false;
 
@@ -214,8 +222,8 @@ export default class LMSCalendar extends LitElement {
     }
 
     /**
-     * The currently displayed date. Assigning a new value navigates
-     * the calendar to that date. Defaults to today.
+     * The requested date. Assigning a new value navigates the calendar to that date.
+     * Defaults to today. Read calendar-state-change for the committed snapshot.
      */
     @property({ attribute: false, noAccessor: true })
     get activeDate(): CalendarDate {
@@ -226,7 +234,7 @@ export default class LMSCalendar extends LitElement {
         this._viewState.setActiveDate(value);
     }
 
-    /** Public view control. State synchronization is reported after rendering. */
+    /** Requested view. Read calendar-state-change for the committed snapshot after rendering. */
     @property({ type: String, attribute: 'view-mode', noAccessor: true })
     get viewMode(): ViewMode {
         return this._viewState.viewMode;
@@ -236,7 +244,10 @@ export default class LMSCalendar extends LitElement {
         this._viewState.setViewMode(value);
     }
 
-    /** Half-open ISO civil-date range actually rendered, including month spillover. */
+    /**
+     * After first render, the last committed half-open civil-date range, including
+     * supported Month spillover dates. Only its exclusive end may be 10000-01-01.
+     */
     get visibleRange(): CalendarVisibleRange {
         return this._renderedState?.range ?? this._calculateVisibleRange();
     }
@@ -264,9 +275,10 @@ export default class LMSCalendar extends LitElement {
     }
 
     /**
-     * Array of calendar events to display. Provide a new array reference
-     * when mutating (Lit requires immutable updates to detect changes).
-     * Invalid entries (end before start) are automatically dropped.
+     * Assign a new array of calendar events through this property. The whole array
+     * is validated and accepted records are sorted internally, without modifying
+     * caller data. Invalid records are dropped and reported via entries-invalid.
+     * Only day expansion is clipped to the visible range.
      */
     @property({ type: Array })
     entries: CalendarEntry[] = [];
@@ -1341,15 +1353,7 @@ export default class LMSCalendar extends LitElement {
         this._resizeObserver.observe(container);
     }
 
-    /** We filter invalid entries in the willUpdate hook, so be prepared:
-     *  - This will not be shown
-     *   ```json
-     *   { date: ..., time: { start: { hour: 10, minute: 30 }, end: { hour: 10, minute: 00 } } }
-     *  ```
-     *  - The same goes for invalid dates meaning the end date being before the start date.
-     *
-     *  We then sort the entries inplace.
-     */
+    /** Prepare the next snapshot and update derived entry data before rendering. */
     protected override willUpdate(
         changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
     ): void {
@@ -1949,10 +1953,11 @@ export default class LMSCalendar extends LitElement {
     }
 
     /**
-     * Opens the built-in detail menu overlay.
+     * Opens the built-in inspector directly, without emitting entry-activate.
      *
-     * Use this to show the same menu from external UI (e.g., a sidebar list item).
-     * The menu will position itself relative to `anchorRect` if provided.
+     * Use this from external UI (e.g., a sidebar list item). The inspector positions
+     * itself relative to `anchorRect` if provided. Supply the original `entry` for
+     * export; with only a `date`, the inspector constructs a single-day record.
      *
      * @param eventDetails - The event data to display in the menu.
      */
@@ -2810,7 +2815,7 @@ declare global {
         'calendar-state-change': CustomEvent<CalendarState>;
         /** Invalid entry records or a non-array input (index -1). */
         'entries-invalid': CustomEvent<{ issues: EntryValidationIssue[] }>;
-        /** Cancel to replace the built-in details inspector. */
+        /** Cancel to replace the built-in inspector or inline Agenda disclosure. */
         'entry-activate': CustomEvent<CalendarEntryRequest>;
         /** Cancel to handle export outside the browser (e.g. a native share sheet). */
         'export-entry': CustomEvent<CalendarEntryRequest>;
@@ -2834,23 +2839,23 @@ declare global {
         day: number;
         /** Month number (1–12). */
         month: number;
-        /** Four-digit year. */
+        /** Gregorian year (1–9999). */
         year: number;
     };
 
     /** A time-of-day represented by hour and minute. */
     type CalendarTime = {
-        /** Hour in 24-hour format (0–23). */
+        /** Hour (0–23); 24 is allowed only for an end boundary at 24:00. */
         hour: number;
         /** Minute (0–59). */
         minute: number;
     };
 
-    /** A time range within a single day. */
+    /** Wall-clock times paired with the entry's start and end dates. */
     type CalendarTimeInterval = {
-        /** Start time. */
+        /** Start time; cannot be 24:00. */
         start: CalendarTime;
-        /** End time (must be after start). */
+        /** End boundary; may be 24:00. Explicit timed intervals may have zero duration. */
         end: CalendarTime;
     };
 
@@ -2858,27 +2863,28 @@ declare global {
     type CalendarDateInterval = {
         /** Start date (inclusive). */
         start: CalendarDate;
-        /** End date (inclusive). */
+        /** Inclusive for all-day and legacy entries; explicit timed ends use this date and time.end. */
         end: CalendarDate;
     };
 
     /**
      * A single calendar event.
      *
-     * Multi-day events are automatically expanded into per-day slices
-     * by the component. Prefer explicit `kind: 'all-day'` or `kind: 'timed'`.
-     * Legacy omitted-time/full-day/multi-day promotion remains compatible.
+     * Prefer explicit `kind: 'all-day'` or `kind: 'timed'`. Explicit all-day dates
+     * are inclusive and ignore time. Explicit timed entries have one continuous
+     * interval with an exclusive end. Legacy time windows are validated before
+     * all-day inference. The calendar expands events into visible day slices.
      */
     type CalendarEntry = {
         /** Stable application identity, preserved by adapters and exports. */
         id?: string;
         /** Explicit semantics. Omission retains the legacy daily-window behavior. */
         kind?: 'all-day' | 'timed';
-        /** Optional IANA zone for continuous timed endpoints; omit for floating local times. */
+        /** Optional IANA zone for timed endpoints; omit for floating wall-clock times. */
         timeZone?: string;
         /** Date range the event spans. */
         date: CalendarDateInterval;
-        /** Legacy daily window, or original continuous endpoints when kind is timed. */
+        /** Legacy daily window, required endpoints for explicit timed entries, ignored for all-day. */
         time?: CalendarTimeInterval;
         /** Title displayed on the entry chip. */
         heading: string;
