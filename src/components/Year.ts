@@ -167,6 +167,7 @@ export default class Year extends LitElement {
 
         .month-label {
             font-size: var(--year-month-label-font-size, 1em);
+            line-height: 1.2;
             font-weight: var(--month-label-font-weight);
             color: var(--separator-dark, rgba(0, 0, 0, 0.7));
             cursor: pointer;
@@ -201,6 +202,7 @@ export default class Year extends LitElement {
 
         .weekday-header span {
             font-size: 0.925em;
+            line-height: 1.2;
             color: var(--header-text-color, CanvasText);
             padding-block: 0.1em;
             font-weight: var(--year-weekday-font-weight);

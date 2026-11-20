@@ -147,21 +147,24 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         });
     }
 
-    it('fits a four-column Year in a roughly 604px-high viewport without a sliver of scroll', async () => {
-        const calendar = await fixture<Calendar>(html`
-            <lms-calendar view-mode="year" style="inline-size:965px;block-size:720px;font:16px serif"
-                .activeDate=${{ day: 17, month: 11, year: 2026 }}></lms-calendar>
-        `);
-        await frame();
-        const year = calendar.shadowRoot!.querySelector<Year>('lms-calendar-year')!;
-        const scroll = year.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
-        expect(scroll.clientHeight).to.be.within(590, 615);
-        expect(rowLengths(year)).to.deep.equal([4, 4, 4]);
-        expect(scroll.scrollHeight).to.equal(scroll.clientHeight);
-        for (const month of year.shadowRoot!.querySelectorAll('.mini-month'))
-            contains(month, scrollport(scroll));
-        usableMonths(year);
-    });
+    for (const lineHeight of ['normal', '1.4']) {
+        it(`fits a four-column Year in a roughly 604px-high viewport with host line-height ${lineHeight}`, async () => {
+            const calendar = await fixture<Calendar>(html`
+                <lms-calendar view-mode="year"
+                    style="inline-size:965px;block-size:720px;font:16px/${lineHeight} serif"
+                    .activeDate=${{ day: 17, month: 11, year: 2026 }}></lms-calendar>
+            `);
+            await frame();
+            const year = calendar.shadowRoot!.querySelector<Year>('lms-calendar-year')!;
+            const scroll = year.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
+            expect(scroll.clientHeight).to.be.within(590, 615);
+            expect(rowLengths(year)).to.deep.equal([4, 4, 4]);
+            expect(scroll.scrollHeight).to.equal(scroll.clientHeight);
+            for (const month of year.shadowRoot!.querySelectorAll('.mini-month'))
+                contains(month, scrollport(scroll));
+            usableMonths(year);
+        });
+    }
 
     it('fits the same developer-sized grid area in Year, Week and Day, then scrolls Year at its readable minimum', async () => {
         const embed =
