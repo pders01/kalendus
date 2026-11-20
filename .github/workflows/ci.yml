@@ -72,7 +72,10 @@ jobs:
                   npm install --global --prefix "$prefix" --no-audit --no-fund bun@1.4.5
                   "$prefix/bin/bun" --version
                   echo "$prefix/bin" >> "$GITHUB_PATH"
-            - run: bun install --frozen-lockfile
+            # Browser checks use the root toolchain, not the server's native SQLite addon.
+            - &install-browser-deps
+              name: Install root workspace dependencies
+              run: bun install --frozen-lockfile --filter './'
             - run: bun run test:components
               env:
                   TEST_BROWSERS: ${{ matrix.browser }}
@@ -96,7 +99,7 @@ jobs:
               with:
                   node-version: 24
             - *install-container-bun
-            - run: bun install --frozen-lockfile
+            - *install-browser-deps
             - run: bun run test-storybook
             # playwright.config.ts owns production build/start/cleanup.
             - run: bun run test:e2e
@@ -151,7 +154,7 @@ jobs:
               with:
                   node-version: 24
             - *install-container-bun
-            - run: bun install --frozen-lockfile
+            - *install-browser-deps
             - run: bun run build:all
             - run: bun run analyze
             - name: Packed consumers (Chromium, locked peers)
