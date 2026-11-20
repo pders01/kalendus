@@ -12,17 +12,18 @@ const date = { year: 2026, month: 6, day: 15 };
 const settle = async (calendar: Calendar) => {
     await calendar.localeReady;
     await calendar.updateComplete;
-    await waitUntil(() => {
-        const container = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
-        const style = getComputedStyle(container);
-        const width =
-            container.getBoundingClientRect().width -
-            parseFloat(style.borderLeftWidth) -
-            parseFloat(style.borderRightWidth) -
-            parseFloat(style.paddingLeft) -
-            parseFloat(style.paddingRight);
-        return width > 0 && Math.abs(calendar._calendarWidth - width) < 0.5;
-    }, 'root commits its measured width before reflow assertions');
+    // Match the observed content box, even with a classic scrollbar gutter.
+    let width = 0;
+    const observer = new ResizeObserver(([entry]) => (width = entry.contentRect.width));
+    observer.observe(calendar.shadowRoot!.querySelector('.calendar-container')!);
+    try {
+        await waitUntil(
+            () => width > 0 && calendar._calendarWidth === width,
+            'root commits its measured width before reflow assertions',
+        );
+    } finally {
+        observer.disconnect();
+    }
     for (let index = 0; index < 4; index++) {
         await calendar.updateComplete;
         for (const child of calendar.shadowRoot!.querySelectorAll(
@@ -33,6 +34,17 @@ const settle = async (calendar: Calendar) => {
         await nextFrame();
     }
 };
+
+// Let the browser intersect the actual scrollports of a slotted control.
+function intersection(element: Element): Promise<DOMRectReadOnly> {
+    return new Promise((resolve) => {
+        const observer = new IntersectionObserver(([entry]) => {
+            observer.disconnect();
+            resolve(entry.intersectionRect);
+        });
+        observer.observe(element);
+    });
+}
 
 function timeRange(entry: CalendarEntry, locale: string, card = false) {
     const { start, end } = entry.time!;
@@ -85,8 +97,12 @@ async function inspectExactGroup(
     expect(trigger.textContent).to.include(
         getMessageFormatters(calendar.locale).eventCount(sources.length),
     );
-    expect(trigger.getBoundingClientRect().width).to.be.at.least(24);
-    trigger.focus();
+    trigger.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const exposed = await intersection(trigger);
+    expect(exposed.width).to.be.at.least(24);
+    expect(exposed.height).to.be.at.least(24);
+    trigger.focus({ preventScroll: true });
+    expect(calendar.shadowRoot!.activeElement).to.equal(trigger);
     await sendKeys({ press: 'Enter' });
     await settle(calendar);
     const list = calendar.shadowRoot!.querySelector<HTMLElement>('[data-density-list]');
@@ -135,10 +151,8 @@ async function inspectExactGroup(
     expect(calendar.shadowRoot!.querySelector('[data-density-list]')).not.to.exist;
     const restored = calendar.shadowRoot!.querySelector<HTMLButtonElement>('[data-density-key]')!;
     expect(restored.dataset.densityKey).to.equal(densityKey);
-    await waitUntil(
-        () => calendar.shadowRoot!.activeElement === restored,
-        'focus returns to the group',
-    );
+    expect((await intersection(restored)).height).to.be.at.least(24);
+    expect(calendar.shadowRoot!.activeElement, 'focus returns to the group').to.equal(restored);
 }
 
 describe('Real-root Year overview and text-size reflow', () => {
@@ -253,6 +267,68 @@ describe('Real-root Year overview and text-size reflow', () => {
             ).to.be.at.least(88 - 0.001);
         });
     }
+
+    it('returns to a reachable Week timeline when a resize leaves only part of the disclosure visible', async () => {
+        await setViewport({ width: 400, height: 824 });
+        const entries: CalendarEntry[] = Array.from({ length: 7 }, (_, index) => ({
+            id: `dense-${index}`,
+            heading: `Booked ${index}`,
+            date: { start: date, end: date },
+            time: { start: { hour: 9, minute: index }, end: { hour: 10, minute: 30 } },
+        }));
+        const calendar = await fixture<Calendar>(html`<lms-calendar .viewMode=${'week'}
+            .activeDate=${date} .entries=${entries} .scrollTimeGrid=${true}
+            style="width:382px;height:660px"></lms-calendar>`);
+        calendar.locale = 'ar-u-nu-arab';
+        calendar.style.width = '358px';
+        calendar.style.fontSize = '24px';
+        await settle(calendar);
+        await document.fonts.ready;
+        const root = calendar.shadowRoot!;
+        const week = root.querySelector('lms-calendar-week')!;
+        const timeline = week.shadowRoot!.querySelector<HTMLElement>('.timeline')!;
+        const trigger = root.querySelector<HTMLButtonElement>('.time-group')!;
+        expect(calendar.getAttribute('dir')).to.equal('rtl');
+        trigger.scrollIntoView({ block: 'center', inline: 'nearest' });
+        expect((await intersection(trigger)).height).to.be.at.least(24);
+        trigger.focus({ preventScroll: true });
+        await sendKeys({ press: 'Enter' });
+        await settle(calendar);
+        expect(root.activeElement?.id).to.equal('agenda-date');
+
+        // Bring the group to the top of the timeline, then clip the timeline's
+        // lower edge with the embed. Derive the height from actual font layout.
+        timeline.scrollTop +=
+            trigger.getBoundingClientRect().top - timeline.getBoundingClientRect().top;
+        const offset = trigger.getBoundingClientRect().top - calendar.getBoundingClientRect().top;
+        calendar.style.height = `${offset + 12}px`;
+        await settle(calendar);
+        const exposed = await intersection(trigger);
+        expect(exposed.width).to.be.at.least(24);
+        expect(exposed.height, 'the disclosure is neither fully out of view nor usable')
+            .to.be.greaterThan(0)
+            .and.lessThan(24);
+        const scrollTop = timeline.scrollTop;
+        expect(root.activeElement?.id).to.equal('agenda-date');
+        await sendKeys({ press: 'Escape' });
+        await settle(calendar);
+        expect(root.querySelector('[data-density-list]')).to.equal(null);
+        expect(week.shadowRoot!.activeElement).to.equal(timeline);
+        expect((await intersection(timeline)).height).to.be.at.least(24);
+        expect(timeline.scrollTop).to.equal(scrollTop);
+
+        // The same disclosure is reachable again without changing the viewed time.
+        expect((await intersection(trigger)).height).to.be.at.least(24);
+        trigger.focus({ preventScroll: true });
+        await sendKeys({ press: ' ' });
+        await settle(calendar);
+        expect(root.activeElement?.id).to.equal('agenda-date');
+        expect(
+            [...root.querySelectorAll<HTMLElement>('[data-density-list] .agenda-event')].map(
+                (row) => row.dataset.eventId,
+            ),
+        ).to.deep.equal(entries.map(({ id }) => id));
+    });
 
     it('discloses all ordinary mobile Week overlaps as exact readable title/time rows and keyboard-opens canonical details', async () => {
         await setViewport({ width: 390, height: 720 });

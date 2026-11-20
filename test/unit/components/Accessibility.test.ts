@@ -72,17 +72,18 @@ function entries(locale: string): CalendarEntry[] {
 async function settle(calendar: LMSCalendar): Promise<void> {
     await calendar.localeReady;
     await calendar.updateComplete;
-    await waitUntil(() => {
-        const container = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
-        const style = getComputedStyle(container);
-        const width =
-            container.getBoundingClientRect().width -
-            parseFloat(style.borderLeftWidth) -
-            parseFloat(style.borderRightWidth) -
-            parseFloat(style.paddingLeft) -
-            parseFloat(style.paddingRight);
-        return width > 0 && Math.abs(calendar._calendarWidth - width) < 0.5;
-    }, 'root commits its observed width before responsive assertions');
+    // A border-box subtraction incorrectly includes classic scrollbar gutters.
+    let width = 0;
+    const observer = new ResizeObserver(([entry]) => (width = entry.contentRect.width));
+    observer.observe(calendar.shadowRoot!.querySelector('.calendar-container')!);
+    try {
+        await waitUntil(
+            () => width > 0 && calendar._calendarWidth === width,
+            'root commits its observed width before responsive assertions',
+        );
+    } finally {
+        observer.disconnect();
+    }
     const updates = (element: Element): Promise<unknown>[] => [
         ...('updateComplete' in element ? [(element as LitElement).updateComplete] : []),
         ...Array.from(element.children).flatMap(updates),
@@ -242,7 +243,10 @@ describe('Real-root automatic accessibility regressions', function () {
         expect(trigger).to.be.instanceOf(HTMLButtonElement);
         const densityKey = trigger.dataset.densityKey;
         expect(trigger.getBoundingClientRect().width).to.be.at.least(24);
-        trigger.focus();
+        // Exercise return to a visible invoker, not the clipped-trigger fallback.
+        trigger.scrollIntoView({ block: 'center', inline: 'nearest' });
+        trigger.focus({ preventScroll: true });
+        expect(calendar.shadowRoot!.activeElement).to.equal(trigger);
         await sendKeys({ press: 'Enter' });
         await settle(calendar);
         const list = calendar.shadowRoot!.querySelector<HTMLElement>('[data-density-list]');
@@ -269,9 +273,8 @@ describe('Real-root automatic accessibility regressions', function () {
         const restored =
             calendar.shadowRoot!.querySelector<HTMLButtonElement>('[data-density-key]')!;
         expect(restored.dataset.densityKey).to.equal(densityKey);
-        await waitUntil(
-            () => calendar.shadowRoot!.activeElement === restored,
-            'focus returns to the disclosure',
+        expect(calendar.shadowRoot!.activeElement, 'focus returns to the disclosure').to.equal(
+            restored,
         );
     }
 
@@ -371,10 +374,15 @@ describe('Real-root automatic accessibility regressions', function () {
             expect(summary.getAttribute('aria-label')).to.include('٢٠٢٦');
             await scan(calendar);
             summary.focus();
+            expect(month.shadowRoot!.activeElement).to.equal(summary);
             await sendKeys({ press: ' ' });
             await settle(calendar);
             expect(calendar.viewMode).to.equal('day');
             expect(calendar.activeDate).to.deep.equal(date);
+            const day = calendar.shadowRoot!.querySelector('lms-calendar-day')!;
+            expect(day.shadowRoot!.activeElement).to.equal(
+                day.shadowRoot!.querySelector('.day-label'),
+            );
             await scan(calendar);
         },
     );

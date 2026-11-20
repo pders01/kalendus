@@ -23,6 +23,7 @@ const timed = (id: string, start: number, end: number, day = 17): CalendarEntry 
     },
 });
 async function settle(calendar: Calendar) {
+    await calendar.localeReady;
     for (let n = 0; n < 6; n++) {
         await calendar.updateComplete;
         for (const child of calendar.shadowRoot!.querySelectorAll<
@@ -66,23 +67,41 @@ describe('Integrated refactor journeys and representation limits', () => {
         it(`keeps expansion in the date header, stable across opening, policy and date changes (${locale})`, async () => {
             const calendar = await make(
                 Array.from({ length: 18 }, (_, n) => timed(`Event ${n}`, 540 + n, 545 + n)),
-                358,
-                24,
-                locale,
+                480,
             );
+            calendar.locale = locale;
+            calendar.style.width = '358px';
+            calendar.style.fontSize = '24px';
+            await settle(calendar);
+            await document.fonts.ready;
             const action = toggle(calendar);
-            expect(action.closest('header')).not.to.equal(null);
+            const header = calendar.shadowRoot!.querySelector('.date-agenda > header')!;
+            const scroller = calendar.shadowRoot!.querySelector('.calendar-view')!;
+            expect(action.closest('header')).to.equal(header);
             action.scrollIntoView({ block: 'center' });
-            action.focus();
-            await nextFrame();
-            const before = rect(action);
-            const beforeHeader = rect(calendar.shadowRoot!.querySelector('.date-agenda > header')!);
+            action.focus({ preventScroll: true });
+            expect(calendar.shadowRoot!.activeElement).to.equal(action);
+            // Compare the layout in scroll-content coordinates. Native focus and
+            // scrolling can move the entire embed without moving its date header.
+            const geometry = () => {
+                const button = rect(action);
+                const dateHeader = rect(header);
+                return {
+                    x: button.x - dateHeader.x,
+                    y: button.y - dateHeader.y,
+                    width: button.width,
+                    height: button.height,
+                    headerY: dateHeader.y - rect(scroller).y + scroller.scrollTop,
+                    headerHeight: dateHeader.height,
+                };
+            };
+            const before = geometry();
+            inside(action, scroller);
             expect(rows(calendar)).to.have.length(3);
             expect(action.getAttribute('aria-controls')).to.equal('agenda-events');
             expect(actionLabel(action)).to.equal(
                 getMessageFormatters(locale).agendaAction(false, true),
             );
-            action.focus();
             await sendKeys({ press: 'Enter' });
             await settle(calendar);
             expect(toggle(calendar)).to.equal(action);
@@ -92,12 +111,11 @@ describe('Integrated refactor journeys and representation limits', () => {
             expect(actionLabel(action)).to.equal(
                 getMessageFormatters(locale).agendaAction(true, true),
             );
-            for (const key of ['x', 'y', 'width', 'height'] as const)
-                expect(rect(action)[key], key).to.be.closeTo(before[key], 0.1);
-            expect(
-                rect(calendar.shadowRoot!.querySelector('.date-agenda > header')!).height,
-            ).to.equal(beforeHeader.height);
-            inside(action, calendar.shadowRoot!.querySelector('.date-agenda')!);
+            const after = geometry();
+            for (const [key, value] of Object.entries(before))
+                expect(after[key as keyof typeof after], key).to.be.closeTo(value, 0.1);
+            inside(action, header);
+            inside(action, scroller);
             calendar.monthAgendaPresentation = 'on-demand';
             await settle(calendar);
             expect(toggle(calendar).getAttribute('aria-expanded')).to.equal('false');

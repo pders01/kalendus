@@ -366,7 +366,12 @@ describe('Simpler Month continuity without a layout restructure', () => {
             view.shadowRoot!.querySelectorAll('.activity[data-count-summary][data-active]'),
         ).to.have.length(11);
         expect(view.shadowRoot!.querySelectorAll('details, .span-band')).to.have.length(0);
+        const scroll = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-view')!;
+        const clientLeft = () => scroll.getBoundingClientRect().left + scroll.clientLeft;
+        const left = clientLeft();
+        const width = scroll.clientWidth;
         const before = geometry(view);
+        expect(scroll.scrollHeight).to.equal(scroll.clientHeight);
         disclosure(calendar).click();
         await settle(calendar);
         expect(rows(calendar)).to.have.length(50);
@@ -376,6 +381,22 @@ describe('Simpler Month continuity without a layout restructure', () => {
         expect(rows(calendar).map((row) => row.dataset.eventId)).to.have.members(
             supplied.map((entry) => entry.id),
         );
+        expect(scroll.scrollHeight).to.be.greaterThan(scroll.clientHeight);
+        // A classic scrollbar can consume space as the shared view starts scrolling.
+        // The grid must keep its vertical geometry and fill the new width proportionally.
+        const after = geometry(view);
+        const scale = scroll.clientWidth / width;
+        const nextLeft = clientLeft();
+        const tolerance = scale === 1 ? 0 : 0.05; // Only allow fractional track rounding.
+        expect(after).to.have.length(before.length);
+        before.forEach(([x, y, w, h], index) => {
+            const [nextX, nextY, nextW, nextH] = after[index];
+            expect([nextY, nextH]).to.deep.equal([y, h]);
+            expect(nextX).to.be.closeTo(nextLeft + (x - left) * scale, tolerance);
+            expect(nextW).to.be.closeTo(w * scale, tolerance);
+        });
+        disclosure(calendar).click();
+        await settle(calendar);
         expect(geometry(view)).to.deep.equal(before);
     });
 
