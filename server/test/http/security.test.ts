@@ -302,6 +302,33 @@ describe('Security and validation boundaries', () => {
         expect((await app.request(`${prefix}/telemetry`, json('POST', {}))).status).to.equal(404);
     });
 
+    it('serves public event, stream and telemetry routes without decoding stored theme metadata', async () => {
+        db.$client.prepare('UPDATE calendars SET theme_tokens = ? WHERE id = ?').run('{', id);
+        const { app, syncService, telemetryService } = createApp({ db, mode: 'public' });
+        const url = `/api/calendars/${id}`;
+        const list = await app.request(`${url}/events${range}`);
+        const head = await app.request(`${url}/stream`, { method: 'HEAD' });
+        const telemetry = await app.request(
+            `${url}/telemetry`,
+            json('POST', { action: 'view', calendarId: id }),
+        );
+        expect([list.status, head.status, telemetry.status]).to.deep.equal([200, 200, 202]);
+        expect(await list.json()).to.deep.equal([]);
+        expect(head.body).to.be.null;
+        expect(head.headers.get('Content-Type')).to.equal('text/event-stream');
+        expect(syncService.subscriberCount(id)).to.equal(0);
+        expect(telemetryService.getEvents()).to.have.length(1);
+
+        const stream = await app.request(`${url}/stream`);
+        try {
+            expect(stream.status).to.equal(200);
+            expect(syncService.subscriberCount(id)).to.equal(1);
+        } finally {
+            await stream.body?.cancel();
+        }
+        expect(syncService.subscriberCount(id)).to.equal(0);
+    });
+
     it('explicit public mode does not override a configured policy', async () => {
         expect(
             (

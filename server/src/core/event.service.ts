@@ -2,7 +2,8 @@ import { eq, and, gt, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
 import type { Db } from '../db/connection.js';
-import { calendars, events } from '../db/schema.js';
+import { events } from '../db/schema.js';
+import { calendarExists } from './calendar-existence.js';
 import { NotFoundError, ValidationError } from './errors.js';
 import type {
     ApiCalendarEntry,
@@ -249,16 +250,7 @@ export class EventServiceImpl {
     }
 
     private _requireCalendar(calendarId: string): void {
-        validate(idSchema, calendarId);
-        if (
-            !this.db
-                .select({ id: calendars.id })
-                .from(calendars)
-                .where(eq(calendars.id, calendarId))
-                .get()
-        ) {
-            throw new NotFoundError('Calendar', calendarId);
-        }
+        if (!calendarExists(this.db, calendarId)) throw new NotFoundError('Calendar', calendarId);
     }
 
     private _parseDate(dateStr: string): [number, number, number] {

@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 
 import type { Db } from '../db/connection.js';
 import { calendars } from '../db/schema.js';
+import { calendarExists } from './calendar-existence.js';
 import type {
     ApiCalendar,
     CalendarManifest,
@@ -17,6 +18,11 @@ export class CalendarServiceImpl {
         private db: Db,
         private onRemove?: (calendarId: string) => void,
     ) {}
+
+    /** @internal Parent validation for routes that do not use calendar metadata. */
+    async exists(id: string): Promise<boolean> {
+        return calendarExists(this.db, id);
+    }
 
     async getById(id: string): Promise<ApiCalendar | null> {
         validate(idSchema, id);
