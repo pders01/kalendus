@@ -1057,6 +1057,7 @@ export default class LMSCalendar extends LitElement {
     override disconnectedCallback() {
         super.disconnectedCallback();
         this._resizeObserver?.disconnect();
+        this._resizeObserver = undefined;
         cancelAnimationFrame(this._containerFrame);
         this._containerFrame = 0;
         this._timeGridHost = undefined;
@@ -1320,16 +1321,9 @@ export default class LMSCalendar extends LitElement {
         return false;
     }
 
-    protected override firstUpdated(
-        _changedProperties: PropertyValueMap<never> | Map<PropertyKey, unknown>,
-    ): void {
-        this._observeContainer();
-    }
-
     private _observeContainer() {
         const container = this.shadowRoot?.firstElementChild;
-        if (!container || typeof ResizeObserver === 'undefined') return;
-        this._resizeObserver?.disconnect();
+        if (this._resizeObserver || !container || typeof ResizeObserver === 'undefined') return;
 
         // Manual ResizeObserver: only trigger re-render when width actually
         // changes. The @lit-labs ResizeController unconditionally calls

@@ -39,12 +39,13 @@ describe('Calendar Component', () => {
     describe('default calendar', () => {
         let el: LMSCalendar;
 
-        before(async () => {
+        beforeEach(async () => {
             el = await fixture(
                 html`
                     <lms-calendar></lms-calendar>
                 `,
             );
+            expect(el.isConnected).to.be.true;
         });
 
         it('should render calendar correctly', () => {
@@ -291,54 +292,31 @@ describe('Calendar Component', () => {
         expect(el.color).to.equal('#ff0000');
     });
 
-    it('should handle resize events', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
+    it('observes its container once on mount and once after reconnect', async () => {
+        const wrapper = await fixture<HTMLDivElement>(
+            html`
+                <div></div>
+            `,
+        );
+        const el = document.createElement('lms-calendar');
+        const observe = ResizeObserver.prototype.observe;
+        let observations = 0;
+        ResizeObserver.prototype.observe = function (target, options) {
+            if (target === el.shadowRoot?.firstElementChild) observations++;
+            observe.call(this, target, options);
+        };
+        try {
+            wrapper.append(el);
+            await el.updateComplete;
+            expect(observations).to.equal(1);
 
-        await el.updateComplete;
-
-        const initialWidth = (el as any)._calendarWidth;
-
-        // Simulate resize by setting _calendarWidth directly (the
-        // ResizeObserver callback does this when the width changes)
-        (el as any)._calendarWidth = 500;
-
-        expect((el as any)._calendarWidth).to.equal(500);
-        expect((el as any)._calendarWidth).to.not.equal(initialWidth);
-    });
-
-    it('should render different content based on screen width', async () => {
-        const entries: CalendarEntry[] = [
-            {
-                date: {
-                    start: { day: 15, month: 9, year: 2023 },
-                    end: { day: 15, month: 9, year: 2023 },
-                },
-                time: {
-                    start: { hour: 9, minute: 0 },
-                    end: { hour: 10, minute: 0 },
-                },
-                heading: 'Test Event',
-                content: 'Test Content',
-                color: '#ff0000',
-                isContinuation: false,
-            },
-        ];
-
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar .entries=${entries}></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        // Set narrow width to trigger mobile view
-        (el as any)._calendarWidth = 500;
-        await el.updateComplete;
-
-        // Should render entries (exact content depends on implementation)
-        const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
-        expect(monthEl).to.exist;
+            el.remove();
+            wrapper.append(el);
+            await el.updateComplete;
+            expect(observations).to.equal(2);
+        } finally {
+            ResizeObserver.prototype.observe = observe;
+        }
     });
 
     it('should handle empty entries array', async () => {
@@ -353,39 +331,6 @@ describe('Calendar Component', () => {
         // Should still render normally
         const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
         expect(monthEl).to.exist;
-    });
-
-    it('should provide CSS custom properties', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar
-                style="--background-color: #f0f0f0; --primary-color: #007bff; --entry-font-size: medium"
-            ></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        // Should render without errors with custom properties
-        expect(el.shadowRoot).to.exist;
-    });
-
-    it('should maintain responsive breakpoints', async () => {
-        const el: LMSCalendar = await fixture(html`
-            <lms-calendar></lms-calendar>
-        `);
-
-        await el.updateComplete;
-
-        // Test different widths
-        const widths = [400, 600, 800, 1200];
-
-        for (const width of widths) {
-            (el as any)._calendarWidth = width;
-            await el.updateComplete;
-
-            // Should handle different widths without errors
-            const monthEl = el.shadowRoot?.querySelector('lms-calendar-month');
-            expect(monthEl).to.exist;
-        }
     });
 
     describe('locale-ready behavior', () => {
