@@ -35,7 +35,7 @@ bun run --cwd server build
 
 Record the ID from `Seeded calendar …` and the seed date. The first two events are on the seed day, and more follow over the next several days. Keep the server running and follow the [Lit starter](../docs/integration-guide.md#lit-adapter) to view those events. If port 3000 is in use, change both `PORT` and the starter's proxy target; do not change the bind address. Stop the demo with Ctrl+C. The temporary directory is not removed automatically.
 
-`DATABASE_URL` accepts a filename (relative to caller cwd or absolute), a `file:` URL, or `:memory:`. A memory database is scoped to its connection, so the separate migrate, seed and start processes above need the same **file**. Missing parent directories are created. Migrations resolve relative to the module, **not cwd**. The built package contains `dist/migrations/*.sql` and `dist/migrations/meta/_journal.json`.
+`DATABASE_URL` accepts a filename (relative to caller cwd or absolute), a path-only `file:` URL, or `:memory:`. File URL queries and fragments are rejected rather than silently ignored; options such as `?mode=ro` are not supported. A memory database is scoped to its connection, so the separate migrate, seed and start processes above need the same **file**. Missing parent directories are created. Migrations resolve relative to the module, **not cwd**. The built package contains `dist/migrations/*.sql` and `dist/migrations/meta/_journal.json`.
 
 ### Install the local packages into another project
 
@@ -86,6 +86,8 @@ WHERE (start_year, start_month, start_day) > (end_year, end_month, end_day);
 
 Use a trusted source to determine the intended interval; don't automatically swap endpoints. Repair each row with an authorized event `PATCH` supplying the corrected `date` (and `time` if needed), or delete it if it should not exist. Current writes still reject invalid intervals.
 
+Old rows may also have only some clock columns populated. Reads retain the legacy projection, but PATCH does not treat that projection as stored data. Repair such a row by supplying the complete intended `time` interval, or `time: null` if it is all-day; a heading-only PATCH cannot silently leave a partial clock in storage.
+
 ## Host authorization boundary
 
 Kalendus deliberately does **not** ship an identity provider or invent an ownership table. The host must validate a real session/bearer token and resolve permissions from its own trusted storage on **every** request. Calendar IDs are not credentials. Service implementations are trusted internal APIs; do not expose them without the HTTP/host boundary.
@@ -130,9 +132,9 @@ const { app } = createApp({
 });
 ```
 
-This is a **whole-calendar ACL**, not row-level filtering. Granting the event range or summary routes exposes matching entries or aggregate counts across the entire calendar. The sample's event write permissions likewise apply to all events there; editing an event does not grant calendar metadata updates or parent deletion. For event-scoped access, deny whole-calendar reads/summaries and implement filtered host routes (or separate calendars). If allowing scoped event PATCH/DELETE, check the trusted `(calendarId, eventId)` permission in the host policy. Do not grant stream details to scoped readers, and consider whether they should see change timing at all.
+This is a **whole-calendar ACL**, not row-level filtering. Granting the event list, page, or summary route exposes matching entries or aggregate counts across the entire calendar. The sample's event write permissions likewise apply to all events there; editing an event does not grant calendar metadata updates or parent deletion. For event-scoped access, deny whole-calendar reads/summaries and implement filtered host routes (or separate calendars). If allowing scoped event PATCH/DELETE, check the trusted `(calendarId, eventId)` permission in the host policy. Do not grant stream details to scoped readers, and consider whether they should see change timing at all.
 
-Policy context includes raw `request`, `calendarId`, `eventId` for individual event writes, `resource` (`calendar`, `event`, `manifest`, `stream`, `telemetry`) and action (`create`, `read`, `write`, `delete`, `stream`, `telemetry`). `create` distinguishes POST from PATCH (`write`); `resource` distinguishes calendar creation from event creation. Authenticate and check the requested calendar even for range/summary/manifest/stream reads. Return `true` only to grant. False denies; thrown exceptions never grant. A host can throw Hono `HTTPException(401)` to preserve an authentication status. If inspecting the request body in the policy, use `request.clone()` so the route can still parse it. Policy callbacks must not log tokens or event bodies.
+Policy context includes raw `request`, matched `calendarId`, `eventId` for individual event writes, `resource` (`calendar`, `event`, `manifest`, `stream`, `telemetry`) and action (`create`, `read`, `write`, `delete`, `stream`, `telemetry`). Each route declares its policy: event lists, pages and summaries are calendar-wide event reads. `HEAD` uses the matching `GET` permission (the raw request method is still `HEAD`), and stream `HEAD` never opens a subscription. `create` distinguishes POST from PATCH (`write`); `resource` distinguishes calendar creation from event creation. Authenticate and check the requested calendar even for range/page/summary/manifest/stream reads. Return `true` only to grant. False denies; thrown exceptions never grant. A host can throw Hono `HTTPException(401)` to preserve an authentication status. If inspecting the request body in the policy, use `request.clone()` so the route can still parse it. Policy callbacks must not log tokens or event bodies.
 
 ### Safe browser cookie and SSE deployment
 
@@ -144,7 +146,9 @@ Native `EventSource` cannot send arbitrary Authorization/CSRF headers. Without a
 
 If you supply a custom `fetch`, `connect()` requires `streamFactory` unless you explicitly set `allowNativeEventSourceWithCustomFetch: true`. Only opt in after confirming `/stream` is authorized by native cookies and doesn't rely on any behavior of the REST wrapper, such as auth headers, URL rewriting or a different cookie policy. The opt-in **does not override** the restriction on `headers` or `credentials: 'omit'`. This check happens at `connect()`; REST-only callers can use any supported `fetch`, `headers` or credentials without configuring a stream.
 
-SSE is a best-effort, in-process invalidation channel, not durable replay. By default committed **event** POST/PATCH/DELETE sends `event: invalidated` with `data: {}`. A calendar metadata PATCH does not send an invalidation; refresh metadata separately. A stream grant lets the client observe **when the calendar changes**, not the event mutation kind, event ID, or event details. Refetch through independently authorized REST routes. Deny stream access if even the timing of changes is sensitive.
+SSE is a best-effort, in-process invalidation channel, not durable replay. By default committed **event** creates, updates and deletes send `event: invalidated` with `data: {}`. The trusted services returned by `createApp()` publish the same notifications as HTTP writes. Raw database writes and independently constructed services do not automatically publish. For mutations with notifications, let the service own the transaction; the notifier cannot determine when a caller-owned SQLite transaction commits. A calendar metadata PATCH does not send an invalidation; refresh metadata separately. A stream grant lets the client observe **when the calendar changes**, not the event mutation kind, event ID, or event details. Refetch through independently authorized REST routes. Deny stream access if even the timing of changes is sensitive.
+
+If injecting an `EventBus` into `createApp()`, apps using the same bus and `db` object share event and removal channels; unrelated database objects are isolated even when their calendar IDs match. If several handles refer to the same logical store, pass the same `eventBusScope` object with the shared bus. Never share that scope across independent stores. Use the app's returned, scoped `eventBus` or `syncService` to observe that app's notifications.
 
 For legacy consumers that need record-bearing messages, configure the optional `authorizeStreamDetails({ request, calendarId })` policy on `createApp`. It runs **after** ordinary `authorize` has allowed the stream. Return `true` only for principals allowed to read **every event in the calendar**; never grant it to a principal with event-scoped permissions. Missing or false grants keep the stream invalidation-only. The grant applies for the lifetime of the connection and is checked again on reconnect. Compatibility `created`/`updated` messages carry the event DTO; `deleted` carries only `{ id }`.
 
@@ -160,18 +164,19 @@ Configure proxies not to buffer event streams and maintain an appropriate idle t
 
 Routes below are relative to `/api/calendars`. `GET /health` is public liveness, not an authorization or stream-health check.
 
-| Method and path | Successful response |
-| --- | --- |
-| `POST /`, `PATCH /:calendarId`, `GET /:calendarId` | Calendar DTO; POST is 201, PATCH/GET are 200 |
-| `DELETE /:calendarId`, `DELETE /:calendarId/events/:eventId` | 200 `{ "ok": true }`; calendar deletion cascades |
-| `GET /:calendarId/events?start=YYYY-MM-DD&end=YYYY-MM-DD` | 200 array of event DTOs that overlap the inclusive civil-date window |
-| `GET /:calendarId/events/summary?start=YYYY-MM-DD&end=YYYY-MM-DD` | 200 object mapping dates to nonzero counts, not an entry array |
-| `POST /:calendarId/events`, `PATCH /:calendarId/events/:eventId` | Event DTO; POST is 201, PATCH is 200 |
-| `GET /:calendarId/manifest` | 200 theme/locale metadata, not entries |
-| `GET /:calendarId/stream` | 200 SSE after stream authorization |
-| `POST /:calendarId/telemetry` | 202 `{ "ok": true }`; quota exhaustion is 429 with `Retry-After` |
+| Method and path                                                   | Successful response                                                          |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `POST /`, `PATCH /:calendarId`, `GET /:calendarId`                | Calendar DTO; POST is 201, PATCH/GET are 200                                 |
+| `DELETE /:calendarId`, `DELETE /:calendarId/events/:eventId`      | 200 `{ "ok": true }`; calendar deletion cascades                             |
+| `GET /:calendarId/events?start=YYYY-MM-DD&end=YYYY-MM-DD`         | 200 array of overlapping event DTOs, subject to the unpaged result cap       |
+| `GET /:calendarId/events/page?start=YYYY-MM-DD&end=YYYY-MM-DD`    | 200 `{ entries, nextCursor }`; optional `limit` and exclusive `after` cursor |
+| `GET /:calendarId/events/summary?start=YYYY-MM-DD&end=YYYY-MM-DD` | 200 object mapping dates to nonzero counts, not an entry array               |
+| `POST /:calendarId/events`, `PATCH /:calendarId/events/:eventId`  | Event DTO; POST is 201, PATCH is 200                                         |
+| `GET /:calendarId/manifest`                                       | 200 theme/locale metadata, not entries                                       |
+| `GET /:calendarId/stream`                                         | 200 SSE after stream authorization                                           |
+| `POST /:calendarId/telemetry`                                     | 202 `{ "ok": true }`; quota exhaustion is 429 with `Retry-After`             |
 
-Invalid IDs, fields, query windows or JSON are 400; oversized bodies are 413. An ordinary policy denial is 403, or the host can explicitly return an authentication status such as 401 via `HTTPException`. A missing calendar (after authorization) or missing event on PATCH/DELETE is 404. CORS middleware can answer preflight with 204; that does not authorize the requested operation.
+Invalid IDs, fields, query windows or JSON are 400; oversized bodies are 413. Route schema and merged-state validation failures share `{ error, details }`, with messages grouped by field in `details`. An ordinary policy denial is 403, or the host can explicitly return an authentication status such as 401 via `HTTPException`. A missing calendar (after authorization) or missing event on PATCH/DELETE is 404. CORS middleware can answer preflight with 204; that does not authorize the requested operation.
 
 - `POST` an event with `heading` and `date: { start, end }` (each endpoint is `{ year, month, day }`). Optional `content`, `color` and `time` are non-null when sent; **omit `time`** for all-day. A timed record supplies `time: { start, end }` using `{ hour, minute }` endpoints.
 - `PATCH` accepts those fields as a partial update. Omitted fields remain unchanged; send **`"time": null`** to make an event all-day or `"content": null` to clear its description. If sending a `date` or non-null `time` interval, supply both endpoints. The server validates the full merged record.
@@ -181,6 +186,8 @@ Invalid IDs, fields, query windows or JSON are 400; oversized bodies are 413. An
 ## Browser client
 
 Use the [`KalendusApiClient` recipe](../docs/integration-guide.md#vanilla-client) for non-Lit hosts or the [mounted Lit starter](../docs/integration-guide.md#lit-adapter). `fetchRawEvents()` and event create/update methods return wire DTOs. `fetchEvents()` maps them for the root: it retains `id`/`calendarId`, copies nested date/time values, and maps non-null time to explicit `kind: 'timed'` with continuous floating endpoints. Null time maps to `kind: 'all-day'` (the mapped legacy `00:00`–`23:59` time object is ignored by the root). Refetch the range after a successful write when sync is off; even with sync enabled, handle write failure explicitly. Client reads throw on non-2xx; result shapes are typed, not comprehensively validated at runtime. Validate at the host boundary when a custom or untrusted backend is involved.
+
+For a dense range, `client.fetchRawEventPage(start, end, { limit, after }, signal)` returns one page of wire DTOs ordered by event ID. Pass the preceding result's `nextCursor` as `after` with the same range until `nextCursor` is `null`. Pagination is not a database snapshot across calls. The page size bounds returned rows, not the number of SQLite rows examined. Do not silently load all pages into a calendar with thousands of entries; choose a narrower query or render pages as needed.
 
 For imported rows that encoded all-day events with a non-null `00:00`–`23:59` sentinel, pass `isLegacyAllDay: ({ id }) => knownImportedAllDayIds.has(id)` to the API client or Lit adapter. It is consulted only for that exact time pair and applies only to mapped `fetchEvents()` results. An identical time pair on a new timed record is valid and cannot be distinguished by times alone. Use known provenance rather than opting in for every row. To repair known legacy rows permanently, send an authorized event `PATCH` with `{ "time": null }` for those IDs. Raw reads and wire writes are unchanged.
 
@@ -206,7 +213,7 @@ The root emits the initial snapshot after render and then reports committed stat
 
 See the [checkout-backed Lit starter](../docs/integration-guide.md#lit-adapter) for registration, mounting, loading/error UI and retry.
 
-Initialization works when an existing child is found in the host's `renderRoot`/`querySelector` during `hostUpdated`, or from its composed state event. Multiple calendars, closed/remote targets or slots should use `target: calendarElement` / `target: () => this.calendarRef ?? null`. Hosts without queryable DOM can supply `initialState` or call `adapter.setState(snapshot)` from the canonical event. Binding `.entries` remains the owner's responsibility.
+Initialization works when a newly acquired child is found in the host's `renderRoot`/`querySelector`, or from its composed state event. Once the target emits a valid committed snapshot, the adapter no longer derives its range from getters. A manual query is not canceled by an unrelated render; a new committed range or target can supersede it. Removing a target stops its pending reads and releases its range. Multiple calendars, closed/remote targets or slots should use `target: calendarElement` / `target: () => this.calendarRef ?? null`. Hosts without queryable DOM can supply `initialState` or call `adapter.setState(snapshot)` from the canonical event. Binding `.entries` remains the owner's responsibility.
 
 Identical queries dedupe and same-turn SSE bursts coalesce. An invalidation during a same-range query marks it dirty without aborting it: its result can still render, then one trailing refresh runs. Explicit `refresh()` and `fetchRange(start, inclusiveEnd, true)` abort and replace a pending read, even for the same range, so callers can recover from a stuck query. Navigation to another query range also aborts obsolete work. A generation guard suppresses **both stale fulfillment and stale rejection**, even if a custom transport ignores cancellation. Manual `fetchRange` queries are not clipped; server validation still applies.
 
@@ -217,7 +224,7 @@ React/non-Lit hosts can use `KalendusApiClient` directly with their own effect c
 ## Limits and telemetry
 
 - All HTTP request bodies are byte-counted before JSON parsing (including chunked/misleading Content-Length): default 32 KiB, configurable `maxBodyBytes` up to 16 MiB.
-- Range/summary queries are limited to 366 inclusive civil dates and 5000 matching entries. Over-limit requests fail with 400 and an instruction to narrow the range; results are never silently truncated. Summary work is O(matching entries + queried days), independent of event lifetimes.
+- Range, page and summary queries are limited to 366 inclusive civil dates. The unpaged detail route fails with 400 above 5000 matches rather than truncating; use the paged route when narrowing the range is not enough. Pages default to 250 entries and allow up to 500. Summary counts use date bounds instead of materializing event DTOs and have their own 50,000-match budget.
 - Event headings 500 chars, content 5000; calendar names 255; theme tokens 64 entries, key 128/value 512 chars. Foreign IDs are validated as 1–128 ASCII letters/digits/underscore/hyphen.
 - Telemetry metadata is bounded JSON: 32 top-level keys, 4096 UTF-8 bytes, 256 visited nodes, maximum depth 8. Route and body calendar IDs must agree, and the calendar must exist.
 - `telemetry: { capacity: 1000, ttlMs: 3600000, sink }` configures inspection retention (zero disables storage). Reads/writes lazily prune expired records; returned snapshots cannot mutate stored records. Sink delivery is best effort: at most eight in flight, drop instead of queue, isolate synchronous/asynchronous failures. The host owns delivery timeouts, redaction, observability and durable storage. Never send PII/secrets.
