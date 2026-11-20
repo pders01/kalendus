@@ -19,6 +19,7 @@ import { build, preview } from 'vite';
 
 const root = resolve('.');
 const temporary = mkdtempSync(join(tmpdir(), 'kalendus-consumers-'));
+const minimumPeers = process.argv.includes('--minimum-peers');
 const fixtureDate = { year: 2026, month: 11, day: 17 };
 function run(command, args, cwd = root) {
     const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
@@ -318,18 +319,48 @@ try {
     const consumer = join(temporary, 'consumer');
     const dependencies = join(consumer, 'node_modules');
     const installed = join(dependencies, '@jpahd', 'kalendus');
-    mkdirSync(installed, { recursive: true });
-    run('tar', ['-xzf', join(temporary, archive), '--strip-components=1', '-C', installed]);
-    // Do not expose transitive dependencies to the packed component.
-    for (const dependency of ['lit', 'luxon', '@types']) {
-        const target = join(dependencies, dependency);
-        mkdirSync(dirname(target), { recursive: true });
-        symlinkSync(join(root, 'node_modules', dependency), target, 'dir');
-    }
-    writeFileSync(join(consumer, 'package.json'), JSON.stringify({ type: 'module' }));
+    const tarball = join(temporary, archive);
+    const packageJson = (directory) =>
+        JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
+    mkdirSync(consumer);
     writeFileSync(
-        join(consumer, 'quick-start.ts'),
-        docsExample('README.md', '## Quick Usage', 'ts'),
+        join(consumer, 'package.json'),
+        JSON.stringify({ private: true, type: 'module' }),
+    );
+    const declaredPeers = packageJson(root).peerDependencies;
+    const peers = Object.keys(declaredPeers);
+    if (minimumPeers) {
+        const floors = peers.map((name) => {
+            const match = /^\^(\d+\.\d+\.\d+)$/.exec(declaredPeers[name]);
+            assert.ok(match, `Set an explicit test floor for ${name}: ${declaredPeers[name]}`);
+            return [name, match[1]];
+        });
+        run(
+            'bun',
+            ['add', '--exact', tarball, ...floors.map(([name, floor]) => `${name}@${floor}`)],
+            consumer,
+        );
+        for (const [name, floor] of floors) {
+            assert.equal(packageJson(join(dependencies, name)).version, floor);
+        }
+    } else {
+        mkdirSync(installed, { recursive: true });
+        run('tar', ['-xzf', tarball, '--strip-components=1', '-C', installed]);
+        // Expose only declared peers, not unrelated workspace dependencies.
+        for (const name of peers) {
+            const target = join(dependencies, name);
+            mkdirSync(dirname(target), { recursive: true });
+            symlinkSync(join(root, 'node_modules', name), target, 'dir');
+        }
+    }
+    const types = join(dependencies, '@types', 'luxon');
+    mkdirSync(dirname(types), { recursive: true });
+    symlinkSync(join(root, 'node_modules', '@types', 'luxon'), types, 'dir');
+    const versions = peers.map(
+        (name) => `${name}@${packageJson(join(dependencies, name)).version}`,
+    );
+    console.log(
+        `Checking packed consumer with ${minimumPeers ? 'minimum' : 'locked'} peers: ${versions.join(', ')}`,
     );
     writeFileSync(
         join(consumer, 'index.ts'),

@@ -147,4 +147,6 @@ jobs:
             - run: bun run analyze
             - name: Packed consumers (Chromium, locked peers)
               run: bun run test:package
+            - name: Packed consumers (Chromium, minimum peers)
+              run: bun run test:package --minimum-peers
             - run: bun run checksize
