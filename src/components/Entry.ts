@@ -10,6 +10,9 @@ import { getMessages, getMessageFormatters } from '../lib/messages.js';
 import type { CalendarDateInterval, CalendarEntry } from '../lms-calendar.js';
 import { entryDisplayEndDate, isAllDayExport } from './entryExport.js';
 
+/** Generated compatibility labels are not explicit inspector overrides. */
+export const generatedDisplayDates = new WeakMap<object, string>();
+
 /**
  * Calendar entry component with accessibility and interaction support
  *
@@ -792,6 +795,7 @@ export default class Entry extends LitElement {
             entry,
             eventId: this.eventId ?? entry.id,
         };
+        generatedDisplayDates.set(eventDetails, displayDate);
         this.dispatchEvent(
             new CustomEvent('open-menu', {
                 detail: eventDetails,

@@ -186,6 +186,36 @@ describe('Non-modal event inspector interactions', () => {
         });
     }
 
+    for (const capture of [true, false]) {
+        it(`preserves a card date override from an open-menu ${capture ? 'capture' : 'bubble'} listener`, async () => {
+            const calendar = await fixture<Calendar>(html`
+                <lms-calendar .entries=${[allDay]} .activeDate=${start} view-mode="day"
+                    style="width:900px;height:650px"></lms-calendar>
+            `);
+            const root = calendar.shadowRoot!;
+            await settle();
+            const label = 'Owner date label';
+            calendar.addEventListener(
+                'open-menu',
+                (event) => {
+                    (event as CustomEvent).detail.displayDate = label;
+                },
+                { once: true, capture },
+            );
+            root.querySelector('lms-calendar-entry')!.focus();
+            await sendKeys({ press: 'Enter' });
+            await settle();
+            const menu = root.querySelector('lms-menu')!;
+            const dateText = () => menu.shadowRoot!.querySelectorAll('.meta')[1].textContent;
+            expect(menu.open).to.be.true;
+            expect(dateText()).to.equal(label);
+            calendar.locale = 'de';
+            await calendar.localeReady;
+            await settle();
+            expect(dateText()).to.equal(label);
+        });
+    }
+
     it('preserves a standalone inspector date override on locale changes', async () => {
         const el = await fixture<Menu>(
             html`<lms-menu .eventDetails=${{

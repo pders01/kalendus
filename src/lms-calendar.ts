@@ -6,7 +6,7 @@ import { styleMap } from 'lit/directives/style-map.js';
 
 import LMSCalendarContext from './components/Context.js';
 import LMSCalendarDay from './components/Day.js';
-import LMSCalendarEntry from './components/Entry.js';
+import LMSCalendarEntry, { generatedDisplayDates } from './components/Entry.js';
 import { downloadEntryIcs } from './components/entryExport.js';
 import LMSCalendarHeader from './components/Header.js';
 import './components/Context.js';
@@ -1888,8 +1888,9 @@ export default class LMSCalendar extends LitElement {
             });
             this._menuTriggerEntry = invoker;
             const details = { ...e.detail, entry: canonical };
-            // Keep the legacy event payload, but format card dates in the inspector's locale.
-            if (clickedEntry) delete details.displayDate;
+            // Reformat the automatic label, but honor replacements made by event listeners.
+            if (details.displayDate === generatedDisplayDates.get(e.detail))
+                delete details.displayDate;
             this.openMenu(details);
         });
     }
