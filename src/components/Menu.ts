@@ -4,9 +4,8 @@ import { ifDefined } from 'lit/directives/if-defined.js';
 
 import { formatLocalizedDate, formatLocalizedTimeRange } from '../lib/localization.js';
 import { getMessages } from '../lib/messages.js';
-import { addDisplayDays } from '../lib/weekStartHelper.js';
 import type { CalendarDate, CalendarEntry } from '../lms-calendar.js';
-import { downloadEntryIcs, isAllDayExport } from './entryExport.js';
+import { downloadEntryIcs, entryDisplayEndDate, isAllDayExport } from './entryExport.js';
 
 export interface EventDetails {
     heading: string;
@@ -552,12 +551,8 @@ export class Menu extends LitElement {
         const format = (value: CalendarDate) =>
             formatLocalizedDate(value.day, value.month, value.year, this.locale);
         if (!entry) return format(date);
-        const end =
-            !isAllDayExport(entry) && entry.time?.end.hour === 24
-                ? addDisplayDays(entry.date.end, 1)
-                : entry.date.end;
         const first = format(date);
-        const last = format(end);
+        const last = format(entryDisplayEndDate(entry, isAllDayExport(entry)));
         return first === last ? first : `${first} – ${last}`;
     }
     private _timeDescription(): string {

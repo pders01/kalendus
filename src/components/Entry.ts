@@ -7,9 +7,8 @@ import {
     formatLocalizedTimeRange,
 } from '../lib/localization.js';
 import { getMessages, getMessageFormatters } from '../lib/messages.js';
-import { addDisplayDays } from '../lib/weekStartHelper.js';
 import type { CalendarDateInterval, CalendarEntry } from '../lms-calendar.js';
-import { isAllDayExport } from './entryExport.js';
+import { entryDisplayEndDate, isAllDayExport } from './entryExport.js';
 
 /**
  * Calendar entry component with accessibility and interaction support
@@ -765,22 +764,17 @@ export default class Entry extends LitElement {
             formatLocalizedDate(date.day, date.month, date.year, this.locale);
         const firstDate = dateLabel(entry.date.start);
         const allDay = isAllDayExport(entry);
-        const endDate =
-            !allDay && entry.time?.end.hour === 24
-                ? addDisplayDays(entry.date.end, 1)
-                : entry.date.end;
-        const lastDate = dateLabel(endDate);
-        const displayDate =
-            firstDate === lastDate ? firstDate : format.timeRange(firstDate, lastDate);
+        const lastDate = dateLabel(entryDisplayEndDate(entry, allDay));
+        const spansDates = firstDate !== lastDate;
+        const displayDate = spansDates ? format.timeRange(firstDate, lastDate) : firstDate;
         const time = entry.time;
         let displayTime = allDay ? msg.allDay : msg.noTime;
         if (!allDay && time) {
             const firstTime = formatLocalizedTime(time.start.hour, time.start.minute, this.locale);
             const lastTime = formatLocalizedTime(time.end.hour % 24, time.end.minute, this.locale);
-            displayTime =
-                firstDate === lastDate
-                    ? format.timeRange(firstTime, lastTime)
-                    : format.timeRange(`${firstDate} ${firstTime}`, `${lastDate} ${lastTime}`);
+            displayTime = spansDates
+                ? format.timeRange(`${firstDate} ${firstTime}`, `${lastDate} ${lastTime}`)
+                : format.timeRange(firstTime, lastTime);
             if (entry.timeZone) displayTime += ` (${entry.timeZone})`;
         }
         const eventDetails = {

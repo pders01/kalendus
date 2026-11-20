@@ -1,3 +1,4 @@
+import { addDisplayDays } from '../lib/weekStartHelper.js';
 import type { CalendarEntry } from '../lms-calendar.js';
 
 /** Shared default action for inspector and inline Agenda export. */
@@ -45,6 +46,12 @@ export function isAllDayExport(entry: CalendarEntry): boolean {
         entry.time.end.hour - entry.time.start.hour >= 23 ||
         entry.isContinuation === true
     );
+}
+
+/** Only a timed end at 24:00 is displayed on the next civil date. */
+export function entryDisplayEndDate(entry: CalendarEntry, allDay: boolean) {
+    const end = entry.date.end;
+    return !allDay && entry.time?.end.hour === 24 ? addDisplayDays(end, 1) : end;
 }
 
 /** Load serialization only when the default export action needs it. */
