@@ -7,6 +7,8 @@ import '../../../src/components/Entry.ts';
 import type Entry from '../../../src/components/Entry.ts';
 import type Month from '../../../src/components/Month.ts';
 import type Year from '../../../src/components/Year.ts';
+import type Calendar from '../../../src/lms-calendar.ts';
+import '../../../src/lms-calendar.ts';
 
 const date = { year: 2026, month: 3, day: 10 };
 const interval = { start: date, end: date };
@@ -101,6 +103,34 @@ for (const tag of ['month', 'year'] as const) {
 }
 
 describe('Date composite boundaries and week controls', () => {
+    it('keeps the RTL Month tab stop through loading and resets it on owner navigation', async () => {
+        const calendar = await fixture<Calendar>(html`
+            <lms-calendar dir="rtl" .activeDate=${date} style="height:600px;width:900px"></lms-calendar>
+        `);
+        const month = calendar.shadowRoot!.querySelector('lms-calendar-month')!;
+        const root = month.shadowRoot!;
+        const stops = () =>
+            [...root.querySelectorAll<HTMLButtonElement>('button[data-date][tabindex="0"]')].map(
+                (button) => button.dataset.date,
+            );
+        await month.focusDate();
+        await sendKeys({ press: 'ArrowLeft' });
+        await settle();
+        const moved = dateButton(month, '2026-3-11');
+        expect(root.activeElement).to.equal(moved);
+        expect(stops()).to.deep.equal(['2026-3-11']);
+        expect(calendar.activeDate).to.deep.equal(date);
+
+        calendar.loading = true;
+        await settle();
+        expect(root.activeElement).to.equal(moved);
+        expect(stops(), 'loading preserves the roving tab stop').to.deep.equal(['2026-3-11']);
+
+        calendar.activeDate = { year: 2026, month: 4, day: 15 };
+        await settle();
+        expect(stops(), 'real navigation resets the roving tab stop').to.deep.equal(['2026-4-15']);
+    });
+
     it('keeps a full year to 24 ordinary stops and exposes week activation through F2/Escape', async () => {
         const el = await fixture<Year>(
             html`<lms-calendar-year .activeDate=${date} style="height:600px;width:900px"></lms-calendar-year>`,

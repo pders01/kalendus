@@ -355,6 +355,8 @@ export default class Month extends LitElement {
 
     override willUpdate(changed: Map<string, unknown>) {
         if (changed.has('activeDate')) {
+            const previous = changed.get('activeDate') as CalendarDate | undefined;
+            if (previous && dateSlotKey(previous) === dateSlotKey(this.activeDate)) return;
             this._displayDate = undefined;
             this._focusedDate = this.activeDate;
         }
