@@ -1,36 +1,49 @@
-import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 
 import type { CalendarServiceImpl } from '../../core/calendar.service.js';
 import { NotFoundError } from '../../core/errors.js';
-import { createCalendarSchema, updateCalendarSchema } from '../middleware/validator.js';
+import { createCalendarSchema, updateCalendarSchema } from '../../core/validation.js';
+import type { AuthorizationGuard } from '../authorization.js';
+import { validateRequest } from '../middleware/validator.js';
 
-export function calendarRoutes(calendarService: CalendarServiceImpl) {
+export function calendarRoutes(calendarService: CalendarServiceImpl, guard: AuthorizationGuard) {
     const app = new Hono();
 
-    app.get('/:id', async (c) => {
-        const cal = await calendarService.getById(c.req.param('id'));
-        if (!cal) throw new NotFoundError('Calendar', c.req.param('id'));
+    app.get('/:calendarId', guard('calendar', 'read', 'calendarId'), async (c) => {
+        const calendarId = c.req.param('calendarId');
+        const cal = await calendarService.getById(calendarId);
+        if (!cal) throw new NotFoundError('Calendar', calendarId);
         return c.json(cal);
     });
 
-    app.post('/', zValidator('json', createCalendarSchema), async (c) => {
-        const body = c.req.valid('json');
-        const cal = await calendarService.create(body);
-        return c.json(cal, 201);
-    });
+    app.post(
+        '/',
+        guard('calendar', 'create'),
+        validateRequest('json', createCalendarSchema),
+        async (c) => {
+            const body = c.req.valid('json');
+            const cal = await calendarService.create(body);
+            return c.json(cal, 201);
+        },
+    );
 
-    app.patch('/:id', zValidator('json', updateCalendarSchema), async (c) => {
-        const body = c.req.valid('json');
-        const cal = await calendarService.update(c.req.param('id'), body);
-        if (!cal) throw new NotFoundError('Calendar', c.req.param('id'));
-        return c.json(cal);
-    });
+    // As with event routes, validate the authorized payload before the service's lookup.
+    app.patch(
+        '/:calendarId',
+        guard('calendar', 'write', 'calendarId'),
+        validateRequest('json', updateCalendarSchema),
+        async (c) => {
+            const calendarId = c.req.param('calendarId');
+            const cal = await calendarService.update(calendarId, c.req.valid('json'));
+            if (!cal) throw new NotFoundError('Calendar', calendarId);
+            return c.json(cal);
+        },
+    );
 
-    app.delete('/:id', async (c) => {
-        const id = c.req.param('id');
-        const deleted = await calendarService.delete(id);
-        if (!deleted) throw new NotFoundError('Calendar', id);
+    app.delete('/:calendarId', guard('calendar', 'delete', 'calendarId'), async (c) => {
+        const calendarId = c.req.param('calendarId');
+        const deleted = await calendarService.delete(calendarId);
+        if (!deleted) throw new NotFoundError('Calendar', calendarId);
         return c.json({ ok: true });
     });
 

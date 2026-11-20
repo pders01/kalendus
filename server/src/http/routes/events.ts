@@ -1,54 +1,74 @@
-import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 
 import { NotFoundError } from '../../core/errors.js';
 import type { EventServiceImpl } from '../../core/event.service.js';
 import {
     createEventSchema,
-    updateEventSchema,
     dateRangeQuerySchema,
-} from '../middleware/validator.js';
+    updateEventSchema,
+} from '../../core/validation.js';
+import type { AuthorizationGuard } from '../authorization.js';
+import { validateRequest } from '../middleware/validator.js';
 
-export function eventRoutes(eventService: EventServiceImpl) {
+export function eventRoutes(eventService: EventServiceImpl, guard: AuthorizationGuard) {
     const app = new Hono();
+    const read = guard('event', 'read', 'calendarId');
 
-    app.get('/:calendarId/events', zValidator('query', dateRangeQuerySchema), async (c) => {
-        const { start, end } = c.req.valid('query');
-        const entries = await eventService.getByRange(c.req.param('calendarId'), start, end);
-        return c.json(entries);
-    });
+    // The service checks the parent; after authorization malformed input wins over a missing parent.
+    app.get(
+        '/:calendarId/events',
+        read,
+        validateRequest('query', dateRangeQuerySchema),
+        async (c) => {
+            const { start, end } = c.req.valid('query');
+            const entries = await eventService.getByRange(c.req.param('calendarId'), start, end);
+            return c.json(entries);
+        },
+    );
 
-    app.get('/:calendarId/events/summary', zValidator('query', dateRangeQuerySchema), async (c) => {
-        const { start, end } = c.req.valid('query');
-        const summary = await eventService.getSummary(c.req.param('calendarId'), start, end);
-        return c.json(summary);
-    });
+    app.get(
+        '/:calendarId/events/summary',
+        read,
+        validateRequest('query', dateRangeQuerySchema),
+        async (c) => {
+            const { start, end } = c.req.valid('query');
+            const summary = await eventService.getSummary(c.req.param('calendarId'), start, end);
+            return c.json(summary);
+        },
+    );
 
-    app.post('/:calendarId/events', zValidator('json', createEventSchema), async (c) => {
-        const body = c.req.valid('json');
-        const entry = await eventService.create(c.req.param('calendarId'), body);
-        return c.json(entry, 201);
-    });
+    app.post(
+        '/:calendarId/events',
+        guard('event', 'create', 'calendarId'),
+        validateRequest('json', createEventSchema),
+        async (c) => {
+            const entry = await eventService.create(c.req.param('calendarId'), c.req.valid('json'));
+            return c.json(entry, 201);
+        },
+    );
 
-    app.patch('/:calendarId/events/:eventId', zValidator('json', updateEventSchema), async (c) => {
-        const body = c.req.valid('json');
-        const entry = await eventService.update(
-            c.req.param('calendarId'),
-            c.req.param('eventId'),
-            body,
-        );
-        if (!entry) throw new NotFoundError('Event', c.req.param('eventId'));
-        return c.json(entry);
-    });
+    app.patch(
+        '/:calendarId/events/:eventId',
+        guard('event', 'write', 'calendarId', 'eventId'),
+        validateRequest('json', updateEventSchema),
+        async (c) => {
+            const { calendarId, eventId } = c.req.param();
+            const entry = await eventService.update(calendarId, eventId, c.req.valid('json'));
+            if (!entry) throw new NotFoundError('Event', eventId);
+            return c.json(entry);
+        },
+    );
 
-    app.delete('/:calendarId/events/:eventId', async (c) => {
-        const deleted = await eventService.delete(
-            c.req.param('calendarId'),
-            c.req.param('eventId'),
-        );
-        if (!deleted) throw new NotFoundError('Event', c.req.param('eventId'));
-        return c.json({ ok: true });
-    });
+    app.delete(
+        '/:calendarId/events/:eventId',
+        guard('event', 'delete', 'calendarId', 'eventId'),
+        async (c) => {
+            const { calendarId, eventId } = c.req.param();
+            const deleted = await eventService.delete(calendarId, eventId);
+            if (!deleted) throw new NotFoundError('Event', eventId);
+            return c.json({ ok: true });
+        },
+    );
 
     return app;
 }

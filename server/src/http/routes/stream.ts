@@ -4,18 +4,26 @@ import { streamSSE } from 'hono/streaming';
 import type { CalendarServiceImpl } from '../../core/calendar.service.js';
 import { NotFoundError } from '../../core/errors.js';
 import type { SyncServiceImpl } from '../../core/sync.service.js';
-import type { StreamDetailsPolicy } from '../authorization.js';
+import type { AuthorizationGuard, StreamDetailsPolicy } from '../authorization.js';
+import { requireCalendar } from '../require-calendar.js';
 
 /** In-memory invalidations, not a durable replay log. Every connection requires reconciliation. */
 export function streamRoutes(
     syncService: SyncServiceImpl,
     calendarService: CalendarServiceImpl,
+    guard: AuthorizationGuard,
     authorizeDetails?: StreamDetailsPolicy,
 ) {
     const app = new Hono();
 
-    app.get('/:calendarId/stream', async (c) => {
+    app.get('/:calendarId/stream', guard('stream', 'stream', 'calendarId'), async (c) => {
         const calendarId = c.req.param('calendarId');
+        // Hono matches HEAD through GET. Do not start a stream that it would discard.
+        if (c.req.raw.method === 'HEAD') {
+            await requireCalendar(calendarService, calendarId);
+            return c.body(null, 200, { 'Content-Type': 'text/event-stream' });
+        }
+
         // A separate grant is needed to disclose records. Watch for removals while
         // awaiting it and recheck storage before handing off to the live subscriptions.
         let removed = false;
@@ -24,10 +32,12 @@ export function streamRoutes(
         });
         let includeDetails: boolean;
         try {
+            await requireCalendar(calendarService, calendarId);
+            if (removed) throw new NotFoundError('Calendar', calendarId);
             includeDetails =
                 (await authorizeDetails?.({ request: c.req.raw, calendarId })) === true;
-            if (!(await calendarService.getById(calendarId)) || removed)
-                throw new NotFoundError('Calendar', calendarId);
+            await requireCalendar(calendarService, calendarId);
+            if (removed) throw new NotFoundError('Calendar', calendarId);
         } finally {
             unwatch();
         }

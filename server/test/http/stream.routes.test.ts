@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { expect } from 'chai';
+import { HTTPException } from 'hono/http-exception';
 
 import { EventBus } from '../../src/core/event-bus.js';
 import { createDb } from '../../src/db/connection.js';
@@ -133,6 +134,48 @@ describe('Stream Routes', () => {
         }
         expect(eventBus.subscriberCount(`calendar:${calId}`)).to.equal(0);
         expect(eventBus.subscriberCount(`calendar:${secondId}`)).to.equal(0);
+    });
+
+    it('authorizes a stream HEAD and validates its parent without running the details policy or subscribing', async () => {
+        let detailsCalls = 0;
+        const { app, eventBus, syncService } = createApp({
+            db,
+            eventBus: sharedBus,
+            authorize: ({ request, action, resource }) =>
+                request.headers.has('X-Allowed') && action === 'stream' && resource === 'stream',
+            authorizeStreamDetails: ({ request }) => {
+                detailsCalls++;
+                if (request.method === 'HEAD') throw new HTTPException(418);
+                return true;
+            },
+        });
+        const observed = observeSubscriptions(eventBus);
+        const url = `/api/calendars/${calId}/stream`;
+        const headers = { 'X-Allowed': 'yes' };
+        const denied = await app.request(url, { method: 'HEAD' });
+        const missing = await app.request('/api/calendars/missing/stream', {
+            method: 'HEAD',
+            headers,
+        });
+        const head = await app.request(url, { method: 'HEAD', headers });
+        expect([denied.status, missing.status, head.status]).to.deep.equal([403, 404, 200]);
+        expect(head.body).to.equal(null);
+        expect(head.headers.get('Content-Type')).to.equal('text/event-stream');
+        expect(detailsCalls).to.equal(0);
+        expect(observed.calls()).to.equal(0);
+
+        const get = await app.request(url, { headers });
+        const reader = get.body!.getReader();
+        try {
+            expect(await read(reader)).to.include('event: connected');
+            expect(get.headers.get('Content-Type')).to.equal(head.headers.get('Content-Type'));
+            expect(detailsCalls).to.equal(1);
+            expect(syncService.subscriberCount(calId)).to.equal(1);
+            expect(observed.active()).to.equal(2);
+        } finally {
+            await reader.cancel();
+        }
+        expect(observed.active()).to.equal(0);
     });
 
     it('publishes direct service mutations and removal to a sibling app using the same store', async () => {
