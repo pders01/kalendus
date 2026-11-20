@@ -60,10 +60,14 @@ export interface StreamTransport {
     close(): void;
 }
 
+// RequestInit is shared by DOM and Node fetch typings; their helper aliases are not.
+type FetchCredentials = NonNullable<RequestInit['credentials']>;
+type FetchHeaders = NonNullable<RequestInit['headers']>;
+
 /** A separately authenticated stream. Return a fresh transport; emit events after setup. */
 export type StreamFactory = (
     url: string,
-    init: { withCredentials: boolean; credentials: RequestCredentials },
+    init: { withCredentials: boolean; credentials: FetchCredentials },
 ) => StreamTransport;
 
 /** Transport health only. Connected means the server sent its named `connected` event. */
@@ -82,8 +86,8 @@ export interface KalendusClientOptions {
     baseUrl: string;
     calendarId: string;
     fetch?: typeof globalThis.fetch;
-    credentials?: RequestCredentials;
-    headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
+    credentials?: FetchCredentials;
+    headers?: FetchHeaders | (() => FetchHeaders | Promise<FetchHeaders>);
     /** Opt in per known legacy record; consulted only for exact 00:00–23:59 times. */
     isLegacyAllDay?: (entry: ApiCalendarEntry) => boolean;
     /** Required for SSE with header auth or `credentials: 'omit'`. Also required with a

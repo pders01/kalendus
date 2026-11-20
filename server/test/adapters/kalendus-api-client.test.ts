@@ -1,3 +1,5 @@
+import { rejects } from 'node:assert/strict';
+
 import { expect } from 'chai';
 
 import type {
@@ -70,6 +72,87 @@ describe('KalendusApiClient', () => {
             expect(await client.fetchEvents(...range)).to.deep.equal([]);
             expect(restReads).to.equal(2);
         });
+    });
+
+    it('keeps one REST request on its original URL, transport and credentials while headers resolve', async () => {
+        let resolveHeaders!: (headers: HeadersInit) => void;
+        const calls: Array<{ transport: string; request: Request }> = [];
+        const transport =
+            (label: string): typeof fetch =>
+            async (url, init) => {
+                calls.push({ transport: label, request: new Request(url, init) });
+                return Response.json([]);
+            };
+        const options: KalendusClientOptions = {
+            baseUrl: 'https://api.example',
+            calendarId: 'original',
+            credentials: 'omit',
+            headers: () => new Promise((resolve) => (resolveHeaders = resolve)),
+            fetch: transport('original'),
+        };
+        const client = new KalendusApiClient(options);
+        const range = ['2026-03-15', '2026-03-17'] as const;
+        const first = client.fetchRawEvents(...range);
+        options.calendarId = 'new';
+        options.credentials = 'include';
+        options.headers = () => ({ Authorization: 'Bearer new' });
+        options.fetch = transport('new');
+        resolveHeaders({ Authorization: 'Bearer original' });
+        await first;
+        await client.fetchRawEvents(...range);
+
+        expect(calls.map(({ transport }) => transport)).to.deep.equal(['original', 'new']);
+        expect(calls.map(({ request }) => new URL(request.url).pathname)).to.deep.equal([
+            '/api/calendars/original/events',
+            '/api/calendars/new/events',
+        ]);
+        expect(calls.map(({ request }) => request.credentials)).to.deep.equal(['omit', 'include']);
+        expect(calls.map(({ request }) => request.headers.get('Authorization'))).to.deep.equal([
+            'Bearer original',
+            'Bearer new',
+        ]);
+    });
+
+    it('skips the header provider and fetch for a request already canceled', async () => {
+        let headers = 0;
+        let sends = 0;
+        const client = new KalendusApiClient({
+            baseUrl: 'https://api.example',
+            calendarId: 'cal1',
+            headers: () => {
+                headers++;
+                return {};
+            },
+            fetch: async () => {
+                sends++;
+                return Response.json([]);
+            },
+        });
+        const reason = new Error('Request superseded');
+        const result = client.fetchRawEvents('2026-03-15', '2026-03-17', AbortSignal.abort(reason));
+        await rejects(result, (error) => error === reason);
+        expect({ headers, sends }).to.deep.equal({ headers: 0, sends: 0 });
+    });
+
+    it('does not dispatch a canceled request when async headers finish', async () => {
+        let resolveHeaders!: (headers: HeadersInit) => void;
+        let sends = 0;
+        const client = new KalendusApiClient({
+            baseUrl: 'https://api.example',
+            calendarId: 'cal1',
+            headers: () => new Promise((resolve) => (resolveHeaders = resolve)),
+            fetch: async () => {
+                sends++;
+                return Response.json([]);
+            },
+        });
+        const controller = new AbortController();
+        const reason = new Error('Request superseded');
+        const result = client.fetchRawEvents('2026-03-15', '2026-03-17', controller.signal);
+        controller.abort(reason);
+        resolveHeaders({});
+        await rejects(result, (error) => error === reason);
+        expect(sends).to.equal(0);
     });
 
     it('preserves native cookies by default or with explicit opt-in for a REST fetch fixture', async () => {

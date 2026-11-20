@@ -96,17 +96,20 @@ export class KalendusApiClient {
     }
 
     private async request(path: string, init: RequestInit = {}): Promise<Response> {
+        init.signal?.throwIfAborted();
+        // A header provider can run arbitrary code or await a token refresh. Capture
+        // this request's destination and transport before invoking it.
+        const url = this.url(path);
+        const fetch = this.options.fetch ?? globalThis.fetch;
+        const credentials = this.options.credentials ?? 'same-origin';
         const configured =
             typeof this.options.headers === 'function'
                 ? await this.options.headers()
                 : this.options.headers;
+        init.signal?.throwIfAborted();
         const headers = new Headers(configured);
         new Headers(init.headers).forEach((value, key) => headers.set(key, value));
-        const res = await (this.options.fetch ?? globalThis.fetch)(this.url(path), {
-            ...init,
-            headers,
-            credentials: this.options.credentials ?? 'same-origin',
-        });
+        const res = await fetch(url, { ...init, headers, credentials });
         if (!res.ok)
             throw new KalendusHttpError(res.status, init.method ?? 'GET', path.split('?')[0]);
         return res;
@@ -302,14 +305,14 @@ export class KalendusApiClient {
         };
     }
 
-    /** Compatibility: only record-bearing mutation events, never default invalidations. */
+    /** Legacy mutation messages with a string ID, never default invalidations. Does not validate DTO fields. */
     onSync(callback: (msg: SyncMessage) => void): () => void {
         this._syncCallbacks.add(callback);
         return () => {
             this._syncCallbacks.delete(callback);
         };
     }
-    /** Refresh for either a default invalidation or a legacy mutation message. */
+    /** Refresh for a default invalidation or a decodable legacy mutation message with an ID. */
     onInvalidate(callback: () => void): () => void {
         this._invalidateCallbacks.add(callback);
         return () => {
