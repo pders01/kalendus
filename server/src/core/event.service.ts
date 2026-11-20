@@ -104,7 +104,9 @@ export class EventServiceImpl {
             // Older databases can contain reversed date intervals. Never emit their deltas.
             if (clippedStart > clippedEnd) continue;
             const first = Date.parse(`${clippedStart}T00:00:00Z`);
-            const after = Date.parse(`${clippedEnd}T00:00:00Z`) + 86_400_000;
+            const last = Date.parse(`${clippedEnd}T00:00:00Z`);
+            if (!Number.isFinite(first) || !Number.isFinite(last) || first > last) continue;
+            const after = last + 86_400_000;
             changes.set(first, (changes.get(first) ?? 0) + 1);
             changes.set(after, (changes.get(after) ?? 0) - 1);
         }

@@ -106,6 +106,67 @@ describe('SQLite event range queries', () => {
         });
     });
 
+    it('skips unparseable clipped legacy endpoints without changing raw reads', async () => {
+        createEvent(db, calendarId, { id: 'bad-end', endMonth: 4, endDay: 0 });
+        createEvent(db, calendarId, {
+            id: 'bad-start',
+            startDay: 32,
+            endMonth: 4,
+            endDay: 1,
+        });
+        createEvent(db, calendarId, { id: 'valid-march', startDay: 17, endDay: 17 });
+        createEvent(db, calendarId, {
+            id: 'valid-april',
+            startMonth: 4,
+            startDay: 2,
+            endMonth: 4,
+            endDay: 2,
+        });
+
+        const service = new EventServiceImpl(db);
+        const range = ['2026-03-15', '2026-04-02'] as const;
+        const rows = await service.getByRange(calendarId, ...range);
+        expect(rows.map(({ id }) => id)).to.have.members([
+            'bad-end',
+            'bad-start',
+            'valid-march',
+            'valid-april',
+        ]);
+        expect(rows.find(({ id }) => id === 'bad-end')?.date.end).to.deep.equal({
+            year: 2026,
+            month: 4,
+            day: 0,
+        });
+        const page = await service.getByRangePage(calendarId, ...range);
+        expect(page.nextCursor).to.be.null;
+        expect(page.entries).to.have.deep.members(rows);
+        expect(await service.getSummary(calendarId, ...range)).to.deep.equal({
+            '2026-03-17': 1,
+            '2026-04-02': 1,
+        });
+    });
+
+    it('skips a legacy interval reversed by date parsing even when its date keys are ordered', async () => {
+        createEvent(db, calendarId, {
+            startYear: 2023,
+            startMonth: 2,
+            startDay: 31,
+            endYear: 2023,
+            endMonth: 3,
+            endDay: 1,
+        });
+        createEvent(db, calendarId, {
+            startYear: 2023,
+            startDay: 2,
+            endYear: 2023,
+            endDay: 2,
+        });
+        const service = new EventServiceImpl(db);
+        expect(await service.getSummary(calendarId, '2023-02-28', '2023-03-03')).to.deep.equal({
+            '2023-03-02': 1,
+        });
+    });
+
     it('keeps civil-date clipping and parseable legacy end dates without validating payloads', async () => {
         createEvent(db, calendarId, {
             startYear: 2024,
