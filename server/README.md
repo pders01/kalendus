@@ -1,36 +1,72 @@
 # Kalendus API server
 
-Optional Hono/SQLite server and browser/Lit adapters. Use Bun as the package manager.
+Optional Hono/SQLite server and browser/Lit adapters. **`@jpahd/kalendus-server` is not published on npm.** Use the `server/` workspace in this checkout or install a tarball built from it. The synchronized calendar example uses the unreleased `0.12.0` root build from the same checkout; for the published root `0.11.0`, see the [stable source and docs](https://github.com/pders01/kalendus/tree/v0.11.0).
 
 ## Breaking stabilization defaults
 
-- **`createApp({ db })` is private and fails closed:** every `/api/calendars` route returns 403 without a host `authorize` policy. `/health` remains public. This includes calendar creation, events, summaries, manifests, telemetry and SSE. Existing tests and demos must explicitly select `mode: 'public'`.
+- **`createApp({ db })` is private and fails closed:** without a host `authorize` policy, requests that reach authorization for `/api/calendars` are denied with 403. This includes calendar creation, events, summaries, manifests, telemetry and SSE. CORS preflight, ID/body checks and public `/health` have separate handling. Tests and demos that need unauthenticated API access must explicitly select `mode: 'public'`.
 - **Public mode is intentionally unauthenticated**, not a substitute for private deployment. A configured policy still takes precedence over public mode. The standalone CLI is closed unless `KALENDUS_PUBLIC_DEMO=true` is explicitly set; it binds to `127.0.0.1` unless `HOST` is deliberately changed.
 - No wildcard CORS default. Cross-origin browser requests require an exact `allowedOrigins` entry; credentialed CORS requires `allowCredentials: true`. Same-origin browser requests and nonbrowser clients still require authorization. CORS is not identity or authorization.
-- Dates must be real Gregorian dates in 1970–2100; inclusive date ends and floating wall-clock times remain the legacy server API. Same-day timed intervals must end strictly after they start. An overnight interval needs a later end **date**. PATCH validates the resulting stored event, not just the submitted fields. Unknown write fields, including supplied IDs/foreign calendar IDs, are rejected. Invalid IDs/input are 400, nonexistent parents/resources 404, malformed JSON 400, oversized bodies 413, policy denial 403 and telemetry rate exhaustion 429.
-- Mapped client entries retain persistent `id` and `calendarId` and copy nested date/time values. By default a non-null server `time` maps to `kind: 'timed'` with continuous, floating endpoints (including overnight and multi-day events). Null `time` maps to `kind: 'all-day'`; the legacy `00:00`–`23:59` time object is still supplied for adapter consumers, but the calendar ignores it for all-day entries.
-- The Lit adapter consumes only the public `calendar-state-change` contract; old header details are not a data-loading API.
+- The Lit adapter consumes only public calendar state; old header details are not a data-loading API.
 
 ## Install / build / migration
 
+Use Bun for the workspace install and scripts, and **Node.js** (e.g. Node 24 as in CI) to run the server, migration and seed scripts. `better-sqlite3` needs a native binary for that Node version and platform. If Bun reports that its install script was blocked, review it and run `bun pm trust better-sqlite3` in the consuming project if you trust it. Platforms without a matching prebuild need the native build prerequisites for `better-sqlite3`.
+
+Run this from the **checkout root**. It creates a fresh, disposable file database, seeds it, and binds the unauthenticated demo explicitly to loopback. Do not reuse a database with real data, expose the server on a network, or tunnel the demo port.
+
 ```sh
-cd server
-bun install                        # if dependencies are not already installed by the workspace
-bun run build                      # declarations, ESM, SQL and migration journal assets
-DATABASE_URL=./data/private.db bun run db:migrate
-DATABASE_URL=./data/private.db bun run db:seed # optional demo data; run migrations first
-# Explicit LOCAL demo only (all reads/writes are public):
-KALENDUS_PUBLIC_DEMO=true DATABASE_URL=./data/private.db bun run dev
+bun install --frozen-lockfile
+bun run --cwd server build
 ```
 
-`DATABASE_URL` is a filesystem filename (relative to caller cwd), absolute filename, `file:` URL, or `:memory:`. `createDb()`, runtime startup, seed, migrate and drizzle-kit share the same resolution. Missing parent directories are created. Migrations resolve relative to the module, **not cwd**. The built package contains `dist/migrations/*.sql` and `dist/migrations/meta/_journal.json`.
+```sh
+(
+    set -eu
+    demo_dir=$(mktemp -d "${TMPDIR:-/tmp}/kalendus-server-demo.XXXXXX")
+    export DATABASE_URL="$demo_dir/demo.db"
+    bun run --cwd server db:migrate
+    TZ=UTC bun run --cwd server db:seed
+    echo "Seed date (UTC): $(node -p 'new Date().toISOString().slice(0, 10)')"
+    HOST=127.0.0.1 PORT=3000 KALENDUS_ALLOWED_ORIGINS='' KALENDUS_PUBLIC_DEMO=true \
+        bun run --cwd server start
+)
+```
+
+Record the ID from `Seeded calendar …` and the seed date. The first two events are on the seed day, and more follow over the next several days. Keep the server running and follow the [Lit starter](../docs/integration-guide.md#lit-adapter) to view those events. If port 3000 is in use, change both `PORT` and the starter's proxy target; do not change the bind address. Stop the demo with Ctrl+C. The temporary directory is not removed automatically.
+
+`DATABASE_URL` accepts a filename (relative to caller cwd or absolute), a `file:` URL, or `:memory:`. A memory database is scoped to its connection, so the separate migrate, seed and start processes above need the same **file**. Missing parent directories are created. Migrations resolve relative to the module, **not cwd**. The built package contains `dist/migrations/*.sql` and `dist/migrations/meta/_journal.json`.
+
+### Install the local packages into another project
+
+From the checkout root, after the workspace install and server build above, write the tarballs to a fresh directory. `--ignore-scripts` packs the artifacts you just built without running release lifecycle scripts.
+
+```sh
+(
+    set -eu
+    ARTIFACTS=$(mktemp -d "${TMPDIR:-/tmp}/kalendus-packages.XXXXXX")
+    bun run build:all
+    bun pm pack --ignore-scripts --filename "$ARTIFACTS/kalendus.tgz"
+    (cd server && bun pm pack --ignore-scripts --filename "$ARTIFACTS/kalendus-server.tgz")
+    printf 'Tarball directory: %s\n' "$ARTIFACTS"
+)
+```
+
+In the consuming project, set `ARTIFACTS` to that absolute directory and run:
+
+```sh
+bun add "$ARTIFACTS/kalendus.tgz" "$ARTIFACTS/kalendus-server.tgz" 'lit@^3.0.0' 'luxon@^3.4.4'
+```
+
+The root ESM package uses Lit and Luxon peers; TypeScript consumers also need `bun add -d @types/luxon`. The server's public subpaths `@jpahd/kalendus-server/client` and `@jpahd/kalendus-server/lit` are for browsers; the root server and `/migrate` imports are for Node, not your browser bundle. A Node-only host installing the server tarball alone does not need the calendar package or its peers.
 
 Embedded/installed usage:
 
 ```ts
 import { createApp, createDb, migrateDb } from '@jpahd/kalendus-server';
-const db = createDb(); // DATABASE_URL, default ./data/kalendus.db
+const db = createDb(); // set DATABASE_URL to your intended private database
 migrateDb(db); // deliberate deployment step, idempotent
+// Supply the host-owned authorize policy described below.
 const { app } = createApp({ db, authorize });
 // Mount app.fetch in your authenticated application / HTTP server.
 // Shutdown: close HTTP listener/streams, then db.$client.close().
@@ -57,25 +93,33 @@ Kalendus deliberately does **not** ship an identity provider or invent an owners
 ```ts
 import type { AuthorizationPolicy } from '@jpahd/kalendus-server';
 
-const authorize: AuthorizationPolicy = async ({
-    request,
-    calendarId,
-    eventId,
-    resource,
-    action,
-}) => {
-    const session = await hostSessions.authenticate(request); // validate signature/expiry/revocation
+// hostSessions and hostPermissions are application-owned, trusted services.
+const authorize: AuthorizationPolicy = async ({ request, calendarId, resource, action }) => {
+    const session = await hostSessions.authenticate(request); // verify expiry/revocation as well as identity
     if (!session) return false;
     if (resource === 'calendar' && action === 'create') {
         return session.permissions.includes('calendar:create');
     }
     if (!calendarId) return false;
     const access = await hostPermissions.forCalendar(session.userId, calendarId);
-    if (!access) return false; // cross-user denial
-    if (action === 'stream') return access.canRead && access.canStream;
-    if (action === 'telemetry') return access.canRead && access.canSendTelemetry;
-    if (action === 'read') return access.canRead;
-    return access.canWrite; // create event, patch, delete; read-only users denied
+    if (!access) return false;
+
+    if (resource === 'event') {
+        if (action === 'read') return access.canReadAllEvents;
+        if (action === 'create' || action === 'write') return access.canEditEvents;
+        if (action === 'delete') return access.canDeleteEvents;
+    }
+    if (resource === 'calendar') {
+        if (action === 'read') return access.canReadCalendar;
+        if (action === 'write') return access.canEditCalendar;
+        if (action === 'delete') return access.canDeleteCalendar; // cascades to every event
+    }
+    if (resource === 'manifest' && action === 'read') return access.canReadCalendar;
+    if (resource === 'stream' && action === 'stream') {
+        return access.canReadAllEvents && access.canStream;
+    }
+    if (resource === 'telemetry' && action === 'telemetry') return access.canSendTelemetry;
+    return false;
 };
 
 const { app } = createApp({
@@ -86,7 +130,9 @@ const { app } = createApp({
 });
 ```
 
-Policy context includes raw `request`, `calendarId`, `eventId` when applicable, `resource` (`calendar`, `event`, `manifest`, `stream`, `telemetry`) and action (`create`, `read`, `write`, `delete`, `stream`, `telemetry`). `create` distinguishes POST from PATCH (`write`); `resource` distinguishes calendar creation from event creation. Authenticate and check the requested calendar even for list/summary/manifest/stream reads. Return `true` only to grant. False denies; thrown exceptions never grant. A host can throw Hono `HTTPException(401)` to preserve an authentication status. If inspecting the request body in the policy, use `request.clone()` so the route can still parse it. Policy callbacks must not log tokens or event bodies.
+This is a **whole-calendar ACL**, not row-level filtering. Granting the event range or summary routes exposes matching entries or aggregate counts across the entire calendar. The sample's event write permissions likewise apply to all events there; editing an event does not grant calendar metadata updates or parent deletion. For event-scoped access, deny whole-calendar reads/summaries and implement filtered host routes (or separate calendars). If allowing scoped event PATCH/DELETE, check the trusted `(calendarId, eventId)` permission in the host policy. Do not grant stream details to scoped readers, and consider whether they should see change timing at all.
+
+Policy context includes raw `request`, `calendarId`, `eventId` for individual event writes, `resource` (`calendar`, `event`, `manifest`, `stream`, `telemetry`) and action (`create`, `read`, `write`, `delete`, `stream`, `telemetry`). `create` distinguishes POST from PATCH (`write`); `resource` distinguishes calendar creation from event creation. Authenticate and check the requested calendar even for range/summary/manifest/stream reads. Return `true` only to grant. False denies; thrown exceptions never grant. A host can throw Hono `HTTPException(401)` to preserve an authentication status. If inspecting the request body in the policy, use `request.clone()` so the route can still parse it. Policy callbacks must not log tokens or event bodies.
 
 ### Safe browser cookie and SSE deployment
 
@@ -94,42 +140,57 @@ Prefer same-origin HTTPS behind a reverse proxy. Set a host-only session cookie 
 
 For cross-origin credentialed cookies, configure both exact allowed origin and `allowCredentials`, plus client `credentials: 'include'`; choose cookie SameSite/partition policy deliberately for the embedding environment. `SameSite=None` requires Secure; third-party cookie restrictions may still prevent access. Prefer a same-origin proxy rather than relying on unrestricted cross-site cookies. Terminate TLS and deploy appropriate CSP/connect-src at the browser host.
 
-Native `EventSource` cannot send arbitrary Authorization/CSRF headers. Cookie-authenticated SSE uses its same-origin cookies or `withCredentials` for explicit cross-origin credentials. Bearer-token apps must inject a reconnecting `streamFactory` implemented with an authenticated fetch stream or another suitable SSE implementation; authenticate each connection. Do not silently fall back from header-auth fetch to unauthenticated native SSE. The client throws if header configuration is present and no custom stream transport is provided. `credentials: 'omit'` also requires a custom stream transport because native EventSource cannot omit same-origin cookies.
+Native `EventSource` cannot send arbitrary Authorization/CSRF headers. Without a custom fetch, cookie-authenticated SSE can use native same-origin cookies or `withCredentials` for explicit cross-origin credentials. **For bearer auth, supply an authenticated, reconnecting `streamFactory`, or use REST only** (don't call `connect()`; leave the Lit adapter's `enableSync` off). The factory must obtain fresh credentials for each connection; the client doesn't pass its REST `fetch` or `headers` to it.
 
-SSE is a best-effort, in-process invalidation channel, not durable replay. By default every committed mutation sends `event: invalidated` with `data: {}`. A stream grant lets the client observe **when the calendar changes**, not the mutation kind, event ID, or event details. Refetch through independently authorized REST routes. Deny stream access if even the timing of changes is sensitive.
+If you supply a custom `fetch`, `connect()` requires `streamFactory` unless you explicitly set `allowNativeEventSourceWithCustomFetch: true`. Only opt in after confirming `/stream` is authorized by native cookies and doesn't rely on any behavior of the REST wrapper, such as auth headers, URL rewriting or a different cookie policy. The opt-in **does not override** the restriction on `headers` or `credentials: 'omit'`. This check happens at `connect()`; REST-only callers can use any supported `fetch`, `headers` or credentials without configuring a stream.
 
-For legacy consumers that need record-bearing messages, configure the optional `authorizeStreamDetails({ request, calendarId })` policy on `createApp`. It runs **after** ordinary `authorize` has allowed the stream. Return `true` only for principals allowed to read **every event in the calendar**; never grant it to a principal with event-scoped permissions. Missing or false grants keep the stream invalidation-only. The grant applies for the lifetime of the connection and is checked again on reconnect.
+SSE is a best-effort, in-process invalidation channel, not durable replay. By default committed **event** POST/PATCH/DELETE sends `event: invalidated` with `data: {}`. A calendar metadata PATCH does not send an invalidation; refresh metadata separately. A stream grant lets the client observe **when the calendar changes**, not the event mutation kind, event ID, or event details. Refetch through independently authorized REST routes. Deny stream access if even the timing of changes is sensitive.
+
+For legacy consumers that need record-bearing messages, configure the optional `authorizeStreamDetails({ request, calendarId })` policy on `createApp`. It runs **after** ordinary `authorize` has allowed the stream. Return `true` only for principals allowed to read **every event in the calendar**; never grant it to a principal with event-scoped permissions. Missing or false grants keep the stream invalidation-only. The grant applies for the lifetime of the connection and is checked again on reconnect. Compatibility `created`/`updated` messages carry the event DTO; `deleted` carries only `{ id }`.
 
 Deleting the parent through `createApp` sends open streams one final `event: invalidated` / `data: {}` after the database commits the cascade, then closes the streams. This applies even to streams with the details grant. Delivery is still best effort.
 
 **Upgrade order:** deploy clients that use `onInvalidate` (or the updated Lit adapter) before switching servers. Older clients listening only for `created`, `updated`, or `deleted` will not refresh on default invalidations. Keep `onSync` only for callers with the explicit details grant.
 
-Each initial/reconnected `connected` event causes full visible-range reconciliation in the adapter. Configure proxies not to buffer event streams and maintain an appropriate idle timeout. Connections end after five minutes so reconnection reruns the host policy; **revocation is not instantaneous for an existing stream**. A slow consumer is disconnected at 32 pending writes. Multiprocess deployments need external pub/sub or another reconciliation strategy; no cross-process replay guarantee is claimed.
+Each server `connected` event causes visible-range reconciliation in the adapter, both on initial connection and **successful** reconnection. Neither transport `open` nor `error` triggers reconciliation. A failed reconnect does not clear existing entries or report a REST error. The server sends a `heartbeat` roughly every 30 seconds while writable; `streamState` reports transport events, not a heartbeat timeout or proof that access is still current. Revalidate through REST on window focus or a suitable periodic/manual refresh. Close streams, abort pending reads and clear/remove protected UI on logout or account changes; do not wait for SSE to report revocation.
+
+Configure proxies not to buffer event streams and maintain an appropriate idle timeout. Connections end after five minutes so reconnection reruns the host policy; **revocation is not instantaneous for an existing stream**. A slow consumer is disconnected at 32 pending writes. Multiprocess deployments need external pub/sub or another reconciliation strategy; no cross-process replay guarantee is claimed.
+
+## HTTP routes and event DTOs
+
+Routes below are relative to `/api/calendars`. `GET /health` is public liveness, not an authorization or stream-health check.
+
+| Method and path | Successful response |
+| --- | --- |
+| `POST /`, `PATCH /:calendarId`, `GET /:calendarId` | Calendar DTO; POST is 201, PATCH/GET are 200 |
+| `DELETE /:calendarId`, `DELETE /:calendarId/events/:eventId` | 200 `{ "ok": true }`; calendar deletion cascades |
+| `GET /:calendarId/events?start=YYYY-MM-DD&end=YYYY-MM-DD` | 200 array of event DTOs that overlap the inclusive civil-date window |
+| `GET /:calendarId/events/summary?start=YYYY-MM-DD&end=YYYY-MM-DD` | 200 object mapping dates to nonzero counts, not an entry array |
+| `POST /:calendarId/events`, `PATCH /:calendarId/events/:eventId` | Event DTO; POST is 201, PATCH is 200 |
+| `GET /:calendarId/manifest` | 200 theme/locale metadata, not entries |
+| `GET /:calendarId/stream` | 200 SSE after stream authorization |
+| `POST /:calendarId/telemetry` | 202 `{ "ok": true }`; quota exhaustion is 429 with `Retry-After` |
+
+Invalid IDs, fields, query windows or JSON are 400; oversized bodies are 413. An ordinary policy denial is 403, or the host can explicitly return an authentication status such as 401 via `HTTPException`. A missing calendar (after authorization) or missing event on PATCH/DELETE is 404. CORS middleware can answer preflight with 204; that does not authorize the requested operation.
+
+- `POST` an event with `heading` and `date: { start, end }` (each endpoint is `{ year, month, day }`). Optional `content`, `color` and `time` are non-null when sent; **omit `time`** for all-day. A timed record supplies `time: { start, end }` using `{ hour, minute }` endpoints.
+- `PATCH` accepts those fields as a partial update. Omitted fields remain unchanged; send **`"time": null`** to make an event all-day or `"content": null` to clear its description. If sending a `date` or non-null `time` interval, supply both endpoints. The server validates the full merged record.
+- The server accepts real Gregorian dates in **1970–2100**, clock hours **0–23** (not `24:00`), minutes 0–59, and six-digit `#RRGGBB` colors. Same-day timed intervals must be positive; overnight events need a later end date. There is no `kind` or `timeZone` field on the wire. App-specific zoned times need an explicit conversion policy rather than dropping a zone silently.
+- Read/CRUD responses contain server-generated `id`, `calendarId`, `createdAt` and `updatedAt` (ISO timestamp strings), plus `heading`, `date`, `color` and nullable `time`/`content`. Do not post a read DTO or a root `CalendarEntry` verbatim: unknown write fields, including IDs, timestamps, `kind`, `timeZone` and render-only flags, are rejected. Event query ends are inclusive; the root's committed `visibleRange.end` is exclusive.
 
 ## Browser client
 
-```ts
-import { KalendusApiClient } from '@jpahd/kalendus-server/client';
-const client = new KalendusApiClient({
-    baseUrl: '',
-    calendarId,
-    credentials: 'same-origin',
-    // fetch: hostAuthorizedFetch,
-    // headers: async () => ({ Authorization: `Bearer ${await freshToken()}` }),
-    // streamFactory: (url, init) => hostAuthenticatedReconnectingStream(url, init),
-});
-const controller = new AbortController();
-const entries = await client.fetchEvents('2026-03-01', '2026-03-31', controller.signal);
-// API query ends are inclusive.
-```
+Use the [`KalendusApiClient` recipe](../docs/integration-guide.md#vanilla-client) for non-Lit hosts or the [mounted Lit starter](../docs/integration-guide.md#lit-adapter). `fetchRawEvents()` and event create/update methods return wire DTOs. `fetchEvents()` maps them for the root: it retains `id`/`calendarId`, copies nested date/time values, and maps non-null time to explicit `kind: 'timed'` with continuous floating endpoints. Null time maps to `kind: 'all-day'` (the mapped legacy `00:00`–`23:59` time object is ignored by the root). Refetch the range after a successful write when sync is off; even with sync enabled, handle write failure explicitly. Client reads throw on non-2xx; result shapes are typed, not comprehensively validated at runtime. Validate at the host boundary when a custom or untrusted backend is involved.
 
 For imported rows that encoded all-day events with a non-null `00:00`–`23:59` sentinel, pass `isLegacyAllDay: ({ id }) => knownImportedAllDayIds.has(id)` to the API client or Lit adapter. It is consulted only for that exact time pair and applies only to mapped `fetchEvents()` results. An identical time pair on a new timed record is valid and cannot be distinguished by times alone. Use known provenance rather than opting in for every row. To repair known legacy rows permanently, send an authorized event `PATCH` with `{ "time": null }` for those IDs. Raw reads and wire writes are unchanged.
 
-Every fetch path (queries, CRUD, manifest and telemetry) uses the supplied fetch, dynamic headers and credentials. `streamFactory(url, { withCredentials, credentials })` returns `{ addEventListener(type, listener), close() }`; it must deliver named events including `connected` after **every** successful connection, `invalidated` for payload-free changes, and compatibility `created`, `updated`, `deleted` events with JSON `MessageEvent.data` when present. It must implement reconnect/cleanup itself. `client.onInvalidate()` listens to both default and compatibility changes; `client.onReconcile()` signals a fresh connection; `client.onSync()` receives only record-bearing messages. All return unsubscribe callbacks. Dispose with `disconnect()`.
+Every REST fetch path (queries, CRUD, manifest and telemetry) uses the supplied fetch, dynamic headers and credentials. `streamFactory(url, { withCredentials, credentials })` returns a fresh `{ addEventListener(type, listener), close() }`, with events delivered after listener setup. It must deliver `connected` after **every** successful server connection, `error` when the transport fails (including rejected reconnects), `invalidated` for payload-free changes, and compatibility `created`, `updated`, `deleted` events with JSON `MessageEvent.data` when present. It must implement reconnect/cleanup itself. `client.onInvalidate()` listens to both default and compatibility changes; `client.onReconcile()` signals a fresh connection; `client.onSync()` receives only compatibility messages.
+
+Read `client.streamState` and subscribe to transitions with `client.onStreamStateChange(state => …)`. The status is `disconnected` (including before `connect()`), `connecting`, `connected` (after the named event), or `error`. For `error`, `phase` is `startup` (synchronous `connect()` failure, which also throws; fix the configuration or retry `connect()`) or `transport` (an `error` event; the transport owns retry). To restart a stopped transport explicitly, call `disconnect()` before `connect()`. Stream errors expose a safe `error` message, not raw transport events or exceptions. All subscriptions return unsubscribe callbacks. Listeners aren't awaited: handle promise rejections inside your refresh callback. Unsubscribe and call `disconnect()` on teardown.
 
 ## Lit adapter and canonical state contract
 
-The parent-owned root `src/contracts.ts` is authoritative. Server client types mirror it structurally so the separately packaged adapter does not import root source or generated private state:
+The root [`src/contracts.ts`](../src/contracts.ts) defines the public snapshot. Server client types mirror it structurally so the separately packaged adapter does not import root source or generated private state:
 
 ```ts
 // calendar-state-change; bubbles: true, composed: true
@@ -141,30 +202,15 @@ The parent-owned root `src/contracts.ts` is authoritative. Server client types m
 }
 ```
 
-The required root contract exposes public `activeDate`, `viewMode`, `firstDayOfWeek` and `visibleRange` and emits the initial snapshot after render plus every committed range change, whether initiated by header, today, date/count/year drill-down, keyboard, owner properties, week policy or responsive layout. The adapter reads only these public getters/events. It intersects the range with the server's civil-date domain (`1970-01-01` through `2100-12-31`) before converting the exclusive end to a legacy inclusive end. Month spillover remains visible; a wholly out-of-domain view clears entries, cancels obsolete work and makes no event query. The adapter never hardcodes Monday, six weeks, viewport size or private `_viewState`.
+The root emits the initial snapshot after render and then reports committed state changes, whether initiated by header, today, date/count/year drill-down, keyboard, owner properties, week policy or responsive layout. The adapter uses the snapshot or initializes from public `activeDate`, `viewMode`, `firstDayOfWeek` and `visibleRange`; the snapshot is the atomic record of committed state. It intersects the range with the server's civil-date domain (`1970-01-01` through `2100-12-31`) before converting the exclusive end to a legacy inclusive end. Month spillover remains visible; a wholly out-of-domain view clears entries, cancels obsolete work and makes no event query. The adapter never hardcodes Monday, six weeks, viewport size or private `_viewState`.
 
-```ts
-import { LitElement, html } from 'lit';
-import { KalendusLitAdapter } from '@jpahd/kalendus-server/lit';
-
-class CalendarPage extends LitElement {
-    adapter = new KalendusLitAdapter(this, {
-        baseUrl: '',
-        calendarId: 'your-calendar-id',
-        enableSync: true,
-        credentials: 'same-origin',
-    });
-    render() {
-        return html`<lms-calendar .entries=${this.adapter.entries}></lms-calendar>`;
-    }
-}
-```
+See the [checkout-backed Lit starter](../docs/integration-guide.md#lit-adapter) for registration, mounting, loading/error UI and retry.
 
 Initialization works when an existing child is found in the host's `renderRoot`/`querySelector` during `hostUpdated`, or from its composed state event. Multiple calendars, closed/remote targets or slots should use `target: calendarElement` / `target: () => this.calendarRef ?? null`. Hosts without queryable DOM can supply `initialState` or call `adapter.setState(snapshot)` from the canonical event. Binding `.entries` remains the owner's responsibility.
 
 Identical queries dedupe and same-turn SSE bursts coalesce. An invalidation during a same-range query marks it dirty without aborting it: its result can still render, then one trailing refresh runs. Explicit `refresh()` and `fetchRange(start, inclusiveEnd, true)` abort and replace a pending read, even for the same range, so callers can recover from a stuck query. Navigation to another query range also aborts obsolete work. A generation guard suppresses **both stale fulfillment and stale rejection**, even if a custom transport ignores cancellation. Manual `fetchRange` queries are not clipped; server validation still applies.
 
-Event query `404`/`410` clears entries for a missing/gone calendar; `401`/`403` also clears entries because access is no longer confirmed. Transient failures (such as network errors or `503`) retain the last successful entries. HTTP errors expose `KalendusHttpError.status`; the adapter surfaces errors in `error` rather than treating a failed query as an empty success. Disconnect aborts work and releases listeners/streams; reattachment initializes again. `entries`, `loading`, `error` are public render state; the host decides loading/error UI. With bearer auth, pass both an authorized fetch setup and an authenticated streamFactory, or disable sync.
+Event query `404`/`410` clears entries for a missing/gone calendar; `401`/`403` also clears entries because access is no longer confirmed. Transient failures (such as network errors or `503`) retain the last successful entries. HTTP errors expose `KalendusHttpError.status`; the adapter surfaces errors in `error` rather than treating a failed query as an empty success. Disconnect aborts work and releases listeners/streams; reattachment initializes again. `entries`, `loading`, and `error` are REST render state; use `adapter.streamState` separately for live-update status. The adapter schedules a host update on stream transitions while mounted.
 
 React/non-Lit hosts can use `KalendusApiClient` directly with their own effect cleanup/AbortController and generation check, and `onInvalidate` plus `onReconcile` for refreshes and missed-update recovery. The package does not add React as a dependency or provide a React hook.
 

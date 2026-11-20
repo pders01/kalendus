@@ -1,20 +1,20 @@
 # Kalendus Expo WebView bridge
 
-Hosts `<lms-calendar>` in an Expo/React Native WebView. This is a **source integration**, not a separately published native package. Copy this directory into your app (excluding tests/build tooling if desired). Native dependencies belong in the app, **not** in the Kalendus root package.
+Hosts `<lms-calendar>` in an Expo/React Native WebView. This is a **source integration**, not a separately published native package. These instructions describe the **unreleased `0.12.0` checkout**; for the published root `0.11.0` see the [stable source and docs](https://github.com/pders01/kalendus/tree/v0.11.0). Copy the wrapper and protocol sources from the same revision as the generated shell. Native dependencies belong in the Expo app, **not** in the Kalendus root package.
 
 ## Build a self-contained document
 
-Use Bun in the Kalendus checkout:
+Use Bun at the root of the intended Kalendus checkout:
 
 ```sh
+bun install --frozen-lockfile
 bun run build:iife
-bun expo-bridge/build-shell.mjs           # regenerate the committed development shell
-bun expo-bridge/build-shell.mjs --inline  # app artifacts: kalendus-inline.html AND kalendus-inline.ts
+bun expo-bridge/build-shell.mjs --inline  # app artifacts: kalendus-inline.html and kalendus-inline.ts
 ```
 
-`protocol.ts` is the **single runtime schema** imported by both wrapper and shell. `shell.ts` is bundled into `kalendus.html` by `build-shell.mjs`, using the installed Bun version. `shell.template.html` is the authored HTML/CSS. Do not edit the generated `kalendus.html` directly. `--check` detects drift. The app artifacts are intentionally ignored and must be regenerated after calendar/bridge changes. Keep Bun/lockfile versions consistent in CI for reproducibility.
+Don't reuse old ignored inline artifacts. **Protocol v2 requires a matching wrapper and shell**: rebuild the IIFE, regenerate the inline files and update the copied sources together when changing revisions. The inline artifacts contain both bridge and calendar code, including calendar dependencies. Generated HTML/module contents are trusted executable code; never accept them from an untrusted API/user.
 
-The development shell references a sibling `kalendus.iife.js`. **Metro does not automatically copy a sibling JavaScript file next to an HTML asset.** Do not use that shell as a standalone Expo asset. The inline artifacts contain both bridge and calendar code, including calendar dependencies. Generated HTML/module contents are trusted executable code; never accept them from an untrusted API/user.
+For bridge development, `bun expo-bridge/build-shell.mjs` regenerates committed `kalendus.html` from `shell.template.html` and `shell.ts`; `--check` detects drift in that development artifact only. Both that shell and the wrapper import the same `protocol.ts` schema. Do not edit generated HTML directly. The development shell references a sibling `kalendus.iife.js`; **Metro does not automatically place that script next to an HTML asset.** Use the inline output in an Expo app. Keep Bun and lockfile versions consistent in CI for reproducibility.
 
 ### Recommended: an actual HTML string
 
@@ -24,26 +24,36 @@ In the Expo app:
 bunx expo install react-native-webview expo-asset
 ```
 
-Copy the generated `kalendus-inline.ts` and bridge sources into the app, then:
+Copy the generated `kalendus-inline.ts` and `KalendusWebView.tsx`, `protocol.ts` and `types.ts` into the app's `expo-bridge/` directory. For an Expo project with an `App.tsx` entry point (or adapt to your route file):
 
 ```tsx
+import React from 'react';
 import KALENDUS_HTML from './expo-bridge/kalendus-inline';
 import { KalendusWebView } from './expo-bridge/KalendusWebView';
+import type { CalendarEntry } from './expo-bridge/types';
 
-export function CalendarScreen() {
+const date = { year: 2026, month: 11, day: 17 };
+const entries: CalendarEntry[] = [{
+    id: 'open-studio',
+    kind: 'all-day',
+    heading: 'Open studio',
+    date: { start: date, end: date },
+}];
+
+export default function App() {
     return (
         <KalendusWebView
             htmlSource={KALENDUS_HTML}
             entries={entries}
+            activeDate={date}
             locale="en"
-            onEntryPress={(detail) => console.log(detail.heading)}
-            onCalendarStateChange={(state) => console.log(state.range)}
-            onExportICS={(detail) => shareOriginalEntry(detail.entry, detail.eventId)}
-            onError={(message) => console.error(message)}
+            onError={(message) => console.error('Calendar bridge:', message)}
         />
     );
 }
 ```
+
+This leaves activation and export to the web component; the starter does not intercept them with logging or unimplemented native handlers. A WebView may not support the default Blob download. Only install `onExportICS` once the app implements native serialization/sharing and surfaces failures; only install `onEntryActivate` to replace the built-in entry UI. The wrapper shows native load/handshake failures; use `onError` to surface rejected dynamic configuration in your own UI.
 
 A default `.html` import in Metro is **not** an HTML string. The generated `.ts` string module needs no custom loader. `expo-asset` is currently imported by the wrapper even when using `htmlSource`.
 
@@ -59,13 +69,7 @@ if (!config.resolver.assetExts.includes('html')) config.resolver.assetExts.push(
 module.exports = config;
 ```
 
-```tsx
-<KalendusWebView
-    assetSource={require('./assets/kalendus-inline.html')}
-    entries={entries}
-    onError={console.error}
-/>
-```
+In the starter above, replace `htmlSource={KALENDUS_HTML}` with `assetSource={require('./assets/kalendus-inline.html')}` and remove the `KALENDUS_HTML` import. Keep the entries, date and error handler; pass exactly one source prop.
 
 The wrapper calls `Asset.fromModule(module).downloadAsync()`, waits for an actual `file:` `localUri`, then supplies `{ uri: localUri }`. It never converts/casts a numeric module to a string. Android file loading is enabled only for this asset path, with file-origin/universal fetch access explicitly disabled; iOS read access is scoped to the exact self-contained file, not a sibling directory. Download/resolution failures are surfaced and do not report ready. Asset names, release bundling and local-file access vary by Expo SDK/platform: **this path is not release-device verified here**. Prefer the string module if local HTML access is unavailable in your supported SDK; do not enable arbitrary file/network navigation to hide a load failure. Expo web is not the target for this wrapper.
 
@@ -85,7 +89,7 @@ The wrapper calls `Asset.fromModule(module).downloadAsync()`, waits for an actua
 
 Bridge-only inputs: exactly one of `htmlSource: string` / `assetSource: number`; optional `theme: Record<string,string>`, `style: StyleProp<ViewStyle>` and `showLoadingIndicator: boolean` (default true).
 
-Every update is a **complete configuration replacement**, not a patch. Removing a previously provided calendar prop (including setting it to `undefined`) restores the initial public root default captured after upgrade/render. For `color`, omission clears the explicit `--calendar-accent` override and lets the theme supply the accent. The element's `color` getter still returns the legacy `#000000` when unset; passing `#000000` as a prop explicitly sets black. Removing theme keys calls `style.removeProperty`; removing `theme` clears every prior bridge override. Invalid snapshots are rejected atomically; the last valid configuration remains installed.
+Every update is a **complete configuration replacement**, not a patch. Removing a previously provided calendar prop (including setting it to `undefined`) restores the initial public root default captured after upgrade/render. For `color`, omission clears the explicit `--calendar-accent` override and lets the theme supply the accent. The element's `color` getter still returns the legacy `#000000` when unset; passing `#000000` as a prop explicitly sets black. Removing theme keys calls `style.removeProperty`; removing `theme` clears every prior bridge override. Snapshots that fail the bridge schema are rejected atomically; the last valid configuration remains installed. A schema-valid snapshot does not guarantee that the calendar accepts each entry.
 
 ### Navigation ownership and reassertion
 
@@ -97,11 +101,11 @@ For example, keep `{ activeDate, viewMode, revision }` together in owner state. 
 
 Each new document receives the **latest current complete props/theme/capabilities**, even if they did not change since the preceding document. Updates during startup are read at handshake time, not from a queued/stale closure. Keep `activeDate`/`viewMode` in owner state via `onCalendarStateChange` if navigation must survive a reload; uncontrolled navigation starts from the new document's defaults. Source replacement remounts the WebView immediately. Native `onLoadStart` resets session/readiness/deduplication, and old session/document/sequence messages are rejected. Native loading, HTTP, renderer termination and handshake-timeout errors call `onError` and render an error label; remount the wrapper to retry a failed document.
 
-`onReady` means the custom element is defined, its initial root `updateComplete` has settled, a frame has passed, the bridge listeners are installed, the protocol version matches, and native has dispatched the latest snapshot. It is **not** a guarantee that descendant layout/locale loading or owner snapshot rendering has completed. `onCalendarStateChange` provides committed state after snapshot application. A missing bundle or failed initial render cannot report ready. If the initial props/theme are invalid or oversized, `onError` fires and `onReady` waits until a valid snapshot is dispatched. Correcting the props does not require a reload.
+`onReady` means the custom element is defined, its initial root `updateComplete` has settled, a frame has passed, the listeners are installed, the protocol version matches, and native has dispatched the latest bridge-valid snapshot. It does **not** confirm snapshot rendering, acceptance of each entry, descendant layout or locale loading. `onCalendarStateChange` reports committed navigation, not entry acceptance. A missing bundle or failed initial render cannot report ready. If the initial props/theme fail the bridge schema, including size limits, `onError` fires and `onReady` waits until a valid snapshot is dispatched. Correcting the props does not require a reload.
 
 ## Callbacks and public events
 
-Legacy callback names remain available:
+Available callbacks (including legacy names):
 
 | Callback                | Payload                                                                                   |
 | ----------------------- | ----------------------------------------------------------------------------------------- |
@@ -114,10 +118,13 @@ Legacy callback names remain available:
 | `onExportICS`           | compatibility fields **plus** `{entry, eventId?}`                                         |
 | `onEntryActivate`       | `{entry, eventId?}`; installing this handler delegates activation to native               |
 | `onCalendarStateChange` | `{activeDate, viewMode, firstDayOfWeek, range: {start, end}}`                             |
+| `onEntriesInvalid`      | `{issueCount, issues: [{index, reason}]}`; no raw entries                                 |
 | `onReady`               | no arguments, once per successfully bound document                                        |
 | `onError`               | bounded message string                                                                    |
 
-Use **`onCalendarStateChange`** for fetches/range synchronization: the root emits it initially and after committed changes, including owner-assigned public properties. `range.start` / `range.end` are **half-open ISO civil dates** (`start` included, `end` excluded), not UTC timestamps. The bridge deduplicates identical committed snapshots. Legacy navigation callbacks continue to describe the input action and must not be treated as the canonical resulting range.
+Use **`onCalendarStateChange`** for fetches/range synchronization: the root emits it initially and after committed changes, including owner-assigned public properties. `range.start` / `range.end` are **half-open ISO civil dates** (`start` included, `end` excluded), not UTC timestamps; the upper exclusive boundary can be `10000-01-01`. The bridge deduplicates identical committed snapshots. Legacy navigation callbacks describe the input action, not the resulting range.
+
+Use **`onEntriesInvalid`** for entries that passed transport validation but were rejected by the calendar. It reports the total number of issues (up to the 2,000-entry transport limit) and the first 20 original array indexes and allowlisted reasons. `-1` denotes the collection itself; an unrecognized reason becomes `Other validation issue`. The bridge never forwards the diagnostic's raw `entry` values or arbitrary reason text. This is a non-fatal notification for the update that produced it, not an acknowledgment of the app's latest props, a readiness change, or an `onError` callback.
 
 Only public, cancelable, composed requests are intercepted. No component private method, prototype or shadow-tree observer is patched:
 
@@ -145,14 +152,15 @@ type CalendarEntry = {
 
 ## Wire protocol v2 and trust boundary
 
-**Update the copied wrapper/protocol sources and regenerate the inline shell artifacts together.** Protocol v2 supports `calendarId` and `navigationRevision`; the v1 schema strictly rejects those fields. The endpoints require an exact version match, with no fallback to v1: incompatible `connect` and `ready` messages cannot bind a session or fire `onReady`. Mixed wrapper/shell versions surface through the handshake timeout (`onError`), even when neither new field is used.
+**Update the copied wrapper/protocol sources and regenerate the inline shell artifacts together.** Protocol v2 supports `calendarId` and `navigationRevision`; the v1 schema strictly rejects those fields. The endpoints require an exact version match, with no fallback to v1: incompatible `connect` and `ready` messages cannot bind a session or fire `onReady`. A v1/v2 mismatch surfaces through the handshake timeout (`onError`), even when neither new field is used. `entries-invalid` is an additive v2 event: older v2 wrappers ignore it and continue processing other messages; older v2 shells do not send it.
 
 - The shell installs **no ordinary `window`/`document` `message` listeners**. Native uses `injectJavaScript` to call the dedicated `window.__kalendusReceive(JSON-string)` endpoint. iOS/Android `postMessage` origin/source discrepancies are therefore not papered over with a permissive browser origin check. Ordinary browser `postMessage`, including `origin: 'null'`, cannot issue commands.
 - Native sends a fresh `connect {version, session}` at load completion; the shell binds once and responds only after real readiness with `{version, session, document, seq, type:'ready'}`. Configuration and subsequent notifications carry that session/document pair and monotonically increasing sequence numbers. These are freshness markers, **not authentication credentials**; same-document malicious JavaScript can access the native bridge. Only trusted generated HTML/bundles may run here.
 - Native validates JSON before invoking callbacks; the shell validates JSON before touching public properties/styles. Both validate outbound objects before **and** after serialization. Unsupported versions/types/keys, null/arrays instead of objects, invalid enum/date/time/zone fields, malformed JSON, stale documents and repeated sequences are rejected without throwing into the transport.
-- Maximum message size: **1,048,576 UTF-8 bytes**, maximum **2,000 entries**, heading **2,048**, content **32,768**, `id` and `calendarId` **1–256** characters when present. Years `1..9999`, actual leap/calendar dates, clock bounds, valid BCP 47 locales. Oversized data is rejected, not silently truncated. Filter entries by the canonical visible range; do not send your whole database.
+- Maximum message size: **1,048,576 UTF-8 bytes**, maximum **2,000 entries**, heading **2,048**, content **32,768**, `id` and `calendarId` **1–256** characters when present. Years `1..9999`, actual leap/calendar dates, clock bounds, valid BCP 47 locales. These are bridge limits, not calendar or server limits: a server range can return up to **5,000** results, and even fewer than 2,000 entries can exceed the byte limit. Fetch/prepare only the committed visible range and enforce both bridge limits before passing entries. If a result cannot fit, report it and let the user narrow the range; do not silently truncate it.
+- The root applies additional entry validation and may reject individual records that pass the transport schema (for example, a whitespace-only `id` or an explicit timed endpoint in a DST gap). `onEntriesInvalid` reports those root rejections; a malformed bridge snapshot is instead rejected atomically through `onError`. Validate and map application data before sending it; schema success, `onReady`, and a committed range are not per-entry acknowledgments. Map REST DTOs (including nullable `time`/`content` and server timestamps) to `CalendarEntry` rather than passing raw DTOs across the bridge.
 - Themes: at most **128** keys, matching `--[a-z][a-z0-9-]{0,79}`, string values up to **512** characters. Declaration delimiters, markup, control characters, escapes, comments, resource-loading functions (including `url()`/`image-set()`), `expression()` and at-rules are rejected. Colors have a similar safe value constraint (128 characters). These constraints protect the transport/sinks; they do not promise that every CSS value is supported by the calendar/device. Use the tokens in the root theme source; unknown custom properties have no effect unless consumed by your theme.
-- Inline HTML requires RN WebView's wildcard `originWhitelist`; it is **not** the authorization boundary. `onShouldStartLoadWithRequest` permits only `about:blank` or the exact resolved local asset URI. Links/navigation elsewhere are denied, and `onOpenWindow` deliberately does nothing rather than launching a new browsing context/external app. No arbitrary network navigation is enabled.
+- Inline HTML requires RN WebView's wildcard `originWhitelist`; it is **not** the authorization boundary. For navigation requests **reported by** `onShouldStartLoadWithRequest`, the wrapper permits only `about:blank` or the exact resolved local asset URI. `onOpenWindow` does not launch a new browsing context or external app. These WebView hooks are not a general network or subresource sandbox; keep document contents trusted and verify navigation behavior in each supported native SDK/platform.
 
 ## Accessibility
 
@@ -174,7 +182,7 @@ bun expo-bridge/build-shell.mjs --inline
 BRIDGE_TEST_INLINE=1 bun run web-test-runner --config expo-bridge/web-test-runner.config.mjs
 ```
 
-`test/unit/lib/expoBridge.test.ts` is included by the existing root Mocha test glob. It tests the generated shell in a VM and the same `NativeSession` used by React, including readiness, mixed-version rejection, replay rejection, invalid snapshots, navigation reassertion and delayed owner echoes. Browser tests under `expo-bridge/test/` verify removal of an explicit accent on the real calendar and pass a server-mapped entry through the shell: delegated activation and export retain the original record, while export without a native handler keeps the browser default.
+`test/unit/lib/expoBridge.test.ts` is included by the existing root Mocha test glob. It tests the generated shell in a VM and the same `NativeSession` used by React, including readiness, mixed-version rejection, replay rejection, invalid snapshots, navigation reassertion and delayed owner echoes. Browser tests under `expo-bridge/test/` exercise removal of an explicit accent and bounded, record-free diagnostics on the real calendar. They also pass a server-mapped entry through the shell: delegated activation and export retain the original record, while export without a native handler keeps the browser default.
 
 The root package now provides `bun run check:bridge`, `bun run test:bridge`, and `bun run test:bridge:inline`. CI runs the source and production-inline browser checks in its Chromium/Firefox/WebKit matrix; this configuration is not a claim that every browser passed locally. The root unit glob also includes protocol/VM regressions. Regenerate/check the shell on protocol/shell changes. Before packaging an Expo app, rebuild the IIFE and regenerate inline artifacts; actual Expo typechecking and release-device testing remain separate gates.
 
@@ -186,7 +194,7 @@ The pure checks deliberately exclude `KalendusWebView.tsx`: the root has no `rea
 bunx tsc --noEmit --project tsconfig.json
 ```
 
-The strict typecheck passed in disposable projects created from Expo's official blank TypeScript template with SDK-compatible dependencies:
+Previous strict checks of the wrapper sources used disposable projects created from Expo's official blank TypeScript template with SDK-compatible dependencies. These are fixture results, not a typecheck of your app or a new verification of the starter above:
 
 | Expo SDK | React Native | WebView | Expo Asset | TypeScript |
 | -------- | ------------ | ------- | ---------- | ---------- |

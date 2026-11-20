@@ -8,7 +8,7 @@ section: Usage
 
 # Integration Guide
 
-Practical recipes for embedding `<lms-calendar>` in different environments.
+Practical recipes for embedding `<lms-calendar>` in different environments. This guide describes the **unreleased `0.12.0` checkout**. For the current npm release, see the [published `0.11.0` source and docs](https://github.com/pders01/kalendus/tree/v0.11.0). Use one version for the calendar, its assets and its documentation. To generate the static file below from this checkout, run `bun install --frozen-lockfile` and `bun run build:iife` from the checkout root. The optional server and Expo bridge are checkout integrations; see their setup below.
 
 ## Vanilla JS / HTML
 
@@ -148,8 +148,10 @@ Set tokens inline, via component-scoped styles, or globally.
 
 ```css
 lms-calendar.theme-ocean {
-    --primary-color: #006994;
+    color-scheme: dark;
+    color: #e8f5fb;
     --background-color: #022b3a;
+    --primary-color: #70d6ff;
     --entry-font-size: 0.85rem;
     --week-mobile-day-count: 4;
 }
@@ -181,71 +183,133 @@ calendar.addEventListener('switchview', (event) => {
 
 ## State synchronization and replacing defaults
 
-Assign public `activeDate` and `viewMode` to control navigation. Use **`calendar-state-change`** for initial and changed committed `{ activeDate, viewMode, firstDayOfWeek, range }`; `range` is half-open ISO civil dates. Month spillover and condensed weeks are included correctly. Legacy action notifications in the analytics table are not resulting state: do not derive a fetch window from `detail.direction` or `detail.view`.
+Assign public `activeDate` and `viewMode` to request navigation. Use **`calendar-state-change`** for the initial and changed committed `{ activeDate, viewMode, firstDayOfWeek, range }`; `visibleRange` reads the last committed range. It is a half-open window of ISO civil dates, including Month spillover and condensed weeks. At the upper civil bound the exclusive end can be `10000-01-01`. Legacy action notifications are not resulting state: do not derive a fetch window from `detail.direction` or `detail.view`.
 
-To replace the default inspector/download, listen for cancelable `entry-activate` / `export-entry` and call **`preventDefault()` synchronously**, not `stopPropagation()`. Both carry the canonical original `{ entry, eventId }`, preserving multi-day endpoints and caller identity. See [Events Reference](./events.md).
+To replace default activation (inspector or inline Agenda details) or download, listen for cancelable `entry-activate` / `export-entry` on the calendar and call **`preventDefault()` synchronously**, not `stopPropagation()`. Both carry the canonical original `{ entry, eventId }`, preserving multi-day endpoints and caller identity. An owner call to `openMenu()` does not emit `entry-activate`. See [Events Reference](./events.md).
 
 ## Connecting to the Kalendus API server
 
-The optional server exposes REST + SSE under `/api/calendars`. It is **private-deny by default**: the host must inject `authorize`, including reads/streams/telemetry. Public mode is an explicit unauthenticated demo choice. Cross-origin use needs exact allowed origins; CORS is not authorization. Prefer same-origin authenticated deployment. [server/README.md](https://github.com/pders01/kalendus/blob/main/server/README.md) is authoritative; see [API Server Guide](./api-server.md) for setup and security boundaries.
+The optional REST + SSE server is **not published on npm**. Build it from the `server/` workspace or install a local tarball. Only the loopback demo below is unauthenticated. In production, prefer same-origin authenticated deployment with a host-supplied authorization policy for reads, writes, streams and telemetry. See the [API Server Guide](./api-server.md) and [server README](https://github.com/pders01/kalendus/blob/main/server/README.md).
 
 ### Vanilla client
 
-This example assumes an existing page with a mounted calendar. Supply `refreshVisibleRange` in your application to refetch the calendar’s current range and handle cancellation.
+With the [local packages installed](https://github.com/pders01/kalendus/blob/main/server/README.md#install-the-local-packages-into-another-project), use `KalendusApiClient` from `@jpahd/kalendus-server/client` in a non-Lit host. A client configured with `{ baseUrl: '', calendarId, credentials: 'same-origin' }` uses the same proxy as the Lit starter below. Register and mount `<lms-calendar>` before assigning `calendar.entries`. Subscribe to `calendar-state-change` before its initial commit (or read `visibleRange` after the commit), then call `client.fetchEvents(start, inclusiveEnd, signal)`. Use the committed range, clip to the server's date domain, and convert its exclusive end to the prior civil date. `fetchEvents()` maps wire records; `fetchRawEvents()` returns DTOs, not display-ready entries.
 
-```ts
-import { KalendusApiClient } from '@jpahd/kalendus-server/client';
+A direct-client loader owns loading/error UI, request deduplication, and cancellation. Abort superseded requests and ignore late fulfillment **and** rejection even if the transport ignores abort. Don't show an empty success on a failed load. If using a custom backend, also validate the response shape before assigning data. On teardown remove the state listener and abort active reads.
 
-const client = new KalendusApiClient({
-    baseUrl: '',
-    calendarId: 'your-calendar-id',
-    credentials: 'same-origin',
-});
-
-// Legacy API query ends are inclusive (not visibleRange.end).
-// Fetch a range and push into the component
-const calendar = document.querySelector('lms-calendar');
-if (calendar) {
-    calendar.entries = await client.fetchEvents('2026-03-01', '2026-03-31');
-}
-
-// Notifications contain no event IDs or details by default. Refetch via REST.
-const stopChanges = client.onInvalidate(refreshVisibleRange);
-const stopReconnect = client.onReconcile(refreshVisibleRange);
-client.connect();
-// On teardown: stopChanges(); stopReconnect(); client.disconnect();
-```
-
-Header-authenticated SSE requires an injected authenticated reconnecting `streamFactory` (native EventSource cannot send arbitrary headers), or disable sync. Reconcile the visible range on every initial/reconnected connection; SSE is in-process invalidation, not durable replay. Direct-client loaders own cancellation/generation checks and error UI; see the server README.
+If enabling sync, subscribe to **both** `client.onInvalidate()` (event changes or parent deletion) and `client.onReconcile()` (successful initial or reconnected stream). Both should refetch the current range via REST, not patch it from SSE. For asynchronous callbacks, use a synchronous wrapper such as `() => { void reloadVisibleRange().catch(showLoadError); }`, where the app's reload function suppresses canceled/stale errors and `showLoadError` updates the UI. Handle synchronous `client.connect()` failures, and use `client.streamState` / `client.onStreamStateChange()` for live status independently of REST. On teardown unsubscribe and call `client.disconnect()`. A failed reconnect does not trigger reconciliation. See [transport choices and stream health](./api-server.md#browser-client) before enabling live updates.
 
 ### Lit adapter
 
-```ts
+This starter uses **REST only** with a manual refresh button. First, run the [disposable loopback server demo](./api-server.md#local-demo-and-build) and keep it running. Note its seed calendar ID and seed date. In another terminal, build the two [local tarballs](https://github.com/pders01/kalendus/blob/main/server/README.md#install-the-local-packages-into-another-project) from the same checkout.
+
+In a new app directory **outside the checkout**, initialize the app and install the tarballs, peers and Vite. Set `ARTIFACTS` to the absolute directory printed by the packaging step:
+
+```sh
+bun init -y
+bun add "$ARTIFACTS/kalendus.tgz" "$ARTIFACTS/kalendus-server.tgz" 'lit@^3.0.0' 'luxon@^3.4.4'
+bun add -d vite@^7.3.8
+```
+
+Create `.env.local` with the actual values from the seed step. These are public demo identifiers, **not secrets**:
+
+```dotenv
+VITE_DEMO_CALENDAR_ID=replace_with_seeded_calendar_id
+VITE_DEMO_DATE=replace_with_seed_date_as_YYYY-MM-DD
+```
+
+`vite.config.mjs` proxies API requests under the app's origin. Preserve the browser-facing `Host` so the server's same-origin check can match it when a request sends `Origin`:
+
+```js
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+    server: {
+        proxy: {
+            '/api/calendars': { target: 'http://127.0.0.1:3000', changeOrigin: false },
+        },
+    },
+});
+```
+
+`index.html` mounts the demo component:
+
+```html
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Local Kalendus API demo</title>
+        <script type="module" src="/calendar.js"></script>
+    </head>
+    <body>
+        <remote-calendar></remote-calendar>
+    </body>
+</html>
+```
+
+`calendar.js` registers the wrapper and uses the adapter's managed loading, cancellation and error state:
+
+```js
 import { html, LitElement } from 'lit';
 import '@jpahd/kalendus';
 import { KalendusLitAdapter } from '@jpahd/kalendus-server/lit';
 
+const calendarId = import.meta.env.VITE_DEMO_CALENDAR_ID ?? '';
+const seedDate = import.meta.env.VITE_DEMO_DATE ?? '';
+const parsed = new Date(`${seedDate}T00:00:00Z`);
+const activeDate = {
+    year: parsed.getUTCFullYear(),
+    month: parsed.getUTCMonth() + 1,
+    day: parsed.getUTCDate(),
+};
+const validConfig =
+    /^[A-Za-z0-9_-]{1,128}$/.test(calendarId) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(seedDate) &&
+    activeDate.year >= 1970 && activeDate.year <= 2100 &&
+    parsed.toISOString().slice(0, 10) === seedDate;
+
 class RemoteCalendar extends LitElement {
-    adapter = new KalendusLitAdapter(this, {
-        baseUrl: '',
-        calendarId: 'your-calendar-id',
-        credentials: 'same-origin',
-        enableSync: true,
-        enableTelemetry: true,
-    });
+    adapter = validConfig
+        ? new KalendusLitAdapter(this, {
+              baseUrl: '',
+              calendarId,
+              credentials: 'same-origin',
+              enableSync: false,
+          })
+        : null;
 
     render() {
+        if (!this.adapter) {
+            return html`<p role="alert">Set the seed ID and date in .env.local, then restart Vite.</p>`;
+        }
+        const { entries, loading, error } = this.adapter;
         return html`
+            <p role="status">${loading ? 'Loading calendar events…' : ''}</p>
+            ${error ? html`<p role="alert">Calendar refresh failed. Check the demo server and seed ID.</p>` : ''}
+            <button type="button" @click=${this.refresh}>Refresh events</button>
             <lms-calendar
-                .entries=${this.adapter.entries}
-                heading="Synced Calendar"
+                .entries=${entries}
+                .activeDate=${activeDate}
+                view-mode="day"
+                heading="Local API demo"
             ></lms-calendar>
         `;
     }
+
+    refresh() {
+        // Load failures are rendered through adapter.error; report unexpected rejections.
+        this.adapter?.refresh().catch(() => console.error('Calendar refresh failed unexpectedly.'));
+    }
 }
+
+customElements.define('remote-calendar', RemoteCalendar);
 ```
 
-The adapter consumes the public `calendar-state-change`/getter contract, converts the half-open end to an inclusive server query end, deduplicates ranges and suppresses stale requests/results. It does not infer windows from legacy header events. Owners still bind `.entries` and render `adapter.loading` / `adapter.error`; `adapter.refresh()` retries a current range. Configure an explicit target for multiple calendars or non-queryable hosts. Telemetry is optional and must not contain secrets or event bodies.
+Run `bun run vite --host 127.0.0.1 --port 5173 --strictPort` and open `http://127.0.0.1:5173`. The initial Day view uses the explicit seed date, so it should show **Team Standup** and **Lunch Break** even if the browser's local date differs. If you changed the server port, update the proxy target as well. Do not expose either demo port on a network.
+
+The adapter consumes public committed state, converts the exclusive end to an inclusive server query end, deduplicates ranges, and suppresses stale results/errors. The calendar stays mounted while loading so it can continue reporting range changes. Transient errors may leave prior results visible alongside the error message; this is not a fresh empty result. If you enable sync in your app, render `adapter.streamState` separately from REST `loading` and `error`. Disconnecting the host aborts work and releases listeners/streams. See [adapter behavior](./api-server.md#lit-adapter-and-committed-state) for explicit targets and server bounds. Telemetry is off in this starter; if enabling it, do not send secrets or event bodies.
 
 ## Common Recipes
 
@@ -268,7 +332,8 @@ The component uses Shadow DOM, so external CSS cannot target internal elements d
 ```css
 lms-calendar {
     --current-day-bg: #e3f2fd;
-    --indicator-color: #1976d2;
+    --current-day-color: #12304a;
+    --indicator-color: LinkText;
 }
 ```
 
@@ -303,13 +368,7 @@ calendar.addEventListener('expand', (event) => {
 
 ### 5. Provide initial data from APIs
 
-```js
-fetch('/api/events')
-    .then((res) => res.json())
-    .then((entries) => {
-        calendar.entries = entries;
-    });
-```
+For an app-specific endpoint, check `response.ok` before decoding JSON, check that the result is the expected entry array (not an error object, an envelope or summary counts), and validate/map records to [the input contract](./library-usage.md). Assign a new `.entries` array only after a successful load. Show loading, fetch/validation errors and a retry path; an empty array is a successful result, not an error fallback. If navigation, account changes or unmount can overtake a load, abort it and guard both late success and late failure. For the Kalendus server, use the [Lit starter](#lit-adapter) rather than assigning raw wire DTOs.
 
 ## FAQ
 
@@ -331,7 +390,7 @@ Yes. The component ships as a custom element with its own shadow root. Consumers
 
 ## Native integration
 
-The optional Expo/React Native bridge is source integration, not a separately published native package. See [expo-bridge/README.md](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) for `bun run build:iife`, inline HTML/string generation and `bun scripts/check-bridge.mjs`. Its development shell is not a self-contained Metro asset. Expo app TSX checking, release-device behavior, native sharing and VoiceOver/TalkBack remain separate gates, not implied by browser/VM checks.
+The optional Expo/React Native bridge is a source integration, not a separately published native package. Update the protocol v2 wrapper and regenerate the self-contained HTML/string from the same checkout. See the [Expo build instructions and starter](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md); the development shell is not a self-contained Metro asset. Bridge readiness and schema checks do not guarantee acceptance of each entry by the root. Expo app TSX checking, release-device behavior, native sharing and VoiceOver/TalkBack remain separate gates, not implied by browser/VM checks.
 
 ## Further Reading
 
