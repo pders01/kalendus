@@ -146,6 +146,7 @@ describe('Compact Month continuity bands', () => {
     it('retains continuation context while expanding only a visible slice of a long event', () => {
         const source: CalendarModelEntryInput = {
             id: 'long',
+            heading: 'Long event',
             kind: 'all-day',
             date: {
                 start: { year: 2020, month: 1, day: 1 },
@@ -171,6 +172,7 @@ describe('Compact Month continuity bands', () => {
         const date = { year: 9999, month: 12, day: 31 };
         const source: CalendarModelEntryInput = {
             id: 'edge',
+            heading: 'Year boundary event',
             kind: 'all-day',
             date: { start: { ...date, day: 29 }, end: date },
         };

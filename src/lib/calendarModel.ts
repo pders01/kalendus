@@ -18,7 +18,7 @@ export interface CalendarModelEntryInput {
     date: { start: CivilDate; end: CivilDate };
     time?: { start: ModelTime; end: ModelTime };
     timeZone?: string;
-    heading?: string;
+    heading: string;
     content?: string;
     color?: string;
     isContinuation?: boolean;
@@ -38,7 +38,6 @@ export interface NormalizedCalendarEntry extends CalendarModelEntryInput {
     temporalKind: 'all-day' | 'floating' | 'zoned' | 'legacy-daily';
     isAllDay: boolean;
     legacy: boolean;
-    heading: string;
     content: string;
     color: string;
     /** The exact caller record, with original endpoints and any backend metadata. */
@@ -204,10 +203,10 @@ function validZonedEndpoint(date: CivilDate, time: ModelTime, zone: string): boo
 }
 
 /**
- * Strict, non-throwing ingestion. Invalid records are dropped individually and may be
- * reported with onInvalid. First valid record wins for duplicate caller IDs or
- * repeated source objects, including mixed raw/normalized input. Caller IDs are
- * authoritative. Synthetic IDs survive reordering of the same object unless a
+ * Strict, non-throwing ingestion. A non-array input reports index -1, except null
+ * (Lit uses it to clear the entries attribute). Invalid records are dropped individually.
+ * First valid record wins for duplicate caller IDs or repeated source objects,
+ * including mixed raw/normalized input. Caller IDs are authoritative. Synthetic IDs survive reordering of the same object unless a
  * caller ID in the incoming array claims that ID; only the synthetic ID is replaced.
  * Distinct objects without caller IDs remain independent, even with identical data.
  *
@@ -217,10 +216,14 @@ function validZonedEndpoint(date: CivilDate, time: ModelTime, zone: string): boo
  * Zero-duration timed records are supported as point events with minimum geometry.
  */
 export function normalizeEntries(
-    entries: readonly unknown[],
+    entries: unknown,
     onInvalid?: (issue: EntryValidationIssue) => void,
 ): NormalizedCalendarEntry[] {
-    if (!Array.isArray(entries)) return [];
+    if (!Array.isArray(entries)) {
+        if (entries !== null)
+            onInvalid?.({ index: -1, entry: entries, reason: 'Entries must be an array' });
+        return [];
+    }
     const result: NormalizedCalendarEntry[] = [];
     // Reserve caller IDs before allocating/reusing any fallback, regardless of order
     // or validity of the rest of a record. Trusted snapshots retain their provenance.
@@ -318,7 +321,11 @@ export function normalizeEntries(
             return;
         }
         for (const field of ['heading', 'content', 'color'] as const) {
-            if (value[field] !== undefined && typeof value[field] !== 'string') {
+            const fieldValue = value[field];
+            if (
+                (field === 'heading' || fieldValue !== undefined) &&
+                typeof fieldValue !== 'string'
+            ) {
                 reject(`Invalid ${field}`);
                 return;
             }
@@ -400,7 +407,7 @@ export function normalizeEntries(
             date: { start: copyDate(date.start), end: copyDate(date.end) },
             time: normalizedTime,
             timeZone: timeZone as string | undefined,
-            heading: (value.heading as string | undefined) ?? '',
+            heading: value.heading as string,
             content: (value.content as string | undefined) ?? '',
             color: (value.color as string | undefined) ?? '',
             sourceEntry,

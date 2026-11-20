@@ -71,6 +71,38 @@ describe('calendarModel', () => {
                 expect(isValidCalendarTime(value, true)).to.equal(false);
             }
         });
+        it('reports non-array assignments at index -1 but accepts the null attribute reset', () => {
+            for (const input of [undefined, entry(), '[]', false]) {
+                const issues: EntryValidationIssue[] = [];
+                expect(normalizeEntries(input, (issue) => issues.push(issue))).to.deep.equal([]);
+                expect(issues).to.deep.equal([
+                    { index: -1, entry: input, reason: 'Entries must be an array' },
+                ]);
+                expect(issues[0].entry).to.equal(input);
+            }
+            for (const input of [null, []]) {
+                const issues: EntryValidationIssue[] = [];
+                expect(normalizeEntries(input, (issue) => issues.push(issue))).to.deep.equal([]);
+                expect(issues).to.have.length(0);
+            }
+        });
+        it('rejects missing and non-string headings before claiming identity', () => {
+            const good = { ...entry(), id: 'shared', heading: '' };
+            const missing = { id: good.id, date: good.date };
+            const invalid = [
+                missing,
+                { ...missing, heading: undefined },
+                { ...missing, heading: 7 },
+            ];
+            const issues: EntryValidationIssue[] = [];
+            const result = normalizeEntries([...invalid, good], (issue) => issues.push(issue));
+            expect(issues).to.deep.equal(
+                invalid.map((entry, index) => ({ index, entry, reason: 'Invalid heading' })),
+            );
+            expect(result).to.have.length(1);
+            expect(result[0].heading).to.equal('');
+            expect(result[0].canonicalEntry).to.equal(good);
+        });
         it('drops bad records individually and reports their original indices', () => {
             const good = entry();
             const issues: number[] = [];
@@ -100,8 +132,9 @@ describe('calendarModel', () => {
                 ]),
             ).to.deep.equal([]);
         });
-        it('accepts absent content and time without mutating frozen caller input', () => {
+        it('accepts an empty heading and absent content and time without mutating caller input', () => {
             const input = Object.freeze({
+                heading: '',
                 date: Object.freeze({
                     start: Object.freeze(date(2026, 3, 7)),
                     end: Object.freeze(date(2026, 3, 7)),
@@ -597,6 +630,7 @@ describe('calendarModel', () => {
     describe('zone policy', () => {
         it('uses only civil date fields for zoned validation and retains metadata on the caller record', () => {
             const input = {
+                heading: 'Zoned entry with metadata',
                 kind: 'timed',
                 timeZone: 'America/New_York',
                 date: {

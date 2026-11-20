@@ -14,11 +14,13 @@ import { getMonthCalendarArray } from '../../../src/lib/weekStartHelper.js';
 const date = (day: number) => ({ year: 2026, month: 11, day });
 const allDay = (id: string, start = 17, end = start): CalendarModelEntryInput => ({
     id,
+    heading: id,
     kind: 'all-day',
     date: { start: date(start), end: date(end) },
 });
 const timed = (id: string, hour: number, day = 17): CalendarModelEntryInput => ({
     id,
+    heading: id,
     kind: 'timed',
     date: { start: date(day), end: date(day) },
     time: { start: { hour, minute: 0 }, end: { hour: hour + 1, minute: 0 } },

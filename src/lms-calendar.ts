@@ -2808,6 +2808,8 @@ declare global {
     interface HTMLElementEventMap {
         /** Initial and subsequent rendered state snapshots, including owner assignments. */
         'calendar-state-change': CustomEvent<CalendarState>;
+        /** Invalid entry records or a non-array input (index -1). */
+        'entries-invalid': CustomEvent<{ issues: EntryValidationIssue[] }>;
         /** Cancel to replace the built-in details inspector. */
         'entry-activate': CustomEvent<CalendarEntryRequest>;
         /** Cancel to handle export outside the browser (e.g. a native share sheet). */

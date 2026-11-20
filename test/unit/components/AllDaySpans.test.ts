@@ -152,6 +152,7 @@ it('does not bridge a hidden Month lane and returns focus to the merged bar afte
     const events = ['a', 'b', 'c'].map((id) => allDay(id, 16, 22));
     const timed: CalendarEntry = {
         id: 'timed',
+        heading: 'Timed event',
         kind: 'timed',
         date: { start: date(18), end: date(18) },
         time: { start: { hour: 9, minute: 0 }, end: { hour: 10, minute: 0 } },
