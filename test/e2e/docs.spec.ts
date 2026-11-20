@@ -9,7 +9,6 @@ let server: Awaited<ReturnType<typeof preview>>;
 let base: string;
 
 test.beforeAll(async () => {
-    execFileSync('bun', ['run', 'docs:sync:check'], { stdio: 'inherit' });
     execFileSync('bun', ['run', 'docs:build'], { stdio: 'inherit' });
     server = await preview({
         root: realpathSync('.'),

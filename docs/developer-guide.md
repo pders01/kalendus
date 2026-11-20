@@ -105,8 +105,9 @@ REVIEW_CAPTURE=1 bun run test:e2e -- --browser=webkit test/e2e/calendar-review.s
 These tests build production Storybook and check, among other paths, Docs and
 matrix links, the Month → Agenda → Week journey, and a dense all-day drill-down
 in shallow Week. Stop the development server first, or set `E2E_PORT` to a free
-port (the default is `6006`). Even a docs-only E2E run starts the production
-Storybook server; the docs tests serve a separate local Pages build.
+port (the default is `6006`). Run `bun run test:e2e:docs` to build and test the
+Pages site without starting Storybook. Unfiltered `bun run test:e2e` still runs
+both suites.
 
 Set `REVIEW_CAPTURE=1` to save screenshots alongside the ignored Playwright
 results. Use `--output` with a new directory under `screenshots/` to retain a
@@ -121,7 +122,7 @@ run. Screenshots are for review, not pixel baselines or device certification.
 | `bun run --cwd server test:browser` (real calendar adapter)                 | Chromium           | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
 | `test:package` (packed calendar browser smoke)                              | Chromium           | Chromium, Firefox, WebKit | Chromium                  |
 | `test-storybook` (Vitest browser project)                                   | Chromium           | Chromium                  | Chromium                  |
-| `test:e2e` (production Storybook via Playwright)                            | Chromium           | Chromium                  | Chromium                  |
+| `test:e2e` (production Storybook and Pages via Playwright)                  | Chromium           | Chromium                  | Chromium                  |
 
 `TEST_BROWSERS=chromium,firefox,webkit` selects engines only for the first four rows. For E2E, use Playwright's `--browser` flag (for example, `bun run test:e2e -- --browser=webkit`). Storybook's Vitest project explicitly configures Chromium. The nonbrowser root Mocha suite runs on Node 22 and 24 in CI; the server unit and installed-package checks run on Node 24. Playwright WebKit is not shipping Safari.
 
