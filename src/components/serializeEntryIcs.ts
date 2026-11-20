@@ -1,4 +1,4 @@
-import { DateTime } from 'luxon';
+import { DateTime, IANAZone } from 'luxon';
 
 import {
     isSyntheticEntryId,
@@ -64,8 +64,10 @@ export function serializeEntryIcs(
     eventId?: string,
     identity: object = entry,
 ): string {
-    const zone = entry.timeZone || 'UTC';
-    const { start: startDate, end: endDate } = entry.date;
+    const {
+        timeZone,
+        date: { start: startDate, end: endDate },
+    } = entry;
     if (!isValidCalendarDate(startDate) || !isValidCalendarDate(endDate))
         throw new Error('Invalid event date interval');
     const civilStart = DateTime.utc(startDate.year, startDate.month, startDate.day);
@@ -74,6 +76,11 @@ export function serializeEntryIcs(
     let start = civilStart;
     let end = civilEnd.plus({ days: 1 });
     if (!allDay) {
+        if (
+            timeZone !== undefined &&
+            (typeof timeZone !== 'string' || !IANAZone.isValidZone(timeZone))
+        )
+            throw new Error('Invalid IANA time zone');
         if (!entry.time) throw new Error('Timed events require a time interval');
         if (!isValidCalendarTime(entry.time.start) || !isValidCalendarTime(entry.time.end, true))
             throw new Error('Invalid event time');
@@ -88,7 +95,7 @@ export function serializeEntryIcs(
                     hour,
                     minute: time.minute,
                 },
-                { zone },
+                { zone: timeZone ?? 'UTC' },
             );
             if (
                 !result.isValid ||
@@ -105,7 +112,7 @@ export function serializeEntryIcs(
         start = endpoint(civilStart, entry.time.start);
         end = endpoint(civilEnd, entry.time.end);
         if (end < start) throw new Error('Event end precedes start');
-        if (entry.timeZone) {
+        if (timeZone) {
             start = start.toUTC();
             end = end.toUTC();
         }
@@ -113,7 +120,7 @@ export function serializeEntryIcs(
     const format = (value: DateTime) =>
         allDay
             ? `;VALUE=DATE:${icsFormat(value, 'yyyyMMdd')}`
-            : `:${icsFormat(value, entry.timeZone ? utcStamp : "yyyyMMdd'T'HHmmss")}`;
+            : `:${icsFormat(value, timeZone ? utcStamp : "yyyyMMdd'T'HHmmss")}`;
     const hasFourDigitYear = (value: DateTime) => value.year >= 1 && value.year <= 9999;
     if (!hasFourDigitYear(start)) throw new RangeError('ICS DTSTART is outside years 1–9999');
     let endProperty: string | undefined;
