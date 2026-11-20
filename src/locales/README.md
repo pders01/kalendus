@@ -1,10 +1,19 @@
 # Translation source of truth
 
 **Edit `catalogs/<locale>.json`, not `src/generated/locales/*.ts` or `xliff/*.xlf`.**
-`source.json` contains the English source text for every stable message ID. Existing
-hashed IDs and all legacy `getMessages()` fields are retained. `source.ts` is an
-extraction-only Lit adapter; it is never imported by the calendar at runtime. Runtime
-locale choice remains per calendar instance, not Lit's global active locale.
+`source.json` contains the canonical English text for every stable message ID. Existing
+hashed IDs and all legacy `getMessages()` fields are retained. The generator creates
+`source.ts` as an extraction-only Lit adapter; the calendar never imports it at runtime.
+Runtime locale choice remains per calendar instance, not Lit's global active locale.
+
+English runtime fallbacks are maintained separately in
+[`src/lib/messages.ts`](../lib/messages.ts). When changing English source text, update
+its matching `MESSAGE_DEFS` text or complete-phrase fallback in
+`createMessageFormatters()` as appropriate. The locale check compares the rendered
+English labels and complete phrases with `source.json`, including interpolated
+placeholders, list actions, and singular/plural counts. The four plural categories
+English does not select must match its `other` text in `source.json`; translations
+can use different forms. The check requires coverage for all live source IDs.
 
 ## Normal workflow
 
@@ -60,8 +69,10 @@ while component owners migrate their callers. Evaluate the helpers during render
 loading a locale still requires a render request by the owning component.
 
 Formatting preserves canonical script/region/numbering preferences, independently
-of catalog fallback. `de-AT`/`de-DE` use `de`; English variants and unsupported tags
-resolve to the ready built-in English dictionary. Malformed tags safely use `en`.
+of catalog fallback. `de-AT` and `de-DE` both use the `de` runtime catalog. The
+historical `de-DE` code and its catalog artifacts are still maintained and listed;
+it is not a distinct catalog selection at runtime. English variants and unsupported
+tags resolve to the ready built-in English dictionary. Malformed tags safely use `en`.
 Simplified Chinese aliases resolve to `zh-Hans`; Traditional Chinese does not
 silently resolve to Simplified Chinese.
 

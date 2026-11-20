@@ -9,15 +9,84 @@ import { resolve, join } from 'node:path';
 
 import { format } from 'oxfmt';
 
-import { MESSAGE_DEFS } from '../src/lib/messages.ts';
+import { getMessages, getMessageFormatters, MESSAGE_DEFS } from '../src/lib/messages.ts';
 
 const root = resolve(import.meta.dirname, '..');
 const read = (path) => readFile(resolve(root, path), 'utf8');
 const source = JSON.parse(await read('src/locales/source.json'));
 const config = JSON.parse(await read('lit-localize.json'));
-for (const [, id, text] of MESSAGE_DEFS) {
-    assert.equal(source[id], text, `Runtime/source mismatch: ${id}`);
+
+// Match rendered output instead of scraping fallback literals. This also finds
+// drift in argument order, interpolation, nested phrases and plural selection.
+// Keep this check out of the runtime bundle so English stays ready on first render.
+const checkedEnglish = new Set();
+function english(id, values = {}) {
+    assert.equal(typeof source[id], 'string', `Missing English source: ${id}`);
+    checkedEnglish.add(id);
+    return source[id].replace(/\{(\w+)\}/g, (placeholder, name) => {
+        assert.ok(Object.hasOwn(values, name), `Unmapped English placeholder ${id}/${placeholder}`);
+        return values[name];
+    });
 }
+function checkEnglish(id, actual, values) {
+    assert.equal(actual, english(id, values), `English runtime/source mismatch: ${id}`);
+}
+
+const fixed = getMessages('en');
+for (const [key, id] of MESSAGE_DEFS) checkEnglish(id, fixed[key]);
+const phrases = getMessageFormatters('en');
+const date = 'November 17, 2026';
+checkEnglish('openDate', phrases.switchToDayView(date), { date });
+checkEnglish('showWeek', phrases.showWeek(47), { week: '47' });
+checkEnglish('namedView', phrases.viewLabel('Week'), { view: 'Week' });
+checkEnglish('eventLabel', phrases.eventLabel('Studio check-in', date, '09:45'), {
+    title: 'Studio check-in',
+    date,
+    time: '09:45',
+});
+checkEnglish('timeRange', phrases.timeRange('09:00', '09:45'), { start: '09:00', end: '09:45' });
+for (const [id, expanded, preview] of [
+    ['A', false, true],
+    ['F', true, true],
+    ['S', false, false],
+    ['H', true, false],
+])
+    checkEnglish(id, phrases.agendaAction(expanded, preview));
+for (const [count, label, category] of [
+    [0, '0', 'other'],
+    [1, '1', 'one'],
+    [2, '2', 'other'],
+    [1234, '1,234', 'other'],
+]) {
+    const values = { count: label };
+    const eventId = `eventCount_${category}`;
+    checkEnglish(eventId, phrases.eventCount(count), values);
+    checkEnglish(`moreCount_${category}`, phrases.moreEvents(count), values);
+    checkEnglish('dateSummary', phrases.dateSummary(date, count), {
+        date,
+        events: english(eventId, values),
+    });
+}
+// The extra categories are translated for other locales, but not selected in
+// English. Their canonical English source must match the plural fallback.
+for (const prefix of ['eventCount', 'moreCount']) {
+    for (const category of ['zero', 'two', 'few', 'many']) {
+        const id = `${prefix}_${category}`;
+        assert.equal(
+            source[id],
+            source[`${prefix}_other`],
+            `English plural source mismatch: ${id}`,
+        );
+        checkedEnglish.add(id);
+    }
+}
+assert.deepEqual(
+    Object.keys(source)
+        .filter((id) => !checkedEnglish.has(id))
+        .sort(),
+    ['s1c109a21525649fd', 's7264933e3c515250'], // retired, preservation-only inspector actions
+    'English messages without a runtime/source check',
+);
 const formatOptions = JSON.parse(await read('.oxfmtrc.json'));
 delete formatOptions.$schema;
 delete formatOptions.ignorePatterns;
@@ -210,6 +279,6 @@ if (write) {
         await rm(fixture, { recursive: true, force: true });
     }
     console.log(
-        `PASS: 54 preserved artifacts; 810 original runtime values + 16 XLIFF-only values; ${catalogs.size} complete catalogs; two isolated Lit extract/build roundtrips.`,
+        `PASS: English runtime/source parity; 54 preserved artifacts; 810 original runtime values + 16 XLIFF-only values; ${catalogs.size} complete catalogs; two isolated Lit extract/build roundtrips.`,
     );
 }
