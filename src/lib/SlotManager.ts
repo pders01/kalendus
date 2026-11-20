@@ -49,9 +49,6 @@ export interface AccessibilityInfo {
 
 export interface SlotPosition {
     slotName: string;
-    gridColumn?: number; // For direct grid positioning
-    gridRow?: string; // For direct grid positioning
-    useDirectGrid: boolean; // Whether to bypass slots entirely
     useAbsolutePosition?: boolean; // Whether to use absolute positioning (replaces 1440-row grid)
     isAllDay?: boolean; // Whether this is an all-day event
     dayIndex?: number; // Which day column (0-6 for week view)
@@ -122,14 +119,9 @@ export class SlotManager {
             ].join('; ');
         }
 
-        if (position.useDirectGrid) {
-            // Direct grid positioning (bypasses slots)
-            return `grid-column: ${position.gridColumn || 2}; grid-row: ${position.gridRow || '1'}; --entry-width: ${layout.width}%; --entry-margin-inline-start: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
-        } else {
-            // Slot-based positioning with CSS variables
-            const startSlot = time ? this._getGridSlotByTime(time) : '1';
-            return `--start-slot: ${startSlot}; --entry-width: ${layout.width}%; --entry-margin-inline-start: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
-        }
+        // Slot-based positioning with CSS variables
+        const startSlot = time ? this._getGridSlotByTime(time) : '1';
+        return `--start-slot: ${startSlot}; --entry-width: ${layout.width}%; --entry-margin-inline-start: ${layout.x}%; --entry-z-index: ${layout.zIndex}; --entry-opacity: ${layout.opacity};`;
     }
 
     /**
@@ -143,7 +135,6 @@ export class SlotManager {
         if (isAllDay) {
             return {
                 slotName: 'all-day',
-                useDirectGrid: false,
             };
         }
 
@@ -153,7 +144,6 @@ export class SlotManager {
 
         return {
             slotName: 'timed',
-            useDirectGrid: false,
             useAbsolutePosition: true,
         };
     }
@@ -175,14 +165,10 @@ export class SlotManager {
             ? this.getIndexInDates(date, weekDates)
             : this.getWeekDayIndex(date, activeDate, firstDayOfWeek ?? 1);
         if (dayColumnIndex < 0) throw new RangeError('Entry date is outside the visible week');
-        const gridColumn = dayColumnIndex + 2; // +2 because column 1 is for time indicators
 
         if (isAllDay) {
             return {
                 slotName: allDaySlotName(date),
-                gridColumn,
-                gridRow: '1 / 60', // All-day area spans first hour
-                useDirectGrid: false, // Use slot-based positioning for all-day events
                 isAllDay: true,
                 dayIndex: dayColumnIndex,
             };
@@ -194,7 +180,6 @@ export class SlotManager {
 
         return {
             slotName: timedSlotName(date),
-            useDirectGrid: false,
             useAbsolutePosition: true,
             dayIndex: dayColumnIndex,
         };
@@ -206,7 +191,6 @@ export class SlotManager {
     private _calculateMonthPosition(date: CalendarDate): SlotPosition {
         return {
             slotName: dateSlotKey(date),
-            useDirectGrid: false,
         };
     }
 
@@ -217,7 +201,6 @@ export class SlotManager {
         if (!isValidCalendarDate(date)) throw new RangeError('Invalid entry date');
         return {
             slotName: allDaySlotName(date),
-            useDirectGrid: false,
             isAllDay: true,
         };
     }
@@ -311,12 +294,7 @@ export class SlotManager {
      */
     public getPositionDescription(config: PositionConfig): string {
         const position = this.calculatePosition(config);
-
-        if (position.useDirectGrid) {
-            return `Direct grid: column ${position.gridColumn}, row ${position.gridRow}`;
-        } else {
-            return `Slot: "${position.slotName}"`;
-        }
+        return `Slot: "${position.slotName}"`;
     }
 
     private _validateConfig(config: PositionConfig): void {

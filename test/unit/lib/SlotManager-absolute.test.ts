@@ -26,7 +26,6 @@ describe('SlotManager — absolute positioning path', () => {
             const pos = sm.calculatePosition(config);
             expect(pos.useAbsolutePosition).to.be.true;
             expect(pos.slotName).to.equal('timed');
-            expect(pos.useDirectGrid).to.be.false;
         });
 
         it('should return slotName:"all-day" for all-day entries (unchanged path)', () => {
@@ -55,7 +54,6 @@ describe('SlotManager — absolute positioning path', () => {
             const pos = sm.calculatePosition(config);
             expect(pos.useAbsolutePosition).to.be.true;
             expect(pos.slotName).to.equal('timed-2026-3-3');
-            expect(pos.useDirectGrid).to.be.false;
             expect(pos.dayIndex).to.equal(1); // Tuesday = index 1 in Mon-start week
         });
 
@@ -78,7 +76,6 @@ describe('SlotManager — absolute positioning path', () => {
         it('should produce correct position:absolute CSS for timed entries', () => {
             const position = {
                 slotName: 'timed',
-                useDirectGrid: false,
                 useAbsolutePosition: true,
             };
             const layout: LayoutDimensions = {
@@ -109,7 +106,6 @@ describe('SlotManager — absolute positioning path', () => {
         it('should clamp short events to minimum 20 minutes', () => {
             const position = {
                 slotName: 'timed',
-                useDirectGrid: false,
                 useAbsolutePosition: true,
             };
             const layout: LayoutDimensions = { width: 100, x: 0, zIndex: 1, opacity: 1 };
@@ -118,21 +114,6 @@ describe('SlotManager — absolute positioning path', () => {
             const css = sm.generatePositionCSS(position, layout, time);
             // Duration = 5, clamped to 20
             expect(css).to.include('height: calc(20 * var(--minute-height))');
-        });
-
-        it('should still produce grid-based CSS for useDirectGrid path', () => {
-            const position = {
-                slotName: '',
-                useDirectGrid: true,
-                gridColumn: 3,
-                gridRow: '61/120',
-            };
-            const layout: LayoutDimensions = { width: 100, x: 0, zIndex: 1, opacity: 1 };
-
-            const css = sm.generatePositionCSS(position, layout);
-            expect(css).to.include('grid-column: 3');
-            expect(css).to.include('grid-row: 61/120');
-            expect(css).to.not.include('position: absolute');
         });
     });
 
@@ -145,7 +126,6 @@ describe('SlotManager — absolute positioning path', () => {
             const pos = sm.calculatePosition(config);
             expect(pos.slotName).to.equal('2026-2-28');
             expect(pos.useAbsolutePosition).to.be.undefined;
-            expect(pos.useDirectGrid).to.be.false;
         });
     });
 
@@ -252,7 +232,7 @@ describe('SlotManager — absolute positioning path', () => {
         });
 
         it('keeps one-based grid line endpoints correct for a full hour and point events', () => {
-            const position = { slotName: 'legacy', useDirectGrid: false };
+            const position = { slotName: 'legacy' };
             const layout = { width: 100, x: 0, zIndex: 1, opacity: 1 };
             expect(sm.generatePositionCSS(position, layout, time)).to.include(
                 '--start-slot: 541/601',
