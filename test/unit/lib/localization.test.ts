@@ -7,6 +7,7 @@ import {
     formatLocalizedTime,
     formatLocalizedTimeRange,
     formatLocalizedDate,
+    formatLocalizedDateInterval,
     getISOWeek,
     WEEK_NUMBERING_POLICY,
 } from '../../../src/lib/localization.js';
@@ -20,6 +21,29 @@ describe('localization', () => {
             expect(formatLocalizedDate(1, 5, 2026, locale)).to.equal(
                 formatLocalizedDate(1, 5, 2026, 'en'),
             );
+        }
+    });
+    it('shares a full-date formatter with intervals without mixing number systems', () => {
+        const DateTimeFormat = Intl.DateTimeFormat;
+        let allocations = 0;
+        Intl.DateTimeFormat = new Proxy(DateTimeFormat, {
+            construct(target, args) {
+                allocations++;
+                return Reflect.construct(target, args);
+            },
+        });
+        try {
+            const date = { day: 17, month: 11, year: 2026 };
+            const arabic = formatLocalizedDate(17, 11, 2026, 'EN-gb-u-nu-arab');
+            expect(arabic).to.include('١٧');
+            expect(formatLocalizedDateInterval(date, date, 'en-GB-u-nu-arab')).to.equal(
+                `\u2068${arabic}\u2069`,
+            );
+            const latin = formatLocalizedDate(17, 11, 2026, 'en-GB-u-nu-latn');
+            expect(latin).to.include('17');
+            expect(allocations).to.equal(2);
+        } finally {
+            Intl.DateTimeFormat = DateTimeFormat;
         }
     });
     it('uses civil-date carriers independent of ambient timezone and preserves years below 100', () => {
