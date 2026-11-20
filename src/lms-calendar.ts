@@ -1048,7 +1048,8 @@ export default class LMSCalendar extends LitElement {
         super.connectedCallback();
         this._lastStateKey = '';
         this.requestUpdate();
-        void this.updateComplete.then(() => {
+        // Only the base render must finish; subclasses can extend updateComplete.
+        void super.getUpdateComplete().then(() => {
             if (!this.isConnected) return;
             this._observeContainer();
         });

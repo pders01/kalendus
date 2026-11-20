@@ -1,8 +1,7 @@
-import { expect, fixture, html, oneEvent } from '@open-wc/testing';
+import { expect, fixture, html, oneEvent, waitUntil } from '@open-wc/testing';
 
 import { _resetForTesting } from '../../../src/lib/messages.js';
-import '../../../src/lms-calendar.ts';
-import type LMSCalendar from '../../../src/lms-calendar.ts';
+import LMSCalendar from '../../../src/lms-calendar.ts';
 
 // Mock types for testing
 type CalendarDate = {
@@ -316,6 +315,38 @@ describe('Calendar Component', () => {
             expect(observations).to.equal(2);
         } finally {
             ResizeObserver.prototype.observe = observe;
+        }
+    });
+
+    it('measures its width without waiting on a subclass’s extended update completion', async () => {
+        let finish!: () => void;
+        const childReady = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        class CalendarAwaitingChild extends LMSCalendar {
+            protected override async getUpdateComplete() {
+                const complete = await super.getUpdateComplete();
+                await childReady;
+                return complete;
+            }
+        }
+        customElements.define('calendar-awaiting-child', CalendarAwaitingChild);
+
+        const wrapper = await fixture<HTMLDivElement>(
+            html`
+                <div style="width: 480px"></div>
+            `,
+        );
+        const el = new CalendarAwaitingChild();
+        wrapper.append(el);
+        try {
+            await waitUntil(
+                () => el.shadowRoot?.querySelector('lms-calendar-month')?.compact,
+                'Calendar becomes compact before subclass readiness resolves',
+            );
+        } finally {
+            finish();
+            await el.updateComplete;
         }
     });
 
