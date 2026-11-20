@@ -20,8 +20,19 @@ export default {
             configFile: fileURLToPath(new URL('../vite.config.ts', import.meta.url)),
             cacheDir: `${root}node_modules/.vite-server-browser`,
             optimizeDeps: {
-                exclude: ['@lit-labs/observers', 'remeda'],
-                include: ['lit/directives/if-defined.js', 'lit/directives/keyed.js'],
+                // Optimize before serving test modules. Late discovery can invalidate
+                // the test module's first import when CI starts with a cold cache.
+                noDiscovery: true,
+                include: [
+                    '@open-wc/testing',
+                    'lit',
+                    'lit/decorators.js',
+                    'lit/directives/class-map.js',
+                    'lit/directives/if-defined.js',
+                    'lit/directives/repeat.js',
+                    'lit/directives/style-map.js',
+                    'luxon',
+                ],
             },
         }),
     ],
