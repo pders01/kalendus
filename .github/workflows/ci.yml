@@ -61,10 +61,17 @@ jobs:
                 browser: [chromium, firefox, webkit]
         steps:
             - uses: actions/checkout@v4
-            - uses: oven-sh/setup-bun@v2
             - uses: actions/setup-node@v4
               with:
                   node-version: 24
+            # The Playwright image does not include unzip for setup-bun.
+            - &install-container-bun
+              name: Install Bun
+              run: |
+                  prefix="$RUNNER_TEMP/kalendus-bun"
+                  npm install --global --prefix "$prefix" --no-audit --no-fund bun@1.4.5
+                  "$prefix/bin/bun" --version
+                  echo "$prefix/bin" >> "$GITHUB_PATH"
             - run: bun install --frozen-lockfile
             - run: bun run test:components
               env:
@@ -85,10 +92,10 @@ jobs:
         container: *playwright-container
         steps:
             - uses: actions/checkout@v4
-            - uses: oven-sh/setup-bun@v2
             - uses: actions/setup-node@v4
               with:
                   node-version: 24
+            - *install-container-bun
             - run: bun install --frozen-lockfile
             - run: bun run test-storybook
             # playwright.config.ts owns production build/start/cleanup.
@@ -140,10 +147,10 @@ jobs:
         needs: [lint, unit-tests, component-tests, storybook-e2e, server, dependency-audit]
         steps:
             - uses: actions/checkout@v4
-            - uses: oven-sh/setup-bun@v2
             - uses: actions/setup-node@v4
               with:
                   node-version: 24
+            - *install-container-bun
             - run: bun install --frozen-lockfile
             - run: bun run build:all
             - run: bun run analyze
