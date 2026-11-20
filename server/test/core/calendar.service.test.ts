@@ -13,6 +13,8 @@ describe('CalendarService', () => {
         service = new CalendarServiceImpl(db);
     });
 
+    afterEach(() => db.$client.close());
+
     describe('create', () => {
         it('creates a calendar with defaults', async () => {
             const cal = await service.create({ name: 'My Cal' });
@@ -66,6 +68,19 @@ describe('CalendarService', () => {
             });
             expect(updated!.name).to.equal('Updated');
             expect(updated!.locale).to.equal('en'); // unchanged
+        });
+
+        it('returns the PATCH statement row rather than a separate read', async () => {
+            const row = createCalendar(db);
+            db.$client.exec(`
+                CREATE TRIGGER rename_after_patch AFTER UPDATE ON calendars WHEN NEW.name = 'Patched'
+                BEGIN UPDATE calendars SET name = 'Renamed' WHERE id = NEW.id; END;
+            `);
+            expect(await service.update(row.id, { name: 'Patched' })).to.include({
+                name: 'Patched',
+                createdAt: row.createdAt,
+            });
+            expect(await service.getById(row.id)).to.include({ name: 'Renamed' });
         });
     });
 

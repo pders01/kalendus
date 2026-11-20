@@ -44,12 +44,9 @@ export class CalendarServiceImpl {
     async update(id: string, dto: UpdateCalendarDto): Promise<ApiCalendar | null> {
         validate(idSchema, id);
         dto = validate(updateCalendarSchema, dto);
-        const existing = this.db.select().from(calendars).where(eq(calendars.id, id)).get();
-
-        if (!existing) return null;
-
-        const now = new Date().toISOString();
-        const updates: Record<string, unknown> = { updatedAt: now };
+        const updates: Partial<typeof calendars.$inferInsert> = {
+            updatedAt: new Date().toISOString(),
+        };
 
         if (dto.name !== undefined) updates.name = dto.name;
         if (dto.locale !== undefined) updates.locale = dto.locale;
@@ -57,9 +54,12 @@ export class CalendarServiceImpl {
         if (dto.color !== undefined) updates.color = dto.color;
         if (dto.themeTokens !== undefined) updates.themeTokens = dto.themeTokens;
 
-        this.db.update(calendars).set(updates).where(eq(calendars.id, id)).run();
-
-        const updated = this.db.select().from(calendars).where(eq(calendars.id, id)).get();
+        const updated = this.db
+            .update(calendars)
+            .set(updates)
+            .where(eq(calendars.id, id))
+            .returning()
+            .get();
 
         return updated ? this._toDto(updated) : null;
     }

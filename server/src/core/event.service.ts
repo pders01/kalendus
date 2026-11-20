@@ -16,6 +16,8 @@ import {
     MAX_QUERY_RESULTS,
 } from './validation.js';
 
+type EventRow = typeof events.$inferSelect;
+
 export class EventServiceImpl {
     constructor(private db: Db) {}
 
@@ -120,14 +122,9 @@ export class EventServiceImpl {
                 const existing = tx.select().from(events).where(where).get();
 
                 if (!existing) return null;
-                const { heading, content, color, date, time } = this._toDto(existing);
-                const patch = Object.fromEntries(
-                    Object.entries(dto).filter(([, value]) => value !== undefined),
-                );
-                validate(eventStateSchema, { heading, content, color, date, time, ...patch });
-
-                const now = new Date().toISOString();
-                const updates: Record<string, unknown> = { updatedAt: now };
+                const updates: Partial<typeof events.$inferInsert> = {
+                    updatedAt: new Date().toISOString(),
+                };
 
                 if (dto.heading !== undefined) updates.heading = dto.heading;
                 if (dto.content !== undefined) updates.content = dto.content;
@@ -143,19 +140,13 @@ export class EventServiceImpl {
                 }
 
                 if (dto.time !== undefined) {
-                    if (dto.time === null) {
-                        updates.startHour = null;
-                        updates.startMinute = null;
-                        updates.endHour = null;
-                        updates.endMinute = null;
-                    } else {
-                        updates.startHour = dto.time.start.hour;
-                        updates.startMinute = dto.time.start.minute;
-                        updates.endHour = dto.time.end.hour;
-                        updates.endMinute = dto.time.end.minute;
-                    }
+                    updates.startHour = dto.time?.start.hour ?? null;
+                    updates.startMinute = dto.time?.start.minute ?? null;
+                    updates.endHour = dto.time?.end.hour ?? null;
+                    updates.endMinute = dto.time?.end.minute ?? null;
                 }
 
+                this._validateStoredState({ ...existing, ...updates });
                 const updated = tx.update(events).set(updates).where(where).returning().get();
 
                 return updated ? this._toDto(updated) : null;
@@ -192,25 +183,43 @@ export class EventServiceImpl {
         return [y, m, d];
     }
 
-    private _toDto(row: typeof events.$inferSelect): ApiCalendarEntry {
+    private _dateFromRow(row: EventRow): ApiCalendarEntry['date'] {
+        return {
+            start: { year: row.startYear, month: row.startMonth, day: row.startDay },
+            end: { year: row.endYear, month: row.endMonth, day: row.endDay },
+        };
+    }
+
+    private _validateStoredState(row: EventRow): void {
+        const { heading, content, color, startHour, startMinute, endHour, endMinute } = row;
+        let time: ApiCalendarEntry['time'] = null;
+        if (startHour !== null || startMinute !== null || endHour !== null || endMinute !== null) {
+            if (
+                startHour === null ||
+                startMinute === null ||
+                endHour === null ||
+                endMinute === null
+            )
+                throw new ValidationError('Invalid input', {
+                    time: ['Stored time is incomplete; set time to null or supply a full interval'],
+                });
+            time = {
+                start: { hour: startHour, minute: startMinute },
+                end: { hour: endHour, minute: endMinute },
+            };
+        }
+        validate(eventStateSchema, { heading, content, color, date: this._dateFromRow(row), time });
+    }
+
+    private _toDto(row: EventRow): ApiCalendarEntry {
         return {
             id: row.id,
             calendarId: row.calendarId,
             heading: row.heading,
             content: row.content,
             color: row.color,
-            date: {
-                start: {
-                    year: row.startYear,
-                    month: row.startMonth,
-                    day: row.startDay,
-                },
-                end: {
-                    year: row.endYear,
-                    month: row.endMonth,
-                    day: row.endDay,
-                },
-            },
+            date: this._dateFromRow(row),
+            // Raw reads retain the legacy fallback; it is not a valid PATCH base.
             time:
                 row.startHour != null && row.startMinute != null
                     ? {

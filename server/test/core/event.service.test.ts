@@ -1,8 +1,10 @@
+import { rejects } from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { expect } from 'chai';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 import { ValidationError } from '../../src/core/errors.js';
@@ -24,6 +26,8 @@ describe('EventService', () => {
         const cal = createCalendar(db);
         calId = cal.id;
     });
+
+    afterEach(() => db.$client.close());
 
     describe('create', () => {
         it('creates a timed event', async () => {
@@ -174,6 +178,65 @@ describe('EventService', () => {
             });
             expect(updated!.heading).to.equal('Updated');
             expect(updated!.time!.start.hour).to.equal(14);
+        });
+
+        it('keeps all legacy raw clock projections but only PATCHes complete stored clocks or repairs', async () => {
+            const stored = (id: string) =>
+                db.select().from(schema.events).where(eq(schema.events.id, id)).get();
+            const day = '2026-03-15';
+            const time = { start: { hour: 0, minute: 0 }, end: { hour: 1, minute: 0 } };
+            // Cover every combination of present/null columns, including zero-valued fields.
+            for (let mask = 0; mask < 16; mask++) {
+                const clocks = {
+                    startHour: mask & 1 ? 0 : null,
+                    startMinute: mask & 2 ? 0 : null,
+                    endHour: mask & 4 ? 1 : null,
+                    endMinute: mask & 8 ? 0 : null,
+                };
+                const row = createEvent(db, calId, clocks);
+                const raw = (await service.getByRange(calId, day, day)).find(
+                    ({ id }) => id === row.id,
+                );
+                const readTime =
+                    (mask & 3) === 3
+                        ? {
+                              start: time.start,
+                              end: { hour: clocks.endHour ?? 23, minute: clocks.endMinute ?? 59 },
+                          }
+                        : null;
+                expect(raw?.time, `clock mask ${mask}`).to.deep.equal(readTime);
+                if (mask === 0 || mask === 15) {
+                    expect(await service.update(calId, row.id, { heading: 'Changed' })).to.include({
+                        heading: 'Changed',
+                    });
+                    expect(stored(row.id)).to.include(clocks);
+                    continue;
+                }
+
+                await rejects(
+                    service.update(calId, row.id, { heading: 'Changed', time: undefined }),
+                    ValidationError,
+                );
+                const invalid = { start: time.start, end: time.start };
+                await rejects(service.update(calId, row.id, { time: invalid }), ValidationError);
+                expect(stored(row.id)).to.deep.equal(row);
+
+                const reset = createEvent(db, calId, clocks);
+                expect((await service.update(calId, reset.id, { time: null }))?.time).to.be.null;
+                expect(stored(reset.id)).to.include({
+                    startHour: null,
+                    startMinute: null,
+                    endHour: null,
+                    endMinute: null,
+                });
+                expect((await service.update(calId, row.id, { time }))?.time).to.deep.equal(time);
+                expect(stored(row.id)).to.include({
+                    startHour: 0,
+                    startMinute: 0,
+                    endHour: 1,
+                    endMinute: 0,
+                });
+            }
         });
 
         it('locks a concurrent writer before reading the interval used for PATCH validation', async () => {
