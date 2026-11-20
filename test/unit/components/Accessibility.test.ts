@@ -72,17 +72,26 @@ function entries(locale: string): CalendarEntry[] {
 async function settle(calendar: LMSCalendar): Promise<void> {
     await calendar.localeReady;
     await calendar.updateComplete;
-    // A border-box subtraction incorrectly includes classic scrollbar gutters.
-    let width = 0;
-    const observer = new ResizeObserver(([entry]) => (width = entry.contentRect.width));
-    observer.observe(calendar.shadowRoot!.querySelector('.calendar-container')!);
+    const container = calendar.shadowRoot!.querySelector<HTMLElement>('.calendar-container')!;
+    // clientWidth excludes classic scrollbar gutters and borders without waiting for
+    // an independent observer delivery. Allow for its integer rounding.
+    const style = getComputedStyle(container);
+    const contentWidth = () =>
+        container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     try {
         await waitUntil(
-            () => width > 0 && calendar._calendarWidth === width,
+            () => {
+                const width = contentWidth();
+                return width > 0 && Math.abs(calendar._calendarWidth - width) <= 0.5;
+            },
             'root commits its observed width before responsive assertions',
+            { timeout: 3000 },
         );
-    } finally {
-        observer.disconnect();
+    } catch (error) {
+        throw new Error(
+            `${error} (committed ${calendar._calendarWidth}px, measured ${contentWidth()}px)`,
+            { cause: error },
+        );
     }
     const updates = (element: Element): Promise<unknown>[] => [
         ...('updateComplete' in element ? [(element as LitElement).updateComplete] : []),
