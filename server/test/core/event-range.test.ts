@@ -106,7 +106,7 @@ describe('SQLite event range queries', () => {
         });
     });
 
-    it('skips unparseable clipped legacy endpoints without changing raw reads', async () => {
+    it('skips unparseable legacy endpoints in every summary window without changing raw reads', async () => {
         createEvent(db, calendarId, { id: 'bad-end', endMonth: 4, endDay: 0 });
         createEvent(db, calendarId, {
             id: 'bad-start',
@@ -144,6 +144,11 @@ describe('SQLite event range queries', () => {
             '2026-03-17': 1,
             '2026-04-02': 1,
         });
+        // A narrower window must not hide the invalid end or start before validation.
+        expect(await service.getSummary(calendarId, '2026-03-17', '2026-03-17')).to.deep.equal({
+            '2026-03-17': 1,
+        });
+        expect(await service.getSummary(calendarId, '2026-04-01', '2026-04-01')).to.deep.equal({});
     });
 
     it('skips a legacy interval reversed by date parsing even when its date keys are ordered', async () => {

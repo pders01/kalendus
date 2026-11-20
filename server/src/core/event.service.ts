@@ -95,26 +95,36 @@ export class EventServiceImpl {
             );
 
         const summary: EventSummary = {};
-        // Keep the legacy clipping and UTC parsing, including for imported rows.
+        // UTC is only a Gregorian civil-date counter, never a floating-date display zone.
+        const utcDay = (key: string) => Date.parse(`${key}T00:00:00Z`);
+        const startDay = utcDay(start);
+        const endDay = utcDay(end);
         // Difference sweep: O(rows + query days), not O(sum of event lifetimes).
         const changes = new Map<number, number>();
         for (const row of rows) {
             const date = this._dateFromRow(row);
-            const clippedStart = [start, civilDateKey(date.start)].sort()[1];
-            const clippedEnd = [end, civilDateKey(date.end)].sort()[0];
-            // Older databases can contain reversed date intervals. Never emit their deltas.
-            if (clippedStart > clippedEnd) continue;
-            const first = Date.parse(`${clippedStart}T00:00:00Z`);
-            const last = Date.parse(`${clippedEnd}T00:00:00Z`);
-            if (!Number.isFinite(first) || !Number.isFinite(last) || first > last) continue;
+            const firstKey = civilDateKey(date.start);
+            const lastKey = civilDateKey(date.end);
+            const storedFirst = utcDay(firstKey);
+            const storedLast = utcDay(lastKey);
+            // Check the stored interval before clipping can hide a malformed endpoint.
+            if (
+                firstKey > lastKey ||
+                !Number.isFinite(storedFirst) ||
+                !Number.isFinite(storedLast) ||
+                storedFirst > storedLast
+            )
+                continue;
+            // Keep clipping by the original civil keys, even for parseable legacy dates.
+            const first = firstKey < start ? startDay : storedFirst;
+            const last = lastKey > end ? endDay : storedLast;
+            if (first > last) continue;
             const after = last + 86_400_000;
             changes.set(first, (changes.get(first) ?? 0) + 1);
             changes.set(after, (changes.get(after) ?? 0) - 1);
         }
         let count = 0;
-        // UTC is only a Gregorian civil-date counter, never a floating-date display zone.
-        const stop = Date.parse(`${end}T00:00:00Z`);
-        for (let day = Date.parse(`${start}T00:00:00Z`); day <= stop; day += 86_400_000) {
+        for (let day = startDay; day <= endDay; day += 86_400_000) {
             count += changes.get(day) ?? 0;
             if (count > 0) summary[new Date(day).toISOString().slice(0, 10)] = count;
         }
