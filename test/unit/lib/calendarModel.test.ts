@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { DateTime } from 'luxon';
 
 import {
     addCivilDays,
@@ -542,6 +543,9 @@ describe('calendarModel', () => {
                 { start: time(0), end: time(24) },
                 { start: time(0), end: time(1) },
             ]);
+            expect(new Set(result.map((e) => e.time)).size).to.equal(3);
+            expect(result[0].time!.end).not.to.equal(result[1].time!.end);
+            expect(result[1].time!.start).not.to.equal(result[2].time!.start);
             const fullDays = expandEntries([
                 {
                     ...entry(date(2026, 3, 7), date(2026, 3, 9)),
@@ -553,6 +557,45 @@ describe('calendarModel', () => {
             expect(fullDays.every((e) => e.kind === 'timed' && !e.isAllDay)).to.equal(true);
             expect(fullDays.map((e) => e.time!.end)).to.deep.equal([time(24), time(24)]);
         });
+        it('converts a visible continuous end day once and skips conversion offscreen', () => {
+            const source = {
+                ...entry(date(2024, 2, 1), date(2024, 3, 18)),
+                kind: 'timed',
+                time: { start: time(23), end: time(1) },
+            };
+            const normalized = normalizeEntries([source]);
+            const utc = DateTime.utc;
+            let endDayConversions = 0;
+            DateTime.utc = new Proxy(utc, {
+                apply(target, receiver, args) {
+                    if (args[0] === 2024 && args[1] === 3 && args[2] === 18) endDayConversions++;
+                    return Reflect.apply(target, receiver, args);
+                },
+            });
+            try {
+                const result = expandEntries(normalized, {
+                    start: '2024-02-06',
+                    end: '2024-03-19',
+                });
+                expect(result).to.have.length(42);
+                expect(result[0].continuation).to.deep.equal({
+                    has: true,
+                    is: true,
+                    index: 5,
+                    total: 47,
+                });
+                expect(result[23].date.start).to.deep.equal(date(2024, 2, 29));
+                expect(result[41].time).to.deep.equal({ start: time(0), end: time(1) });
+                expect(result[41].canonicalEntry).to.equal(source);
+                expect(endDayConversions).to.equal(1);
+                expect(expandEntries(normalized, { start: '2024-03-19', end: '2024-03-20' })).to.be
+                    .empty;
+                expect(endDayConversions).to.equal(1);
+            } finally {
+                DateTime.utc = utc;
+            }
+        });
+
         it('keeps long and 24-hour explicit intervals timed, and permits point events', () => {
             for (const end of [time(23), time(23, 59), time(24), time(0)]) {
                 const result = expandEntries([
@@ -601,8 +644,11 @@ describe('calendarModel', () => {
                 ...entry(date(2026, 3, 7), date(2026, 3, 9)),
                 time: { start: time(9), end: time(17) },
             };
-            const result = expandEntries([source]);
+            const normalized = normalizeEntries([source]);
+            const result = expandEntries(normalized);
             expect(result).to.have.length(3);
+            expect(result[0].time!.start).not.to.equal(normalized[0].time!.start);
+            expect(new Set(result.map((e) => e.time!.start)).size).to.equal(3);
             expect(result.every((e) => e.temporalKind === 'legacy-daily' && e.isAllDay)).to.equal(
                 true,
             );

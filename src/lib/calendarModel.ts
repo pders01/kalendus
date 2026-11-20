@@ -473,27 +473,26 @@ export function expandEntries(
     for (const entry of normalized) {
         const first = Math.max(entry.startDay, rangeStart);
         const end = Math.min(entry.endDayExclusive, rangeEnd);
+        if (first >= end) continue;
         const total = entry.endDayExclusive - entry.startDay;
+        const sourceTime = entry.time;
+        const canonicalEndDay =
+            !entry.legacy && entry.kind === 'timed' && sourceTime
+                ? dayNumber(entry.date.end)
+                : undefined;
         for (let day = first; day < end; day++) {
             const index = day - entry.startDay;
             const date = dateFromDay(day);
-            let time = entry.time && {
-                start: copyTime(entry.time.start),
-                end: copyTime(entry.time.end),
+            const time = sourceTime && {
+                start:
+                    canonicalEndDay === undefined || day === entry.startDay
+                        ? copyTime(sourceTime.start)
+                        : { hour: 0, minute: 0 },
+                end:
+                    canonicalEndDay === undefined || day === canonicalEndDay
+                        ? copyTime(sourceTime.end)
+                        : { hour: 24, minute: 0 },
             };
-            if (!entry.legacy && entry.kind === 'timed' && entry.time) {
-                const canonicalEndDay = dayNumber(entry.date.end);
-                time = {
-                    start:
-                        day === entry.startDay
-                            ? copyTime(entry.time.start)
-                            : { hour: 0, minute: 0 },
-                    end:
-                        day === canonicalEndDay
-                            ? copyTime(entry.time.end)
-                            : { hour: 24, minute: 0 },
-                };
-            }
             expanded.push({
                 ...entry,
                 segmentId: JSON.stringify([entry.occurrenceId, calendarDateToISO(date)]),
