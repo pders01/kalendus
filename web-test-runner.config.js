@@ -22,6 +22,8 @@ export default {
             // Isolate its optimizer from concurrent Storybook/Vitest processes.
             configFile: false,
             cacheDir: 'node_modules/.vite-components',
+            // Match the proxy's IPv4 loopback on runners with no usable IPv6 route.
+            server: { host: '127.0.0.1' },
             optimizeDeps: {
                 include: [
                     '@open-wc/testing',

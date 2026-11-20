@@ -19,6 +19,8 @@ export default {
             root,
             configFile: fileURLToPath(new URL('../vite.config.ts', import.meta.url)),
             cacheDir: `${root}node_modules/.vite-server-browser`,
+            // Match the proxy's IPv4 loopback on runners with no usable IPv6 route.
+            server: { host: '127.0.0.1' },
             optimizeDeps: {
                 // Optimize before serving test modules. Late discovery can invalidate
                 // the test module's first import when CI starts with a cold cache.
