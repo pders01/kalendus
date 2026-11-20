@@ -32,6 +32,8 @@ const commands = [
         'run',
         'mocha',
         '--no-config',
+        // Keep VM tests bounded without relying on Mocha's 2s wall-clock default in CI.
+        '--timeout=10000',
         '--require=ts-node/register',
         '--loader=ts-node/esm',
         'test/unit/lib/expoBridge.test.ts',
