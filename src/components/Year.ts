@@ -70,12 +70,13 @@ export default class Year extends LitElement {
     private _fitMonths() {
         const grid = this.renderRoot.querySelector<HTMLElement>('.year-grid');
         if (!grid) return;
-        const scroll = grid.parentElement!;
+        const scroll = grid.parentElement!.parentElement!;
         const styles = getComputedStyle(grid);
         if (styles.getPropertyValue('--year-grid-columns')) return;
         const font = parseFloat(styles.fontSize);
-        const width = scroll.clientWidth;
-        const height = scroll.clientHeight;
+        // The preferred shape must not depend on scrollbars left by the previous shape.
+        const width = scroll.offsetWidth;
+        const height = scroll.offsetHeight;
         if (!height) return;
         const capacity = width / (font * (matchMedia('(pointer: coarse)').matches ? 24 : 14));
         const widest =
@@ -96,7 +97,7 @@ export default class Year extends LitElement {
                       ? 'var(--year-grid-columns-tablet,2)'
                       : String(count),
             );
-            if (count === widest || scroll.scrollHeight <= height) break;
+            if (count === widest || scroll.scrollHeight <= scroll.clientHeight) break;
         }
         scroll.scrollTop = top;
         scroll.scrollLeft = left;
@@ -132,8 +133,12 @@ export default class Year extends LitElement {
             block-size: 100%;
             overflow: auto;
             background: var(--background-color);
-            container-type: inline-size;
             scroll-padding: 1em 0.75em;
+        }
+        /* Measure inside the scrollbar so sticky headings fit the usable width. */
+        .scroll-container > div {
+            block-size: 100%;
+            container-type: inline-size;
         }
 
         .year-grid {
@@ -149,7 +154,8 @@ export default class Year extends LitElement {
             min-block-size: 100%;
             grid-auto-rows: minmax(min-content, 1fr);
             gap: 0.25em 1em;
-            padding: 0.375em 0.75em;
+            /* Keep a 1px (at 16px) end-padding margin for line-box rounding. */
+            padding: 0.375em 0.75em 0.3125em;
         }
 
         .mini-month {
@@ -429,7 +435,7 @@ export default class Year extends LitElement {
 
         return html`
             <p id="date-grid-help" class="sr-only" lang="en">Arrow keys move dates; Home/End move within a week; Page Up/Down move months; Shift+Page Up/Down move years. F2 opens the week control; Escape returns to the date.</p>
-            <div class="scroll-container">
+            <div class="scroll-container"><div>
                 <div class="year-grid" data-density-mode=${this.densityMode} role="group" aria-label="${getMessages(this.locale).year} ${formatLocalizedYear(year, this.locale)}">
                     ${Array.from({ length: 12 }, (_, i) => {
                         const month = i + 1;
@@ -444,7 +450,7 @@ export default class Year extends LitElement {
                         );
                     })}
                 </div>
-            </div>
+            </div></div>
         `;
     }
 

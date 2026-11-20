@@ -10,6 +10,15 @@ import type Calendar from '../../../src/lms-calendar.ts';
 
 const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 const rect = (element: Element) => element.getBoundingClientRect();
+const scrollport = (element: HTMLElement) => {
+    const { x, y } = rect(element);
+    return new DOMRect(
+        x + element.clientLeft,
+        y + element.clientTop,
+        element.clientWidth,
+        element.clientHeight,
+    );
+};
 
 async function overview(width: number, densityMode: DensityMode = 'dot', fontSize = 16) {
     const element = await fixture<Year>(html`
@@ -34,13 +43,12 @@ function rowLengths(element: Year) {
     return [...rows.values()];
 }
 
-function contains(inner: Element, outer: Element) {
-    const a = rect(inner);
-    const b = rect(outer);
-    expect(a.left).to.be.at.least(b.left - 1);
-    expect(a.right).to.be.at.most(b.right + 1);
-    expect(a.top).to.be.at.least(b.top - 1);
-    expect(a.bottom).to.be.at.most(b.bottom + 1);
+function contains(inner: Element, outer: DOMRect) {
+    const box = rect(inner);
+    expect(box.left).to.be.at.least(outer.left - 1);
+    expect(box.right).to.be.at.most(outer.right + 1);
+    expect(box.top).to.be.at.least(outer.top - 1);
+    expect(box.bottom).to.be.at.most(outer.bottom + 1);
 }
 
 function usableMonths(element: Year, minimum = 24) {
@@ -51,7 +59,7 @@ function usableMonths(element: Year, minimum = 24) {
             for (const target of targets) {
                 expect(rect(target).width).to.be.at.least(minimum);
                 expect(rect(target).height).to.be.at.least(minimum);
-                contains(target, row);
+                contains(target, rect(row));
             }
             targets.sort((a, b) => rect(a).left - rect(b).left);
             for (let i = 1; i < targets.length; i++) {
@@ -87,9 +95,10 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
             const scroller = element.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
             expect(scroller.scrollHeight).to.be.at.most(scroller.clientHeight + 1);
             const months = [...element.shadowRoot!.querySelectorAll('.mini-month')];
-            for (const month of months) contains(month, scroller);
+            const port = scrollport(scroller);
+            for (const month of months) contains(month, port);
             const last = months.at(-1)!;
-            expect(rect(scroller).bottom - rect(last).bottom).to.be.closeTo(6, 1);
+            expect(port.bottom - rect(last).bottom).to.be.closeTo(5, 1);
             const firstWeekTop = rect(months[0].querySelector('.day-row')!).top;
             for (const month of months.slice(0, columns)) {
                 expect(rect(month.querySelector('.day-row')!).top).to.be.closeTo(firstWeekTop, 1);
@@ -98,8 +107,8 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
             const active = element.shadowRoot!.querySelector('[data-date="2026-1-15"]')!;
             const date = active.querySelector('.date-number')!;
             const activity = active.querySelector('.activity-slot')!;
-            contains(date, active);
-            contains(activity, active);
+            contains(date, rect(active));
+            contains(activity, rect(active));
             expect(activity.getAttribute('aria-hidden')).to.equal('true');
             expect(activity.querySelector('button, [tabindex]')).to.equal(null);
             const overlapX =
@@ -126,14 +135,14 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         it(`fills the available width with ${columns} columns in a ${width}px embed`, async () => {
             const element = await overview(width);
             expect(rowLengths(element)).to.deep.equal(Array(12 / columns).fill(columns));
-            const scroller = element.shadowRoot!.querySelector('.scroll-container')!;
+            const scroller = element.shadowRoot!.querySelector<HTMLElement>('.scroll-container')!;
             const firstRow = [...element.shadowRoot!.querySelectorAll('.mini-month')].slice(
                 0,
                 columns,
             );
-            const grid = rect(scroller);
-            expect(rect(firstRow[0]).left - grid.left).to.be.closeTo(12, 1);
-            expect(grid.right - rect(firstRow.at(-1)!).right).to.be.closeTo(12, 1);
+            const port = scrollport(scroller);
+            expect(rect(firstRow[0]).left - port.left).to.be.closeTo(12, 1);
+            expect(port.right - rect(firstRow.at(-1)!).right).to.be.closeTo(12, 1);
             usableMonths(element);
         });
     }
@@ -150,7 +159,7 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         expect(rowLengths(year)).to.deep.equal([4, 4, 4]);
         expect(scroll.scrollHeight).to.equal(scroll.clientHeight);
         for (const month of year.shadowRoot!.querySelectorAll('.mini-month'))
-            contains(month, scroll);
+            contains(month, scrollport(scroll));
         usableMonths(year);
     });
 
@@ -205,7 +214,7 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         await year().focusDate({ year: 2026, month: 12, day: 31 });
         await frame();
         expect(scroll().scrollTop).to.be.greaterThan(0);
-        contains(year().shadowRoot!.activeElement!, scroll());
+        contains(year().shadowRoot!.activeElement!, scrollport(scroll()));
     });
 
     it('only switches from six columns to four when all three rows fit', async () => {
@@ -225,7 +234,9 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         // The actual row height, including consumer tokens, determines fit.
         year.style.setProperty('--year-cell-size', '3em');
         await check(756, 6);
+        expect(scroll.scrollWidth).to.be.greaterThan(scroll.clientWidth);
         await check(900, 4);
+        expect(scroll.scrollWidth).to.equal(scroll.clientWidth);
         await check(755, 6);
     });
 
@@ -240,7 +251,7 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         expect(scroller.scrollHeight).to.be.greaterThan(scroller.clientHeight);
         await year.focusDate({ year: 2026, month: 12, day: 31 });
         await frame();
-        contains(year.shadowRoot!.activeElement!, scroller);
+        contains(year.shadowRoot!.activeElement!, scrollport(scroller));
     });
 
     it('allows deliberate scrolling for enlarged text while retaining 44px targets and reachable December', async () => {
@@ -252,7 +263,7 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         await element.focusDate({ year: 2026, month: 12, day: 31 });
         await frame();
         expect(scroller.scrollTop).to.be.greaterThan(0);
-        contains(element.shadowRoot!.activeElement!, scroller);
+        contains(element.shadowRoot!.activeElement!, scrollport(scroller));
     });
 
     it('preserves native date drill, month roving, F2 week drill and Escape return in RTL', async () => {
@@ -394,8 +405,8 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
         expect(getComputedStyle(number).backgroundColor).to.equal('rgb(12, 34, 56)');
         expect(getComputedStyle(number).borderRadius).to.equal('50%');
         expect(getComputedStyle(slot).backgroundColor).to.equal('rgba(0, 0, 0, 0)');
-        contains(number, button);
-        contains(slot, button);
+        contains(number, rect(button));
+        contains(slot, rect(button));
         expect(rect(number).bottom).to.be.at.most(rect(slot).top + 0.5);
         const count = slot.querySelector<HTMLElement>('.event-count')!;
         expect(count.textContent).to.equal('123,456,789');
@@ -415,9 +426,16 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
             const monthHeaders = [...root.querySelectorAll('.month-heading')];
             const weekdayHeaders = [...root.querySelectorAll('.weekday-header')];
             const startX = weekdayHeaders.map((header) => rect(header).left);
-            const labelX = monthHeaders.map((label) => rect(label).left);
+            const checkLabels = () => {
+                const port = scrollport(scroller);
+                for (const label of monthHeaders) {
+                    expect(rect(label).left - port.left).to.be.closeTo(18, 1);
+                    expect(port.right - rect(label).right).to.be.closeTo(18, 1);
+                }
+            };
 
             expect(scroller.scrollWidth).to.be.greaterThan(scroller.clientWidth);
+            checkLabels();
             for (const label of weekdayHeaders[0].querySelectorAll('[role="columnheader"]')) {
                 const text = document.createRange();
                 text.selectNodeContents(label);
@@ -431,13 +449,13 @@ describe('Year overview correction: fine-pointer geometry, focus and locale gram
                     -scroller.scrollLeft,
                     1,
                 );
-                expect(rect(monthHeaders[i]).left).to.be.closeTo(labelX[i], 1);
             }
+            checkLabels();
             await element.focusDate({ year: 2026, month: 11, day: 22 });
             await frame();
             const focused = root.activeElement!;
             expect(focused.getAttribute('data-date')).to.equal('2026-11-22');
-            contains(focused, scroller);
+            contains(focused, scrollport(scroller));
         });
     }
 
@@ -473,6 +491,6 @@ describe('Year overview correction: coarse-pointer geometry', () => {
         expect(scroller.scrollHeight).to.be.greaterThan(scroller.clientHeight);
         await element.focusDate({ year: 2026, month: 12, day: 31 });
         await frame();
-        contains(element.shadowRoot!.activeElement!, scroller);
+        contains(element.shadowRoot!.activeElement!, scrollport(scroller));
     });
 });
