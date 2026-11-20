@@ -84,8 +84,8 @@ const meta: Meta<LMSCalendar> = {
         },
         yearDrillTarget: {
             control: 'select',
-            options: ['day', 'month'],
-            description: 'Where day-click in year view navigates to',
+            options: ['day', 'week', 'month'],
+            description: 'View opened by selecting a date in Year',
         },
         yearDensityMode: {
             control: 'select',
@@ -1253,7 +1253,7 @@ export const StressTestAllViews: Story = {
         await calendar.localeReady;
         await waitFor(() => expectCalendarView(calendar, 'month'));
         const initial = calendar.activeDate;
-        for (const viewMode of ['week', 'day'] as const) {
+        for (const viewMode of ['year', 'week', 'day'] as const) {
             await expectNavigation(
                 calendar,
                 () => headerControl(calendar, `[data-context="${viewMode}"]`),
@@ -1277,7 +1277,7 @@ export const StressTestAllViews: Story = {
     parameters: {
         docs: {
             description: {
-                story: 'Comprehensive stress test that automatically cycles through all three views (Month, Week, Day) with heavy event load. Tests view switching performance, rendering quality, and layout stability under realistic high-usage scenarios.',
+                story: 'Checks committed Month → Year → Week → Day navigation with a dense entry fixture, advances two dates in Day, then returns to Month. The fixture is useful for visual review; this test does not measure rendering speed or compare pixels.',
             },
         },
     },
@@ -1665,7 +1665,7 @@ export const TallContainer: Story = {
     render: (args) => html`
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1em; align-items: start;">
             <lms-calendar
-                .heading=${'720px (default)'}
+                .heading=${'720px embed'}
                 .activeDate=${args.activeDate}
                 .entries=${args.entries}
                 .color=${args.color}
@@ -1687,7 +1687,7 @@ export const TallContainer: Story = {
     parameters: {
         docs: {
             description: {
-                story: 'Side-by-side comparison of the calendar at its default 720px height vs a tall 1400px container. Verifies that the dynamic --minute-height scales correctly: hour rows stretch so that exactly 12 hours fill the visible scroll viewport regardless of container size. Switch between Day, Week, Month, and Year views to check each layout.',
+                story: 'Compares two explicit embed heights: 720px and 1400px. Switch views to compare sizing. The production browser test checks that the tall Day and Week timelines fit all 24 hours for this fixture; fitting depends on the available space and entry density.',
             },
         },
     },

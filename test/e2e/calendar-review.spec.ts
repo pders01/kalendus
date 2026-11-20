@@ -147,6 +147,72 @@ test('loads the Kalendus Docs entry with one live calendar at phone width', asyn
         .toBeLessThanOrEqual(1);
 });
 
+test('follows Docs and matrix links to the intended production stories and preset', async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1400, height: 1100 });
+    const preview = page.frameLocator('#storybook-preview-iframe');
+    const openDocs = () => page.goto('/?path=/docs/components-kalendus--docs');
+
+    await openDocs();
+    await preview.getByRole('link', { name: 'Browse Month → Agenda → Week' }).click();
+    await expect(page).toHaveURL(
+        /path=\/story\/design-comparisons-presentation-variants--library-browse-journey/,
+    );
+    const calendar = preview.locator('lms-calendar');
+    await expect(calendar.locator('lms-calendar-month')).toBeVisible();
+    await expect(calendar).toHaveJSProperty('monthAgendaPresentation', 'accordion');
+
+    await openDocs();
+    await preview.getByRole('link', { name: 'Review one view at several embed sizes' }).click();
+    await expect(page).toHaveURL(/path=\/story\/calendar-viewport-matrix--matrix/);
+    await preview.getByRole('link', { name: 'Year at 320 by 740 (Large text + RTL)' }).click();
+    await expect
+        .poll(() => new URL(page.url()).searchParams.get('path'))
+        .toBe('/story/calendar-viewport-matrix--year');
+    await expect(calendar.locator('lms-calendar-year')).toBeVisible();
+    await expect(calendar).toHaveAttribute('dir', 'rtl');
+    await expect(calendar).toHaveCSS('font-size', '24px');
+    await expect(calendar).toHaveCSS('inline-size', '288px');
+    await expect(calendar).toHaveCSS('block-size', '708px');
+});
+
+test('remeasures a hidden Week at its new width and height on reveal', async ({ page }) => {
+    await page.goto(story('calendar-viewport-matrix--week'));
+    const calendar = page.locator('lms-calendar');
+    const week = calendar.locator('lms-calendar-week');
+    const timeline = week.locator('.week-scroll');
+    await calendar.evaluate((element) => {
+        element.style.inlineSize = '1100px';
+        element.style.blockSize = '900px';
+    });
+    await expect(week).toHaveJSProperty('visibleLength', 7);
+    await expect.poll(() => timeline.evaluate((node) => node.clientHeight)).toBeGreaterThan(600);
+
+    await calendar.evaluate((element) => {
+        element.style.display = 'none';
+        element.style.inlineSize = '360px';
+        element.style.blockSize = '390px';
+    });
+    await expect(calendar).toBeHidden();
+    await calendar.evaluate((element) => element.style.removeProperty('display'));
+    await expect(week).toHaveJSProperty('visibleLength', 2);
+    const measure = () => timeline.evaluate((node) => node.clientHeight);
+    await expect.poll(measure).toBeLessThan(390);
+    const revealedHeight = await measure();
+    expect(revealedHeight).toBeGreaterThan(0);
+
+    // Compare with the same embed resized while visible, rather than prescribing
+    // an axis height that includes variable toolbar and all-day geometry.
+    await page.reload();
+    await calendar.evaluate((element) => {
+        element.style.inlineSize = '360px';
+        element.style.blockSize = '390px';
+    });
+    await expect(week).toHaveJSProperty('visibleLength', 2);
+    await expect.poll(measure).toBe(revealedHeight);
+});
+
 test('shares Year panning at phone width and keeps the Arabic date controls reachable', async ({
     page,
 }) => {

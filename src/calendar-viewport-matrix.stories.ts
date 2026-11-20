@@ -149,8 +149,8 @@ export const Matrix: Story = {
         </style>
         <section class="viewport-matrix" aria-labelledby="matrix-title">
             <h1 id="matrix-title">Calendar viewport matrix</h1>
-            <p>Open any cell to review a live calendar with the same November 17 fixture. The Storybook viewport toolbar changes the frame size; Controls switch between sparse and dense events, text sizes, and locales.</p>
-            <p>Sizes are CSS pixels, not device emulation. The calendar keeps the selected embed size even if the Storybook canvas is smaller and has to scroll. Review on a phone or tablet for real touch layout and browser behavior.</p>
+            <p>Open a cell to review a live calendar with the same November 17 fixture. In the live story, use the viewport toolbar to change presets and Controls to try sparse or dense events, text sizes, and locales.</p>
+            <p>The preset dimensions describe the frame in CSS pixels. The calendar has 16px of padding around it and can be larger than the available canvas when the Storybook panels are open. These presets do not emulate device input or browser behavior.</p>
             <div class="viewport-matrix-table" role="region" aria-label="Viewport and calendar view choices" tabindex="0">
                 <table>
                     <caption>Starting view by viewport</caption>
