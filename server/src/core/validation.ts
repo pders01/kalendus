@@ -102,6 +102,10 @@ export const createEventSchema = eventShape
 export const updateEventSchema = eventShape.partial();
 export const MAX_QUERY_DAYS = 366;
 export const MAX_QUERY_RESULTS = 5000;
+/** Maximum overlapping date-bound rows considered per summary, independent of the raw result cap. */
+export const MAX_SUMMARY_RESULTS = 50_000;
+export const DEFAULT_EVENT_PAGE_SIZE = 250;
+export const MAX_EVENT_PAGE_SIZE = 500;
 export const dateRangeQuerySchema = z
     .object({ start: isoDateSchema, end: isoDateSchema })
     .refine(({ start, end }) => start <= end, 'End date precedes start date')
@@ -111,6 +115,19 @@ export const dateRangeQuerySchema = z
             MAX_QUERY_DAYS,
         `Query cannot exceed ${MAX_QUERY_DAYS} inclusive civil dates`,
     );
+
+const eventPageOptions = {
+    limit: z.number().int().min(1).max(MAX_EVENT_PAGE_SIZE).default(DEFAULT_EVENT_PAGE_SIZE),
+    after: idSchema.optional(),
+};
+export const eventPageOptionsSchema = z.object(eventPageOptions);
+export const eventPageQuerySchema = dateRangeQuerySchema.safeExtend({
+    ...eventPageOptions,
+    limit: z.preprocess(
+        (value) => (typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value),
+        eventPageOptions.limit,
+    ),
+});
 
 function boundedMetadata(value: Record<string, unknown> | undefined): boolean {
     if (!value) return true;

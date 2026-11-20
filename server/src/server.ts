@@ -40,6 +40,8 @@ export type {
     UpdateEventDto,
     SseEventType,
     SseEvent,
+    EventPage,
+    EventPageOptions,
     EventSummary,
     CalendarManifest,
     TelemetryPayload,

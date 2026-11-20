@@ -1,7 +1,11 @@
+import { rejects } from 'node:assert/strict';
+
 import { expect } from 'chai';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 
+import { NotFoundError, ValidationError } from '../../src/core/errors.js';
 import { EventServiceImpl } from '../../src/core/event.service.js';
+import { eventPageQuerySchema } from '../../src/core/validation.js';
 import { createInMemoryDb } from '../../src/db/connection.js';
 import { migrateDb } from '../../src/db/migrate.js';
 import * as schema from '../../src/db/schema.js';
@@ -56,6 +60,14 @@ describe('SQLite event range queries', () => {
             'starts-at-end',
             'spans-range',
         ]);
+        const paged = await service.getByRangePage(calendarId, start, end);
+        expect(paged.entries.map(({ id }) => id)).to.deep.equal([
+            'ends-at-start',
+            'leap-day',
+            'spans-range',
+            'starts-at-end',
+        ]);
+        expect(paged.nextCursor).to.be.null;
         expect(await service.getSummary(calendarId, start, end)).to.deep.equal({
             [start]: 3,
             [end]: 2,
@@ -92,6 +104,138 @@ describe('SQLite event range queries', () => {
             [end]: 1,
             '2024-03-02': 1,
         });
+    });
+
+    it('keeps civil-date clipping and parseable legacy end dates without validating payloads', async () => {
+        createEvent(db, calendarId, {
+            startYear: 2024,
+            startMonth: 2,
+            startDay: 29,
+            endYear: 2024,
+            endMonth: 2,
+            endDay: 30,
+        });
+        // A real SQLite read throws if heading is evaluated. Summaries only need the date columns.
+        db.$client.exec(`
+            ALTER TABLE events RENAME TO stored_events;
+            CREATE VIEW events AS
+                SELECT id, calendar_id, json_extract('invalid JSON', '$') AS heading, content, color,
+                       start_year, start_month, start_day, end_year, end_month, end_day,
+                       start_hour, start_minute, end_hour, end_minute, created_at, updated_at
+                FROM stored_events;
+        `);
+        const service = new EventServiceImpl(db);
+        await rejects(service.getByRange(calendarId, start, end), /malformed JSON/);
+        expect(await service.getSummary(calendarId, start, start)).to.deep.equal({ [start]: 1 });
+        // As before, UTC Date.parse treats this legacy February 30 as March 1.
+        expect(await service.getSummary(calendarId, start, '2024-03-02')).to.deep.equal({
+            [start]: 1,
+            [end]: 1,
+        });
+    });
+
+    it('summarizes and pages every event in a valid one-day range above the legacy 5000 cap', async () => {
+        const ids = Array.from({ length: 5250 }, (_, i) => `entry-${String(i).padStart(4, '0')}`);
+        const day = '2026-03-15';
+        db.transaction(() => {
+            for (const id of [...ids].reverse()) createEvent(db, calendarId, { id });
+        });
+        const service = new EventServiceImpl(db);
+        await rejects(service.getByRange(calendarId, day, day), {
+            name: 'ValidationError',
+            message: /5000.*paged range query.*narrow the date range/,
+        });
+        expect(await service.getByRangePage(calendarId, day, day, { limit: 500 })).to.include({
+            nextCursor: ids[499],
+        });
+        const found: string[] = [];
+        let after: string | undefined;
+        for (let i = 0; i < 21; i++) {
+            const page = await service.getByRangePage(calendarId, day, day, { after });
+            expect(page.entries).to.have.length(250);
+            found.push(...page.entries.map(({ id }) => id));
+            expect(page.nextCursor).to.equal(i === 20 ? null : ids[(i + 1) * 250 - 1]);
+            after = page.nextCursor ?? undefined;
+        }
+        expect(found).to.deep.equal(ids);
+        expect(await service.getSummary(calendarId, day, day)).to.deep.equal({
+            [day]: found.length,
+        });
+    });
+
+    it('rejects summaries above their independent budget without blocking paged detail', async () => {
+        db.$client
+            .prepare(`
+            WITH RECURSIVE nums(n) AS (VALUES (1) UNION ALL SELECT n + 1 FROM nums WHERE n < 50001)
+            INSERT INTO events (
+                id, calendar_id, heading, start_year, start_month, start_day,
+                end_year, end_month, end_day, created_at, updated_at
+            )
+            SELECT 'row-' || printf('%05d', n), ?, 'Limited', 2026, 3, 15,
+                2026, 3, 15, '2026-03-15', '2026-03-15' FROM nums
+        `)
+            .run(calendarId);
+        const day = '2026-03-15';
+        const service = new EventServiceImpl(db);
+        await rejects(service.getSummary(calendarId, day, day), {
+            name: 'ValidationError',
+            message: /Summary exceeds 50000 overlapping rows/,
+        });
+        expect(await service.getByRangePage(calendarId, day, day, { limit: 1 })).to.include({
+            nextCursor: 'row-00001',
+        });
+    });
+
+    it('seeks strictly after an ID even when the cursor row has been deleted', async () => {
+        const day = '2026-03-15';
+        for (const id of ['z', 'A', 'a', '_']) createEvent(db, calendarId, { id });
+        const service = new EventServiceImpl(db);
+        const first = await service.getByRangePage(calendarId, day, day, { limit: 2 });
+        expect(first.entries.map(({ id }) => id)).to.deep.equal(['A', '_']);
+        expect(first.nextCursor).to.equal('_');
+        expect(await service.delete(calendarId, '_')).to.be.true;
+        const last = await service.getByRangePage(calendarId, day, day, { limit: 2, after: '_' });
+        expect(last.entries.map(({ id }) => id)).to.deep.equal(['a', 'z']);
+        expect(last.nextCursor).to.be.null;
+        expect(await service.getByRangePage(calendarId, day, day, { after: 'z' })).to.deep.equal({
+            entries: [],
+            nextCursor: null,
+        });
+    });
+
+    it('validates page bounds and cursor syntax in the service and HTTP query schema', async () => {
+        const service = new EventServiceImpl(db);
+        for (const limit of [0, 501, 1.5, NaN]) {
+            await rejects(
+                service.getByRangePage(calendarId, start, end, { limit }),
+                ValidationError,
+            );
+        }
+        await rejects(
+            service.getByRangePage(calendarId, start, end, { after: 'bad cursor' }),
+            ValidationError,
+        );
+        await rejects(service.getByRangePage(calendarId, end, start), ValidationError);
+        await rejects(service.getByRangePage(calendarId, start, '2025-03-01'), ValidationError);
+        await rejects(service.getByRangePage('missing', start, end), NotFoundError);
+        expect(eventPageQuerySchema.parse({ start, end })).to.deep.equal({
+            start,
+            end,
+            limit: 250,
+        });
+        expect(
+            eventPageQuerySchema.parse({ start, end, limit: '500', after: 'A_z-0' }),
+        ).to.deep.equal({
+            start,
+            end,
+            limit: 500,
+            after: 'A_z-0',
+        });
+        for (const limit of ['', ' ', '0', '501', '1.5', '1e2', ['2', '3']]) {
+            expect(eventPageQuerySchema.safeParse({ start, end, limit }).success).to.be.false;
+        }
+        expect(eventPageQuerySchema.safeParse({ start, end, after: '' }).success).to.be.false;
+        expect(eventPageQuerySchema.safeParse({ start: end, end: start }).success).to.be.false;
     });
 
     it('uses the installed migration index for both calendar and start-date bounds', async () => {

@@ -126,11 +126,17 @@ function checkPackedTypes(tarball: string) {
         writeFileSync(
             entry,
             `
-        import { createDb, createApp, migrateDb } from '@jpahd/kalendus-server';
+        import { createDb, createApp, migrateDb, type EventPage } from '@jpahd/kalendus-server';
+        import { KalendusApiClient } from '@jpahd/kalendus-server/client';
         const db = createDb();
         migrateDb(db);
-        const { app } = createApp({ db, authorize: ({ request }) => request.method === 'GET' });
+        const { app, eventService } = createApp({ db, authorize: ({ request }) => request.method === 'GET' });
         const response: Response = await app.request('/health');
+        const client = new KalendusApiClient({ baseUrl: '', calendarId: 'packed' });
+        const page: EventPage = await eventService.getByRangePage('packed', '2026-03-15', '2026-03-15');
+        const next: EventPage = await client.fetchRawEventPage('2026-03-15', '2026-03-15', {
+            after: page.nextCursor ?? undefined,
+        });
         db.$client.close();
         // @ts-expect-error A native SQLite statement must be a string (the client must not be any).
         db.$client.prepare(123);
@@ -201,7 +207,9 @@ try {
     writeFileSync(
         join(caller, 'smoke.mjs'),
         `
+        import assert from 'node:assert/strict';
         import { createDb, createApp, migrateDb, CalendarServiceImpl } from '@jpahd/kalendus-server';
+        import { KalendusApiClient } from '@jpahd/kalendus-server/client';
         const db = createDb();
         try {
             migrateDb(db); migrateDb(db);
@@ -210,6 +218,26 @@ try {
             if (!await calendars.getById(calendar.id)) throw new Error('Missing persisted calendar');
             const { app } = createApp({ db });
             if ((await app.request('/api/calendars/' + calendar.id)).status !== 403) throw new Error('Private package default was open');
+
+            const reader = createApp({ db, authorize: ({ action, resource, calendarId }) =>
+                action === 'read' && resource === 'event' && calendarId === calendar.id,
+            });
+            const client = new KalendusApiClient({
+                baseUrl: 'https://fixture.example',
+                calendarId: calendar.id,
+                fetch: (url, init) => reader.app.request(url, init),
+            });
+            const day = { year: 2026, month: 3, day: 15 };
+            const range = ['2026-03-15', '2026-03-15'];
+            const entries = [await reader.eventService.create(calendar.id, { heading: 'Packed page', date: { start: day, end: day } }),
+                await reader.eventService.create(calendar.id, { heading: 'Packed page 2', date: { start: day, end: day } })
+            ].sort((a, b) => a.id < b.id ? -1 : 1);
+            const first = await client.fetchRawEventPage(...range, { limit: 1 });
+            assert.deepEqual(first, { entries: [entries[0]], nextCursor: entries[0].id });
+            assert.deepEqual(await client.fetchRawEventPage(...range, { limit: 1, after: first.nextCursor }), {
+                entries: [entries[1]], nextCursor: null,
+            });
+            for (const { id } of entries) assert.equal(await reader.eventService.delete(calendar.id, id), true);
         } finally { db.$client.close(); }
     `,
     );
@@ -315,7 +343,7 @@ try {
         await reader.cancel();
     }
     console.log(
-        'PASS packed exports, side-effect-free migration imports, linked CLI schema, idempotent custom-path migration, seed, runtime, CRUD, and closed default (unrelated cwd).',
+        'PASS packed exports, side-effect-free migration imports, linked CLI schema, idempotent custom-path migration, seed, runtime, event pagination, and closed default (unrelated cwd).',
     );
 } finally {
     rmSync(fixture, { recursive: true, force: true });

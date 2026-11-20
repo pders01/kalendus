@@ -4,6 +4,7 @@ import { expect } from 'chai';
 
 import type {
     ApiCalendarEntry,
+    EventPage,
     KalendusClientOptions,
     StreamFactory,
     StreamState,
@@ -71,6 +72,46 @@ describe('KalendusApiClient', () => {
             expect(client.streamState).to.include({ status: 'error', phase: 'startup' });
             expect(await client.fetchEvents(...range)).to.deep.equal([]);
             expect(restReads).to.equal(2);
+        });
+    });
+
+    it('requests exactly one raw page with encoded cursor, configured auth, credentials and abort signal', async () => {
+        const page: EventPage = { entries: [], nextCursor: 'opaque+cursor/=?& more' };
+        const requests: Array<{ url: URL; init: RequestInit }> = [];
+        const client = new KalendusApiClient({
+            baseUrl: 'https://api.example/path/',
+            calendarId: 'cal/1',
+            headers: async () => ({ Authorization: 'Bearer page-reader' }),
+            credentials: 'include',
+            fetch: async (input, init) => {
+                requests.push({ url: new URL(String(input)), init: init! });
+                return Response.json(page);
+            },
+        });
+        const signal = new AbortController().signal;
+        const range = ['2026-03-15', '2026-03-17'] as const;
+        expect(
+            await client.fetchRawEventPage(...range, { limit: 2, after: page.nextCursor! }, signal),
+        ).to.deep.equal(page);
+        expect(requests).to.have.length(1);
+        const [{ url, init }] = requests;
+        expect(url.pathname).to.equal('/path/api/calendars/cal%2F1/events/page');
+        expect(Object.fromEntries(url.searchParams)).to.deep.equal({
+            start: range[0],
+            end: range[1],
+            limit: '2',
+            after: page.nextCursor,
+        });
+        expect(init.method ?? 'GET').to.equal('GET');
+        expect(new Headers(init.headers).get('Authorization')).to.equal('Bearer page-reader');
+        expect(init.credentials).to.equal('include');
+        expect(init.signal).to.equal(signal);
+
+        await client.fetchRawEventPage(...range);
+        expect(requests).to.have.length(2);
+        expect(Object.fromEntries(requests[1].url.searchParams)).to.deep.equal({
+            start: range[0],
+            end: range[1],
         });
     });
 

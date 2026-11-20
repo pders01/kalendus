@@ -100,6 +100,19 @@ export interface SseEvent {
     event: ApiCalendarEntry | { id: string };
 }
 
+export interface EventPage {
+    entries: ApiCalendarEntry[];
+    /** Last returned ID when another page is available; otherwise null. */
+    nextCursor: string | null;
+}
+
+export interface EventPageOptions {
+    /** Defaults to 250; must be an integer from 1 through 500. */
+    limit?: number;
+    /** Exclusive ID boundary; it need not still exist. */
+    after?: string;
+}
+
 /** Event summary: date string → count */
 export type EventSummary = Record<string, number>;
 
@@ -132,6 +145,13 @@ export interface CalendarService {
 
 export interface EventService {
     getByRange(calendarId: string, start: string, end: string): Promise<ApiCalendarEntry[]>;
+    /** Ascending ID order. Separate requests do not share a database snapshot. */
+    getByRangePage(
+        calendarId: string,
+        start: string,
+        end: string,
+        options?: EventPageOptions,
+    ): Promise<EventPage>;
     getSummary(calendarId: string, start: string, end: string): Promise<EventSummary>;
     create(calendarId: string, dto: CreateEventDto): Promise<ApiCalendarEntry>;
     update(

@@ -24,6 +24,8 @@ export type {
     CalendarEntry,
     ApiCalendarEntry,
     CalendarManifest,
+    EventPage,
+    EventPageOptions,
     EventSummary,
     SseEventType,
     SyncMessage,

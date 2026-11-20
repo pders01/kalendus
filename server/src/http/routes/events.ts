@@ -5,6 +5,7 @@ import type { EventServiceImpl } from '../../core/event.service.js';
 import {
     createEventSchema,
     dateRangeQuerySchema,
+    eventPageQuerySchema,
     updateEventSchema,
 } from '../../core/validation.js';
 import type { AuthorizationGuard } from '../authorization.js';
@@ -34,6 +35,20 @@ export function eventRoutes(eventService: EventServiceImpl, guard: Authorization
             const { start, end } = c.req.valid('query');
             const summary = await eventService.getSummary(c.req.param('calendarId'), start, end);
             return c.json(summary);
+        },
+    );
+
+    app.get(
+        '/:calendarId/events/page',
+        read,
+        validateRequest('query', eventPageQuerySchema),
+        async (c) => {
+            const { start, end, after, limit } = c.req.valid('query');
+            const page = await eventService.getByRangePage(c.req.param('calendarId'), start, end, {
+                after,
+                limit,
+            });
+            return c.json(page);
         },
     );
 

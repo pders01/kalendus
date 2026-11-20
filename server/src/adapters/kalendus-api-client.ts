@@ -5,6 +5,8 @@ import type {
     CalendarEntry,
     CalendarManifest,
     CreateEventPayload,
+    EventPage,
+    EventPageOptions,
     EventSummary,
     KalendusClientOptions,
     StreamState,
@@ -91,8 +93,8 @@ export class KalendusApiClient {
         return `${this._baseUrl}/api/calendars/${encodeURIComponent(this.calendarId)}${path}`;
     }
 
-    private range(start: string, end: string): string {
-        return new URLSearchParams({ start, end }).toString();
+    private range(start: string, end: string): URLSearchParams {
+        return new URLSearchParams({ start, end });
     }
 
     private async request(path: string, init: RequestInit = {}): Promise<Response> {
@@ -140,6 +142,21 @@ export class KalendusApiClient {
         return (await (
             await this.request(`/events?${this.range(start, end)}`, { signal })
         ).json()) as ApiCalendarEntry[];
+    }
+
+    /** Fetch exactly one raw page. Pass its nextCursor as `after` to continue. */
+    async fetchRawEventPage(
+        start: string,
+        end: string,
+        options: EventPageOptions = {},
+        signal?: AbortSignal,
+    ): Promise<EventPage> {
+        const query = this.range(start, end);
+        if (options.limit !== undefined) query.set('limit', String(options.limit));
+        if (options.after !== undefined) query.set('after', options.after);
+        return (await (
+            await this.request(`/events/page?${query}`, { signal })
+        ).json()) as EventPage;
     }
 
     async fetchSummary(start: string, end: string, signal?: AbortSignal): Promise<EventSummary> {

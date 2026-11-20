@@ -14,6 +14,8 @@ export type { ApiCalendarEntry, CalendarDate, CalendarTime, SseEventType };
 export type {
     CalendarManifest,
     CreateEventDto as CreateEventPayload,
+    EventPage,
+    EventPageOptions,
     EventSummary,
     UpdateEventDto as UpdateEventPayload,
 } from '../core/types.js';

@@ -42,6 +42,8 @@ describe('Security and validation boundaries', () => {
             [`/${id}/events${range}`, 'GET'],
             [`/${id}/events/summary${range}`, 'GET'],
             [`/${id}/events/summary${range}`, 'HEAD'],
+            [`/${id}/events/page${range}`, 'GET'],
+            [`/${id}/events/page${range}`, 'HEAD'],
             [`/${id}/events`, 'POST'],
             [`/${id}/events/example`, 'PATCH'],
             [`/${id}/events/example`, 'DELETE'],
@@ -140,6 +142,7 @@ describe('Security and validation boundaries', () => {
         const prefix = '/tenants/acme/api/calendars';
         // Static GET/HEAD endpoints must not turn into event IDs; those same IDs are valid on mutations.
         createEvent(db, id, { id: 'summary' });
+        createEvent(db, id, { id: 'page' });
         type Case = {
             path: string;
             method: string;
@@ -155,6 +158,7 @@ describe('Security and validation boundaries', () => {
             [`/${id}/manifest`, 'manifest', 'read'],
             [`/${id}/events${range}`, 'event', 'read'],
             [`/${id}/events/summary${range}`, 'event', 'read'],
+            [`/${id}/events/page${range}`, 'event', 'read'],
             [`/${id}/stream`, 'stream', 'stream'],
         ] as const;
         const cases: Case[] = [
@@ -205,12 +209,12 @@ describe('Security and validation boundaries', () => {
                 body: { heading: 'Updated' },
             },
             {
-                path: `/${id}/events/summary`,
+                path: `/${id}/events/page`,
                 method: 'DELETE',
                 resource: 'event',
                 action: 'delete',
                 calendarId: id,
-                eventId: 'summary',
+                eventId: 'page',
                 status: 200,
             },
             {
@@ -267,7 +271,7 @@ describe('Security and validation boundaries', () => {
             expect(await denied.text()).to.equal('Access denied');
             expect(denied.headers.get('Cache-Control')).to.equal('no-store');
             expect(denied.headers.get('X-Content-Type-Options')).to.equal('nosniff');
-            const deniedHead = await app.request(`/api/calendars/${target}/events/summary`, {
+            const deniedHead = await app.request(`/api/calendars/${target}/events/page`, {
                 method: 'HEAD',
             });
             expect(deniedHead.status).to.equal(403);
