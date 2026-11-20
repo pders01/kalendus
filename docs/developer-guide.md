@@ -143,12 +143,12 @@ The packed browser smoke asserts a fixed public `activeDate`, checks that mounti
     bun pm pack --dry-run
     ```
 
-    On Linux, Playwright may need system browser dependencies; CI uses `--with-deps`. Use the suite-specific matrix above when reporting verification. A narrower `TEST_BROWSERS` run does not replace the full matrix for suites that honor it. Keep runner startup failures visible rather than marking that engine green.
+    For a local Linux run, add `--with-deps` if the browser system libraries are missing. The browser jobs in CI use a Playwright Ubuntu image matched to `bun.lock` instead. The separate server job installs the full workspace and runs the SQLite checks. Use the suite-specific matrix above when reporting verification. A narrower `TEST_BROWSERS` run does not replace the full matrix for suites that honor it. Keep runner startup failures visible rather than marking that engine green.
 
 3. Review the production Storybook journeys and inspect the package contents. The release script builds ESM and IIFE, checks TypeScript and browser consumers of the packed ESM and installed server migrations, validates catalogs and built documentation links, runs the production dependency audit, and checks all three size budgets. The packed browser check matters: source-based component and Storybook tests do not exercise the minified npm entry point.
 4. On a real phone, select a Month date, read and export an Agenda event, then switch to Week to compare times. Check shipping Safari and enlarged text/RTL, shallow Week, compact Year drill-down, and keyboard focus return. For the opt-in edit path, separately check desktop move/resize and cancellation in Safari and the app's keyboard/touch alternatives. An automated proposal or canceled download is not a verified persistence workflow or native download. Keep screen-reader and Expo/Metro device verification separate from browser emulation.
 
-Preparation does not publish the package or deploy the server or documentation.
+Tag the exact passing revision and verify the package name, version, and checksum before uploading its tarball. After publishing, check the registry dist-tag and install the exact version in a fresh consumer before updating the public release status. Publishing the root calendar does not publish the server or Expo bridge or deploy the documentation.
 
 ## Adding a New Locale
 
