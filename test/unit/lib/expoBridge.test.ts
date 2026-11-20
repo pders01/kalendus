@@ -709,12 +709,20 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
             expect(native.synchronize({ ...current, navigationRevision: -1 }).invalid).to.equal(
                 true,
             );
-            current = { ...current, navigationRevision: 2 };
+            current = {
+                ...current,
+                props: { ...current.props, heading: 'New owner heading' },
+                navigationRevision: 2,
+            };
             await deliver();
             expect(f.cal.activeDate).to.deep.equal(date(10));
             expect(f.cal.viewMode).to.equal('week');
+            expect(f.cal.heading).to.equal('New owner heading');
             f.receive(delayedMirror);
+            await flush();
             expect(f.cal.activeDate).to.deep.equal(date(10));
+            expect(f.cal.viewMode).to.equal('week');
+            expect(f.cal.heading).to.equal('New owner heading');
             expect(native.synchronize(current).raw).to.equal(null);
 
             native.reset();
