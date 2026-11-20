@@ -6,7 +6,9 @@ import '../../../src/components/Menu.ts';
 import { generateEntryIcs } from '../../../src/components/entryExport.ts';
 import type { Menu } from '../../../src/components/Menu.ts';
 import { normalizeEntries } from '../../../src/lib/calendarModel.js';
-import type { CalendarEntry } from '../../../src/lms-calendar.js';
+import { formatLocalizedDate } from '../../../src/lib/localization.js';
+import type Calendar from '../../../src/lms-calendar.js';
+import '../../../src/lms-calendar.js';
 
 const parseIcsCalendar = (source: string) => convertIcsCalendar(undefined, source);
 
@@ -129,6 +131,76 @@ describe('Non-modal event inspector interactions', () => {
         expect(metadata[0].textContent).to.include('All Day');
         expect(metadata[1].textContent).to.include('Mar 7, 2026');
         expect(metadata[1].textContent).to.include('Mar 9, 2026');
+    });
+
+    for (const surface of ['card', 'Agenda'] as const) {
+        it(`reformats canonical inspector dates after a locale switch from ${surface}`, async () => {
+            const entry: CalendarEntry = {
+                ...allDay,
+                kind: 'timed',
+                date: { start, end: start },
+                time: { start: { hour: 21, minute: 0 }, end: { hour: 24, minute: 0 } },
+            };
+            const calendar = await fixture<Calendar>(html`
+                <lms-calendar .entries=${[entry]} .activeDate=${start}
+                    view-mode=${surface === 'card' ? 'day' : 'month'} month-presentation="presence"
+                    style="width:900px;height:650px"
+                ></lms-calendar>
+            `);
+            const root = calendar.shadowRoot!;
+            await settle();
+            const invoker = root.querySelector<HTMLElement>(
+                surface === 'card' ? 'lms-calendar-entry' : '[data-entry-request]',
+            )!;
+            expect(invoker).to.exist;
+            let detail: { displayDate?: string } | undefined;
+            calendar.addEventListener('open-menu', (event) => {
+                detail = (event as CustomEvent).detail;
+            });
+            invoker.focus();
+            await sendKeys({ press: 'Enter' });
+            await settle();
+            const menu = root.querySelector('lms-menu')!;
+            const inspector = menu.shadowRoot!;
+            const dateText = () => inspector.querySelectorAll('.meta')[1].textContent;
+            const close = inspector.querySelector('.close-btn');
+            expect(menu.open).to.be.true;
+            expect(inspector.activeElement).to.equal(close);
+            const english = dateText();
+            expect(english).to.include('Mar 7, 2026').and.include('Mar 8, 2026');
+            if (surface === 'card')
+                expect(detail?.displayDate).to.include('Mar 7, 2026').and.include('Mar 8, 2026');
+            const legacyDate = detail?.displayDate;
+
+            calendar.locale = 'de';
+            await calendar.updateComplete;
+            await calendar.localeReady;
+            await settle();
+            expect(menu.open).to.be.true;
+            expect(inspector.activeElement).to.equal(close);
+            expect(dateText()).to.equal(
+                `${formatLocalizedDate(7, 3, 2026, 'de')} – ${formatLocalizedDate(8, 3, 2026, 'de')}`,
+            );
+            expect(dateText()).not.to.equal(english);
+            expect(detail?.displayDate).to.equal(legacyDate);
+        });
+    }
+
+    it('preserves a standalone inspector date override on locale changes', async () => {
+        const el = await fixture<Menu>(
+            html`<lms-menu .eventDetails=${{
+                entry: allDay,
+                heading: allDay.heading,
+                content: '',
+                displayTime: '',
+                displayDate: 'Dates chosen by the owner',
+            }}></lms-menu>`,
+        );
+        el.locale = 'de';
+        await el.updateComplete;
+        expect(el.shadowRoot!.querySelectorAll('.meta')[1].textContent).to.equal(
+            'Dates chosen by the owner',
+        );
     });
 
     it('uses native outside-pointer light dismissal and emits one menu-close notification', async () => {

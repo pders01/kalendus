@@ -1886,7 +1886,10 @@ export default class LMSCalendar extends LitElement {
                 if (entry !== clickedEntry) entry.clearSelection();
             });
             this._menuTriggerEntry = invoker;
-            this.openMenu({ ...e.detail, entry: canonical });
+            const details = { ...e.detail, entry: canonical };
+            // Keep the legacy event payload, but format card dates in the inspector's locale.
+            if (clickedEntry) delete details.displayDate;
+            this.openMenu(details);
         });
     }
 
