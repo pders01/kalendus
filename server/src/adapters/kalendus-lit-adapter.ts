@@ -26,9 +26,13 @@ export interface CalendarTarget extends EventTarget {
 export interface KalendusLitAdapterOptions extends KalendusClientOptions {
     enableSync?: boolean;
     enableTelemetry?: boolean;
-    /** For multiple calendars, slotted targets, or a target outside the host. */
+    /** For multiple calendars, slotted targets, or a target outside the host.
+     * A resolver is checked on connection and after host updates; return null to release the target.
+     */
     target?: CalendarTarget | (() => CalendarTarget | null);
-    /** For hosts without queryable DOM; later canonical events replace this snapshot. */
+    /** Standalone seed on connection when neither a target nor a query is present.
+     * Acquiring a target takes over; losing it does not replay this snapshot.
+     */
     initialState?: CalendarState;
 }
 
@@ -71,26 +75,31 @@ function inclusiveEnd(endExclusive: string): string {
     return end.toISOString().slice(0, 10);
 }
 
+interface RangeRequest {
+    readonly start: string;
+    readonly end: string;
+    readonly controller: AbortController;
+    readonly pending: Promise<void>;
+    loading: boolean;
+    dirty: boolean;
+}
+
 /** Consumes calendar-state-change after committed render, including the initial state. */
 export class KalendusLitAdapter implements ReactiveController {
     private _client: KalendusApiClient;
     private _entries: CalendarEntry[] = [];
-    private _loading = false;
     private _error: Error | null = null;
-    private _target: CalendarTarget | null = null;
+    // Undefined before discovery (host events can seed); null after losing a known target.
+    private _target?: CalendarTarget | null;
     private _connected = false;
     private _unsubInvalidate?: () => void;
     private _unsubReconcile?: () => void;
     private _unsubStreamState?: () => void;
-    private _controller?: AbortController;
-    private _generation = 0;
-    private _currentStart = '';
-    private _currentEnd = '';
-    private _key = '';
+    private _range?: RangeRequest;
+    private _queuedRefresh?: RangeRequest;
     private _visibleKey = '';
-    private _pending: Promise<void> = Promise.resolve();
-    private _dirty = false;
-    private _queuedGeneration?: number;
+    private _hasCommittedState = false;
+    private _manual = false;
 
     constructor(
         private _host: ReactiveControllerHost,
@@ -104,7 +113,7 @@ export class KalendusLitAdapter implements ReactiveController {
         return this._entries;
     }
     get loading(): boolean {
-        return this._loading;
+        return this._range?.loading ?? false;
     }
     /** Error from the current REST range load, not the stream. */
     get error(): Error | null {
@@ -118,7 +127,11 @@ export class KalendusLitAdapter implements ReactiveController {
     }
 
     private _onState = (event: Event): void => {
-        if (this._target ? event.composedPath()[0] !== this._target : this.options.target) return;
+        if (this._target) {
+            // Consume at the target only, not again as the event bubbles to the host.
+            if (event.currentTarget !== this._target || event.composedPath()[0] !== this._target)
+                return;
+        } else if (this._target === null || this.options.target) return;
         this.setState((event as CustomEvent).detail);
     };
 
@@ -130,7 +143,15 @@ export class KalendusLitAdapter implements ReactiveController {
             this._onState,
         );
         this.hostUpdated();
-        if (!this._target && this.options.initialState) this.setState(this.options.initialState);
+        if (!this._connected) return;
+        if (
+            this._target === undefined &&
+            !this._range &&
+            !this._visibleKey &&
+            this.options.initialState
+        )
+            this._applyState(this.options.initialState);
+        if (!this._connected) return;
         this._unsubStreamState = this._client.onStreamStateChange(() => this._host.requestUpdate());
         if (this.options.enableSync) {
             this._unsubInvalidate = this._client.onInvalidate(this._queueSyncRefresh);
@@ -154,13 +175,19 @@ export class KalendusLitAdapter implements ReactiveController {
                 : (this._host.renderRoot?.querySelector('lms-calendar') ??
                   this._host.querySelector?.('lms-calendar'))) ??
             null;
-        if (target !== this._target) {
+        if (target !== this._target && (target || this._target)) {
             this._target?.removeEventListener('calendar-state-change', this._onState);
             this._target = target as CalendarTarget | null;
             this._target?.addEventListener('calendar-state-change', this._onState);
+            this._hasCommittedState = false;
+            this._visibleKey = '';
+            this._manual = false;
+            this._clearRange();
         }
-        if (this._target)
-            this.setState({
+        // Before the first valid commit, the public getters can provisionally seed a
+        // late/older target. Never let a provisional read displace an explicit query.
+        if (this._target && !this._hasCommittedState && !this._manual)
+            this._applyState({
                 activeDate: this._target.activeDate,
                 viewMode: this._target.viewMode,
                 firstDayOfWeek: this._target.firstDayOfWeek,
@@ -175,49 +202,52 @@ export class KalendusLitAdapter implements ReactiveController {
             this._onState,
         );
         this._target?.removeEventListener('calendar-state-change', this._onState);
-        this._target = null;
+        this._target = undefined;
         this._unsubInvalidate?.();
         this._unsubReconcile?.();
         this._unsubStreamState?.();
         this._client.disconnect();
+        this._hasCommittedState = false;
         this._visibleKey = '';
-        this._resetRange();
+        this._manual = false;
+        this._clearRange();
     }
 
-    private _resetRange(): void {
-        this._generation++;
-        this._controller?.abort();
-        this._controller = undefined;
-        this._dirty = false;
-        this._key = '';
-        this._currentStart = '';
-        this._currentEnd = '';
-        this._loading = false;
-        this._pending = Promise.resolve();
+    private _clearRange(): void {
+        const previous = this._range;
+        const changed = previous || this._entries.length || this._error;
+        this._range = undefined;
+        this._entries = [];
+        this._error = null;
+        if (previous?.loading) previous.controller.abort();
+        if (changed && this._connected) this._host.requestUpdate();
     }
 
-    /** Accept the public snapshot, never recalculate responsive ranges or week starts here. */
+    /** Supply a committed public snapshot (e.g. when forwarding the canonical event). */
     setState(state: unknown): void {
+        this._applyState(state, true);
+    }
+
+    private _applyState(state: unknown, committed = false): void {
         if (!isState(state)) return;
+        if (committed) this._hasCommittedState = true;
         const { range } = state;
         const visibleKey = `${range.start}/${range.end}`;
-        const changed = this._visibleKey !== visibleKey;
+        if (this._visibleKey === visibleKey) return;
         this._visibleKey = visibleKey;
+        this._manual = false;
         const start = range.start < wireStart ? wireStart : range.start;
         const endExclusive =
             range.end === '10000-01-01' || range.end > wireEndExclusive
                 ? wireEndExclusive
                 : range.end;
         if (start < endExclusive) {
-            void this.fetchRange(start, inclusiveEnd(endExclusive));
-        } else if (this._key || this._entries.length || this._error) {
+            void this._readRange(start, inclusiveEnd(endExclusive));
+        } else {
             // A wholly out-of-domain view is empty, not an invalid wire query.
-            this._resetRange();
-            this._entries = [];
-            this._error = null;
-            this._host.requestUpdate();
+            this._clearRange();
         }
-        if (changed && this.options.enableTelemetry)
+        if (this.options.enableTelemetry)
             void this._client.sendTelemetry('navigation', {
                 activeDate: state.activeDate,
                 viewMode: state.viewMode,
@@ -225,38 +255,55 @@ export class KalendusLitAdapter implements ReactiveController {
             });
     }
 
-    /** Legacy queries use inclusive ends. Identical ranges dedupe unless forced to replace. */
+    /** Inclusive, unclipped manual query. Identical bounds dedupe unless forced.
+     * The query stands until the next committed visible range change or target lifecycle boundary.
+     */
     fetchRange(start: string, end: string, force = false): Promise<void> {
         if (!isIsoDate(start) || !isIsoDate(end) || start > end)
             return Promise.reject(new Error('Invalid date range'));
-        const key = `${start}/${end}`;
-        if (!force && key === this._key) return this._pending;
-        this._key = key;
-        this._currentStart = start;
-        this._currentEnd = end;
-        const generation = ++this._generation;
-        this._controller?.abort();
-        const controller = (this._controller = new AbortController());
-        this._dirty = false;
-        this._loading = true;
-        this._error = null;
-        this._pending = this._loadRange(start, end, generation, controller.signal);
-        this._host.requestUpdate();
-        return this._pending;
+        this._manual = true;
+        return this._readRange(start, end, force);
     }
 
-    private async _loadRange(start: string, end: string, generation: number, signal: AbortSignal) {
+    private _readRange(start: string, end: string, force = false): Promise<void> {
+        const previous = this._range;
+        if (!force && previous?.start === start && previous.end === end) return previous.pending;
+
+        // Publish the complete request before abort handlers or custom fetch can reenter.
+        let finish!: (result?: PromiseLike<void>) => void;
+        const request: RangeRequest = {
+            start,
+            end,
+            controller: new AbortController(),
+            pending: new Promise((resolve) => {
+                finish = resolve;
+            }),
+            loading: true,
+            dirty: false,
+        };
+        this._range = request;
+        this._error = null;
+        if (previous?.loading) previous.controller.abort();
+        if (this._range === request) {
+            finish(this._loadRange(request));
+            if (this._range === request) this._host.requestUpdate();
+        } else finish();
+        return request.pending;
+    }
+
+    private async _loadRange(request: RangeRequest): Promise<void> {
+        const { start, end, controller } = request;
         try {
-            while (generation === this._generation) {
-                this._dirty = false;
+            while (this._range === request) {
+                request.dirty = false;
                 try {
-                    const entries = await this._client.fetchEvents(start, end, signal);
-                    if (generation !== this._generation) return;
+                    const entries = await this._client.fetchEvents(start, end, controller.signal);
+                    if (this._range !== request) return;
                     this._entries = entries;
                     this._error = null;
                 } catch (error) {
                     // Even transports ignoring AbortSignal cannot publish stale failures.
-                    if (generation !== this._generation) return;
+                    if (this._range !== request) return;
                     // A missing or no longer authorized calendar must not leave stale entries on screen.
                     if (
                         error instanceof KalendusHttpError &&
@@ -265,39 +312,35 @@ export class KalendusLitAdapter implements ReactiveController {
                         this._entries = [];
                     this._error = error instanceof Error ? error : new Error(String(error));
                 }
-                if (!this._dirty) return;
+                if (!request.dirty) return;
                 // Publish this result instead of starving the UI during sustained invalidations.
                 this._host.requestUpdate();
             }
         } finally {
-            if (generation === this._generation) {
-                this._controller = undefined;
-                this._loading = false;
-                this._host.requestUpdate();
-            }
+            request.loading = false;
+            if (this._range === request) this._host.requestUpdate();
         }
     }
 
     private _queueSyncRefresh = (): void => {
-        if (!this._connected) return;
+        const request = this._range;
+        if (!this._connected || !request) return;
         // Mark a running read dirty before it can settle; it owns its trailing refresh.
-        if (this._controller) {
-            this._dirty = true;
+        if (request.loading) {
+            request.dirty = true;
             return;
         }
-        const generation = this._generation;
-        if (this._queuedGeneration === generation) return;
-        this._queuedGeneration = generation;
+        if (this._queuedRefresh === request) return;
+        this._queuedRefresh = request;
         queueMicrotask(() => {
-            if (this._queuedGeneration === generation) this._queuedGeneration = undefined;
-            if (this._connected && this._generation === generation) void this.refresh();
+            if (this._queuedRefresh === request) this._queuedRefresh = undefined;
+            if (this._connected && this._range === request) void this.refresh();
         });
     };
 
     /** Refetch the current range immediately, aborting any existing read. */
     refresh(): Promise<void> {
-        return this._currentStart
-            ? this.fetchRange(this._currentStart, this._currentEnd, true)
-            : Promise.resolve();
+        const request = this._range;
+        return request ? this._readRange(request.start, request.end, true) : Promise.resolve();
     }
 }

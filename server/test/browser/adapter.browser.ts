@@ -1,5 +1,5 @@
 import { expect, fixture, html, nextFrame, waitUntil } from '@open-wc/testing';
-import { LitElement } from 'lit';
+import { LitElement, nothing } from 'lit';
 
 import type Entry from '../../../src/components/Entry.js';
 import { generateEntryIcs } from '../../../src/components/entryExport.js';
@@ -24,6 +24,7 @@ const persistentEvent: ApiCalendarEntry = {
 };
 
 class AdapterHost extends LitElement {
+    showCalendar = true;
     requests: URL[] = [];
     records = [persistentEvent];
     adapter = new KalendusLitAdapter(this, {
@@ -35,7 +36,9 @@ class AdapterHost extends LitElement {
         },
     });
     render() {
-        return html`<lms-calendar locale="en" style="width:1000px;height:700px" .activeDate=${this.initialDate} .firstDayOfWeek=${0} .entries=${this.adapter.entries}></lms-calendar>`;
+        return this.showCalendar
+            ? html`<lms-calendar locale="en" style="width:1000px;height:700px" .activeDate=${this.initialDate} .firstDayOfWeek=${0} .entries=${this.adapter.entries}></lms-calendar>`
+            : nothing;
     }
     initialDate = { year: 2026, month: 3, day: 15 };
     get calendar(): LMSCalendar {
@@ -113,6 +116,64 @@ describe('Real Lit calendar/adapter integration', () => {
         host.requestUpdate();
         await settle(host);
         expect(host.requests.length).to.equal(1);
+    });
+
+    it('keeps manual queries through Lit renders and same-range commits, then follows navigation again', async () => {
+        const host = await fixture<AdapterHost>(
+            html`
+                <server-adapter-contract-host></server-adapter-contract-host>
+            `,
+        );
+        await settle(host);
+        const monthRange = host.calendar.visibleRange;
+        await host.adapter.fetchRange('2026-04-01', '2026-04-03');
+        host.requestUpdate();
+        await settle(host);
+        expect(host.requests).to.have.length(2);
+        expect(host.requests.at(-1)!.search).to.equal('?start=2026-04-01&end=2026-04-03');
+
+        const commits: Array<LMSCalendar['visibleRange']> = [];
+        host.calendar.addEventListener('calendar-state-change', (event) => {
+            commits.push(event.detail.range);
+        });
+        host.initialDate = day(16);
+        host.requestUpdate();
+        await settle(host);
+        expect(commits).to.deep.equal([monthRange]);
+        expect(host.requests).to.have.length(2);
+
+        clickHeader(host, '[data-context="day"]');
+        await settle(host);
+        expect(commits.at(-1)).to.deep.equal(host.calendar.visibleRange);
+        expect(host.requests).to.have.length(3);
+        expectRange(host);
+    });
+
+    it('clears entries when Lit removes the child and reloads an identical range for a new child', async () => {
+        const host = await fixture<AdapterHost>(
+            html`
+                <server-adapter-contract-host></server-adapter-contract-host>
+            `,
+        );
+        await settle(host);
+        const oldCalendar = host.calendar;
+        expect(oldCalendar.entries.map(({ id }) => id)).to.deep.equal(['persistent-event']);
+        host.showCalendar = false;
+        host.requestUpdate();
+        await host.updateComplete;
+        expect(oldCalendar.isConnected).to.equal(false);
+        expect(host.adapter.entries).to.deep.equal([]);
+        await host.adapter.refresh();
+        expect(host.requests).to.have.length(1);
+
+        host.records = [{ ...persistentEvent, id: 'replacement' }];
+        host.showCalendar = true;
+        host.requestUpdate();
+        await settle(host);
+        expect(host.calendar).not.to.equal(oldCalendar);
+        expect(host.requests).to.have.length(2);
+        expect(host.requests[1].search).to.equal(host.requests[0].search);
+        expect(host.calendar.entries.map(({ id }) => id)).to.deep.equal(['replacement']);
     });
 
     it('renders server overnight intervals as timed slices and exports their original endpoints', async () => {

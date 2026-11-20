@@ -52,6 +52,8 @@ class Host extends EventTarget {
     };
 }
 class Target extends EventTarget implements CalendarTarget {
+    rangeReads = 0;
+
     constructor(public snapshot: CalendarState) {
         super();
     }
@@ -65,6 +67,7 @@ class Target extends EventTarget implements CalendarTarget {
         return this.snapshot.firstDayOfWeek;
     }
     get visibleRange() {
+        this.rangeReads++;
         return this.snapshot.range;
     }
     navigate(snapshot: CalendarState) {
@@ -215,6 +218,147 @@ describe('Adapter public state contract (nonbrowser)', () => {
         await flush();
         expect(urls).to.have.length(1);
         adapter.hostDisconnected();
+    });
+
+    it('uses commits after seeding and lets a manual query survive until the committed range changes', async () => {
+        const host = new Host();
+        const initial = state('2024-03-10', '2024-03-17', 'week');
+        const target = new Target(initial);
+        const urls: string[] = [];
+        const adapter = new KalendusLitAdapter(host as never, {
+            baseUrl: '',
+            calendarId: 'calendar',
+            target,
+            fetch: async (url) => {
+                urls.push(String(url));
+                return response(`read-${urls.length}`);
+            },
+        });
+        adapter.hostConnected();
+        try {
+            await adapter.fetchRange('2024-04-01', '2024-04-30');
+            // A getter change is not a commit, even if the host renders before the first event.
+            target.snapshot = state('2024-05-01', '2024-06-01');
+            adapter.hostUpdated();
+            target.navigate({ ...initial, activeDate: { year: 2024, month: 3, day: 12 } });
+            await flush();
+            const committedReads = target.rangeReads;
+            target.snapshot = state('2024-07-01', '2024-08-01');
+            adapter.hostUpdated();
+            expect(target.rangeReads).to.equal(committedReads);
+            expect(urls.map((url) => url.split('?')[1])).to.deep.equal([
+                'start=2024-03-10&end=2024-03-16',
+                'start=2024-04-01&end=2024-04-30',
+            ]);
+            expect(adapter.entries[0].id).to.equal('read-2');
+
+            target.navigate(state('2024-03-12', '2024-03-13', 'day'));
+            await flush();
+            expect(urls.at(-1)).to.include('start=2024-03-12&end=2024-03-12');
+            expect(adapter.entries[0].id).to.equal('read-3');
+        } finally {
+            adapter.hostDisconnected();
+        }
+    });
+
+    it('reacquires even an identical range, clears target-owned entries and cancels obsolete sync work', async () => {
+        const host = new Host();
+        const initial = state('2024-03-10', '2024-03-11', 'day');
+        const first = new Target(initial);
+        const second = new Target(initial);
+        let target: Target | null = first;
+        const stream = new Stream();
+        const invalidate = () => stream.dispatchEvent(new MessageEvent('invalidated'));
+        const calls: Array<{ signal: AbortSignal; resolve: (response: Response) => void }> = [];
+        const adapter = new KalendusLitAdapter(host as never, {
+            baseUrl: '',
+            calendarId: 'calendar',
+            target: () => target,
+            enableSync: true,
+            streamFactory: () => stream,
+            fetch: (_url, init) =>
+                new Promise((resolve) => calls.push({ signal: init!.signal!, resolve })),
+        });
+        adapter.hostConnected();
+        try {
+            calls[0].resolve(response('first target'));
+            await flush();
+            expect(adapter.entries.map(({ id }) => id)).to.deep.equal(['first target']);
+            const obsolete = adapter.refresh();
+            invalidate(); // The old read has a trailing refresh queued.
+
+            target = second;
+            adapter.hostUpdated();
+            expect(calls[1].signal.aborted).to.equal(true);
+            expect(adapter.entries).to.deep.equal([]);
+            expect(calls).to.have.length(3); // Same bounds, new target ownership.
+            expect(adapter.loading).to.equal(true);
+            calls[2].resolve(response('second target'));
+            await flush();
+            calls[1].resolve(response('obsolete'));
+            await obsolete;
+            expect(adapter.entries.map(({ id }) => id)).to.deep.equal(['second target']);
+            expect(calls).to.have.length(3);
+
+            invalidate(); // An idle invalidation schedules a microtask.
+            target = null;
+            adapter.hostUpdated();
+            second.navigate(state('2024-04-01', '2024-05-01'));
+            await flush();
+            await adapter.refresh();
+            expect(calls).to.have.length(3);
+            expect(adapter.entries).to.deep.equal([]);
+            expect(adapter.error).to.equal(null);
+            expect(adapter.loading).to.equal(false);
+        } finally {
+            adapter.hostDisconnected();
+        }
+    });
+
+    it('supports standalone initialState and manual queries without restoring old queries on target loss', async () => {
+        const host = new Host();
+        let target: Target | null = null;
+        const urls: string[] = [];
+        const adapter = new KalendusLitAdapter(host as never, {
+            baseUrl: '',
+            calendarId: 'calendar',
+            target: () => target,
+            initialState: state('2024-02-01', '2024-03-01'),
+            fetch: async (url) => {
+                urls.push(String(url));
+                return response(`read-${urls.length}`);
+            },
+        });
+        adapter.hostConnected();
+        try {
+            await flush();
+            expect(adapter.entries[0].id).to.equal('read-1');
+            await adapter.fetchRange('2024-03-10', '2024-03-10');
+            adapter.hostUpdated();
+            expect(urls).to.have.length(2);
+
+            target = new Target(state('2024-04-01', '2024-05-01'));
+            adapter.hostUpdated();
+            await flush();
+            expect(adapter.entries[0].id).to.equal('read-3');
+            target = null;
+            adapter.hostUpdated();
+            expect(adapter.entries).to.deep.equal([]);
+            await adapter.refresh();
+            expect(urls).to.have.length(3);
+
+            await adapter.fetchRange('2024-05-01', '2024-05-31');
+            adapter.hostUpdated();
+            expect(adapter.entries[0].id).to.equal('read-4');
+            expect(urls.map((url) => url.split('?')[1])).to.deep.equal([
+                'start=2024-02-01&end=2024-02-29',
+                'start=2024-03-10&end=2024-03-10',
+                'start=2024-04-01&end=2024-04-30',
+                'start=2024-05-01&end=2024-05-31',
+            ]);
+        } finally {
+            adapter.hostDisconnected();
+        }
     });
 
     it('keeps a sanitized stream startup error separate from REST and recovers on named connected', async () => {
@@ -396,6 +540,65 @@ describe('Adapter public state contract (nonbrowser)', () => {
             expect(adapter.loading).to.equal(false);
             expect(host.updates).to.equal(updates);
         });
+
+    it('returns the current pending query when custom fetch starts another range synchronously', async () => {
+        const first = ['2024-01-01', '2024-01-31'] as const;
+        const next = ['2024-02-01', '2024-02-29'] as const;
+        let nested: Promise<void> | undefined;
+        let resolveNext!: (response: Response) => void;
+        const adapter = new KalendusLitAdapter(new Host() as never, {
+            baseUrl: '',
+            calendarId: 'calendar',
+            fetch: (url) => {
+                if (String(url).includes(`start=${first[0]}`)) {
+                    nested = adapter.fetchRange(...next);
+                    return Promise.resolve(response('obsolete'));
+                }
+                return new Promise((resolve) => (resolveNext = resolve));
+            },
+        });
+        const obsolete = adapter.fetchRange(...first);
+        const deduped = adapter.fetchRange(...next);
+        resolveNext(response('current'));
+        await Promise.all([obsolete, nested, deduped]);
+        expect(deduped).to.equal(nested);
+        expect(adapter.entries.map(({ id }) => id)).to.deep.equal(['current']);
+    });
+
+    it('keeps a query started by an abort callback current and cancellable', async () => {
+        const april = ['2024-04-01', '2024-04-30'] as const;
+        const calls: Array<{ start: string; signal: AbortSignal }> = [];
+        let nested: Promise<void> | undefined;
+        const adapter = new KalendusLitAdapter(new Host() as never, {
+            baseUrl: 'https://api.example',
+            calendarId: 'calendar',
+            fetch: async (url, init) => {
+                const start = new URL(String(url)).searchParams.get('start')!;
+                const signal = init!.signal!;
+                calls.push({ start, signal });
+                if (start === '2024-01-01')
+                    signal.addEventListener('abort', () => {
+                        nested = adapter.fetchRange(...april);
+                    });
+                return response(start);
+            },
+        });
+        const january = adapter.fetchRange('2024-01-01', '2024-01-31');
+        const march = adapter.fetchRange('2024-03-01', '2024-03-31');
+        const deduped = adapter.fetchRange(...april);
+        const refreshed = adapter.refresh();
+        await Promise.all([january, march, nested, deduped, refreshed]);
+        expect(calls.map(({ start }) => start)).to.deep.equal([
+            '2024-01-01',
+            '2024-04-01',
+            '2024-04-01',
+        ]);
+        expect(calls[0].signal.aborted).to.equal(true);
+        expect(calls[1].signal.aborted).to.equal(true);
+        expect(calls[2].signal.aborted).to.equal(false);
+        expect(deduped).to.equal(nested);
+        expect(adapter.entries.map(({ id }) => id)).to.deep.equal(['2024-04-01']);
+    });
 
     it('disconnect cancels work, reconnects listeners and reconciles missed mutations on connected', async () => {
         const host = new Host();
