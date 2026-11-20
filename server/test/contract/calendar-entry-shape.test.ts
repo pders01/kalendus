@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import { z } from 'zod';
 
+import { KalendusApiClient } from '../../src/adapters/kalendus-api-client.js';
 import { createApp } from '../../src/http/app.js';
 import { createCalendar, createEvent } from '../helpers/fixtures.js';
 import { createTestDb } from '../helpers/test-db.js';
@@ -73,21 +74,33 @@ describe('Contract: Response Shape Validation', () => {
         expect(result.success).to.be.true;
     });
 
-    it('round-trips populated calendar theme tokens and accepts clearing them', async () => {
+    it('round-trips populated and cleared theme tokens through CRUD and the client manifest', async () => {
         const themeTokens = { '--accent-color': '#223344', '--week-min-day-width': '9em' };
+        const metadata = { name: 'Themed', locale: 'de', firstDayOfWeek: 0, color: '#223344' };
         const url = `/api/calendars/${calId}`;
-        const patch = (tokens: typeof themeTokens | null) =>
+        const client = new KalendusApiClient({
+            baseUrl: 'https://calendar.example',
+            calendarId: calId,
+            fetch: async (input, init) => app.request(new Request(input, init)),
+        });
+        const patch = (tokens: typeof themeTokens | null, fields: Partial<typeof metadata> = {}) =>
             app.request(url, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ themeTokens: tokens }),
+                body: JSON.stringify({ ...fields, themeTokens: tokens }),
             });
-        expect((await patch(themeTokens)).status).to.equal(200);
+        expect((await patch(themeTokens, metadata)).status).to.equal(200);
         const stored = apiCalendarSchema.parse(await (await app.request(url)).json());
         expect(stored.themeTokens).to.deep.equal(themeTokens);
+        expect(await client.fetchManifest()).to.deep.equal({ id: calId, ...metadata, themeTokens });
         const cleared = await patch(null);
         expect(cleared.status).to.equal(200);
         expect(apiCalendarSchema.parse(await cleared.json()).themeTokens).to.equal(null);
+        expect(await client.fetchManifest()).to.deep.equal({
+            id: calId,
+            ...metadata,
+            themeTokens: null,
+        });
     });
 
     it('GET /api/calendars/:id/events returns ApiCalendarEntry[]', async () => {

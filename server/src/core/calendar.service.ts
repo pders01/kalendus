@@ -95,26 +95,23 @@ export class CalendarServiceImpl {
         validate(idSchema, id);
         const row = this.db.select().from(calendars).where(eq(calendars.id, id)).get();
 
-        if (!row) return null;
+        return row ? this._metadata(row) : null;
+    }
 
+    private _metadata(row: typeof calendars.$inferSelect): CalendarManifest {
         return {
             id: row.id,
             name: row.name,
             locale: row.locale,
             firstDayOfWeek: row.firstDayOfWeek,
             color: row.color,
-            themeTokens: row.themeTokens as Record<string, string> | null,
+            themeTokens: row.themeTokens,
         };
     }
 
     private _toDto(row: typeof calendars.$inferSelect): ApiCalendar {
         return {
-            id: row.id,
-            name: row.name,
-            locale: row.locale,
-            firstDayOfWeek: row.firstDayOfWeek,
-            color: row.color,
-            themeTokens: row.themeTokens as Record<string, string> | null,
+            ...this._metadata(row),
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
         };

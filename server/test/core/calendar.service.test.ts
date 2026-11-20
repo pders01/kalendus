@@ -162,15 +162,5 @@ describe('CalendarService', () => {
             const result = await service.getManifest('nope');
             expect(result).to.be.null;
         });
-
-        it('returns manifest data', async () => {
-            const row = createCalendar(db, {
-                name: 'Themed',
-                themeTokens: JSON.stringify({ '--a': '1' }) as unknown as null,
-            });
-            const manifest = await service.getManifest(row.id);
-            expect(manifest).to.not.be.null;
-            expect(manifest!.name).to.equal('Themed');
-        });
     });
 });
