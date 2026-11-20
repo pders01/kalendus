@@ -7,10 +7,11 @@ describe('Day Component', () => {
     describe('default fixture', () => {
         let el: Day;
 
-        before(async () => {
+        beforeEach(async () => {
             el = await fixture(html`
                 <lms-calendar-day></lms-calendar-day>
             `);
+            expect(el.isConnected).to.be.true;
         });
 
         it('should render day view correctly', () => {
@@ -86,10 +87,11 @@ describe('Day Component', () => {
     describe('all-day fixture', () => {
         let el: Day;
 
-        before(async () => {
+        beforeEach(async () => {
             el = await fixture(html`
                 <lms-calendar-day .allDayRowCount=${1}></lms-calendar-day>
             `);
+            expect(el.isConnected).to.be.true;
         });
 
         it('should render all-day slot', () => {

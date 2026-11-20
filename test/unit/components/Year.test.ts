@@ -4,16 +4,17 @@ import '../../../src/components/Year.ts';
 import type Year from '../../../src/components/Year.ts';
 
 describe('Year Component', () => {
-    describe('read-only (shared fixture, activeDate 2024-01-01)', () => {
+    describe('January 2024', () => {
         let el: Year;
 
-        before(async () => {
+        beforeEach(async () => {
             el = await fixture(html`
                 <lms-calendar-year
                     .activeDate=${{ day: 1, month: 1, year: 2024 }}
                 ></lms-calendar-year>
             `);
             await el.updateComplete;
+            expect(el.isConnected).to.be.true;
         });
 
         it('should render year view correctly', function () {
