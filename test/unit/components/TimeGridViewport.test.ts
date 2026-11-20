@@ -199,6 +199,44 @@ describe('Day and Week viewport sizing', () => {
             });
         }
 
+        it(`${view} anchors the visible minute when only the axis inset changes`, async () => {
+            const calendar = await fixture<Calendar>(html`
+                <lms-calendar scroll-time-grid dir="rtl" .activeDate=${date} view-mode=${view}
+                    style="width:900px;height:420px;--hour-indicator-font-size:16px"
+                ></lms-calendar>
+            `);
+            await settle();
+            const { scroll, values } = snapshot(calendar, view);
+            const inset = () => parseFloat(getComputedStyle(scroll).paddingTop);
+            const minute = () => (scroll.scrollTop - inset()) / values.minute;
+            const setSize = async (size: number) => {
+                calendar.style.setProperty('--hour-indicator-font-size', `${size}px`);
+                await settle();
+                const after = snapshot(calendar, view).values;
+                expect(after.minute).to.equal(values.minute);
+                expect(after.timedViewport).to.equal(values.timedViewport);
+                expect(inset()).to.equal(size * 0.625);
+            };
+            expect(scroll.scrollTop).to.equal(0);
+            await setSize(32);
+            expect(scroll.scrollTop).to.equal(0);
+            scroll.scrollTop = Math.round(inset() + 530 * values.minute);
+            await nextFrame();
+            const anchor = minute();
+            expect(anchor).to.be.closeTo(530, 1);
+            await setSize(16);
+            expect(minute()).to.be.closeTo(anchor, 1);
+            await setSize(32);
+            expect(minute()).to.be.closeTo(anchor, 1);
+
+            scroll.scrollTop = scroll.scrollHeight;
+            await settle();
+            const oldEnd = scroll.scrollTop;
+            await setSize(16);
+            expect(scroll.scrollTop).to.be.lessThan(oldEnd);
+            expect(scroll.scrollTop).to.be.closeTo(scroll.scrollHeight - scroll.clientHeight, 1);
+        });
+
         for (const dense of [false, true]) {
             it(`${view} settles without an explicit height (${dense ? 'dense' : 'sparse'})`, async () => {
                 const calendar =

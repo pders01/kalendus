@@ -199,9 +199,11 @@ export class TimeGridSizingController implements ReactiveController {
         let previousHeight = 0;
         let previousInset = 0;
         let previousTop = 0;
+        let previousExtent = 0;
         const rememberScroll = () => {
-            // A clamp caused by a resize is not a user choosing a new time.
-            if (scroll.clientHeight === previousHeight) previousTop = scroll.scrollTop;
+            // An automatic clamp can fire before ResizeObserver, even at the same height.
+            if (scroll.clientHeight === previousHeight && scroll.scrollHeight === previousExtent)
+                previousTop = scroll.scrollTop;
         };
         scroll.addEventListener('scroll', rememberScroll, { passive: true });
         this.unlisten = () => scroll.removeEventListener('scroll', rememberScroll);
@@ -213,28 +215,32 @@ export class TimeGridSizingController implements ReactiveController {
             const minute = chosenFit || detail;
             const changed = Math.abs(minute - this.lastMinute) > 0.0001;
             this.host.toggleAttribute('data-spaced-hours', !!chosenFit && minute * 60 < inset * 3);
-            if (changed) {
+            if (changed || inset !== previousInset) {
                 const top = scroll.scrollTop;
-                const clamped = height > previousHeight && top >= scroll.scrollHeight - height - 1;
-                const position =
-                    this.lastMinute > 0
-                        ? ((clamped ? Math.max(top, previousTop) : top) - previousInset) /
-                          this.lastMinute
-                        : undefined;
-                this.lastMinute = minute;
-                this.host.style.setProperty('--minute-height', `${minute}px`);
-                this.host.style.setProperty('--hour-height', `${minute * 60}px`);
-                this.host.style.setProperty('--day-total-height', `${minute * 1440}px`);
-                this.host.style.setProperty('--half-day-height', `${minute * 720}px`);
-                // Avoid cumulative subpixel truncation during repeated restores.
-                if (position !== undefined)
-                    scroll.scrollTop = Math.round(inset + position * minute);
+                const clamped =
+                    (height > previousHeight || inset < previousInset) &&
+                    top >= scroll.scrollHeight - height - 1;
+                const anchor = clamped ? Math.max(top, previousTop) : top;
+                const scale = this.lastMinute;
+                if (changed) {
+                    this.lastMinute = minute;
+                    this.host.style.setProperty('--minute-height', `${minute}px`);
+                    this.host.style.setProperty('--hour-height', `${minute * 60}px`);
+                    this.host.style.setProperty('--day-total-height', `${minute * 1440}px`);
+                    this.host.style.setProperty('--half-day-height', `${minute * 720}px`);
+                }
+                // Keep native top at zero and let the browser clamp the restored anchor.
+                if (scale && anchor > 0)
+                    scroll.scrollTop = Math.round(
+                        inset + ((anchor - previousInset) / scale) * this.lastMinute,
+                    );
             }
             if (changed || height !== previousHeight || inset !== previousInset)
                 this.host.dispatchEvent(new Event('time-grid-resize'));
             previousHeight = height;
             previousInset = inset;
             previousTop = scroll.scrollTop;
+            previousExtent = scroll.scrollHeight;
         };
         this.sync = sync;
         sync();
