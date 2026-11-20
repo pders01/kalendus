@@ -19,6 +19,27 @@
   var VERSION = 2;
   var MAX_MESSAGE_BYTES = 1048576;
   var MAX_ENTRIES = 2000;
+  var MAX_DIAGNOSTIC_ISSUES = 20;
+  var ENTRY_ISSUE_REASONS = [
+    "Entries must be an array",
+    "Entry must be an object",
+    "Invalid date interval",
+    "Invalid temporal kind",
+    "Invalid entry ID",
+    "Invalid continuation flag",
+    "Invalid IANA time zone",
+    "Invalid heading",
+    "Invalid content",
+    "Invalid color",
+    "Reversed date interval",
+    "Invalid time interval",
+    "Timed entry requires time endpoints",
+    "Reversed time interval",
+    "Nonexistent or ambiguous zoned endpoint",
+    "Duplicate entry ID; first valid record wins",
+    "Duplicate source object; first valid record wins",
+    "Other validation issue"
+  ];
   var PROP_KEYS = [
     "heading",
     "firstDayOfWeek",
@@ -122,6 +143,20 @@
   function isState(v) {
     return record(v) && keys(v, ["activeDate", "viewMode", "firstDayOfWeek", "range"]) && isDate(v.activeDate) && view(v.viewMode) && integer(v.firstDayOfWeek, 0, 6) && record(v.range) && keys(v.range, ["start", "end"]) && isoKey(v.range.start) !== null && isoKey(v.range.end, true) !== null && Number(isoKey(v.range.start)) < Number(isoKey(v.range.end, true));
   }
+  function projectEntriesInvalid(v) {
+    if (!record(v) || !Array.isArray(v.issues) || !integer(v.issues.length, 1, MAX_ENTRIES))
+      return null;
+    const issues = [];
+    for (const issue of v.issues.slice(0, MAX_DIAGNOSTIC_ISSUES)) {
+      if (!record(issue) || !integer(issue.index, -1, MAX_ENTRIES - 1))
+        return null;
+      issues.push({
+        index: issue.index,
+        reason: ENTRY_ISSUE_REASONS.find((reason) => reason === issue.reason) ?? "Other validation issue"
+      });
+    }
+    return { issueCount: v.issues.length, issues };
+  }
   function detail(name, v) {
     if (!record(v))
       return false;
@@ -134,6 +169,8 @@
         return request(v);
       case "calendar-state-change":
         return isState(v);
+      case "entries-invalid":
+        return keys(v, ["issueCount", "issues"]) && integer(v.issueCount, 1, MAX_ENTRIES) && Array.isArray(v.issues) && v.issues.length === Math.min(v.issueCount, MAX_DIAGNOSTIC_ISSUES) && v.issues.every((issue) => record(issue) && keys(issue, ["index", "reason"]) && integer(issue.index, -1, MAX_ENTRIES - 1) && choice(issue.reason, ENTRY_ISSUE_REASONS));
       case "expand":
         return keys(v, ["date", "drillTarget"]) && isDate(v.date) && optional(v, "drillTarget", drill);
       case "switchview":
@@ -327,6 +364,13 @@
     apply(msg.snapshot, msg.seq);
   };
   cal.addEventListener("calendar-state-change", (event) => state(event.detail));
+  cal.addEventListener("entries-invalid", (event) => {
+    if (!configured || event.target !== cal)
+      return;
+    const detail = projectEntriesInvalid(event.detail);
+    if (detail)
+      send({ type: "event", name: "entries-invalid", detail });
+  });
   for (const name of ["open-menu", "expand", "switchview", "switchdate", "jumptoday", "menu-close"]) {
     cal.addEventListener(name, (event) => {
       if (!configured)

@@ -136,6 +136,9 @@ function BridgeDocument(props: KalendusWebViewProps) {
                         case 'calendar-state-change':
                             cb.onCalendarStateChange?.(msg.detail);
                             break;
+                        case 'entries-invalid':
+                            cb.onEntriesInvalid?.(msg.detail);
+                            break;
                         case 'entry-activate':
                             cb.onEntryActivate?.(msg.detail);
                             break;

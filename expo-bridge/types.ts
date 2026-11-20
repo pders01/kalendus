@@ -1,4 +1,4 @@
-import type { VERSION } from './protocol.js';
+import type { ENTRY_ISSUE_REASONS, VERSION } from './protocol.js';
 
 /** Serializable mirrors of the public calendar contract; no React Native dependency. */
 export type CalendarDate = { day: number; month: number; year: number };
@@ -64,10 +64,16 @@ export type EntryPressDetail = {
 };
 /** Compatibility fields plus the original, unsliced entry and identity. */
 export type ExportICSDetail = EntryPressDetail & EntryRequest;
+export type EntriesInvalidDetail = {
+    issueCount: number;
+    /** First 20 issues, without the original records; -1 refers to the collection. */
+    issues: { index: number; reason: (typeof ENTRY_ISSUE_REASONS)[number] }[];
+};
 export type EventDetails = {
     'open-menu': EntryPressDetail;
     'entry-activate': EntryRequest;
     'calendar-state-change': CalendarState;
+    'entries-invalid': EntriesInvalidDetail;
     expand: { date: CalendarDate; drillTarget?: DrillTarget };
     switchview: { view: ViewMode };
     switchdate: { direction: 'next' | 'previous' };
@@ -97,6 +103,8 @@ export type KalendusCallbacks = {
     /** Installing this handler delegates activation to native (suppresses inspector). */
     onEntryActivate?: (detail: EntryRequest) => void;
     onCalendarStateChange?: (detail: CalendarState) => void;
+    /** Reports root ingestion failures, not a transport failure or a readiness change. */
+    onEntriesInvalid?: (detail: EntriesInvalidDetail) => void;
     onDateExpand?: (detail: EventDetails['expand']) => void;
     onViewChange?: (detail: EventDetails['switchview']) => void;
     onDateChange?: (detail: EventDetails['switchdate']) => void;

@@ -1,4 +1,12 @@
-import { encodeOutbound, isState, newToken, parseInbound, PROP_KEYS, VERSION } from './protocol.js';
+import {
+    encodeOutbound,
+    isState,
+    newToken,
+    parseInbound,
+    projectEntriesInvalid,
+    PROP_KEYS,
+    VERSION,
+} from './protocol.js';
 import type { CalendarState, KalendusProps, Snapshot, ThemeVars } from './types.js';
 
 interface CalendarElement extends HTMLElement {
@@ -152,6 +160,11 @@ window.__kalendusReceive = (raw) => {
 cal.addEventListener('calendar-state-change', (event) =>
     state((event as CustomEvent<unknown>).detail),
 );
+cal.addEventListener('entries-invalid', (event) => {
+    if (!configured || event.target !== cal) return;
+    const detail = projectEntriesInvalid((event as CustomEvent<unknown>).detail);
+    if (detail) send({ type: 'event', name: 'entries-invalid', detail });
+});
 for (const name of ['open-menu', 'expand', 'switchview', 'switchdate', 'jumptoday', 'menu-close']) {
     cal.addEventListener(name, (event) => {
         if (!configured) return;

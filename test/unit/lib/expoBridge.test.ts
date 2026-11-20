@@ -8,6 +8,7 @@ import {
     encodeInbound,
     encodeOutbound,
     injection,
+    MAX_ENTRIES,
     MAX_MESSAGE_BYTES,
     NativeSession,
     parseInbound,
@@ -50,6 +51,10 @@ const packet = (
     session = 'native_session',
     document = 'document_id',
 ) => ({ version: VERSION, type: 'snapshot', session, document, seq, snapshot: value });
+const invalidDetail = {
+    issueCount: 1,
+    issues: [{ index: 0, reason: 'Invalid entry ID' }],
+};
 const flush = async () => {
     for (let i = 0; i < 12; i++) await Promise.resolve();
 };
@@ -360,6 +365,43 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
                 Object.fromEntries(Array.from({ length: 129 }, (_, i) => [`--token-${i}`, 'red'])),
             ]) {
                 expect(validateSnapshot(snapshot({}, theme))).to.equal(false);
+            }
+        });
+        it('keeps malformed collections and missing headings at the transport validation layer', () => {
+            for (const entries of [null, {}, [{ ...entry, heading: undefined }]]) {
+                expect(validateSnapshot({ ...snapshot(), props: { entries } })).to.equal(false);
+            }
+            // The web root applies stricter semantics to this otherwise schema-valid ID.
+            expect(validateSnapshot(snapshot({ entries: [{ ...entry, id: ' ' }] }))).to.equal(true);
+        });
+        it('round-trips only bounded, record-free invalid-entry diagnostics', () => {
+            const value = {
+                version: VERSION,
+                type: 'event',
+                session: 'native_session',
+                document: 'document_id',
+                seq: 1,
+                name: 'entries-invalid',
+                detail: invalidDetail,
+            };
+            expect(parseOutbound(encodeOutbound(value))).to.deep.equal(value);
+            for (const detail of [
+                { ...invalidDetail, issueCount: 0 },
+                { ...invalidDetail, issueCount: MAX_ENTRIES + 1 },
+                { ...invalidDetail, issueCount: 2 },
+                {
+                    ...invalidDetail,
+                    issueCount: 21,
+                    issues: Array(21).fill(invalidDetail.issues[0]),
+                },
+                { ...invalidDetail, issues: [{ index: -2, reason: 'Invalid entry ID' }] },
+                { ...invalidDetail, issues: [{ index: MAX_ENTRIES, reason: 'Invalid entry ID' }] },
+                { ...invalidDetail, issues: [{ index: 0, reason: entry.content }] },
+                { ...invalidDetail, issues: [{ ...invalidDetail.issues[0], entry }] },
+                { ...invalidDetail, entry },
+            ]) {
+                expect(encodeOutbound({ ...value, detail })).to.equal(null);
+                expect(parseOutbound(JSON.stringify({ ...value, detail }))).to.equal(null);
             }
         });
         it('validates event payloads in both directions instead of trusting a type discriminator', () => {
@@ -733,6 +775,39 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
     });
 
     describe('public event interception, not private component patches', () => {
+        it('forwards a capped diagnostic with no raw fields, even with no delegation capabilities', async () => {
+            const f = fixture();
+            f.connect();
+            await f.boot();
+            const event = new DetailEvent(
+                'entries-invalid',
+                {
+                    issues: Array.from({ length: 25 }, (_, index) => ({
+                        index,
+                        reason: index === 0 ? 'Invalid entry ID' : 'Private reason text',
+                        get entry() {
+                            throw new Error('Raw record must not be read');
+                        },
+                    })),
+                },
+                { cancelable: true },
+            );
+            const diagnostics = () => f.decoded().filter((m) => m.name === 'entries-invalid');
+            f.cal.dispatchEvent(event);
+            expect(diagnostics()).to.have.length(0);
+            await f.apply(snapshot());
+            expect(f.cal.dispatchEvent(event)).to.equal(true);
+            expect(diagnostics()).to.have.length(1);
+            expect(diagnostics()[0].detail).to.deep.equal({
+                issueCount: 25,
+                issues: Array.from({ length: 20 }, (_, index) => ({
+                    index,
+                    reason: index === 0 ? 'Invalid entry ID' : 'Other validation issue',
+                })),
+            });
+            expect(f.messages.join('')).not.to.include('Private reason text');
+            expect(f.decoded().map((m) => m.type)).to.deep.equal(['ready', 'event', 'event']);
+        });
         it('intercepts one public export request with canonical endpoints/id and compatibility fields', async () => {
             const f = fixture();
             f.connect();
@@ -922,6 +997,39 @@ describe('Expo bridge protocol and generated shell (no native runtime)', () => {
                 native.receive(JSON.stringify({ ...event, seq: 2, version: VERSION + 1 })),
             ).to.equal(null);
             expect(native.receive(JSON.stringify({ ...event, seq: 2 }))?.type).to.equal('event');
+        });
+        it('accepts invalid-entry diagnostics only for the current bound session and fresh sequence', () => {
+            const native = new NativeSession();
+            const ready = {
+                version: VERSION,
+                session: native.session,
+                document: 'document_id',
+                seq: 1,
+            };
+            const diagnostic = {
+                ...ready,
+                seq: 2,
+                type: 'event',
+                name: 'entries-invalid',
+                detail: invalidDetail,
+            };
+            const raw = encodeOutbound(diagnostic);
+            expect(native.receive(raw)).to.equal(null);
+            expect(native.receive(JSON.stringify({ ...ready, type: 'ready' }))?.type).to.equal(
+                'ready',
+            );
+            expect(
+                native.receive(encodeOutbound({ ...diagnostic, document: 'other_document' })),
+            ).to.equal(null);
+            expect(native.receive(raw)).to.deep.equal(diagnostic);
+            expect(native.receive(raw)).to.equal(null);
+            native.reset();
+            const newReady = { ...ready, session: native.session, type: 'ready' };
+            expect(native.receive(JSON.stringify(newReady))?.type).to.equal('ready');
+            expect(native.receive(raw)).to.equal(null);
+            expect(
+                native.receive(encodeOutbound({ ...diagnostic, session: native.session }))?.type,
+            ).to.equal('event');
         });
         it('marks only the first accepted snapshot ready, including after startup rejection', () => {
             const native = new NativeSession();

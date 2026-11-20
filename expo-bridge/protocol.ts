@@ -3,6 +3,27 @@ import type { ConnectMessage, InboundMessage, OutboundMessage, Snapshot } from '
 export const VERSION = 2;
 export const MAX_MESSAGE_BYTES = 1_048_576;
 export const MAX_ENTRIES = 2000;
+const MAX_DIAGNOSTIC_ISSUES = 20;
+export const ENTRY_ISSUE_REASONS = [
+    'Entries must be an array',
+    'Entry must be an object',
+    'Invalid date interval',
+    'Invalid temporal kind',
+    'Invalid entry ID',
+    'Invalid continuation flag',
+    'Invalid IANA time zone',
+    'Invalid heading',
+    'Invalid content',
+    'Invalid color',
+    'Reversed date interval',
+    'Invalid time interval',
+    'Timed entry requires time endpoints',
+    'Reversed time interval',
+    'Nonexistent or ambiguous zoned endpoint',
+    'Duplicate entry ID; first valid record wins',
+    'Duplicate source object; first valid record wins',
+    'Other validation issue',
+] as const;
 export const PROP_KEYS = [
     'heading',
     'firstDayOfWeek',
@@ -225,6 +246,22 @@ export function isState(v: unknown): boolean {
         Number(isoKey(v.range.start)) < Number(isoKey(v.range.end, true))
     );
 }
+/** Do not even read issue.entry: it can contain arbitrary caller data. */
+export function projectEntriesInvalid(v: unknown) {
+    if (!record(v) || !Array.isArray(v.issues) || !integer(v.issues.length, 1, MAX_ENTRIES))
+        return null;
+    const issues = [];
+    for (const issue of v.issues.slice(0, MAX_DIAGNOSTIC_ISSUES)) {
+        if (!record(issue) || !integer(issue.index, -1, MAX_ENTRIES - 1)) return null;
+        issues.push({
+            index: issue.index,
+            reason:
+                ENTRY_ISSUE_REASONS.find((reason) => reason === issue.reason) ??
+                'Other validation issue',
+        });
+    }
+    return { issueCount: v.issues.length, issues };
+}
 function detail(name: unknown, v: unknown): boolean {
     if (!record(v)) return false;
     switch (name) {
@@ -236,6 +273,20 @@ function detail(name: unknown, v: unknown): boolean {
             return request(v);
         case 'calendar-state-change':
             return isState(v);
+        case 'entries-invalid':
+            return (
+                keys(v, ['issueCount', 'issues']) &&
+                integer(v.issueCount, 1, MAX_ENTRIES) &&
+                Array.isArray(v.issues) &&
+                v.issues.length === Math.min(v.issueCount, MAX_DIAGNOSTIC_ISSUES) &&
+                v.issues.every(
+                    (issue) =>
+                        record(issue) &&
+                        keys(issue, ['index', 'reason']) &&
+                        integer(issue.index, -1, MAX_ENTRIES - 1) &&
+                        choice(issue.reason, ENTRY_ISSUE_REASONS),
+                )
+            );
         case 'expand':
             return (
                 keys(v, ['date', 'drillTarget']) &&

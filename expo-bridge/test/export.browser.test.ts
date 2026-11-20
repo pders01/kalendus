@@ -75,7 +75,7 @@ describe('Expo shell public integration', () => {
             await cal.updateComplete;
             await nextFrame();
         };
-        return { win, cal, messages, apply };
+        return { win, cal, messages, apply, native };
     }
 
     async function mount(exportICS: boolean, entryActivation = false) {
@@ -137,6 +137,32 @@ describe('Expo shell public integration', () => {
         await apply(snapshot);
         expect(cal.color).to.equal('#000000');
         expect(accent()).to.equal('');
+    });
+
+    it('reports root-invalid entries without forwarding records or blocking valid siblings', async () => {
+        const { cal, apply, messages, native } = await mountShell();
+        const day = { year: 2026, month: 3, day: 7 };
+        const good = { id: 'valid-sibling', date: { start: day, end: day }, heading: 'Visible' };
+        const invalid = { ...good, id: ' ', heading: 'Private title', content: 'Private notes' };
+        await apply({
+            props: { entries: [invalid, good], activeDate: day, viewMode: 'day' },
+            theme: {},
+            capabilities: { exportICS: false, entryActivation: false },
+        });
+        const diagnostics = messages()
+            .map((raw) => native.receive(raw))
+            .filter((message) => message?.type === 'event' && message.name === 'entries-invalid');
+        expect(diagnostics).to.have.length(1);
+        expect(diagnostics[0]?.detail).to.deep.equal({
+            issueCount: 1,
+            issues: [{ index: 0, reason: 'Invalid entry ID' }],
+        });
+        expect(messages().join(''))
+            .not.to.contain('Private title')
+            .and.not.to.contain('Private notes');
+        const cards = cal.shadowRoot!.querySelectorAll('lms-calendar-entry');
+        expect(cards).to.have.length(1);
+        expect(cards[0].canonicalEntry).to.deep.equal(good);
     });
 
     it('a real Menu export-button click posts exactly one canonical native export and no download', async () => {
