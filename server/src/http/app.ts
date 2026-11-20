@@ -29,6 +29,8 @@ import { telemetryRoutes } from './routes/telemetry.js';
 export interface AppDeps {
     db: Db;
     eventBus?: EventBus;
+    /** Use the same owner object with a shared bus for multiple handles to one database. */
+    eventBusScope?: object;
     enableLogger?: boolean;
     /** Private is the default and denies all API access without authorize. */
     mode?: 'private' | 'public';
@@ -44,7 +46,8 @@ export interface AppDeps {
 }
 
 export function createApp(deps: AppDeps) {
-    const { db, eventBus = new EventBus(), enableLogger = false } = deps;
+    const { db, enableLogger = false } = deps;
+    const eventBus = deps.eventBus?.scopedTo(deps.eventBusScope ?? db) ?? new EventBus();
 
     const app = new Hono();
 
@@ -67,9 +70,11 @@ export function createApp(deps: AppDeps) {
     app.use('*', boundedBody(deps.maxBodyBytes));
 
     // Services
-    const calendarService = new CalendarServiceImpl(db);
-    const eventService = new EventServiceImpl(db);
     const syncService = new SyncServiceImpl(eventBus);
+    const calendarService = new CalendarServiceImpl(db, (id) =>
+        syncService.notifyCalendarRemoved(id),
+    );
+    const eventService = new EventServiceImpl(db, (event) => syncService.broadcast(event));
     const telemetryService = new TelemetryServiceImpl(deps.telemetry);
     const rate = new RateLimiter(
         deps.telemetryRate?.limit,
@@ -144,14 +149,11 @@ export function createApp(deps: AppDeps) {
     });
 
     // Routes — all under /api/calendars
-    app.route('/api/calendars', calendarRoutes(calendarService, eventBus));
-    app.route('/api/calendars', eventRoutes(eventService, syncService));
+    app.route('/api/calendars', calendarRoutes(calendarService));
+    app.route('/api/calendars', eventRoutes(eventService));
     app.route(
         '/api/calendars',
-        streamRoutes(syncService, deps.authorizeStreamDetails, {
-            eventBus,
-            calendarService,
-        }),
+        streamRoutes(syncService, calendarService, deps.authorizeStreamDetails),
     );
     app.route('/api/calendars', telemetryRoutes(telemetryService));
     app.route('/api/calendars', manifestRoutes(calendarService));

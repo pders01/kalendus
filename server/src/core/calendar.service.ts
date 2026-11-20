@@ -12,7 +12,11 @@ import type {
 import { createCalendarSchema, updateCalendarSchema, idSchema, validate } from './validation.js';
 
 export class CalendarServiceImpl {
-    constructor(private db: Db) {}
+    /** Best-effort post-commit delivery. Hook-enabled removals cannot join a caller transaction. */
+    constructor(
+        private db: Db,
+        private onRemove?: (calendarId: string) => void,
+    ) {}
 
     async getById(id: string): Promise<ApiCalendar | null> {
         validate(idSchema, id);
@@ -66,8 +70,19 @@ export class CalendarServiceImpl {
 
     async delete(id: string): Promise<boolean> {
         validate(idSchema, id);
+        // No SQLite commit hook is available for notifications in a caller-owned transaction.
+        if (this.onRemove && this.db.$client.inTransaction)
+            throw new Error('Calendar removal hooks require a service-owned transaction');
         const result = this.db.delete(calendars).where(eq(calendars.id, id)).run();
-        return result.changes > 0;
+        if (result.changes === 0) return false;
+        if (this.onRemove) {
+            try {
+                Promise.resolve(this.onRemove(id)).catch(() => {});
+            } catch {
+                /* Committed removals do not depend on best-effort delivery. */
+            }
+        }
+        return true;
     }
 
     async getManifest(id: string): Promise<CalendarManifest | null> {

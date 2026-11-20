@@ -3,43 +3,33 @@ import { streamSSE } from 'hono/streaming';
 
 import type { CalendarServiceImpl } from '../../core/calendar.service.js';
 import { NotFoundError } from '../../core/errors.js';
-import type { EventBus } from '../../core/event-bus.js';
 import type { SyncServiceImpl } from '../../core/sync.service.js';
 import type { StreamDetailsPolicy } from '../authorization.js';
-import { calendarRemovalChannel } from './calendars.js';
-
-interface CalendarLifecycle {
-    eventBus: EventBus;
-    calendarService: Pick<CalendarServiceImpl, 'getById'>;
-}
 
 /** In-memory invalidations, not a durable replay log. Every connection requires reconciliation. */
 export function streamRoutes(
     syncService: SyncServiceImpl,
+    calendarService: CalendarServiceImpl,
     authorizeDetails?: StreamDetailsPolicy,
-    lifecycle?: CalendarLifecycle,
 ) {
     const app = new Hono();
 
     app.get('/:calendarId/stream', async (c) => {
         const calendarId = c.req.param('calendarId');
-        // createApp has already enforced stream access. A second, explicit grant
-        // is needed to disclose records. Check before opening the response stream.
-        const includeDetails =
-            (await authorizeDetails?.({ request: c.req.raw, calendarId })) === true;
-        const channel = calendarRemovalChannel(calendarId);
-        if (lifecycle) {
-            // Revalidate after the details policy, watching for removals across the await.
-            let removed = false;
-            const unwatch = lifecycle.eventBus.subscribe(channel, () => {
-                removed = true;
-            });
-            try {
-                if (!(await lifecycle.calendarService.getById(calendarId)) || removed)
-                    throw new NotFoundError('Calendar', calendarId);
-            } finally {
-                unwatch();
-            }
+        // A separate grant is needed to disclose records. Watch for removals while
+        // awaiting it and recheck storage before handing off to the live subscriptions.
+        let removed = false;
+        const unwatch = syncService.onCalendarRemoved(calendarId, () => {
+            removed = true;
+        });
+        let includeDetails: boolean;
+        try {
+            includeDetails =
+                (await authorizeDetails?.({ request: c.req.raw, calendarId })) === true;
+            if (!(await calendarService.getById(calendarId)) || removed)
+                throw new NotFoundError('Calendar', calendarId);
+        } finally {
+            unwatch();
         }
         // The live subscriptions start synchronously; no await between revalidation and handoff.
         return streamSSE(c, async (stream) => {
@@ -70,7 +60,7 @@ export function streamRoutes(
                 if (terminating) return;
                 return includeDetails ? write(event.type, event.event) : write('invalidated', {});
             });
-            const unsubscribeRemoval = lifecycle?.eventBus.subscribe(channel, async () => {
+            const unsubscribeRemoval = syncService.onCalendarRemoved(calendarId, async () => {
                 if (closed || terminating) return;
                 terminating = true;
                 try {
@@ -89,7 +79,7 @@ export function streamRoutes(
                 if (closed) return;
                 closed = true;
                 unsubscribe();
-                unsubscribeRemoval?.();
+                unsubscribeRemoval();
                 clearInterval(heartbeat);
                 clearTimeout(lease);
                 finish();

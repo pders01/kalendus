@@ -9,6 +9,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 import { ValidationError } from '../../src/core/errors.js';
 import { EventServiceImpl } from '../../src/core/event.service.js';
+import type { SseEvent } from '../../src/core/types.js';
 import { createDb } from '../../src/db/connection.js';
 import { migrateDb } from '../../src/db/migrate.js';
 import * as schema from '../../src/db/schema.js';
@@ -306,6 +307,103 @@ describe('EventService', () => {
                 time: null,
             });
             expect(updated!.time).to.be.null;
+        });
+    });
+
+    describe('mutation hook', () => {
+        const day = { year: 2026, month: 3, day: 15 };
+        const input = { heading: 'Created', date: { start: day, end: day } };
+        const date = '2026-03-15';
+
+        it('delivers each committed mutation with the canonical DTO and never delivers no-ops or rollbacks', async () => {
+            const deliveries: {
+                event: SseEvent;
+                inTransaction: boolean;
+                storedHeading?: string;
+            }[] = [];
+            service = new EventServiceImpl(db, (event) => {
+                const stored = db
+                    .select()
+                    .from(schema.events)
+                    .where(eq(schema.events.id, event.event.id))
+                    .get();
+                deliveries.push({
+                    event,
+                    inTransaction: db.$client.inTransaction,
+                    storedHeading: stored?.heading,
+                });
+            });
+            const entry = await service.create(calId, input);
+            const updated = await service.update(calId, entry.id, { heading: 'Updated' });
+            expect(updated?.createdAt).to.equal(entry.createdAt);
+            expect(await service.getByRange(calId, date, date)).to.deep.equal([updated]);
+
+            db.$client.exec(`
+                CREATE TRIGGER rollback_patch AFTER UPDATE ON events WHEN NEW.heading = 'Aborted'
+                BEGIN SELECT RAISE(ABORT, 'test patch rollback'); END;
+                CREATE TRIGGER ignore_insert BEFORE INSERT ON events WHEN NEW.heading = 'Ignored'
+                BEGIN SELECT RAISE(IGNORE); END;
+            `);
+            await rejects(
+                service.update(calId, entry.id, { heading: 'Aborted' }),
+                /test patch rollback/,
+            );
+            await rejects(
+                service.create(calId, { ...input, heading: 'Ignored' }),
+                /did not create a row/,
+            );
+            expect(await service.getByRange(calId, date, date)).to.deep.equal([updated]);
+
+            expect(await service.update(calId, 'missing', { heading: 'Noop' })).to.be.null;
+            expect(await service.delete(calId, entry.id)).to.be.true;
+            expect(await service.delete(calId, entry.id)).to.be.false;
+            expect(deliveries).to.deep.equal([
+                {
+                    event: { type: 'created', calendarId: calId, event: entry },
+                    inTransaction: false,
+                    storedHeading: 'Created',
+                },
+                {
+                    event: { type: 'updated', calendarId: calId, event: updated },
+                    inTransaction: false,
+                    storedHeading: 'Updated',
+                },
+                {
+                    event: { type: 'deleted', calendarId: calId, event: { id: entry.id } },
+                    inTransaction: false,
+                    storedHeading: undefined,
+                },
+            ]);
+        });
+
+        it('isolates callback mutation, throws and rejected promises from successful writes', async () => {
+            service = new EventServiceImpl(db, ({ type, event }) => {
+                if ('heading' in event) event.heading = 'Tampered';
+                if (type === 'created') throw new Error('Synchronous callback failure');
+                return Promise.reject(new Error('Asynchronous callback failure'));
+            });
+            const entry = await service.create(calId, input);
+            expect(entry.heading).to.equal(input.heading);
+            const updated = await service.update(calId, entry.id, { heading: 'Updated' });
+            expect(updated?.heading).to.equal('Updated');
+            expect(await service.getByRange(calId, date, date)).to.deep.equal([updated]);
+            expect(await service.delete(calId, entry.id)).to.be.true;
+            expect(await service.getByRange(calId, date, date)).to.be.empty;
+        });
+
+        it('rejects writes with a hook inside caller transactions before any delivery', async () => {
+            const deliveries: SseEvent[] = [];
+            service = new EventServiceImpl(db, (event) => deliveries.push(event));
+            const row = createEvent(db, calId);
+            const write = db.transaction(() => [
+                service.create(calId, input),
+                service.update(calId, row.id, { heading: 'Unexpected' }),
+                service.delete(calId, row.id),
+            ]);
+            for (const pending of write) await rejects(pending, /service-owned transaction/);
+            expect(deliveries).to.be.empty;
+            expect(await service.getByRange(calId, date, date)).to.have.length(1);
+            expect((await service.getByRange(calId, date, date))[0].heading).to.equal(row.heading);
         });
     });
 

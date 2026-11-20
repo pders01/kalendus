@@ -3,14 +3,9 @@ import { Hono } from 'hono';
 
 import type { CalendarServiceImpl } from '../../core/calendar.service.js';
 import { NotFoundError } from '../../core/errors.js';
-import type { EventBus } from '../../core/event-bus.js';
 import { createCalendarSchema, updateCalendarSchema } from '../middleware/validator.js';
 
-export function calendarRemovalChannel(id: string): string {
-    return `calendar-removed:${id}`;
-}
-
-export function calendarRoutes(calendarService: CalendarServiceImpl, eventBus?: EventBus) {
+export function calendarRoutes(calendarService: CalendarServiceImpl) {
     const app = new Hono();
 
     app.get('/:id', async (c) => {
@@ -36,8 +31,6 @@ export function calendarRoutes(calendarService: CalendarServiceImpl, eventBus?: 
         const id = c.req.param('id');
         const deleted = await calendarService.delete(id);
         if (!deleted) throw new NotFoundError('Calendar', id);
-        // SQLite has committed the parent delete and cascading child deletes here.
-        eventBus?.publish(calendarRemovalChannel(id), undefined);
         return c.json({ ok: true });
     });
 

@@ -2,24 +2,36 @@ export type EventBusCallback<T = unknown> = (data: T) => unknown;
 
 /**
  * In-process pub/sub for SSE broadcasting.
- * Channels are keyed by calendar ID.
+ * Each bus has its own string-keyed channels.
  */
 export class EventBus {
-    private _channels = new Map<string, Set<EventBusCallback>>();
+    private readonly _channels = new Map<string, Map<symbol, EventBusCallback>>();
+    private readonly _scopes = new WeakMap<object, EventBus>();
 
-    subscribe(channel: string, callback: EventBusCallback): () => void {
-        if (!this._channels.has(channel)) {
-            this._channels.set(channel, new Set());
+    /** The same receiver and weakly held owner share a child with independent channels. */
+    scopedTo(owner: object): EventBus {
+        let scope = this._scopes.get(owner);
+        if (!scope) {
+            scope = new EventBus();
+            this._scopes.set(owner, scope);
         }
-        this._channels.get(channel)!.add(callback);
+        return scope;
+    }
+
+    /** Each registration owns an idempotent unsubscribe handle, even for identical callbacks. */
+    subscribe(channel: string, callback: EventBusCallback): () => void {
+        const subscription = Symbol();
+        let subs = this._channels.get(channel);
+        if (!subs) {
+            subs = new Map();
+            this._channels.set(channel, subs);
+        }
+        subs.set(subscription, callback);
 
         return () => {
-            const subs = this._channels.get(channel);
-            if (subs) {
-                subs.delete(callback);
-                if (subs.size === 0) {
-                    this._channels.delete(channel);
-                }
+            const current = this._channels.get(channel);
+            if (current?.delete(subscription) && current.size === 0) {
+                this._channels.delete(channel);
             }
         };
     }
@@ -29,7 +41,7 @@ export class EventBus {
         if (!subs) return;
         // Publishing is post-commit best effort. One failed subscriber cannot change
         // the mutation outcome or prevent other subscribers from receiving it.
-        for (const cb of [...subs]) {
+        for (const cb of [...subs.values()]) {
             try {
                 Promise.resolve(cb(structuredClone(data))).catch(() => {});
             } catch {
@@ -42,6 +54,7 @@ export class EventBus {
         return this._channels.get(channel)?.size ?? 0;
     }
 
+    /** Clear only this bus's channels, not any child scopes. */
     clear(): void {
         this._channels.clear();
     }

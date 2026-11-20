@@ -3,14 +3,13 @@ import { Hono } from 'hono';
 
 import { NotFoundError } from '../../core/errors.js';
 import type { EventServiceImpl } from '../../core/event.service.js';
-import type { SyncServiceImpl } from '../../core/sync.service.js';
 import {
     createEventSchema,
     updateEventSchema,
     dateRangeQuerySchema,
 } from '../middleware/validator.js';
 
-export function eventRoutes(eventService: EventServiceImpl, syncService: SyncServiceImpl) {
+export function eventRoutes(eventService: EventServiceImpl) {
     const app = new Hono();
 
     app.get('/:calendarId/events', zValidator('query', dateRangeQuerySchema), async (c) => {
@@ -28,11 +27,6 @@ export function eventRoutes(eventService: EventServiceImpl, syncService: SyncSer
     app.post('/:calendarId/events', zValidator('json', createEventSchema), async (c) => {
         const body = c.req.valid('json');
         const entry = await eventService.create(c.req.param('calendarId'), body);
-        syncService.broadcast({
-            type: 'created',
-            calendarId: c.req.param('calendarId'),
-            event: entry,
-        });
         return c.json(entry, 201);
     });
 
@@ -44,11 +38,6 @@ export function eventRoutes(eventService: EventServiceImpl, syncService: SyncSer
             body,
         );
         if (!entry) throw new NotFoundError('Event', c.req.param('eventId'));
-        syncService.broadcast({
-            type: 'updated',
-            calendarId: c.req.param('calendarId'),
-            event: entry,
-        });
         return c.json(entry);
     });
 
@@ -58,11 +47,6 @@ export function eventRoutes(eventService: EventServiceImpl, syncService: SyncSer
             c.req.param('eventId'),
         );
         if (!deleted) throw new NotFoundError('Event', c.req.param('eventId'));
-        syncService.broadcast({
-            type: 'deleted',
-            calendarId: c.req.param('calendarId'),
-            event: { id: c.req.param('eventId') },
-        });
         return c.json({ ok: true });
     });
 

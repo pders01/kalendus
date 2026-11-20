@@ -4,7 +4,13 @@ import { nanoid } from 'nanoid';
 import type { Db } from '../db/connection.js';
 import { calendars, events } from '../db/schema.js';
 import { NotFoundError, ValidationError } from './errors.js';
-import type { ApiCalendarEntry, CreateEventDto, EventSummary, UpdateEventDto } from './types.js';
+import type {
+    ApiCalendarEntry,
+    CreateEventDto,
+    EventSummary,
+    SseEvent,
+    UpdateEventDto,
+} from './types.js';
 import {
     civilDateKey,
     createEventSchema,
@@ -19,7 +25,11 @@ import {
 type EventRow = typeof events.$inferSelect;
 
 export class EventServiceImpl {
-    constructor(private db: Db) {}
+    /** Best-effort post-commit delivery. Hook-enabled writes cannot join a caller transaction. */
+    constructor(
+        private db: Db,
+        private onMutation?: (event: SseEvent) => void,
+    ) {}
 
     async getByRange(calendarId: string, start: string, end: string): Promise<ApiCalendarEntry[]> {
         this._requireCalendar(calendarId);
@@ -79,6 +89,7 @@ export class EventServiceImpl {
     async create(calendarId: string, dto: CreateEventDto): Promise<ApiCalendarEntry> {
         this._requireCalendar(calendarId);
         dto = validate(createEventSchema, dto);
+        this._requireOwnTransaction();
         const now = new Date().toISOString();
         const id = nanoid();
 
@@ -102,8 +113,11 @@ export class EventServiceImpl {
             updatedAt: now,
         };
 
-        this.db.insert(events).values(row).run();
-        return this._toDto(row);
+        if (this.db.insert(events).values(row).run().changes === 0)
+            throw new Error('Event insert did not create a row');
+        const entry = this._toDto(row);
+        this._notify({ type: 'created', calendarId, event: entry });
+        return entry;
     }
 
     async update(
@@ -114,10 +128,11 @@ export class EventServiceImpl {
         this._requireCalendar(calendarId);
         validate(idSchema, eventId);
         dto = validate(updateEventSchema, dto);
+        this._requireOwnTransaction();
         const where = and(eq(events.id, eventId), eq(events.calendarId, calendarId));
         // Reserve the writer slot before reading the row: another connection's
         // PATCH cannot change the fields our merged validation depends on.
-        return this.db.transaction(
+        const entry = this.db.transaction(
             (tx) => {
                 const existing = tx.select().from(events).where(where).get();
 
@@ -153,16 +168,36 @@ export class EventServiceImpl {
             },
             { behavior: 'immediate' },
         );
+        if (entry) this._notify({ type: 'updated', calendarId, event: entry });
+        return entry;
     }
 
     async delete(calendarId: string, eventId: string): Promise<boolean> {
         this._requireCalendar(calendarId);
         validate(idSchema, eventId);
+        this._requireOwnTransaction();
         const result = this.db
             .delete(events)
             .where(and(eq(events.id, eventId), eq(events.calendarId, calendarId)))
             .run();
-        return result.changes > 0;
+        if (result.changes === 0) return false;
+        this._notify({ type: 'deleted', calendarId, event: { id: eventId } });
+        return true;
+    }
+
+    private _requireOwnTransaction(): void {
+        // No SQLite commit hook is available for notifications in a caller-owned transaction.
+        if (this.onMutation && this.db.$client.inTransaction)
+            throw new Error('Event mutation hooks require a service-owned transaction');
+    }
+
+    private _notify(event: SseEvent): void {
+        if (!this.onMutation) return;
+        try {
+            Promise.resolve(this.onMutation(structuredClone(event))).catch(() => {});
+        } catch {
+            /* Committed mutations do not depend on best-effort delivery. */
+        }
     }
 
     private _requireCalendar(calendarId: string): void {
