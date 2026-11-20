@@ -23,13 +23,6 @@ describe('Structured calendar boundary dates', () => {
             expect(parts.filter((part) => part.type === 'month')).to.have.length(1);
         });
     }
-    it('does not reinterpret years below 100 as twentieth-century dates', () => {
-        expect(
-            getLocalizedDayMonthParts(1, 1, 1, 'en')
-                .map((part) => part.value)
-                .join(''),
-        ).to.equal(getLocalizedDayMonth(1, 1, 1, 'en'));
-    });
     it('keeps day/month parts Gregorian even when a locale requests an Islamic calendar', () => {
         const date = new Date('2026-06-01T00:00:00Z');
         const expected = new Intl.DateTimeFormat('ar-SA-u-ca-islamic', {

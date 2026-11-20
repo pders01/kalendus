@@ -55,9 +55,9 @@ describe('Gregorian localized calendar periods', () => {
         const interval = plain(
             formatLocalizedDateInterval(date(2026, 6, 15), date(2026, 6, 21), 'ja'),
         );
-        expect(interval.indexOf('2026')).to.be.lessThan(interval.indexOf('6'));
-        expect(interval).to.include('15');
-        expect(interval).to.include('21');
+        const fields = (interval.match(/\d+/g) ?? []).map(Number);
+        expect(fields.slice(0, 3)).to.deep.equal([2026, 6, 15]);
+        expect(fields[fields.length - 1]).to.equal(21);
     });
 
     it('uses Bengali numerals throughout date and year labels', () => {
