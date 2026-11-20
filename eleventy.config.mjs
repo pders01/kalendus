@@ -3,6 +3,12 @@ import GithubSlugger from 'github-slugger';
 
 export const pathPrefix = '/kalendus/';
 
+const sectionOrder = ['Getting Started', 'Usage', 'Layout', 'Reference', 'Internals', 'Archive'];
+const sectionRank = (section) => {
+    const rank = sectionOrder.indexOf(section);
+    return rank === -1 ? sectionOrder.length : rank;
+};
+
 function headingIds(markdown) {
     markdown.core.ruler.push('heading-ids', ({ tokens }) => {
         const slugger = new GithubSlugger();
@@ -39,7 +45,12 @@ export default function (eleventyConfig) {
     eleventyConfig.addCollection('docs', (collectionApi) =>
         collectionApi
             .getFilteredByTag('docs')
-            .sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999)),
+            .sort(
+                (a, b) =>
+                    sectionRank(a.data.section) - sectionRank(b.data.section) ||
+                    (a.data.section ?? '').localeCompare(b.data.section ?? '') ||
+                    (a.data.order ?? 999) - (b.data.order ?? 999),
+            ),
     );
 
     // Rewrite .md links to directory-style URLs so they work in the built site

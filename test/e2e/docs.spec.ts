@@ -65,6 +65,52 @@ test('keeps docs tables and code within the reading column and keyboard-scrollab
     }
 });
 
+test('groups navigation sections once and keeps links usable without JavaScript', async ({
+    browser,
+}) => {
+    const context = await browser.newContext({
+        javaScriptEnabled: false,
+        viewport: { width: 375, height: 667 },
+    });
+    try {
+        const page = await context.newPage();
+        await page.goto(base);
+        const navigation = page.getByRole('navigation', { name: 'Documentation' });
+        const sections = await navigation.locator('.nav-section').allTextContents();
+        expect(sections).toEqual([
+            'Getting Started',
+            'Usage',
+            'Layout',
+            'Reference',
+            'Internals',
+            'Archive',
+        ]);
+        await expect(page.locator('.docs-version')).toContainText('unreleased features');
+        await navigation.getByRole('link', { name: 'Library Usage' }).click();
+        await expect(page).toHaveURL(/\/docs\/library-usage\/$/);
+        await expect(navigation.getByRole('link', { name: 'Library Usage' })).toHaveAttribute(
+            'aria-current',
+            'page',
+        );
+    } finally {
+        await context.close();
+    }
+});
+
+test('removes a code tab stop after it stops overflowing and loses focus', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 667 });
+    await page.goto(`${base}docs/library-usage/`);
+    const code = page.locator('main pre').first();
+    await expect(code).toHaveAttribute('tabindex', '0');
+    await code.focus();
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await expect.poll(() => code.evaluate((node) => node.scrollWidth - node.clientWidth)).toBe(0);
+    await expect(code).toBeFocused();
+    await page.locator('.site-header a').first().focus();
+    await expect(code).not.toHaveAttribute('tabindex', '0');
+    await expect(code).not.toHaveAttribute('role', 'region');
+});
+
 test('keeps deep-link headings below the header and returns focus on navigation dismissal', async ({
     page,
 }) => {

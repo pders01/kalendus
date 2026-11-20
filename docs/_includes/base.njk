@@ -197,6 +197,7 @@
     }
     .main pre { margin: 0 0 16px; border-radius: 8px; overflow-x: auto; }
     .main pre code { background: none; padding: 0; font-size: inherit; }
+    .main .docs-version { margin-block-end: 1.25rem; font-size: 0.875rem; color: var(--clr-text-muted); }
 
     /* ── Prism One Dark (for syntax highlight plugin) */
     pre[class*="language-"] {
@@ -240,6 +241,8 @@
   </aside>
 
   <main class="main">
+    <p class="docs-version">These guides follow the main branch and can describe unreleased features.
+      See <a href="{{ '/docs/release-notes/' | url }}">Release Notes</a> for version availability.</p>
     {{ content | safe }}
   </main>
   <script>
@@ -278,22 +281,23 @@
   <script>
     // Make wide content keyboard-scrollable without adding stops when it fits.
     const scrollers = document.querySelectorAll('main :is(.table-scroll, pre)');
-    const scrollObserver = new ResizeObserver((entries) => {
-      for (const { target } of entries) {
-        const scrolls = target.scrollWidth > target.clientWidth;
-        const label = target.dataset.scrollLabel;
-        if (scrolls) {
-          target.tabIndex = 0;
-          target.setAttribute('role', 'region');
-          target.setAttribute('aria-label', label);
-        } else if (document.activeElement !== target) {
-          for (const attr of ['tabindex', 'role', 'aria-label']) target.removeAttribute(attr);
-        }
+    function syncScrollableRegion(target, keepFocus) {
+      if (target.scrollWidth > target.clientWidth) {
+        target.tabIndex = 0;
+        target.setAttribute('role', 'region');
+        target.setAttribute('aria-label', target.dataset.scrollLabel);
+      } else if (!keepFocus) {
+        for (const attr of ['tabindex', 'role', 'aria-label']) target.removeAttribute(attr);
       }
+    }
+    const scrollObserver = new ResizeObserver((entries) => {
+      for (const { target } of entries) syncScrollableRegion(target, document.activeElement === target);
     });
     for (const scroller of scrollers) {
       scroller.dataset.scrollLabel = scroller.getAttribute('aria-label');
       scrollObserver.observe(scroller);
+      // Retain focus through resize, then remove a tab stop that no longer scrolls.
+      scroller.addEventListener('blur', () => syncScrollableRegion(scroller, false));
       // WebKit may send arrow scrolling to the page even when a region is focused.
       scroller.addEventListener('keydown', (event) => {
         if (event.target !== scroller || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
