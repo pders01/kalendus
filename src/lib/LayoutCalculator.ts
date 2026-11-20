@@ -18,6 +18,13 @@ export interface GridConfig {
 
 export const MIN_EVENT_DURATION_MINUTES = 20;
 
+/** Snap scale noise (e.g. 44 / (44 / 60)) without rounding genuine fractions. */
+export function getMinimumDisplayMinutes({ eventMinHeight, minuteHeight }: GridConfig): number {
+    const raw = eventMinHeight / minuteHeight;
+    const nearest = Math.round(raw);
+    return Math.abs(raw - nearest) < 1e-9 ? nearest : raw;
+}
+
 /** Display geometry only: this does not change an event's semantic endpoints. */
 export function getDisplayDurationMinutes(
     start: number,
@@ -128,11 +135,7 @@ export class LayoutCalculator {
     }
 
     calculateLayout(events: CalendarEvent[]): LayoutResult {
-        const rawMinimum = this.config.eventMinHeight / this.config.minuteHeight;
-        const nearest = Math.round(rawMinimum);
-        // Font-relative scales such as 44 / 60 must not make adjacent hours
-        // falsely collide because their quotient is 60.00000000000001.
-        const minimum = Math.abs(rawMinimum - nearest) < 1e-9 ? nearest : rawMinimum;
+        const minimum = getMinimumDisplayMinutes(this.config);
         const intervals: Interval[] = events.map((event, index) => {
             if (
                 !isValidCalendarTime(event.startTime) ||

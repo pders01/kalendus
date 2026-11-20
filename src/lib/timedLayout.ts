@@ -1,5 +1,10 @@
 import type { ExpandedCalendarEntry } from './calendarModel.js';
-import { LayoutCalculator, type GridConfig, type LayoutBox } from './LayoutCalculator.js';
+import {
+    getMinimumDisplayMinutes,
+    LayoutCalculator,
+    type GridConfig,
+    type LayoutBox,
+} from './LayoutCalculator.js';
 
 type TimedSegment = Pick<ExpandedCalendarEntry, 'segmentId' | 'time' | 'heading' | 'color'>;
 
@@ -9,10 +14,7 @@ export function layoutTimedEntries(
     geometry: Pick<GridConfig, 'minuteHeight' | 'eventMinHeight'>,
     useMarkers: boolean,
 ) {
-    const latestLabelStart = Math.max(
-        0,
-        1440 - Math.ceil(geometry.eventMinHeight / geometry.minuteHeight),
-    );
+    const latestLabelStart = Math.max(0, 1440 - Math.ceil(getMinimumDisplayMinutes(geometry)));
     const events = entries.map((entry) => {
         const { start, end } = entry.time!;
         const startMinute = start.hour * 60 + start.minute;

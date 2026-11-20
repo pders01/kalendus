@@ -73,6 +73,26 @@ describe('Timed layout data', () => {
         expect(boxes[0].group).not.to.equal(boxes[1].group);
     });
 
+    it('does not disclose touching 22:00 and late point markers at a 44 px hourly scale', () => {
+        const input = segments([
+            interval('early point', 1320, 1320),
+            interval('late point', 1439, 1439),
+        ]);
+        const geometry = { minuteHeight: 44 / 60, eventMinHeight: 44 };
+        const { boxes: markers } = layoutTimedEntries(input, geometry, true);
+        const { boxes: cards } = layoutTimedEntries(input, geometry, false);
+
+        expect(markers[1].y).to.equal(1380 * geometry.minuteHeight);
+        expect(markers[1].y + markers[1].height).to.be.closeTo(1440 * geometry.minuteHeight, 1e-9);
+        for (const boxes of [markers, cards]) {
+            expect(boxes.map((box) => box.durationMinutes)).to.deep.equal([60, 60]);
+            expect(boxes.map((box) => box.columnCount)).to.deep.equal([1, 1]);
+            expect(boxes[0].group).not.to.equal(boxes[1].group);
+            expect(getDenseTimedGroups(boxes, 150, 128).size).to.equal(0);
+        }
+        expect(input[1].time).to.deep.equal({ start: at(1439), end: at(1439) });
+    });
+
     it('prefers scrollable detail when fitting creates or joins groups', () => {
         const hourly = segments([
             interval('early', 540, 545),
