@@ -28,7 +28,7 @@ Common issues and solutions when using `<lms-calendar>`.
 
 ## Calendar Has Zero Height
 
-On the unreleased 0.12.0 candidate, a definite height bounds all four views and includes the toolbar. Without a resolved height, Month grows with its content and the other views use bounded fallbacks. If the calendar is clipped, check the actual wrapper's size, min-size and overflow rather than the page's viewport.
+In 0.12.0, a definite height bounds all four views and includes the toolbar. Without a resolved height, Month grows with its content and the other views use bounded fallbacks. If the calendar is clipped, check the actual wrapper's size, min-size and overflow rather than the page's viewport.
 
 **Fix:** Give that region and the calendar a definite height:
 

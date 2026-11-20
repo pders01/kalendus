@@ -8,11 +8,11 @@ section: Usage
 
 # Integration Guide
 
-Practical recipes for embedding `<lms-calendar>` in different environments. This guide describes the **unreleased `0.12.0` checkout**. For the current npm release, see the [published `0.11.0` source and docs](https://github.com/pders01/kalendus/tree/v0.11.0). Use one version for the calendar, its assets and its documentation. To generate the static file below from this checkout, run `bun install --frozen-lockfile` and `bun run build:iife` from the checkout root. The optional server and Expo bridge are checkout integrations; see their setup below.
+These recipes use the published **0.12.0** calendar. Follow [Library Usage](./library-usage.md) for the npm install, and use the same version for the calendar and its assets. The optional server and Expo bridge are separate source integrations; see their setup below.
 
 ## Vanilla JS / HTML
 
-For a static page without a bundler or import map, copy `dist/kalendus.iife.js` from the installed package to your site. This build includes Lit and Luxon. The regular package ESM uses bare peer imports and must be resolved by your bundler or import map.
+For a static page without a bundler or import map, copy `node_modules/@jpahd/kalendus/dist/kalendus.iife.js` from the installed package next to the HTML file. This build includes Lit and Luxon. The regular package ESM uses bare peer imports and must be resolved by your bundler or import map. If building from source instead, run `bun install --frozen-lockfile` and `bun run build:iife` from the checkout root.
 
 ```html
 <!DOCTYPE html>

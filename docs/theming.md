@@ -24,7 +24,7 @@ Kalendus ships with a **neutral base** that follows the embedding page’s CSS `
 import '@jpahd/kalendus/themes/default.css'; // choose one theme from the table above
 ```
 
-The neutral base and these theme imports are available in [published 0.11.0](https://github.com/pders01/kalendus/tree/v0.11.0). The built-in themes deliberately set a light or dark `color-scheme` to match their surface and text. Import one as a starting point and override individual properties afterward; see the [CSS Token Reference](./css-tokens.md) for the unreleased 0.12.0 source.
+The neutral base and these theme imports are available in **0.12.0**. The built-in themes deliberately set a light or dark `color-scheme` to match their surface and text. Import one as a starting point and override individual properties afterward; see the [CSS Token Reference](./css-tokens.md) for supported overrides.
 
 ### Color Format Support
 

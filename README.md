@@ -8,13 +8,13 @@ Select the preview to play the GIF. See overlapping and multi-day events, five t
 
 ## Installation
 
-The published release is **0.11.0**:
+Install the published **0.12.0** release:
 
 ```bash
-bun add @jpahd/kalendus@0.11.0 lit luxon
+bun add @jpahd/kalendus@0.12.0 lit luxon
 ```
 
-For that version, use the [0.11.0 documentation](https://github.com/pders01/kalendus/tree/v0.11.0). This README and the guides linked below describe `main`, the **unreleased 0.12.0 candidate**, unless noted otherwise. The quick start below works with both versions.
+See the [0.12.0 release notes](docs/release-notes.md#0120) for the new opt-in timed edits, time-grid scrolling, and upgrade notes. If you’re staying on 0.11.0, use the [0.11.0 documentation](https://github.com/pders01/kalendus/tree/v0.11.0).
 
 ## Quick Usage
 
@@ -44,7 +44,7 @@ document.body.append(calendar);
 
 For a page without a bundler, see the [static HTML recipe](docs/integration-guide.md#vanilla-js--html).
 
-In plain JavaScript, assign objects and arrays through `calendar.activeDate` and `calendar.entries`, not HTML attributes. Use the initial and changed `calendar-state-change` snapshots to synchronize fetching. On the 0.12.0 candidate, `visibleRange` returns the last committed range after first render; `activeDate` and `viewMode` express the requested navigation. Ranges are half-open civil dates (`start` included, `end` excluded), not timestamps. The exclusive upper bound can be `10000-01-01`. See [Library Usage](docs/library-usage.md).
+In plain JavaScript, assign objects and arrays through `calendar.activeDate` and `calendar.entries`, not HTML attributes. Use the initial and changed `calendar-state-change` snapshots to synchronize fetching. `visibleRange` returns the last committed range after first render; `activeDate` and `viewMode` express the requested navigation. Ranges are half-open civil dates (`start` included, `end` excluded), not timestamps. The exclusive upper bound can be `10000-01-01`. See [Library Usage](docs/library-usage.md).
 
 Each instance auto-detects its locale from `<html lang="...">`. Override per-instance:
 
@@ -130,9 +130,11 @@ All-day date ends are inclusive and explicit all-day records ignore `time`. Expl
 
 Listen on the host for `entry-activate` and `export-entry`. The requests for rendered entries carry the original `{ entry, eventId? }` rather than a day slice. Ordinary entries open the inspector; accordion Agenda rows disclose details inline and export from their own download button. Call `preventDefault()` synchronously to replace those defaults, **not** `stopPropagation()`. Owner calls to `openMenu()` open the inspector without emitting activation. Do not derive fetch ranges from legacy `detail.direction` or `detail.view`. See [Events Reference](docs/events.md).
 
+For timed Day and Week edits, opt in with [`enableEntryInteractions`](docs/events.md#entry-change-requests-opt-in) from `@jpahd/kalendus/entry-interactions`. It emits change proposals; your app decides whether to apply and save them.
+
 ### Month Flow and Owner-Supplied Status
 
-**Sizing on the unreleased 0.12.0 candidate:** a definite embed height bounds all four views. Month uses spare height for more previews, then scrolls the grid or selected-date list inside the view. Without a supplied height, Month grows in page flow; Day, Week, and Year use bounded fallbacks. Day and Week fit the full day where space permits, or scroll at a readable scale (`scroll-time-grid` opts into the scrollable detail scale). Year reduces spacing before it scrolls at readable date sizes. In 0.11.0 Month stays in page flow even with a supplied height, and Day and Week use the detail scale. See [Height and Scrolling](docs/layout-and-positioning.md#height-and-scrolling).
+**Sizing in 0.12.0:** a definite embed height bounds all four views. Month uses spare height for more previews, then scrolls the grid or selected-date list inside the view. Without a supplied height, Month grows in page flow; Day, Week, and Year use bounded fallbacks. Day and Week fit the full day where space permits, or scroll at a readable scale (`scroll-time-grid` opts into the scrollable detail scale). Year reduces spacing before it scrolls at readable date sizes. In 0.11.0 Month stays in page flow even with a supplied height, and Day and Week use the detail scale. See [Height and Scrolling](docs/layout-and-positioning.md#height-and-scrolling).
 
 Compact Month date selection keeps Month open and shows the selected day's events below the grid. The default wide Month `+N` drills into Day. Use `month-day-behavior="inline"` to keep selection in Month at wide sizes, or `day` for legacy Day drilling with the default `month-presentation="auto"`.
 
@@ -215,7 +217,7 @@ See [Theming Reference](docs/theming.md) for all 5 built-in themes, color format
 
 | Audience               | Document                                                                             | Highlights                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| Upgrading              | [Release Notes](docs/release-notes.md)                                               | Unreleased 0.12.0 changes and 0.11.0 migration notes                       |
+| Upgrading              | [Release Notes](docs/release-notes.md)                                               | 0.12.0 changes and upgrade notes                                           |
 | Integrators            | [Integration Guide](docs/integration-guide.md)                                       | Framework recipes, theming tokens, analytics hooks                         |
 | Application Developers | [Library Usage](docs/library-usage.md)                                               | API surface, data contracts, DOM events                                    |
 | CSS / Design Systems   | [CSS Token Reference](docs/css-tokens.md)                                            | CSS custom properties by category                                          |
@@ -293,7 +295,7 @@ The server is **private-deny by default**: inject a host `authorize` policy for 
 
 ### Expo / React Native (optional)
 
-The [source bridge guide](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) covers `bun run build:iife`, self-contained inline document generation, `bun scripts/check-bridge.mjs`, and the separate Expo app typecheck/device gates. The 0.12.0 candidate uses protocol v2; update the copied wrapper and regenerate the shell together from the same source revision. The development shell is not a standalone Metro asset. Browser checks do not establish native-device or screen-reader compatibility.
+The [source bridge guide](https://github.com/pders01/kalendus/blob/main/expo-bridge/README.md) covers `bun run build:iife`, self-contained inline document generation, `bun scripts/check-bridge.mjs`, and the separate Expo app typecheck/device gates. The source revision for 0.12.0 uses protocol v2; update the copied wrapper and regenerate the shell together from the same revision. The development shell is not a standalone Metro asset. Browser checks do not establish native-device or screen-reader compatibility.
 
 ## License
 

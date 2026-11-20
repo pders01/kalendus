@@ -8,7 +8,7 @@ section: Usage
 
 # Custom Events Reference
 
-This reference describes `main`, the **unreleased 0.12.0 candidate**. For the published release, see the [0.11.0 documentation](https://github.com/pders01/kalendus/tree/v0.11.0).
+This reference describes the public API in **0.12.0**. See [Release Notes](./release-notes.md#0120) for changes since 0.11.0.
 
 Listen on the `<lms-calendar>` host. The events below bubble and are composed, so they cross shadow boundaries. Use **committed state** for synchronization and **cancelable requests** to replace defaults; legacy action notifications remain for compatibility and analytics.
 
@@ -27,7 +27,7 @@ type CalendarState = {
 
 `range.start` is included and `range.end` is excluded. These are Gregorian civil dates, **not UTC timestamps**. Month grid ranges include spillover cells; the optional Agenda stays in Month mode and covers one day. Week ranges reflect the actual visible columns, including condensed weeks; Day and Year cover one day and the active calendar year, respectively. The range is clipped to years 1–9999, with `10000-01-01` allowed only as the exclusive end. For example, Day on December 31, 9999 reports `[9999-12-31, 10000-01-01)`. Do not require four digits for both endpoints or compare the sentinel by plain string order.
 
-On the 0.12.0 candidate, `visibleRange` exposes the last committed range after first render. Assignments to `activeDate` or `viewMode` express the next requested state; read the event detail for an atomic snapshot even when another listener requests navigation. Opening or closing a Day/Week timed count or a Week all-day total does not change the committed view, date, or range and does not emit a state change by itself.
+`visibleRange` exposes the last committed range after first render. Assignments to `activeDate` or `viewMode` express the next requested state; read the event detail for an atomic snapshot even when another listener requests navigation. Opening or closing a Day/Week timed count or a Week all-day total does not change the committed view, date, or range and does not emit a state change by itself.
 
 ```js
 calendar.addEventListener('calendar-state-change', (event) => {
@@ -87,7 +87,7 @@ Call `preventDefault()` **synchronously**, before awaiting your application work
 
 The default ICS exporter uses the original endpoints: all-day spans have exclusive next-day DATE ends, unzoned times stay floating, and explicit IANA-zoned times export as UTC. Invalid, nonexistent, or ambiguous zoned endpoints are rejected. Zero-duration timed events export `DTSTART` without an equal `DTEND`.
 
-**Unreleased 0.12.0 export changes:** stable application IDs produce stable UIDs. Without an ID, the same source object gets the same generated UID within the same runtime, not across refetches that create new objects or across reloads. If a positive-duration end falls outside the ICS year range (1–9999), the exporter uses `DURATION` instead of `DTEND`. A zoned start that converts outside those years cannot be exported and reports `export-error`. External calendar-client import and native sharing still require separate verification.
+**Export behavior in 0.12.0:** stable application IDs produce stable UIDs. Without an ID, the same source object gets the same generated UID within the same runtime, not across refetches that create new objects or across reloads. If a positive-duration end falls outside the ICS year range (1–9999), the exporter uses `DURATION` instead of `DTEND`. A zoned start that converts outside those years cannot be exported and reports `export-error`. External calendar-client import and native sharing still require separate verification.
 
 ### `export-error`
 
@@ -95,7 +95,7 @@ Non-cancelable `{ error, entry, eventId }` notification when generation or downl
 
 ## Entry change requests (opt-in)
 
-**Unreleased 0.12.0:** import `enableEntryInteractions` from `@jpahd/kalendus/entry-interactions` to opt in per calendar. The published 0.11.0 package does not have this subpath. The main entry point and standalone IIFE do not enable editing. On desktop, drag the body of an explicit timed card to move it or drag its marked top or bottom edge to resize a real endpoint. Week supports edits across rendered day columns. A valid drop emits one typed, bubbling and composed `entry-change-request`. Escape, a drop outside the grid, an invalid or unchanged schedule, or replacing the source entries during the drag emits nothing.
+Since **0.12.0**, import `enableEntryInteractions` from `@jpahd/kalendus/entry-interactions` to opt in per calendar. The main entry point and standalone IIFE do not enable editing. On desktop, drag the body of an explicit timed card to move it or drag its marked top or bottom edge to resize a real endpoint. Week supports edits across rendered day columns. A valid drop emits one typed, bubbling and composed `entry-change-request`. Escape, a drop outside the grid, an invalid or unchanged schedule, or replacing the source entries during the drag emits nothing.
 
 ```ts
 import '@jpahd/kalendus';
@@ -144,7 +144,7 @@ Non-cancelable, bubbling and composed notification after the root renders an `en
 }
 ```
 
-Reasons include invalid civil dates/times, reversed intervals, invalid kind/ID/zone, nonexistent or ambiguous zoned endpoints, duplicate IDs, and repeated source objects. The **first valid** record wins for a duplicate caller ID or source object. The whole assigned array is validated, not just entries in view. On the 0.12.0 candidate, missing or non-string headings are invalid; an empty string is allowed. A non-array input produces one issue with index `-1` and the assigned value as `entry`, except `null` (the Lit attribute reset value). For record issues, `index` is the original zero-based position. Valid records continue to render within the visible range. Treat the raw values in `entry` as potentially sensitive; do not log them indiscriminately.
+Reasons include invalid civil dates/times, reversed intervals, invalid kind/ID/zone, nonexistent or ambiguous zoned endpoints, duplicate IDs, and repeated source objects. The **first valid** record wins for a duplicate caller ID or source object. The whole assigned array is validated, not just entries in view. Missing or non-string headings are invalid; an empty string is allowed. A non-array input produces one issue with index `-1` and the assigned value as `entry`, except `null` (the Lit attribute reset value). For record issues, `index` is the original zero-based position. Valid records continue to render within the visible range. Treat the raw values in `entry` as potentially sensitive; do not log them indiscriminately.
 
 ### `entries-error`
 

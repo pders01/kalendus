@@ -8,7 +8,7 @@ section: Internals
 
 # Architecture
 
-This describes the unreleased **0.12.0** source. For the published package, see the [v0.11.0 reference](https://github.com/pders01/kalendus/tree/v0.11.0).
+This describes the implementation in the [0.12.0 source revision](https://github.com/pders01/kalendus/tree/v0.12.0).
 
 ## Component Structure
 
@@ -65,6 +65,6 @@ src/
 
 On an `entries` change the root normalizes and sorts a separate array, retaining caller objects for canonical requests. Only per-day expansion is clipped to the visible range and segment budget. Locale catalogs are generated from canonical JSON, never edited directly. The inspector is non-modal, using a top-layer popover with a portal/dialog fallback and no focus trap.
 
-The source tree above describes implementation modules, not import paths. Use [Library Usage](./library-usage.md) for the public package root (`@jpahd/kalendus`), built-in theme exports, and the unreleased `@jpahd/kalendus/entry-interactions` subpath. Helpers such as `LayoutCalculator`, `SlotManager`, and `calendarModel` are internal.
+The source tree above describes implementation modules, not import paths. Use [Library Usage](./library-usage.md) for the public package root (`@jpahd/kalendus`), built-in theme exports, and the opt-in `@jpahd/kalendus/entry-interactions` subpath. Helpers such as `LayoutCalculator`, `SlotManager`, and `calendarModel` are internal.
 
 For deeper internals, see the [Developer Guide](developer-guide.md), [Rendering Pipeline](rendering-pipeline.md), and [canonical locale workflow](https://github.com/pders01/kalendus/blob/main/src/locales/README.md). The [Rendering Calculations](rendering-calculations.md) page is historical.

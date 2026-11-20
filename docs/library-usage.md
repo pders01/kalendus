@@ -10,10 +10,10 @@ section: Usage
 
 `@jpahd/kalendus` provides the `<lms-calendar>` custom element as ESM, with TypeScript declarations and a custom elements manifest. `lit` and `luxon` are peer dependencies. Import the package once to register the element; keep this side-effect import in your bundle.
 
-This guide describes `main`, the **unreleased 0.12.0 candidate**. For the published version, use the [0.11.0 documentation](https://github.com/pders01/kalendus/tree/v0.11.0). The following bundled-browser quick start works with both versions; this command installs the published release:
+This guide covers the published **0.12.0** package. Install the calendar and its peers, then run the quick start in a bundled browser entry point:
 
 ```sh
-bun add @jpahd/kalendus@0.11.0 lit luxon
+bun add @jpahd/kalendus@0.12.0 lit luxon
 ```
 
 ```ts
@@ -38,7 +38,7 @@ calendar.entries = entries;
 document.body.append(calendar);
 ```
 
-**Sizing on the 0.12.0 candidate:** a definite height bounds the whole calendar in all four views, including Month. A sized Month scrolls its grid or selected-date list inside the view when needed. Without a supplied height, Month grows in page flow; Day, Week, and Year use bounded fallbacks. The published 0.11.0 keeps Month in page flow even with a height and uses the detail scale in Day and Week. See [Layout & Positioning](./layout-and-positioning.md). The component uses Custom Elements, Shadow DOM, ResizeObserver, and CSS container queries; that does not establish shipping Safari, native-device, or assistive-technology compatibility.
+**Sizing in 0.12.0:** a definite height bounds the whole calendar in all four views, including Month. A sized Month scrolls its grid or selected-date list inside the view when needed. Without a supplied height, Month grows in page flow; Day, Week, and Year use bounded fallbacks. Version 0.11.0 keeps Month in page flow even with a height and uses the detail scale in Day and Week. See [Layout & Positioning](./layout-and-positioning.md). The component uses Custom Elements, Shadow DOM, ResizeObserver, and CSS container queries; that does not establish shipping Safari, native-device, or assistive-technology compatibility.
 
 ## Data contracts
 
@@ -98,9 +98,9 @@ Omitting `kind` preserves inclusive date ends and the legacy daily time window. 
 
 Supply a nonempty, stable `id` from your application, especially across refetches. For duplicate caller IDs or repeated source objects, the **first valid** record wins. Distinct objects without IDs remain distinct; their fallback identity is not a persistent backend identifier. Caller records/arrays are not sorted or expanded in place.
 
-The entire assigned array is validated and its accepted records are normalized and sorted internally, even outside the visible range. Invalid records are dropped individually and reported through `entries-invalid` with `{ issues: [{ index, entry, reason }] }`. On the 0.12.0 candidate, a non-array value clears the rendered entries and reports a collection issue at index `-1`. The exception is `null`, which represents an attribute reset (Lit also yields `null` for invalid JSON or JSON `null`); assign `[]` to clear entries from application code. Only **day expansion** is clipped to the visible range. A 100,000-segment cap prevents unbounded visible expansion. Exceeding it clears derived entries and reports `entries-error` with `{ code: 'segment-budget', message, limit, range }`, plus a default alert (replaceable via content assigned to `slot="entries-error"`). It does not silently truncate. Supply fewer records or select a smaller view.
+The entire assigned array is validated and its accepted records are normalized and sorted internally, even outside the visible range. Invalid records are dropped individually and reported through `entries-invalid` with `{ issues: [{ index, entry, reason }] }`. A non-array value clears the rendered entries and reports a collection issue at index `-1`. The exception is `null`, which represents an attribute reset (Lit also yields `null` for invalid JSON or JSON `null`); assign `[]` to clear entries from application code. Only **day expansion** is clipped to the visible range. A 100,000-segment cap prevents unbounded visible expansion. Exceeding it clears derived entries and reports `entries-error` with `{ code: 'segment-budget', message, limit, range }`, plus a default alert (replaceable via content assigned to `slot="entries-error"`). It does not silently truncate. Supply fewer records or select a smaller view.
 
-Canonical original records are retained separately from display slices, so activation/export does not lose original dates, times, or metadata. The TypeScript input requires a string `heading`; the 0.12.0 candidate also rejects missing and non-string headings at runtime. Use `heading: ''` for an intentionally untitled entry: the inspector uses its localized fallback while activation and export retain the unchanged record. See [Events Reference](./events.md).
+Canonical original records are retained separately from display slices, so activation/export does not lose original dates, times, or metadata. The TypeScript input requires a string `heading`; the calendar also rejects missing and non-string headings at runtime. Use `heading: ''` for an intentionally untitled entry: the inspector uses its localized fallback while activation and export retain the unchanged record. See [Events Reference](./events.md).
 
 ## `<lms-calendar>` API surface
 
@@ -118,7 +118,7 @@ Canonical original records are retained separately from display slices, so activ
 | `yearDrillTarget` | `year-drill-target` | `'day' \| 'week' \| 'month'`           | `'month'`                  | View opened by Year date cells.                                                                                                           |
 | `yearDensityMode` | `year-density-mode` | `'dot' \| 'heatmap' \| 'count'`        | `'dot'`                    | Per-day density visualization.                                                                                                            |
 | `dir`             | `dir`               | `'ltr' \| 'rtl' \| 'auto'`             | `'auto'`                   | Getter retains requested mode; host attribute exposes resolved direction.                                                                 |
-| `scrollTimeGrid`  | `scroll-time-grid`  | `boolean`                              | `false`                    | Unreleased 0.12.0: keep the Day/Week detail scale rather than fitting all 24 hours.                                                       |
+| `scrollTimeGrid`  | `scroll-time-grid`  | `boolean`                              | `false`                    | Keep the Day/Week detail scale instead of fitting all 24 hours.                                                                          |
 
 The `entries` attribute accepts a JSON array for literal markup. Prefer JavaScript properties for application data and updates. Assign new arrays and changed records instead of mutating them in place.
 
@@ -207,7 +207,7 @@ type CalendarState = {
 };
 ```
 
-Use `event.detail` for an atomic committed snapshot: `activeDate` and `viewMode` expose requested navigation, while `visibleRange` exposes the last committed range on the 0.12.0 candidate. Use the snapshot's `range` for data loading. Dedupe unchanged ranges, abort superseded requests, and ignore stale fulfillment **and** rejection. A late-attached listener can initialize from the public getters after `updateComplete`. Do not reconstruct windows from legacy `switchdate.detail.direction` or `switchview.detail.view`.
+Use `event.detail` for an atomic committed snapshot: `activeDate` and `viewMode` expose requested navigation, while `visibleRange` exposes the last committed range. Use the snapshot's `range` for data loading. Dedupe unchanged ranges, abort superseded requests, and ignore stale fulfillment **and** rejection. A late-attached listener can initialize from the public getters after `updateComplete`. Do not reconstruct windows from legacy `switchdate.detail.direction` or `switchview.detail.view`.
 
 ```js
 calendar.addEventListener('calendar-state-change', ({ detail }) => {
@@ -229,13 +229,13 @@ calendar.addEventListener('export-entry', (event) => {
 
 Both requests are cancelable and carry `{ entry, eventId? }`, using the original record for rendered entries. Ordinary cards and lists emit `open-menu`, then `entry-activate` if not canceled, before opening the inspector. Accordion Agenda uses activation for inline disclosure and dispatches export from its download button. Cancel synchronously with **`preventDefault()`**, not `stopPropagation()`. `export-error` reports generation or download setup failures. Legacy `switchdate`, `switchview`, `jumptoday`, `expand`, `peek-navigate`, `open-menu`, and `menu-close` remain available. See [Events Reference](./events.md) for payloads, diagnostics, and locale events.
 
-**Unreleased 0.12.0:** the opt-in [entry interactions module](./events.md#entry-change-requests-opt-in) adds move and resize proposals for explicit timed entries. Pointer gestures apply to Day/Week cards; app-owned controls can propose a change without dragging. Import the subpath separately; it never writes to `entries` and is not in the 0.11.0 package.
+The opt-in [entry interactions module](./events.md#entry-change-requests-opt-in) adds move and resize proposals for explicit timed entries. Pointer gestures apply to Day/Week cards; app-owned controls can propose a change without dragging. Import the subpath separately; it never writes to `entries`. This module was introduced in 0.12.0.
 
 ## Entry layout and year controls
 
-**Unreleased 0.12.0:** Day and Week fit all 24 hours when the space below their headers and all-day band allows it without losing timed-card detail. Otherwise they scroll at a readable scale. Use `scroll-time-grid` to always use that detail layout. See [Time Grid Sizing](./layout-and-positioning.md#time-grid-sizing).
+Day and Week fit all 24 hours when the space below their headers and all-day band allows it without losing timed-card detail. Otherwise they scroll at a readable scale. Use `scroll-time-grid` to always use that detail layout. See [Time Grid Sizing](./layout-and-positioning.md#time-grid-sizing).
 
-Timed entries use minute-based positioning; overlap layout depends on the effective grid scale and minimum card geometry, not a fixed pixel per minute. On the candidate, timed collision counts open a scoped list with the timeline still mounted. Closing the list focuses the trigger if it is visible, or the timeline otherwise. Week all-day totals can replace the grid with a scoped list without navigating. Neither disclosure changes the committed range. All-day entries use row allocation. Narrow Month uses compact indicators by default; condensed weeks use the actual visible window for rendering and range reporting.
+Timed entries use minute-based positioning; overlap layout depends on the effective grid scale and minimum card geometry, not a fixed pixel per minute. Timed collision counts open a scoped list with the timeline still mounted. Closing the list focuses the trigger if it is visible, or the timeline otherwise. Week all-day totals can replace the grid with a scoped list without navigating. Neither disclosure changes the committed range. All-day entries use row allocation. Narrow Month uses compact indicators by default; condensed weeks use the actual visible window for rendering and range reporting.
 
 Year shows twelve months with localized month and weekday names. `year-density-mode` selects dots (presence), heatmap buckets, or exact counts below the dates. These signals describe the number of events on a date, not availability.
 

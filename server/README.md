@@ -1,6 +1,6 @@
 # Kalendus API server
 
-Optional Hono/SQLite server and browser/Lit adapters. **`@jpahd/kalendus-server` is not published on npm.** Use the `server/` workspace in this checkout or install a tarball built from it. The synchronized calendar example uses the unreleased `0.12.0` root build from the same checkout; for the published root `0.11.0`, see the [stable source and docs](https://github.com/pders01/kalendus/tree/v0.11.0).
+Optional Hono/SQLite server and browser/Lit adapters. **`@jpahd/kalendus-server` is not published on npm.** Use the `server/` workspace in this checkout or install a tarball built from it. The synchronized calendar example builds both workspace packages from the same checkout. For the source matching the published 0.12.0 calendar, use the [v0.12.0 tag](https://github.com/pders01/kalendus/tree/v0.12.0).
 
 ## Breaking stabilization defaults
 

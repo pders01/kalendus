@@ -14,7 +14,7 @@ Essential information for getting `<lms-calendar>` to display correctly in your 
 
 ## Height and Scrolling
 
-**Release scope:** This guide describes the unreleased **0.12.0** source. In published **0.11.0**, Month grows in page flow even when a height is supplied, and Day/Week use the scrollable detail scale instead of fitting 24 hours. See the [v0.11.0 reference](https://github.com/pders01/kalendus/tree/v0.11.0) for that release.
+**Release scope:** This guide describes **0.12.0**. In **0.11.0**, Month grows in page flow even when a height is supplied, and Day/Week use the scrollable detail scale instead of fitting 24 hours. See the [v0.11.0 reference](https://github.com/pders01/kalendus/tree/v0.11.0) for that release.
 
 In 0.12.0, a definite height bounds the **whole calendar**, including its toolbar, in all four views. Give the parent a definite height, stretch the calendar in a sized Grid or flex layout, or set its height directly. The view uses the space below the toolbar; the toolbar can wrap as the embed narrows or text grows.
 
@@ -162,7 +162,7 @@ Day and Week adapt to the height left below the toolbar, date headers and all-da
 - **Medium:** the full timeline still fits. Every second hour is labeled, including both midnight boundaries. Hourly grid lines and event times do not change.
 - **Short:** the timeline scrolls at a more detailed scale rather than compressing events further. Larger text or more all-day rows can cause the same embed to switch to this layout.
 
-With timed cards, auto sizing also uses the scrollable detail layout if fitting would merge events that the scrollable scale can show separately or in smaller groups. The unreleased `scrollTimeGrid` option defaults to `false` (automatic sizing). Set the `scroll-time-grid` attribute (or `calendar.scrollTimeGrid = true`) to always use the scrollable detail layout, even in a tall container. Scrolling is native, without snapping. Compatible scrollable Day/Week views preserve the visible minute when resizing or changing views. When the full day fits, no vertical scroll offset is needed.
+With timed cards, auto sizing also uses the scrollable detail layout if fitting would merge events that the scrollable scale can show separately or in smaller groups. The `scrollTimeGrid` option defaults to `false` (automatic sizing). Set the `scroll-time-grid` attribute (or `calendar.scrollTimeGrid = true`) to always use the scrollable detail layout, even in a tall container. Scrolling is native, without snapping. Compatible scrollable Day/Week views preserve the visible minute when resizing or changing views. When the full day fits, no vertical scroll offset is needed.
 
 Late-night minimum-height cards have a reserved space after the midnight line so their labels and targets remain reachable. That space represents **no additional time** and does not change the grid origin, the event's start position or its canonical times. The all-day band can still scroll independently.
 

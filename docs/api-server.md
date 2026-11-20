@@ -8,7 +8,7 @@ section: Reference
 
 # API Server Guide
 
-The optional `@jpahd/kalendus-server` package provides a Hono/SQLite REST API, in-process SSE invalidation and browser/Lit adapters. **The server is not published on npm**: use the checkout workspace or a locally built tarball. The integration examples use the unreleased `0.12.0` root build from the same checkout; see the [published `0.11.0` source and docs](https://github.com/pders01/kalendus/tree/v0.11.0) for the stable root package. The [server README](https://github.com/pders01/kalendus/blob/main/server/README.md) is the reference for API and deployment details.
+The optional `@jpahd/kalendus-server` package provides a Hono/SQLite REST API, in-process SSE invalidation and browser/Lit adapters. **The server is not published on npm**: use the checkout workspace or a locally built tarball. The integration examples build the calendar and the server from the same checkout. Only the root calendar library is available on npm as [`@jpahd/kalendus@0.12.0`](https://www.npmjs.com/package/@jpahd/kalendus/v/0.12.0). The [server README](https://github.com/pders01/kalendus/blob/main/server/README.md) is the reference for API and deployment details.
 
 ## Breaking security defaults
 

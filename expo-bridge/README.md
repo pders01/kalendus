@@ -1,6 +1,6 @@
 # Kalendus Expo WebView bridge
 
-Hosts `<lms-calendar>` in an Expo/React Native WebView. This is a **source integration**, not a separately published native package. These instructions describe the **unreleased `0.12.0` checkout**; for the published root `0.11.0` see the [stable source and docs](https://github.com/pders01/kalendus/tree/v0.11.0). Copy the wrapper and protocol sources from the same revision as the generated shell. Native dependencies belong in the Expo app, **not** in the Kalendus root package.
+Hosts `<lms-calendar>` in an Expo/React Native WebView. This is a **source integration**, not a separately published native package. Use the [v0.12.0 source revision](https://github.com/pders01/kalendus/tree/v0.12.0) to build the bridge for the published 0.12.0 calendar. The root npm package does not include the native wrapper or the generated Expo shell. Copy the wrapper and protocol sources from the same revision as the generated shell. Native dependencies belong in the Expo app, **not** in the Kalendus root package.
 
 ## Build a self-contained document
 

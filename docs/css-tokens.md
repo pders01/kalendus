@@ -8,7 +8,7 @@ section: Usage
 
 # CSS Custom Properties Reference
 
-These are supported overrides for the unreleased **0.12.0** source, with defaults for the neutral calendar. For the published package, use the [v0.11.0 reference](https://github.com/pders01/kalendus/tree/v0.11.0). A custom property found in source or in a theme file is not necessarily used by the current calendar.
+These are supported overrides for **0.12.0**, with defaults for the neutral calendar. A custom property found in source or in a theme file is not necessarily used by the current calendar.
 
 Set overrides on `<lms-calendar>` after any [built-in theme](./theming.md). This example uses system colors for both light and dark schemes:
 
@@ -88,7 +88,7 @@ The inspector does not consume the old `--menu-transform-origin`, `--menu-transf
 | `--height` | `100%`  | Host block size. A definite height bounds all four views in 0.12.0. |
 | `--width`  | `100%`  | Width of the inner calendar container                               |
 
-See [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling) for sized and unsized layouts and the published 0.11.0 behavior.
+See [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling) for sized and unsized layouts and changes since 0.11.0.
 
 ## Entry Design — Core
 

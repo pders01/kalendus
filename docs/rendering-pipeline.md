@@ -8,7 +8,7 @@ section: Internals
 
 # Rendering Pipeline
 
-How calendar entries move from raw data to positioned DOM elements in the unreleased **0.12.0** source. The source modules are authoritative for formulas and constants; the helpers below are not package exports. See [Library Usage](./library-usage.md) for public contracts or the [v0.11.0 reference](https://github.com/pders01/kalendus/tree/v0.11.0) for the published release.
+How calendar entries move from raw data to positioned DOM elements in the [0.12.0 source revision](https://github.com/pders01/kalendus/tree/v0.12.0). The source modules are authoritative for formulas and constants; the helpers below are not package exports. See [Library Usage](./library-usage.md) for public contracts.
 
 ## Overview
 
@@ -160,7 +160,7 @@ All-day bars use a grid lane in their first visible date's slot. Their inline si
 
 ## 6. Time Grid Sizing
 
-`Day.ts` and `Week.ts` use `TimeGridSizingController` to observe the timed scroller, coalesce frame writes, reconnect observation, and cancel queued work on disconnect. In the unreleased 0.12.0, a definite embed height bounds all four views; without one, Month grows in page flow and Day, Week, and Year get bounded fallbacks. Published 0.11.0 used the scrollable detail scale for Day/Week and left Month unsized; see [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling). The 24-hour content cannot feed back into the timed viewport's size.
+`Day.ts` and `Week.ts` use `TimeGridSizingController` to observe the timed scroller, coalesce frame writes, reconnect observation, and cancel queued work on disconnect. In 0.12.0, a definite embed height bounds all four views; without one, Month grows in page flow and Day, Week, and Year get bounded fallbacks. Version 0.11.0 used the scrollable detail scale for Day/Week and left Month unsized; see [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling). The 24-hour content cannot feed back into the timed viewport's size.
 
 ### The `--minute-height` calculation
 

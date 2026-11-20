@@ -10,11 +10,11 @@ section: Getting Started
 
 ## 0.12.0
 
-**Unreleased.** These notes describe the candidate on `main`, not a registry release. The published version is [0.11.0](https://github.com/pders01/kalendus/tree/v0.11.0).
+Published on npm as [`@jpahd/kalendus@0.12.0`](https://www.npmjs.com/package/@jpahd/kalendus/v/0.12.0). The [v0.12.0 source tag](https://github.com/pders01/kalendus/tree/v0.12.0) identifies the tested release commit. The optional server and Expo bridge remain source integrations; they were not published as separate packages.
 
 ### New public API
 
-- **App-owned timed edits.** The candidate adds `@jpahd/kalendus/entry-interactions`, a separate opt-in module unavailable in 0.11.0. Enable it for desktop move and resize gestures on explicit timed Day and Week cards. App-owned buttons or forms can call `requestChange()` with the current accepted source record without dragging. An `entry-change-request` is a proposal, not a write: the app decides whether to adopt it and owns authorization, persistence, and reconciliation for saved changes. Read-only calendars do not load the gesture code.
+- **App-owned timed edits.** `@jpahd/kalendus/entry-interactions` is a new opt-in module. Enable it for desktop move and resize gestures on explicit timed Day and Week cards. App-owned buttons or forms can call `requestChange()` with the current accepted source record without dragging. An `entry-change-request` is a proposal, not a write: the app decides whether to adopt it and owns authorization, persistence, and reconciliation for saved changes. Read-only calendars do not load the gesture code.
 - **Scrollable time-grid detail.** Day and Week fit all 24 hours when the grid can do so without merging timed cards that could be shown separately. Remaining timed groups open in context alongside the live timeline. Set `scroll-time-grid` or `calendar.scrollTimeGrid = true` to keep the scrollable detail scale. Narrow Week adapts its visible day count; set `--week-min-day-width: 0` to retain a fixed configured count.
 
 ### Upgrade from 0.11.0
@@ -32,7 +32,7 @@ See [Events Reference](./events.md#entry-change-requests-opt-in) and [Height and
 
 ## 0.11.0
 
-This is the published root package. Use the [0.11.0 documentation](https://github.com/pders01/kalendus/tree/v0.11.0) when following a recipe for this version. It keeps dates and events readable on small screens and gives consumers explicit contracts for fetching entries, opening details, and exporting events.
+This was the previous root release. Use the [0.11.0 documentation](https://github.com/pders01/kalendus/tree/v0.11.0) when following a recipe for this version. It keeps dates and events readable on small screens and gives consumers explicit contracts for fetching entries, opening details, and exporting events.
 
 ### What changed
 
@@ -54,4 +54,4 @@ This is the published root package. Use the [0.11.0 documentation](https://githu
 | **The optional server and SSE adapter**    | Source/local tarball only. No calendar route is implicitly public. Default streams send invalidations, not event records. Update clients to use `onInvalidate` and refetch on `onReconcile`; `onSync` receives only record-bearing events. See the [0.11.0 source guide](https://github.com/pders01/kalendus/blob/v0.11.0/docs/api-server.md). |
 | **Expo / React Native**                    | Rebuild the self-contained inline shell using the [0.11.0 native bridge guide](https://github.com/pders01/kalendus/blob/v0.11.0/expo-bridge/README.md). The development shell is not a Metro asset; make native SDK, packaging, and device verification separate checks.                                                                       |
 
-For the candidate, start with [Library Usage](./library-usage.md) and the Storybook [review scenarios](./developer-guide.md#review-calendar-layouts). Browser automation and viewport emulation don't replace physical-device, shipping Safari, or assistive-technology review.
+For the current release, start with [Library Usage](./library-usage.md) and the Storybook [review scenarios](./developer-guide.md#review-calendar-layouts). Browser automation and viewport emulation don't replace physical-device, shipping Safari, or assistive-technology review.
