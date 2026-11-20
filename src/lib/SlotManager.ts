@@ -289,14 +289,6 @@ export class SlotManager {
         return `${msg.calendarEvent}: ${dateStr}, ${timeStr}. ${msg.pressToOpen}`;
     }
 
-    /**
-     * Get human-readable description of position (for debugging)
-     */
-    public getPositionDescription(config: PositionConfig): string {
-        const position = this.calculatePosition(config);
-        return `Slot: "${position.slotName}"`;
-    }
-
     private _validateConfig(config: PositionConfig): void {
         if (!config || !isValidCalendarDate(config.date))
             throw new RangeError('Invalid entry date');
