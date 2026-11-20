@@ -53,6 +53,8 @@ describe('Review-correction complete locale messages', () => {
                 const moreEvents = f.moreEvents(count);
                 expect(eventCount, `event count ${count}`).to.include(rendered);
                 expect(moreEvents, `overflow count ${count}`).to.include(rendered);
+                expect(eventCount).not.to.match(/\bevents?\b/);
+                expect(moreEvents).not.to.match(/\bmore\b|\bevents?\b/);
                 expect(eventCount).to.equal(
                     catalog[`eventCount_${category}`].replace('{count}', rendered),
                 );
@@ -69,6 +71,7 @@ describe('Review-correction complete locale messages', () => {
             for (const [id, actual] of Object.entries(actions)) {
                 expect(actual.trim(), `empty Agenda action ${id}`).not.to.equal('');
                 expect(actual, `Agenda action ${id}`).to.equal(catalog[id]);
+                expect(actual).not.to.match(/Show all|Show fewer|Show events|Hide events|\{\w+\}/);
             }
             expect(f.switchToDayView('DATE')).to.include('DATE').and.not.to.include('Switch to');
             expect(f.dateSummary('DATE', 2)).to.include('DATE').and.not.to.include('Open day view');
