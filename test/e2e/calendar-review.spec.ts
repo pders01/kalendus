@@ -112,23 +112,61 @@ test.describe('Desktop canvas layout', () => {
                 overflow.evaluate((button) => {
                     const target = button.getBoundingClientRect();
                     const week = button.closest('.week')!;
-                    return [...week.querySelectorAll('.entries slot')]
-                        .flatMap((slot) => (slot as HTMLSlotElement).assignedElements())
-                        .every((entry) => {
-                            const box = entry.getBoundingClientRect();
-                            return (
-                                box.right <= target.left ||
-                                box.left >= target.right ||
-                                box.bottom <= target.top ||
-                                box.top >= target.bottom
-                            );
-                        });
+                    const { height } = week.getBoundingClientRect();
+                    const cards = [...week.querySelectorAll<HTMLSlotElement>('.entries slot')]
+                        .flatMap((slot) =>
+                            slot.assignedElements().map((entry) => ({ slot, entry })),
+                        )
+                        .filter(({ entry }) => entry.matches('lms-calendar-entry'));
+                    const overlaps = (a: DOMRect, b: DOMRect) =>
+                        a.left < b.right &&
+                        a.right > b.left &&
+                        a.top < b.bottom &&
+                        a.bottom > b.top;
+                    const unrendered: string[] = [];
+                    const obscuring: string[] = [];
+                    const sameDayPreviews: string[] = [];
+                    for (const { slot, entry } of cards) {
+                        const heading = (entry as HTMLElement & { heading: string }).heading;
+                        const box = entry.getBoundingClientRect();
+                        if (
+                            box.width <= 0 ||
+                            box.height <= 0 ||
+                            getComputedStyle(entry).visibility !== 'visible' ||
+                            !overlaps(box, slot.closest('.day')!.getBoundingClientRect())
+                        ) {
+                            unrendered.push(heading);
+                        } else if (slot.name === button.getAttribute('data-date')) {
+                            sameDayPreviews.push(heading);
+                        }
+                        if (overlaps(box, target)) obscuring.push(heading);
+                    }
+                    return {
+                        fractional: Math.abs(height - Math.round(height)) >= 0.125,
+                        sameDayPreviews,
+                        unrendered,
+                        obscuring,
+                    };
                 }),
             )
-            .toBe(true);
+            .toEqual({
+                fractional: true,
+                sameDayPreviews: expect.arrayContaining(['Morning Standup']),
+                unrendered: [],
+                obscuring: [],
+            });
         const bounds = (await overflow.boundingBox())!;
         expect(bounds.width).toBeGreaterThanOrEqual(24);
         expect(bounds.height).toBeGreaterThanOrEqual(24);
+        await overflow.focus();
+        await expect(overflow).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('lms-calendar-day')).toBeVisible();
+        await expect(page.locator('lms-calendar')).toHaveJSProperty('activeDate', {
+            year: 2026,
+            month: 11,
+            day: 15,
+        });
     });
 });
 
