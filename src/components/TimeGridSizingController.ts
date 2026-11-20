@@ -201,9 +201,14 @@ export class TimeGridSizingController implements ReactiveController {
         let previousTop = 0;
         let previousExtent = 0;
         const rememberScroll = () => {
-            // An automatic clamp can fire before ResizeObserver, even at the same height.
-            if (scroll.clientHeight === previousHeight && scroll.scrollHeight === previousExtent)
-                previousTop = scroll.scrollTop;
+            // Shrinking the scroll range can auto-clamp at the end; growing it cannot.
+            const extent = scroll.scrollHeight;
+            const top = scroll.scrollTop;
+            if (
+                scroll.clientHeight === previousHeight &&
+                (extent >= previousExtent || top < extent - previousHeight - 1)
+            )
+                previousTop = top;
         };
         scroll.addEventListener('scroll', rememberScroll, { passive: true });
         this.unlisten = () => scroll.removeEventListener('scroll', rememberScroll);

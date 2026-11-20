@@ -237,6 +237,36 @@ describe('Day and Week viewport sizing', () => {
             expect(scroll.scrollTop).to.be.closeTo(scroll.scrollHeight - scroll.clientHeight, 1);
         });
 
+        it(`${view} remembers scrolling after the content grows without a viewport resize`, async () => {
+            const calendar = await fixture<Calendar>(html`
+                <lms-calendar scroll-time-grid dir="rtl" .activeDate=${date} view-mode=${view}
+                    style="width:800px;height:520px"></lms-calendar>
+            `);
+            await settle();
+            const { scroll, values } = snapshot(calendar, view);
+            const minuteAtTop = (pixelsPerMinute: number) =>
+                (scroll.scrollTop - parseFloat(getComputedStyle(scroll).paddingTop)) /
+                pixelsPerMinute;
+            scroll.scrollTop = 600;
+            await nextFrame();
+            const firstTop = scroll.scrollTop;
+            // Only grow the scroll extent; the viewport ResizeObserver does not fire.
+            scroll.querySelector<HTMLElement>('.time-labels')!.style.blockSize =
+                'calc(var(--day-total-height) + 100px)';
+            expect(scroll.scrollHeight).to.be.greaterThan(values.timedContent + 90);
+            expect(scroll.clientHeight).to.equal(values.timedViewport);
+            scroll.scrollTop = firstTop - 120;
+            await nextFrame();
+            expect(scroll.scrollTop).to.be.closeTo(firstTop - 120, 1);
+            const anchor = minuteAtTop(values.minute);
+
+            calendar.style.height = '1010px';
+            await settle();
+            const after = snapshot(calendar, view).values;
+            expect(after.minute).to.be.greaterThan(values.minute);
+            expect(minuteAtTop(after.minute)).to.be.closeTo(anchor, 2);
+        });
+
         for (const dense of [false, true]) {
             it(`${view} settles without an explicit height (${dense ? 'dense' : 'sparse'})`, async () => {
                 const calendar =
