@@ -444,15 +444,20 @@ describe('Adapter public state contract (nonbrowser)', () => {
                     endDay: day,
                 });
             }
+            // Let the in-process request and response microtasks finish without a manual read.
+            const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
             adapter.hostConnected();
-            await adapter.fetchRange('1970-01-01', '1970-02-07');
+            await settle();
             expect(queries).to.deep.equal(['?start=1970-01-01&end=1970-02-07']);
             expect(adapter.entries[0].id).to.equal('min-date');
             expect(target.visibleRange).to.deep.equal({ start: '1969-12-28', end: '1970-02-08' });
 
             target.navigate(upper);
-            await adapter.fetchRange('2100-11-28', '2100-12-31');
-            expect(queries[1]).to.equal('?start=2100-11-28&end=2100-12-31');
+            await settle();
+            expect(queries).to.deep.equal([
+                '?start=1970-01-01&end=1970-02-07',
+                '?start=2100-11-28&end=2100-12-31',
+            ]);
             expect(adapter.entries[0].id).to.equal('max-date');
             expect(target.visibleRange).to.deep.equal({ start: '2100-11-28', end: '2101-01-09' });
 
@@ -472,11 +477,15 @@ describe('Adapter public state contract (nonbrowser)', () => {
                 expect(adapter.loading).to.equal(false);
             }
             target.navigate(lower);
-            await adapter.fetchRange('1970-01-01', '1970-02-07');
+            await settle();
             expect(queries).to.have.length(3);
+            expect(queries[2]).to.equal('?start=1970-01-01&end=1970-02-07');
             expect(adapter.entries[0].id).to.equal('min-date');
             await adapter.fetchRange('1969-12-31', '1970-01-01');
-            expect(adapter.error?.message).to.include('400');
+            expect(queries[3]).to.equal('?start=1969-12-31&end=1970-01-01');
+            expect(adapter.error)
+                .to.be.instanceOf(KalendusHttpError)
+                .and.have.property('status', 400);
         } finally {
             adapter.hostDisconnected();
             db.$client.close();
