@@ -31,10 +31,15 @@ function run(command, args, cwd = root) {
 function docsExample(path, section, language) {
     const markdown = readFileSync(join(root, path), 'utf8');
     const heading = `\n${section}\n`;
-    assert.ok(markdown.includes(heading), `Missing ${section} in ${path}`);
-    const body = markdown.split(heading)[1];
-    const snippet = body.match(/^```(\w+)\n([\s\S]*?)\n```$/m);
-    assert.equal(snippet?.[1], language, `Missing ${language} example for ${section}`);
+    const headingStart = markdown.indexOf(heading);
+    assert.notEqual(headingStart, -1, `Missing ${section} in ${path}`);
+    const tail = markdown.slice(headingStart + heading.length);
+    const nextHeading = tail.search(/^#{1,6} /m);
+    const sectionBody = nextHeading === -1 ? tail : tail.slice(0, nextHeading);
+    const snippet = [...sectionBody.matchAll(/^```(\w+)\n([\s\S]*?)\n```$/gm)].find(
+        ([, lang]) => lang === language,
+    );
+    assert.ok(snippet, `Missing ${language} example for ${section} in ${path}`);
     return snippet[2];
 }
 
@@ -131,6 +136,43 @@ async function checkLocaleOutage(browser, url, chunkUrl, localeProbe) {
     }
 }
 
+async function checkThemingExample(page, calendar) {
+    const example = docsExample('docs/theming.md', '### Quick Examples', 'css');
+    await page.addStyleTag({ content: `:root { color-scheme: light dark; }\n${example}` });
+    for (const colorScheme of ['dark', 'light']) {
+        await page.emulateMedia({ colorScheme });
+        const contrast = await calendar.evaluate((host) => {
+            const header = host.shadowRoot.querySelector('lms-calendar-header');
+            const period = header.shadowRoot.querySelector('.view-detail.active');
+            const surface = host.shadowRoot.querySelector('.calendar-container');
+            const pixel = document
+                .createElement('canvas')
+                .getContext('2d', { willReadFrequently: true });
+            const luminance = ([r, g, b]) =>
+                [r, g, b].reduce((total, value, index) => {
+                    const channel = value / 255;
+                    const linear =
+                        channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+                    return total + linear * [0.2126, 0.7152, 0.0722][index];
+                }, 0);
+            pixel.fillStyle = getComputedStyle(surface).backgroundColor;
+            pixel.fillRect(0, 0, 1, 1);
+            const background = luminance(pixel.getImageData(0, 0, 1, 1).data);
+            pixel.fillStyle = getComputedStyle(period).color;
+            pixel.fillRect(0, 0, 1, 1);
+            const foreground = luminance(pixel.getImageData(0, 0, 1, 1).data);
+            return (
+                (Math.max(background, foreground) + 0.05) /
+                (Math.min(background, foreground) + 0.05)
+            );
+        });
+        assert.ok(
+            contrast >= 4.5,
+            `Theming example period contrast in ${colorScheme}: ${contrast}`,
+        );
+    }
+}
+
 async function checkRuntime(consumer, installed) {
     const staticDir = join(consumer, 'public', 'static-recipe');
     mkdirSync(staticDir, { recursive: true });
@@ -146,7 +188,7 @@ async function checkRuntime(consumer, installed) {
     );
     writeFileSync(
         join(consumer, 'quick-start.html'),
-        '<!doctype html><html lang="en"><meta charset="utf-8"><title>README quick start</title><body><script type="module" src="/quick-start.ts"></script></body></html>',
+        '<!doctype html><html lang="en"><meta charset="utf-8"><title>Library Usage quick start</title><body><script type="module" src="/quick-start.ts"></script></body></html>',
     );
     writeFileSync(
         join(consumer, 'index.html'),
@@ -277,6 +319,25 @@ window.smoke = { calendar, states, localeResults, localeErrors, registered: cale
                 await panel.waitFor({ state: 'detached' });
                 assert.equal(await group.getAttribute('aria-expanded'), 'false');
 
+                const collection = { entries: [{ id: 'bad-collection' }] };
+                const issues = await calendar.evaluate(async (element, input) => {
+                    let issues;
+                    element.addEventListener(
+                        'entries-invalid',
+                        (event) => {
+                            issues = event.detail.issues;
+                        },
+                        { once: true },
+                    );
+                    Reflect.set(element, 'entries', input);
+                    await element.updateComplete;
+                    return issues;
+                }, collection);
+                assert.deepEqual(issues, [
+                    { index: -1, entry: collection, reason: 'Entries must be an array' },
+                ]);
+                await group.waitFor({ state: 'detached' });
+
                 await page.goto(`${url}quick-start.html`);
                 const quickStart = page.locator('lms-calendar');
                 await quickStart.locator('lms-calendar-month').waitFor();
@@ -285,6 +346,8 @@ window.smoke = { calendar, states, localeResults, localeErrors, registered: cale
                     await quickStart.evaluate((node) => node.entries[0]?.heading),
                     'Studio check-in',
                 );
+                await quickStart.getByText('Studio check-in', { exact: true }).waitFor();
+                await checkThemingExample(page, quickStart);
 
                 await page.goto(`${url}static-recipe/index.html`);
                 const recipe = page.locator('#demo');
@@ -301,7 +364,7 @@ window.smoke = { calendar, states, localeResults, localeErrors, registered: cale
                 assert.deepEqual(errors, []);
                 await checkLocaleOutage(browser, url, arabicChunkUrl, localeProbe);
                 console.log(
-                    `PASS packed ${name} runtime: lazy Arabic catalog, HTTP 503 fallback and recovery after reload, Month → Agenda → Week, timed inspector and README/static recipes`,
+                    `PASS packed ${name} runtime: lazy Arabic catalog, HTTP 503 fallback and recovery after reload, Month → Agenda → Week, timed inspector, bad collection diagnostic, displayed quick start/static HTML, and Theming recipe contrast`,
                 );
             } finally {
                 await browser.close();
@@ -362,6 +425,17 @@ try {
     console.log(
         `Checking packed consumer with ${minimumPeers ? 'minimum' : 'locked'} peers: ${versions.join(', ')}`,
     );
+    const quickStart = docsExample('docs/library-usage.md', '# Using Kalendus as a Library', 'ts');
+    assert.equal(
+        docsExample('README.md', '## Quick Usage', 'ts'),
+        quickStart,
+        'README and Library Usage must show the same runnable quick start',
+    );
+    writeFileSync(join(consumer, 'quick-start.ts'), quickStart);
+    writeFileSync(
+        join(consumer, 'documented-edits.ts'),
+        docsExample('docs/events.md', '## Entry change requests (opt-in)', 'ts'),
+    );
     writeFileSync(
         join(consumer, 'index.ts'),
         `
@@ -383,6 +457,9 @@ calendar.addEventListener('calendar-state-change', event => {
 calendar.addEventListener('entry-activate', event => {
     console.log(event.detail.entry.id);
     event.preventDefault();
+});
+calendar.addEventListener('entries-invalid', event => {
+    for (const { index, reason } of event.detail.issues) console.log(index, reason);
 });
 const edits = enableEntryInteractions(calendar, { canChange: (entry, operation) => !!entry.id && operation.kind === 'move' });
 calendar.addEventListener('entry-change-request', event => {
@@ -407,7 +484,10 @@ edits.dispose();
         };
         writeFileSync(
             join(consumer, 'tsconfig.json'),
-            JSON.stringify({ compilerOptions, files: ['index.ts', 'quick-start.ts'] }),
+            JSON.stringify({
+                compilerOptions,
+                files: ['index.ts', 'quick-start.ts', 'documented-edits.ts'],
+            }),
         );
         run('bun', [
             join(root, 'node_modules', 'typescript', 'bin', 'tsc'),
