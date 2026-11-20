@@ -57,6 +57,62 @@ describe('allDayLayout', () => {
             expect(result.totalRows).to.equal(2);
         });
 
+        it('reuses a lower lane while a higher lane is still occupied in an overlap chain', () => {
+            const { rowAssignments, totalRows } = allocateAllDayRows([
+                { id: 'early', days: [0, 1], isMultiDay: true },
+                { id: 'middle', days: [1, 2, 3, 4], isMultiDay: true },
+                { id: 'late', days: [3, 4, 5, 6], isMultiDay: true },
+            ]);
+            expect([...rowAssignments]).to.deep.equal([
+                ['early', 0],
+                ['middle', 1],
+                ['late', 0],
+            ]);
+            expect(totalRows).to.equal(2);
+        });
+
+        it('reuses the lowest available lane even when the bottom and top lanes are occupied', () => {
+            const { rowAssignments } = allocateAllDayRows([
+                { id: 'a-long', days: [0, 1, 2, 3, 4], isMultiDay: true },
+                { id: 'b-early', days: [0, 1], isMultiDay: true },
+                { id: 'middle', days: [1, 2], isMultiDay: true },
+                { id: 'late', days: [2, 3, 4], isMultiDay: true },
+            ]);
+            expect([...rowAssignments]).to.deep.equal([
+                ['a-long', 0],
+                ['b-early', 1],
+                ['middle', 2],
+                ['late', 1],
+            ]);
+        });
+
+        it('separates same-day singles and reuses lane zero the next day', () => {
+            const { rowAssignments, totalRows } = allocateAllDayRows([
+                { id: 'a', days: [0], isMultiDay: false },
+                { id: 'b', days: [0], isMultiDay: false },
+                { id: 'c', days: [1], isMultiDay: false },
+            ]);
+            expect([...rowAssignments]).to.deep.equal([
+                ['a', 0],
+                ['b', 1],
+                ['c', 0],
+            ]);
+            expect(totalRows).to.equal(2);
+        });
+
+        it('reserves only actual days for a noncontiguous input', () => {
+            const { rowAssignments } = allocateAllDayRows([
+                { id: 'gapped', days: [0, 2, 4], isMultiDay: true },
+                { id: 'overlap', days: [1, 2, 3], isMultiDay: true },
+                { id: 'in-gap', days: [1], isMultiDay: false },
+            ]);
+            expect([...rowAssignments]).to.deep.equal([
+                ['gapped', 0],
+                ['overlap', 1],
+                ['in-gap', 0],
+            ]);
+        });
+
         it('counts the highest occupied row plus one when each day has gaps', () => {
             const result = allocateAllDayRows([
                 { id: 'A', days: [0, 1], isMultiDay: true },

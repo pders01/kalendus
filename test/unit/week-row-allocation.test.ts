@@ -1,206 +1,42 @@
 import { expect } from 'chai';
 
-import { allocateAllDayRows, type AllDayEvent } from '../../src/lib/allDayLayout.js';
+import { layoutAllDaySegments } from '../../src/lib/allDayLayout.js';
+import { expandEntries } from '../../src/lib/calendarModel.js';
 
-describe('Week View Row Allocation for Multi-Day Events', () => {
-    /**
-     * Helper that wraps allocateAllDayRows to return the same Map interface
-     * the original inline helper returned.
-     */
-    function allocateRows(
-        events: Array<{
-            id: string;
-            days: number[];
-        }>,
-    ): Map<string, number> {
-        const allDayEvents: AllDayEvent[] = events.map((e) => ({
-            id: e.id,
-            days: e.days,
-            isMultiDay: e.days.length > 1,
-        }));
+const date = (day: number) => ({ year: 2026, month: 3, day });
+const span = (id: string, start: number, end: number) => ({
+    id,
+    kind: 'all-day',
+    heading: id,
+    date: { start: date(start), end: date(end) },
+});
 
-        const { rowAssignments } = allocateAllDayRows(allDayEvents);
-        return rowAssignments;
-    }
+describe('Week view row placements', () => {
+    it('keeps overlapping spans on one lane across their visible columns', () => {
+        const entries = expandEntries([
+            span('full-week', 2, 8),
+            span('wed-fri', 4, 6),
+            span('tue-wed', 3, 4),
+        ]);
+        const { placements } = layoutAllDaySegments(
+            entries.map((entry) => ({ entry, column: entry.date.start.day - 2 })),
+        );
+        const coordinates = (id: string) =>
+            placements
+                .filter(({ entry }) => entry.sourceId === id)
+                .map(({ row, column }) => [row, column]);
 
-    describe('Basic non-overlapping events', () => {
-        it('should assign row 0 to a single event', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1, 2] }, // Mon-Wed
-            ];
-            const rows = allocateRows(events);
-            expect(rows.get('Event1')).to.equal(0);
-        });
-
-        it('should assign same row to non-overlapping events', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1] }, // Mon-Tue
-                { id: 'Event2', days: [3, 4, 5] }, // Thu-Sat
-            ];
-            const rows = allocateRows(events);
-            expect(rows.get('Event1')).to.equal(0);
-            expect(rows.get('Event2')).to.equal(0);
-        });
-    });
-
-    describe('Overlapping events', () => {
-        it('should assign different rows to overlapping events', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1, 2] }, // Mon-Wed
-                { id: 'Event2', days: [1, 2, 3] }, // Tue-Thu
-            ];
-            const rows = allocateRows(events);
-            expect(rows.get('Event1')).to.equal(0);
-            expect(rows.get('Event2')).to.equal(1);
-        });
-
-        it('should handle the specific case: Event1 Mon-Tue, Event2 Tue-Fri', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1] }, // Mon-Tue
-                { id: 'Event2', days: [1, 2, 3, 4] }, // Tue-Fri
-            ];
-            const rows = allocateRows(events);
-            expect(rows.get('Event1')).to.equal(0);
-            expect(rows.get('Event2')).to.equal(1); // Should be row 1 consistently
-        });
-
-        it('should maintain consistent rows across the week for overlapping events', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1] }, // Mon-Tue
-                { id: 'Event2', days: [1, 2, 3, 4] }, // Tue-Fri
-                { id: 'Event3', days: [3, 4, 5, 6] }, // Thu-Sun
-            ];
-            const rows = allocateRows(events);
-
-            expect(rows.get('Event1')).to.equal(0);
-            expect(rows.get('Event2')).to.equal(1); // Row 1 for all days Tue-Fri (overlaps with Event1 on Tue)
-            expect(rows.get('Event3')).to.equal(0); // Row 0 is free from Thu-Sun (Event1 ended on Tue)
-        });
-    });
-
-    describe('Complex overlapping scenarios', () => {
-        it('should reuse rows when possible', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1] }, // Mon-Tue
-                { id: 'Event2', days: [3, 4] }, // Thu-Fri
-                { id: 'Event3', days: [1, 2, 3] }, // Tue-Thu (overlaps both)
-            ];
-            const rows = allocateRows(events);
-
-            expect(rows.get('Event1')).to.equal(0);
-            expect(rows.get('Event2')).to.equal(0); // Can reuse row 0
-            expect(rows.get('Event3')).to.equal(1); // Needs different row
-        });
-
-        it('should handle multiple overlapping events correctly', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1, 2, 3, 4] }, // Mon-Fri
-                { id: 'Event2', days: [1, 2] }, // Tue-Wed
-                { id: 'Event3', days: [2, 3, 4] }, // Wed-Fri
-                { id: 'Event4', days: [0, 1] }, // Mon-Tue
-            ];
-            const rows = allocateRows(events);
-
-            // Processing order (by start day): Event1 (0), Event4 (0), Event2 (1), Event3 (2)
-            expect(rows.get('Event1')).to.equal(0); // First event, gets row 0
-            expect(rows.get('Event4')).to.equal(1); // Can't use row 0 (overlaps Event1 on Mon-Tue)
-            expect(rows.get('Event2')).to.equal(2); // Can't use row 0 (Event1) or row 1 (Event4 on Tue)
-            expect(rows.get('Event3')).to.equal(1); // Can use row 1 (Event4 ended on Tue, no overlap Wed-Fri)
-        });
-
-        it('should handle full week spanning event', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1, 2, 3, 4, 5, 6] }, // Mon-Sun
-                { id: 'Event2', days: [2, 3, 4] }, // Wed-Fri
-                { id: 'Event3', days: [1, 2] }, // Tue-Wed
-            ];
-            const rows = allocateRows(events);
-
-            expect(rows.get('Event1')).to.equal(0);
-            expect(rows.get('Event3')).to.equal(1); // Can't use row 0 (Event1), processed before Event2
-            expect(rows.get('Event2')).to.equal(2); // Can't use row 0 (Event1) or row 1 (Event3 on Wed)
-        });
-    });
-
-    describe('Row consistency validation', () => {
-        it('should ensure an event maintains the same row across all its days', () => {
-            const events = [
-                { id: 'Event1', days: [0, 1] },
-                { id: 'Event2', days: [1, 2, 3, 4] },
-                { id: 'Event3', days: [5, 6] },
-            ];
-            const rows = allocateRows(events);
-
-            // Verify actual occupancy, not a repeated copy of one map value.
-            for (let day = 0; day < 7; day++) {
-                const onDay = events.filter((event) => event.days.includes(day));
-                const occupiedRows = onDay.map((event) => rows.get(event.id));
-                expect(occupiedRows.every((row) => Number.isInteger(row))).to.equal(true);
-                expect(new Set(occupiedRows).size).to.equal(onDay.length);
-            }
-            expect(rows.get('Event2')).to.equal(1);
-            // Pixel row consistency is a separate component integration assertion.
-        });
-
-        it('should never allow an event to jump rows mid-span', () => {
-            // This test validates that the algorithm doesn't allow row jumping
-            const events = [
-                { id: 'EventA', days: [0] }, // Mon only
-                { id: 'EventB', days: [0, 1, 2, 3] }, // Mon-Thu
-                { id: 'EventC', days: [1, 2, 3, 4] }, // Tue-Fri
-            ];
-            const rows = allocateRows(events);
-
-            // Multi-day events are placed first (sorted by start day):
-            //   EventB (start 0, multi): row 0 free → gets row 0, occupies days 0-3
-            //   EventC (start 1, multi): row 0 occupied on days 1-3 → gets row 1
-            // Then single-day:
-            //   EventA (day 0): row 0 occupied → gets row 1
-            const eventCRow = rows.get('EventC');
-            expect(eventCRow).to.equal(1); // Row 0 blocked by EventB on overlapping days
-        });
-    });
-
-    describe('Edge cases', () => {
-        it('should handle empty event list', () => {
-            const events: Array<{ id: string; days: number[] }> = [];
-            const rows = allocateRows(events);
-            expect(rows.size).to.equal(0);
-        });
-
-        it('should handle single-day events', () => {
-            const events = [
-                { id: 'Event1', days: [0] }, // Mon only
-                { id: 'Event2', days: [0] }, // Mon only
-                { id: 'Event3', days: [1] }, // Tue only
-            ];
-            const rows = allocateRows(events);
-
-            expect(rows.get('Event1')).to.equal(0);
-            expect(rows.get('Event2')).to.equal(1); // Different row due to overlap on Mon
-            expect(rows.get('Event3')).to.equal(0); // Can reuse row 0 on Tue
-        });
-
-        it('reports a row budget covering gapped assignments rather than daily cardinality', () => {
-            const events = [
-                { id: 'A', days: [0, 1], isMultiDay: true },
-                { id: 'B', days: [0, 2], isMultiDay: true },
-                { id: 'C', days: [1, 2], isMultiDay: true },
-            ];
-            const { rowAssignments, totalRows } = allocateAllDayRows(events);
-            expect(totalRows).to.equal(3);
-            expect([...rowAssignments.values()].every((row) => row < totalRows)).to.equal(true);
-        });
-
-        it('should handle events with gaps', () => {
-            const events = [
-                { id: 'Event1', days: [0, 2, 4] }, // Mon, Wed, Fri (with gaps)
-                { id: 'Event2', days: [1, 2, 3] }, // Tue-Thu (continuous)
-            ];
-            const rows = allocateRows(events);
-
-            expect(rows.get('Event1')).to.equal(0);
-            expect(rows.get('Event2')).to.equal(1); // Needs different row due to Wed overlap
-        });
+        expect(coordinates('full-week')).to.deep.equal(
+            Array.from({ length: 7 }, (_, column) => [0, column]),
+        );
+        expect(coordinates('tue-wed')).to.deep.equal([
+            [1, 1],
+            [1, 2],
+        ]);
+        expect(coordinates('wed-fri')).to.deep.equal([
+            [2, 2],
+            [2, 3],
+            [2, 4],
+        ]);
     });
 });
