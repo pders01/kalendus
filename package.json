@@ -91,7 +91,7 @@
         "demo:gif": "node scripts/record-demo-gif.mjs",
         "docs:sync": "node scripts/sync-docs.mjs",
         "docs:sync:check": "node scripts/sync-docs.mjs --check",
-        "docs:build": "node scripts/sync-docs.mjs && rimraf _site && eleventy && node scripts/check-docs-links.mjs",
+        "docs:build": "node scripts/sync-docs.mjs --check && rimraf _site && eleventy && node scripts/check-docs-links.mjs",
         "docs:serve": "eleventy --serve"
     },
     "dependencies": {},

@@ -24,8 +24,9 @@
 
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const CHECK = process.argv.includes('--check');
 
 // ── Source data ─────────────────────────────────────────────
@@ -111,9 +112,14 @@ function replaceMarkers(content, key, generated) {
     const end = `<!-- GENERATED:${key}:END -->`;
     const si = content.indexOf(start);
     const ei = content.indexOf(end);
-    if (si === -1 || ei === -1) {
-        console.warn(`  ⚠ Marker GENERATED:${key} not found`);
-        return content;
+    if (
+        si === -1 ||
+        ei === -1 ||
+        si >= ei ||
+        si !== content.lastIndexOf(start) ||
+        ei !== content.lastIndexOf(end)
+    ) {
+        throw new Error(`Expected one ordered START/END pair for GENERATED:${key}`);
     }
 
     // Detect whether the marker is inline (non-whitespace before START on its line)
@@ -130,10 +136,19 @@ function replaceMarkers(content, key, generated) {
     return content.slice(0, si + start.length) + '\n\n' + generated + '\n\n' + content.slice(ei);
 }
 
-function updateFile(relPath, fn) {
+// Validate every source before writing any of the generated sections.
+const docs = [];
+function stageUpdate(relPath, transform) {
     const absPath = join(ROOT, relPath);
     const original = readFileSync(absPath, 'utf8');
-    const content = fn(original);
+    try {
+        docs.push({ absPath, relPath, original, content: transform(original) });
+    } catch (error) {
+        throw new Error(`${relPath}: ${error.message}`, { cause: error });
+    }
+}
+
+function applyUpdate({ absPath, relPath, original, content }) {
     if (content !== original) {
         if (CHECK) {
             console.error(`  ✗ ${relPath} is stale`);
@@ -151,39 +166,24 @@ function updateFile(relPath, fn) {
 
 console.log('sync-docs: syncing from source…\n');
 
+stageUpdate('README.md', (content) => replaceMarkers(content, 'LOCALE_TABLE', localeTable()));
+stageUpdate('docs/troubleshooting.md', (content) =>
+    replaceMarkers(content, 'LOCALE_LIST_INLINE', localeListInline()),
+);
+stageUpdate('docs/architecture.md', (content) => {
+    // The listing is inside a code block, where HTML markers would be visible.
+    const anchors = [...content.matchAll(/^    └── locales\/[ \t]*(?:#[^\n]*)?\n/gm)];
+    if (anchors.length !== 1) throw new Error('Expected one locales/ tree anchor');
+    const [anchor] = anchors;
+    const afterAnchor = anchor.index + anchor[0].length;
+    const rest = content.slice(afterAnchor);
+    const match = rest.match(/^([ ]{8}[├└]── [\w.,\- ]+\.ts[\w.,\- ]*\n)+/);
+    if (!match) throw new Error('Expected locale file lines after the locales/ tree anchor');
+    return content.slice(0, afterAnchor) + localeFilesTree() + '\n' + rest.slice(match[0].length);
+});
+
 let dirty = false;
-
-// README.md — locale table
-dirty = updateFile('README.md', (c) => replaceMarkers(c, 'LOCALE_TABLE', localeTable())) || dirty;
-
-// docs/troubleshooting.md — inline locale list
-dirty =
-    updateFile('docs/troubleshooting.md', (c) =>
-        replaceMarkers(c, 'LOCALE_LIST_INLINE', localeListInline()),
-    ) || dirty;
-
-// docs/architecture.md — locale files inside code block (regex replacement)
-dirty =
-    updateFile('docs/architecture.md', (c) => {
-        // Replace the locale file lines after "└── locales/" in the code block.
-        // Match consecutive lines that list .ts files with tree-drawing chars.
-        const anchor = '└── locales/';
-        const anchorIdx = c.indexOf(anchor);
-        if (anchorIdx === -1) {
-            console.warn('  ⚠ locales/ anchor not found in architecture.md');
-            return c;
-        }
-        // Find the end of the anchor line
-        const afterAnchor = c.indexOf('\n', anchorIdx) + 1;
-        // Match all subsequent lines that are locale file listings (8+ spaces + tree char)
-        const rest = c.slice(afterAnchor);
-        const match = rest.match(/^([ ]{8}[├└]── [\w.,\- ]+\.ts[\w.,\- ]*\n)+/);
-        if (!match) {
-            console.warn('  ⚠ locale file lines not found in architecture.md');
-            return c;
-        }
-        return c.slice(0, afterAnchor) + localeFilesTree() + '\n' + rest.slice(match[0].length);
-    }) || dirty;
+for (const doc of docs) dirty = applyUpdate(doc) || dirty;
 
 if (CHECK && dirty) {
     console.error('\nDocs are out of date. Run: bun run docs:sync\n');
