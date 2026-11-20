@@ -24,7 +24,7 @@ Kalendus ships with a **neutral base** that follows the embedding page’s CSS `
 import '@jpahd/kalendus/themes/default.css'; // choose one theme from the table above
 ```
 
-Each theme supplies opinionated token values. Import one as a starting point and override individual properties afterward; see the [CSS Token Reference](./css-tokens.md).
+The neutral base and these theme imports are available in [published 0.11.0](https://github.com/pders01/kalendus/tree/v0.11.0). The built-in themes deliberately set a light or dark `color-scheme` to match their surface and text. Import one as a starting point and override individual properties afterward; see the [CSS Token Reference](./css-tokens.md) for the unreleased 0.12.0 source.
 
 ### Color Format Support
 
@@ -44,16 +44,18 @@ Set `--entry-time-font` for a different Month preview time font, or `--entry-fon
 
 ### Quick Examples
 
+On the neutral base (no built-in theme import), keep scheme-aware colors paired so the period heading stays legible in both light and dark hosts:
+
 ```css
 lms-calendar {
-    --primary-color: #1976d2;
-    --background-color: #ffffff;
+    color: CanvasText;
+    --background-color: Canvas;
+    --primary-color: LinkText;
     --entry-border-radius: 6px;
     --entry-font-size: 0.75rem;
     --header-height: 4em;
     --week-mobile-day-count: 3;
-    --year-grid-columns: 4;
 }
 ```
 
-For the complete list of all CSS tokens organized by category, see the **[CSS Token Reference](./css-tokens.md)**.
+For a fixed light palette, set `color-scheme: light` on `lms-calendar` along with the fixed background and a contrasting foreground, or start from a built-in light theme. For more supported overrides, see the **[CSS Token Reference](./css-tokens.md)**.

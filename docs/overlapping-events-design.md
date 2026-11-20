@@ -1,14 +1,14 @@
 ---
 layout: base.njk
-title: 'Overlapping Events Design'
+title: 'Overlapping Events Design (Historical)'
 order: 12
 tags: docs
-section: Reference
+section: Archive
 ---
 
 # Overlapping Events Rendering System Design
 
-> **Historical document.** This was a planning doc for the overlap layout system. The implementation lives in `src/lib/LayoutCalculator.ts` (box layout) and `src/lib/allDayLayout.ts` (all-day row allocation). See the [Layout & Positioning Guide](./layout-and-positioning.md) for consumer-facing documentation.
+> **Archive — historical design proposal.** The positioning examples below are not the current layout. See the [Layout & Positioning Guide](./layout-and-positioning.md) for current behavior or the [Rendering Pipeline](./rendering-pipeline.md) for implementation details.
 
 ## Current State Analysis
 

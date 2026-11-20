@@ -65,7 +65,7 @@ lms-calendar {
 
 ### Localization workflow
 
-- **[src/locales/README.md](https://github.com/pders01/kalendus/blob/main/src/locales/README.md) is authoritative.** Edit English `src/locales/source.json` and translations in `src/locales/catalogs/<locale>.json`; never translate generated TypeScript or XLIFF.
+- **[src/locales/README.md](https://github.com/pders01/kalendus/blob/main/src/locales/README.md) is authoritative.** Edit English `src/locales/source.json` and translations in `src/locales/catalogs/<locale>.json`; never translate generated TypeScript or XLIFF. When English wording changes, keep the matching eager string or contextual formatter fallback in `src/lib/messages.ts` in sync.
 - Run `bun scripts/check-locales.mjs --write`, then `bun run i18n:check`. The check validates completeness, placeholders, preservation and extraction/build roundtrips in a disposable fixture. Raw `i18n:extract` / `i18n:build` are derivative tooling, not the normal source workflow.
 - Retrieve legacy fields through `getMessages(locale)` and complete phrases/plurals through `getMessageFormatters(locale)` during render. Preserve stable IDs and all original translations; structural checks do not establish linguistic quality.
 - The resolver retains formatting preferences while resolving aliases/catalog fallback. The root owns the current load promise/generation guard, `localeReady`, `retryLocale()`, `locale-error`/`locale-ready`, fallback UX and host `lang`/requested-versus-resolved `dir`. Failed imports settle with usable English fallback; stale loads must not update the current instance.
@@ -84,41 +84,48 @@ lms-calendar {
 
 ### Testing Tips
 
-- Unit tests live under `test/unit/`. Use `bun run test` for the Mocha suite or `bun run test -- path/to/file.test.ts` for a targeted run.
+- Unit tests live under `test/unit/`. Use `bun run test` for the Mocha suite or `bun run test -- --grep weekDisplayContext` to filter by a suite/test name. Adding a file path alone does not replace the configured test globs.
+- Use `bun run docs:sync` to regenerate docs sections deliberately. `bun run docs:build` checks those sections and builds the site without rewriting source files. Its link check covers internal anchors and pages, not runnable examples or external destinations.
 - Week/day layout logic has dedicated tests in `test/unit/lib/allDayLayout.test.ts`, `test/unit/lib/ViewStateController.test.ts`, `test/unit/LayoutCalculator.test.ts`, and `test/unit/week-row-allocation.test.ts`.
 - When modifying CSS token behavior or condensed-week logic, extend `test/unit/lib/weekDisplayContext.test.ts` and the browser viewport tests. Pure layout math does not capture real scrollbars, text metrics, or clipping.
 
 ### Review calendar layouts
 
 In Storybook, open **Visual review → Viewport matrix** to compare Day, Week,
-Month, Agenda, and Year with the same date and event fixture. The matrix covers
-starting states; **Library scenarios** shows longer journeys and embed layouts.
+Month, Agenda, and Year. Controls are available in each linked live story, not
+on the matrix itself. Presets describe the iframe in CSS pixels; the calendar
+reserves space for surrounding padding and does not emulate real device input.
+**Library scenarios** contains longer journeys and embed layouts.
 
 ```bash
 bun run test:e2e -- test/e2e/calendar-review.spec.ts
 REVIEW_CAPTURE=1 bun run test:e2e -- --browser=webkit test/e2e/calendar-review.spec.ts
 ```
 
-These tests use a production Storybook build and check the Month → Agenda →
-Week journey and a dense all-day drill-down in shallow Week. Set
-`REVIEW_CAPTURE=1` to save screenshots alongside the ignored Playwright results.
-Use `--output` with a new directory under `screenshots/` to retain a run.
-Screenshots are for review, not pixel baselines or device certification.
+These tests build production Storybook and check, among other paths, Docs and
+matrix links, the Month → Agenda → Week journey, and a dense all-day drill-down
+in shallow Week. Stop the development server first, or set `E2E_PORT` to a free
+port (the default is `6006`). Even a docs-only E2E run starts the production
+Storybook server; the docs tests serve a separate local Pages build.
+
+Set `REVIEW_CAPTURE=1` to save screenshots alongside the ignored Playwright
+results. Use `--output` with a new directory under `screenshots/` to retain a
+run. Screenshots are for review, not pixel baselines or device certification.
 
 ### Automated test matrix
 
-| Suite | Standalone default | `test:release` default | CI |
-| --- | --- | --- | --- |
-| `test:components` (Web Test Runner) | Chromium | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
-| `test:bridge` (external shell) and `test:bridge:inline` (inline IIFE shell) | Chromium | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
-| `bun run --cwd server test:browser` (real calendar adapter) | Chromium | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
-| `test:package` (packed calendar browser smoke) | Chromium | Chromium, Firefox, WebKit | Chromium |
-| `test-storybook` (Vitest browser project) | Chromium | Chromium | Chromium |
-| `test:e2e` (production Storybook via Playwright) | Chromium | Chromium | Chromium |
+| Suite                                                                       | Standalone default | `test:release` default    | CI                        |
+| --------------------------------------------------------------------------- | ------------------ | ------------------------- | ------------------------- |
+| `test:components` (Web Test Runner)                                         | Chromium           | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
+| `test:bridge` (external shell) and `test:bridge:inline` (inline IIFE shell) | Chromium           | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
+| `bun run --cwd server test:browser` (real calendar adapter)                 | Chromium           | Chromium, Firefox, WebKit | Chromium, Firefox, WebKit |
+| `test:package` (packed calendar browser smoke)                              | Chromium           | Chromium, Firefox, WebKit | Chromium                  |
+| `test-storybook` (Vitest browser project)                                   | Chromium           | Chromium                  | Chromium                  |
+| `test:e2e` (production Storybook via Playwright)                            | Chromium           | Chromium                  | Chromium                  |
 
 `TEST_BROWSERS=chromium,firefox,webkit` selects engines only for the first four rows. For E2E, use Playwright's `--browser` flag (for example, `bun run test:e2e -- --browser=webkit`). Storybook's Vitest project explicitly configures Chromium. The nonbrowser root Mocha suite runs on Node 22 and 24 in CI; the server unit and installed-package checks run on Node 24. Playwright WebKit is not shipping Safari.
 
-The packed calendar check validates Bundler and NodeNext declaration consumers with `skipLibCheck: false`, plus runtime behavior using the **locked** peers (Lit 3.3.2 and Luxon 3.7.2). It does not verify the declared minimum versions (Lit 3.0.0 and Luxon 3.4.4). Before claiming coverage at those floors, repeat the strict declaration and packed browser checks with both minimum peers in an isolated consumer.
+By default, the packed calendar check validates Bundler and NodeNext declaration consumers with `skipLibCheck: false`, plus runtime behavior using the **locked** peers (Lit 3.3.2 and Luxon 3.7.2). After `bun run build:all`, run `bun run test:package --minimum-peers` to install the tarball with the **declared minimum** peers (Lit 3.0.0 and Luxon 3.4.4) in a fresh consumer and repeat those checks. This tests the direct peer versions; their dependencies still resolve from their own ranges.
 
 The packed browser smoke asserts a fixed public `activeDate`, checks that mounting in English requests no locale chunks, then verifies the rendered Arabic catalog after switching. A separate run serves HTTP 503 for the built Arabic chunk and checks the error event, usable English fallback, and Arabic direction. It observes the result of a same-document retry without requiring recovery, then reloads and verifies HTTP 200 and Arabic rendering. The resolver unit test separately shows that the same resolver can recover if its loader rejects once and succeeds on the next call; it does not simulate the browser's module map.
 
@@ -131,13 +138,14 @@ The packed browser smoke asserts a fixed public `activeDate`, checks that mounti
     bun install --frozen-lockfile
     bunx playwright install chromium firefox webkit
     bun run test:release
+    bun run test:package --minimum-peers
     bun pm pack --dry-run
     ```
 
     On Linux, Playwright may need system browser dependencies; CI uses `--with-deps`. Use the suite-specific matrix above when reporting verification. A narrower `TEST_BROWSERS` run does not replace the full matrix for suites that honor it. Keep runner startup failures visible rather than marking that engine green.
 
 3. Review the production Storybook journeys and inspect the package contents. The release script builds ESM and IIFE, checks TypeScript and browser consumers of the packed ESM and installed server migrations, validates catalogs and built documentation links, runs the production dependency audit, and checks all three size budgets. The packed browser check matters: source-based component and Storybook tests do not exercise the minified npm entry point.
-4. On a real phone, select a Month date, read and export an Agenda event, then switch to Week to compare times. Check actual Safari and enlarged text/RTL, shallow Week, compact Year drill-down, and keyboard focus return. Keep screen-reader and Expo/Metro device verification separate from browser emulation.
+4. On a real phone, select a Month date, read and export an Agenda event, then switch to Week to compare times. Check shipping Safari and enlarged text/RTL, shallow Week, compact Year drill-down, and keyboard focus return. For the opt-in edit path, separately check desktop move/resize and cancellation in Safari and the app's keyboard/touch alternatives. An automated proposal or canceled download is not a verified persistence workflow or native download. Keep screen-reader and Expo/Metro device verification separate from browser emulation.
 
 Preparation does not publish the package or deploy the server or documentation.
 

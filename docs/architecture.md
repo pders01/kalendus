@@ -8,6 +8,8 @@ section: Internals
 
 # Architecture
 
+This describes the unreleased **0.12.0** source. For the published package, see the [v0.11.0 reference](https://github.com/pders01/kalendus/tree/v0.11.0).
+
 ## Component Structure
 
 ```
@@ -57,14 +59,13 @@ src/
 
 ## Design Patterns
 
-- **Per-instance state** via `ViewStateController` (Lit `ReactiveController`)
-- **Per-instance localization** via direct template hash lookups (bypasses `@lit/localize` singleton)
-- **Public committed state** through owner-controlled `activeDate` / `viewMode`, read-only half-open ISO `visibleRange`, and initial/changed `calendar-state-change` after rendering
-- **Cancelable requests** (`entry-activate`, `export-entry`) carrying canonical original records; `preventDefault()` replaces defaults. Legacy action notifications remain, but are not a fetch-range API
-- **CSS custom properties** for theming
-- **Slot-based composition** for entry placement in view grids
-- **Container queries** for responsive header layout
+- **Per-instance state:** `ViewStateController` (a Lit `ReactiveController`) holds each calendar's view mode and active date. The root owns its entry/layout caches, disclosure state, and requested locale and direction. Locale catalog loading and locale-keyed formatter caches are shared; they do not set a global active locale.
+- **Requested state vs. commit:** Owners set `activeDate` and `viewMode`. `visibleRange` reads the last root-committed half-open civil-date range; `calendar-state-change` reports the initial and changed snapshots after the root renders. This is not a descendant layout-ready signal: child updates and geometry observers can still settle afterward, and a Week width change can commit a new range.
+- **Cancelable requests:** `entry-activate` and `export-entry` carry canonical original records. Cancel synchronously to replace the built-in action. Legacy action notifications remain, but are not a fetch-range API. See [Events](./events.md).
+- **Composition and layout:** The root supplies data and slots entries into the view grids. CSS container queries drive header reflow; `ResizeObserver` drives geometry-dependent layout. [CSS custom properties](./css-tokens.md) are the supported theming surface, not a contract for child DOM or measured geometry.
 
-Entry normalization preserves stable caller IDs, explicit timed/all-day semantics and legacy promotion; expansion is clipped to the visible range and segment budget with diagnostics. Locale catalogs are generated from canonical JSON, never edited directly. The inspector is non-modal, using a top-layer popover with a portal/dialog fallback and no focus trap.
+On an `entries` change the root normalizes and sorts a separate array, retaining caller objects for canonical requests. Only per-day expansion is clipped to the visible range and segment budget. Locale catalogs are generated from canonical JSON, never edited directly. The inspector is non-modal, using a top-layer popover with a portal/dialog fallback and no focus trap.
+
+The source tree above describes implementation modules, not import paths. Use [Library Usage](./library-usage.md) for the public package root (`@jpahd/kalendus`), built-in theme exports, and the unreleased `@jpahd/kalendus/entry-interactions` subpath. Helpers such as `LayoutCalculator`, `SlotManager`, and `calendarModel` are internal.
 
 For deeper internals, see the [Developer Guide](developer-guide.md), [Rendering Pipeline](rendering-pipeline.md), and [canonical locale workflow](https://github.com/pders01/kalendus/blob/main/src/locales/README.md). The [Rendering Calculations](rendering-calculations.md) page is historical.

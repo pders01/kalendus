@@ -18,27 +18,17 @@ Common issues and solutions when using `<lms-calendar>`.
 
 **Causes & fixes:**
 
-1. **Missing peer dependencies** — `lit` and `luxon` must be installed alongside `@jpahd/kalendus`. Duplicate copies can break `instanceof` checks.
+1. **Missing or incompatible peers** — Bundled applications install `lit` and `luxon` alongside the ESM package. See the [versioned install instructions](./library-usage.md#using-kalendus-as-a-library), check module resolution errors in the console, and inspect your dependency tree with `bun pm ls --all`. The self-contained IIFE already bundles the peers.
 
-    ```bash
-    bun add @jpahd/kalendus lit luxon
-    ```
+2. **Module not imported** — Import `@jpahd/kalendus` in the browser entry point and check `customElements.get('lms-calendar')` after it runs. If the element is still undefined, check that the import wasn't removed or blocked before changing calendar data.
 
-    Inspect installed versions with `bun pm ls --all`; avoid duplicate Lit/Luxon copies.
-
-2. **Module not imported** — The component must be imported once for its custom element to register.
-
-    ```js
-    import '@jpahd/kalendus';
-    ```
-
-3. **Constrained container height** — Check for a zero-sized or clipping flex/grid wrapper. Day and Week have a bounded fallback in auto-height embeds. See [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling).
+3. **Constrained container height** — Check for a zero-sized or clipping flex/grid wrapper. Day, Week, and Year have bounded fallbacks in auto-height embeds. See [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling).
 
 ---
 
 ## Calendar Has Zero Height
 
-The component defaults to `--height: 100%` and `--width: 100%`. Month is content-sized; Day and Week use a bounded fallback if there is no height to fill. If the calendar is clipped or needs to fit a specific region, check the wrapper's size and overflow.
+On the unreleased 0.12.0 candidate, a definite height bounds all four views and includes the toolbar. Without a resolved height, Month grows with its content and the other views use bounded fallbacks. If the calendar is clipped, check the actual wrapper's size, min-size and overflow rather than the page's viewport.
 
 **Fix:** Give that region and the calendar a definite height:
 
@@ -96,6 +86,8 @@ lms-calendar {
 5. **Expansion budget exceeded** — `entries-error` with `code: 'segment-budget'` clears derived entries and shows an alert instead of truncating them. Supply fewer records or choose a smaller view/range. Expansion is already clipped to the visible range.
 
 6. **Unexpected all-day promotion** — Prefer explicit `kind: 'timed'` for continuous timed spans (requires `time`) or `kind: 'all-day'` for inclusive civil dates. Omitting `kind` preserves legacy multi-day/full-day/continuation promotion. See [data contracts](./library-usage.md#data-contracts).
+
+7. **Unexpected response shape** — Check the response status and ensure you pass an array of calendar entries, not an error body or an object envelope. Non-array input is treated as empty, not as a set of invalid records. Render fetch failures separately from a successful empty result.
 
 ---
 
@@ -176,19 +168,11 @@ See [Week View Condensed Mode](./layout-and-positioning.md#week-view-condensed-m
 
 **Causes & fixes:**
 
-1. **Listening on wrong element** — All events bubble and are composed, so listen on the `<lms-calendar>` host:
+1. **Wrong event for the action** — Listen on `<lms-calendar>`. Use `calendar-state-change` for committed navigation, including property assignments. Legacy `switchview` describes a header action, not every change in view.
 
-    ```js
-    // ✅ Correct
-    document.querySelector('lms-calendar').addEventListener('switchview', handler);
+2. **Listener installed after the initial event** — Attach before connecting the element to receive the first snapshot. If it is already mounted, initialize from the public getters after `updateComplete`. See [Events Reference](./events.md#calendar-state-change).
 
-    // Also works through bubbling/composition, but observes every calendar:
-    document.addEventListener('switchview', handler);
-    ```
-
-2. **Framework event binding syntax** — Native listeners through a ref work across framework versions; remove them on teardown. Vue 3 can bind custom events directly (for example `@calendar-state-change`); no `.native` modifier is needed.
-
-3. **Calling `stopPropagation` elsewhere** — Another listener earlier in the chain may be stopping propagation.
+3. **Framework event binding syntax or interrupted bubbling** — Native listeners through a ref work across framework versions; remove them on teardown. Vue 3 can bind `@calendar-state-change` directly. The documented public events cross shadow boundaries, but an earlier listener can stop propagation.
 
 ---
 
@@ -200,8 +184,8 @@ See [Week View Condensed Mode](./layout-and-positioning.md#week-view-condensed-m
 
 **Fixes:**
 
-- Select a date to browse its events. The default behavior leaves compact selection in Month; `month-day-behavior="day"` opens Day instead.
-- Widen the embed, or set `month-presentation="previews"` to opt into previews. Only rows that fit are mounted; **+N** counts the hidden events and opens the full date list.
+- With the default presentation, selecting a compact date stays in Month; `month-day-behavior="day"` drills into Day. Explicit `presence` or `previews` keeps selection in Month (or in Agenda if enabled).
+- Widen the embed, or set `month-presentation="previews"` to opt into previews. Only rows that fit are mounted. In default wide Month, **+N** drills into Day; with explicit `previews`, it opens the selected-date list (or Agenda).
 
 See [Month Recognition and Selection](./layout-and-positioning.md#month-recognition-and-selection).
 
@@ -211,21 +195,15 @@ See [Month Recognition and Selection](./layout-and-positioning.md#month-recognit
 
 **Symptoms:** `bun install` fails with `fatal error: 'climits' file not found` when building `better-sqlite3` or other native addons.
 
-**Cause:** Node 25.x's node-gyp does not pass the correct macOS SDK include path to the compiler.
+This workaround applies when the native build log indicates missing SDK headers. `better-sqlite3` is an optional **server workspace** dependency, not a dependency of the published calendar package. Server CI uses Node 24; first try the project's tested Node version and verify the Xcode Command Line Tools are installed.
 
-**Fix:** Set `CXXFLAGS` before installing:
+If the compiler still cannot find SDK headers, set the SDK for that installation:
 
 ```bash
 CXXFLAGS="-isysroot $(xcrun --show-sdk-path)" bun install
 ```
 
-Or add it to your shell profile (`~/.zshrc`):
-
-```bash
-export CXXFLAGS="-isysroot $(xcrun --show-sdk-path)"
-```
-
-If Xcode Command Line Tools are not installed:
+If the Xcode Command Line Tools are not installed:
 
 ```bash
 xcode-select --install
@@ -237,10 +215,6 @@ xcode-select --install
 
 **Symptoms:** After toggling visibility, the calendar renders at wrong dimensions.
 
-**Cause:** `ResizeObserver` cannot measure an element with `display: none`. When you show the element again, stale dimensions are used.
+A `display: none` embed cannot be measured while hidden. The calendar observes its size again when the embed is visible. Let layout and observation settle before reading the date window, and use `calendar-state-change` to observe any correction in Week's visible range.
 
-**Fixes:**
-
-- Use `visibility: hidden; height: 0; overflow: hidden;` instead of `display: none`
-- Reassign `calendar.entries = [...calendar.entries]` after making it visible to force re-render
-- Alternatively, destroy and recreate the element
+If the layout is still wrong after reveal, inspect the visible wrapper's width, definite height and overflow. Don't replace `entries` or remount just to request a measurement. See [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling).

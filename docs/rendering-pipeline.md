@@ -8,7 +8,7 @@ section: Internals
 
 # Rendering Pipeline
 
-Overview of how calendar entries move from raw data to positioned DOM elements. The source modules are authoritative for current formulas and constants; public ingestion/state contracts are documented in [Library Usage](./library-usage.md).
+How calendar entries move from raw data to positioned DOM elements in the unreleased **0.12.0** source. The source modules are authoritative for formulas and constants; the helpers below are not package exports. See [Library Usage](./library-usage.md) for public contracts or the [v0.11.0 reference](https://github.com/pders01/kalendus/tree/v0.11.0) for the published release.
 
 ## Overview
 
@@ -20,7 +20,7 @@ The rendering pipeline has five stages:
 4. **Position CSS Generation** — `SlotManager` converts layout data into absolute-positioning styles.
 5. **DOM Rendering** — Day/Week components mount entries into named slots inside `position: relative` containers.
 
-The root normalizes when `entries` changes and computes range-dependent caches in `willUpdate()`. Layout results are cached and consumed by render helpers; the Lit component tree mounts the results. Public committed state is emitted after the root render, including the initial snapshot.
+When `entries` changes, the root normalizes and sorts a separate array in `willUpdate()`. The same update prepares range-dependent caches; render helpers consume them and mount the component tree. `calendar-state-change` reports the initial and changed snapshots after the root render. It does not wait for descendants or geometry observers to finish.
 
 ---
 
@@ -28,20 +28,20 @@ The root normalizes when `entries` changes and computes range-dependent caches i
 
 ### `_computeEntryCaches()`
 
-Called in `willUpdate()` when entries or the committed visible range/view/week-start key changes. It:
+Called in `willUpdate()` when entries or the derived range key changes. The key includes range, view, week start, and Month presentation. The method:
 
-- Expands normalized entries via `expandEntries()` in `src/lib/calendarModel.ts`, clipped to `visibleRange`. Invalid records report `entries-invalid`; a visible segment-budget failure clears caches and reports `entries-error` rather than truncating.
-- Groups results into `_expandedByISODate`, keyed by sortable `YYYY-MM-DD` for direct per-day lookups. Month and Year derive their full event counts from these same buckets.
-- Calls `buildMonthPreviews()` in `src/lib/monthPreviews.ts` to prepare rows by date, preserving gaps in multi-day span lanes. Month measures cell capacity before the owner creates preview elements. Positioning and rendering share the unpadded date and slot names in `src/lib/entrySlots.ts`; those names are not sortable ISO dates.
+- Expands normalized entries via `expandEntries()` in `src/lib/calendarModel.ts`, clipped to the range being rendered. A visible segment-budget failure clears caches and reports `entries-error` rather than truncating. Invalid-record diagnostics (`entries-invalid`) come from normalization, not expansion.
+- Groups results into `_expandedByISODate`, keyed by each supported date's `YYYY-MM-DD` for direct per-day lookups. Month and Year derive counts from these buckets. An exclusive range end can be `10000-01-01`; a simple string comparison across that boundary does not order the dates.
+- Calls `buildMonthPreviews()` in `src/lib/monthPreviews.ts` for Month when previews are applicable, preserving gaps in multi-day span lanes. Month measures cell capacity and reports it to the root, which uses the measured capacity when rendering previews. Positioning and rendering share unpadded date and slot names in `src/lib/entrySlots.ts`; those names are not sortable ISO dates.
 - Clears `_layoutCache` and `_allDayLayoutCache` so stale layouts are recomputed.
 
 `prepareAgendaEntries()` in `src/lib/agendaEntries.ts` selects the page for a date or density disclosure. The helper retains the original segments, orders all-day before timed, and applies the appropriate shared or per-section limit. The root still owns the selected date, disclosure state, focus, and public events.
 
 ### `normalizeEntries()` / `expandEntries()`
 
-The model validates civil dates, time endpoints, explicit kind and IANA zone, rejecting DST gaps/ambiguous endpoints. Stable caller IDs are authoritative; duplicate IDs/source objects use the first valid record. Caller objects are retained as canonical records, not mutated.
+The model visits the entire assigned array, validating civil dates, kind, ID, zone, and any applicable time endpoints (including zoned DST gaps and ambiguities). Duplicate caller IDs or source objects use the first valid record. A nonarray is treated as empty without per-entry diagnostics. Caller objects are retained as canonical records, not mutated; the runtime tolerates a missing `heading` by rendering an empty string, but typed callers should still supply `CalendarEntry.heading`.
 
-For an entry spanning N days, expansion creates only segments intersecting the half-open visible range, with segment `date.start/end` adjusted to the displayed day. Explicit timed entries represent one continuous interval; interior segments use midnight boundaries, and an exclusive midnight end does not create another day. Canonical original endpoints remain available for activation/ICS export.
+For an entry spanning N days, expansion creates only segments intersecting the half-open visible range, with segment `date.start/end` adjusted to the displayed day. All-day inputs have inclusive date ends. Explicit timed entries represent one continuous interval with an exclusive end; interior segments use midnight boundaries, and an exclusive midnight end does not create another day. Canonical original endpoints remain available for activation/ICS export.
 
 Each expanded entry carries a `continuation` object:
 
@@ -62,9 +62,7 @@ The map key for each expanded entry is the ISO date of its start day (`YYYY-MM-D
 
 ### `_isEffectivelyAllDay()`
 
-Uses the normalized all-day decision. Explicit `kind: 'all-day'` wins; explicit `kind: 'timed'` never becomes all-day merely because it crosses dates. Without `kind`, missing time, multi-day dates, an end-hour minus start-hour of at least 23, or `isContinuation: true` preserves legacy promotion.
-
-All-day date ends remain inclusive; explicit timed endpoints have an exclusive end. See [data contracts](./library-usage.md#data-contracts) rather than relying on sentinel time windows.
+The root now consumes `isAllDay` from the normalized model rather than recomputing it with a view helper. Explicit `kind: 'all-day'` ignores `time`. Explicit `kind: 'timed'` requires time endpoints and is never promoted, even across dates. A kind-less daily time window must pass validation before legacy promotion: reversed clock times can be rejected even across dates. Valid kind-less records are promoted for missing time, multi-day dates, an end-hour minus start-hour of at least 23, or `isContinuation: true`. Use explicit kinds rather than sentinel time windows; see [data contracts](./library-usage.md#data-contracts).
 
 ---
 
@@ -74,9 +72,11 @@ All-day date ends remain inclusive; explicit timed endpoints have an exclusive e
 
 Entries are sorted deterministically by start, descending duration, identity and input index. A sweep groups connected overlap components; heaps reuse lanes as intervals end. Equal endpoints do not collide unless minimum display geometry extends them.
 
-`layoutTimedEntries()` prepares one day of segments for `layoutMode: 'columns'`. Equal reusable lanes expose `columnIndex` and the connected group's peak `columnCount`. In marker mode, the helper can move the label collision envelope earlier near midnight, leaving the segment times and canonical endpoints untouched. `getDenseTimedGroups()` selects connected groups with multiple lanes whose measured per-lane width is strictly below the readability threshold. For cards, automatic sizing compares the fitted and scrollable layouts at the same column width. If scrolling splits groups or makes more cards individually readable, it keeps the scrollable scale. The host opens remaining groups in a bounded contextual panel, with the timeline still mounted. Timed groups and Week all-day totals use one scoped list renderer without writing to the view-state controller. Those lists and the Month agenda share one event-row template. Plain rows invoke the inspector; accordion rows disclose details inline. Metadata stays next to titles; start/end ranges make minimum-height short events distinguishable from long events.
+`layoutTimedEntries()` prepares one day of segments for `layoutMode: 'columns'`. Equal reusable lanes expose `columnIndex` and the connected group's peak `columnCount`. In marker mode, the helper can move the label collision envelope earlier near midnight without changing the segment times or canonical endpoints. `getDenseTimedGroups()` selects connected groups with multiple lanes whose measured per-lane width is strictly below the readability threshold.
 
-For compatibility, standalone `LayoutCalculator` still defaults to cascade. Only that mode uses these rules:
+A timed group opens a bounded panel for exactly those occurrences, leaving the timeline mounted. Dismissal returns focus to the count if still sufficiently visible, otherwise to the timeline. Week all-day totals instead replace the grid with the date's all-day list and restore the timed position when the grid returns. Neither action writes to the view-state controller. Those lists and the Month agenda share an event-row template; plain rows invoke the inspector, while accordion rows disclose details inline.
+
+For compatibility, the internal `LayoutCalculator` still defaults to cascade when called without a layout mode. Only that mode uses these rules:
 
 | Property  | Depth 0 (primary) | Depth > 0 (overlapping)                         |
 | --------- | ----------------- | ----------------------------------------------- |
@@ -160,7 +160,7 @@ All-day bars use a grid lane in their first visible date's slot. Their inline si
 
 ## 6. Time Grid Sizing
 
-Day.ts and Week.ts use `TimeGridSizingController` to observe the timed scroller, coalesce frame writes, reconnect observation and cancel queued work on disconnect. The calendar supplies a bounded fallback viewport when no embed height resolves. The 24-hour content cannot feed back into that viewport's size.
+`Day.ts` and `Week.ts` use `TimeGridSizingController` to observe the timed scroller, coalesce frame writes, reconnect observation, and cancel queued work on disconnect. In the unreleased 0.12.0, a definite embed height bounds all four views; without one, Month grows in page flow and Day, Week, and Year get bounded fallbacks. Published 0.11.0 used the scrollable detail scale for Day/Week and left Month unsized; see [Height and Scrolling](./layout-and-positioning.md#height-and-scrolling). The 24-hour content cannot feed back into the timed viewport's size.
 
 ### The `--minute-height` calculation
 
@@ -168,16 +168,19 @@ On connection and observed resize:
 
 ```
 viewportHeight = timedScroller.clientHeight
-available = viewportHeight - axisInsets - latePreviewTail
-fits = !scrollTimeGrid && available >= 24 * max(fontSize, 1.25 * leadingAxisInset)
-minuteHeight = fits ? available / 1440 : max(viewportHeight / 720, fontSize * 2.75 / 60)
+available = viewportHeight - usedPaddingTop - usedPaddingBottom
+fit = available >= 24 * max(fontSize, 1.25 * leadingAxisInset) ? available / 1440 : 0
+detail = max(viewportHeight / 720, fontSize * 2.75 / 60)
+minuteHeight = (scrollTimeGrid || preferDetail || !fit) ? detail : fit
 ```
 
-Space is measured after the toolbar, date headers and all-day band. A fitted grid labels alternate hours if an hour is shorter than 1.5 axis label line boxes. It still draws all hour lines. The scrollable layout aims for a 12-hour window and uses a font-relative floor. Both layouts measure timed entry text and spacing to reserve a readable minimum card size without changing canonical endpoints.
+The scroller measures the space below the toolbar, date headers, and all-day band. Padding includes the axis insets and any late-preview tail. A fitted grid labels alternate hours if an hour is shorter than 1.5 axis label line boxes, but still draws every hour line. The detail scale aims for a 12-hour window and has a font-relative floor; it does not guarantee exactly 12 visible hours.
+
+The root can veto fitting even when the child measures enough height. For automatic timed **cards**, `_prefersDetail()` compares grouping at the fitted and detail scales for the visible dates, with the same column width and measured minimum card geometry. If the larger scale would split groups or keep more cards readable, the root passes the scrollable-detail preference to the child. The public `scrollTimeGrid` option (default `false`) also forces that scale.
 
 ### Derived tokens
 
-All four tokens are set explicitly on the host element:
+The sizing controller writes these inline on the Day or Week **child host**, not the public `<lms-calendar>` element:
 
 | Token                | Value           | Purpose                                          |
 | -------------------- | --------------- | ------------------------------------------------ |
@@ -217,26 +220,14 @@ The Month grid and its compact contextual list stay in one flow. In a sized embe
     │   └─ .all-day
     │       └─ <slot name="all-day">
     └─ .container (flex: 1, overflow)
-        └─ .main (CSS grid: time-column + content, position: relative)
+        └─ .main.timeline (scrollable grid: time-column + content)
             ├─ .time-labels (grid-column: 1)
-            │   └─ .hour-label × 25 (absolute positioned)
+            │   └─ .hour-label × 25 (absolute; alternate labels can be hidden)
             └─ .timed-content (grid-column: 2, position: relative)
                 └─ <slot name="timed">
 ```
 
-`.timed-content` is the positioning context for absolute-positioned entries. Its height is `var(--day-total-height)` (1440 minutes worth). Hourly gridlines are drawn with a `repeating-linear-gradient`:
-
-```css
-background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(var(--hour-height) - 1px),
-    var(--separator-light) calc(var(--hour-height) - 1px),
-    var(--separator-light) var(--hour-height)
-);
-```
-
-Hour labels use absolute positioning: `top: calc(${hour} * var(--hour-height))`.
+In Day, `.container` holds the `.main.timeline` scroller, which is the grid shown above. Its `.timed-content` positions absolute entries and has a block size of `var(--day-total-height)` (1440 minutes). The shared grid styles tile a one-pixel `--separator-light` gradient at `background-size: 100% var(--hour-height)` in Day and Week. Hour labels use absolute offsets of the hour index times `--hour-height`.
 
 ### Week.ts
 
@@ -254,13 +245,13 @@ Hour labels use absolute positioning: `top: calc(${hour} * var(--hour-height))`.
     │       ├─ .all-day-time-header
     │       └─ .all-day-day-column × N
     │           └─ <slot name="all-day-YYYY-M-D">
-    └─ .week-scroll (grid, flex: 1, overflow-y: auto)
+    └─ .week-scroll.timeline (scrollable grid)
         ├─ .time-labels (grid-column: 1)
         └─ .day-column × N (grid-column: 2+, position: relative)
             └─ <slot name="timed-YYYY-M-D">
 ```
 
-Each `.day-column` is a `position: relative` container. Entries slotted into `timed-YYYY-M-D` are absolutely positioned within their column. The shared sizing controller computes the scale from wrapper/header geometry, while the root reads effective scale/minimum entry geometry to invalidate timed layout.
+Each `.day-column` is a `position: relative` container. Entries slotted into `timed-YYYY-M-D` are absolutely positioned within their column. The shared sizing controller measures the timeline scroller; the root reads effective scale and minimum entry geometry to invalidate timed layout.
 
 ---
 
@@ -270,20 +261,14 @@ Each `.day-column` is a `position: relative` container. Entries slotted into `ti
 
 ### CSS tokens
 
-| Token                      | Default | Purpose                            |
-| -------------------------- | ------- | ---------------------------------- |
-| `--week-day-count`         | `7`     | Columns at or above the breakpoint |
-| `--week-mobile-day-count`  | `3`     | Columns below the breakpoint       |
-| `--week-mobile-breakpoint` | `768px` | Width threshold for condensing     |
+See [Week View — Condensed Mode](./css-tokens.md#week-view--condensed-mode) for the four Week overrides, including `--week-min-day-width`. The helper also reads `--time-column-width`.
 
 ### Algorithm
 
-1. Read the three tokens from the host element (falling back to defaults).
-2. Determine effective column count: `effectiveCount = calendarWidth < breakpoint ? mobileCount : fullCount`.
-3. If `effectiveCount >= 7`, return the full week — no condensing needed.
-4. Find the active date's index in the full 7-day week.
-5. Center a sliding window: `idealStart = activeIndex - floor((effectiveCount - 1) / 2)`, clamped to `[0, 7 - effectiveCount]`.
-6. Slice `visibleDates` from the full week and build `gridColumns = "var(--time-column-width) repeat(${effectiveCount}, 1fr)"`.
+1. Request the mobile count below the measured breakpoint and the full count at or above it.
+2. Reserve the time gutter and one host-font-size of horizontal space. If the readable column floor is positive, divide the remaining width by that floor and round down, keeping at least one column. Cap the requested count by that capacity **on both sides of the breakpoint**. A zero floor skips the cap.
+3. Find the active date's index in the full seven-day week. Center the window at `activeIndex - floor((effectiveCount - 1) / 2)`, clamped to `[0, 7 - effectiveCount]`.
+4. Slice `visibleDates` and build `gridColumns = "var(--time-column-width) repeat(${effectiveCount}, 1fr)"`. Fewer than seven columns means the week is condensed, even above the breakpoint.
 
 ### Output
 
@@ -294,6 +279,7 @@ Each `.day-column` is a `position: relative` container. Entries slotted into `ti
     visibleStartIndex: number;       // Offset into weekDates
     visibleLength: number;           // Column count (1–7)
     isCondensed: boolean;            // true when < 7 columns
+    canShowAllDayTitles: boolean;    // At least 7 host font sizes per day
     gridColumns: string;             // CSS grid-template-columns
 }
 ```
@@ -309,23 +295,13 @@ seven-column Week navigation keeps the active weekday.
 
 ### `_determineDensity()`
 
-Returns one of three density levels based on the entry's effective duration:
-
-| Duration            | Density    | Effect                           |
-| ------------------- | ---------- | -------------------------------- |
-| No time / all-day   | `compact`  | Single-line, minimal padding     |
-| < 30 minutes        | `compact`  | Single-line, minimal padding     |
-| 30–120 minutes      | `standard` | Title + time side-by-side        |
-| > 120 min + content | `full`     | Multi-line: title, time, content |
+`_determineDensity()` is a fallback when the render path has not supplied a density: no time or under 30 minutes yields `compact`; over 120 minutes with content yields `full`; otherwise it yields `standard`. This does **not** describe the rendered timed-card policy. Day/Week timed entries explicitly pass `standard` rather than switching between density modes by duration. Month previews and all-day spans use their own display modes.
 
 ### `_getSmartLayout()`
 
-Determines flex direction for the entry interior:
+The root chooses the direction for each timed lane using its rendered width and height, not its overlap index. A lane is narrow when its measured width is below `12` host-font-size units or the whole column requires stacking to leave room for the title. A narrow lane gets `column` only when its box also clears the measured stacking minimum (at least `40px`); otherwise it gets `row`. The root writes the result per card as `--entry-layout`.
 
-- **`row`**: Non-overlapping entries (full width available) — title and time sit side-by-side.
-- **`column`**: Overlapping entries with sufficient height (≥ 40px) — title stacks above time.
-
-The result is applied via the `--entry-layout` CSS custom property.
+The card puts the title first and time metadata second in either direction. Row layout allows wrapping and reserves title space. The time range shares a one-line label: if the dash and end time cannot fit, they wrap together out of the visible line. The canonical interval and full accessible label do not change. Unreadable multi-lane groups use an explicit count instead of overlapping cards.
 
 ### Entry.ts color handle
 

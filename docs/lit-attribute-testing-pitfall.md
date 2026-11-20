@@ -1,12 +1,14 @@
 ---
 layout: base.njk
-title: 'Lit Attribute Testing Pitfall'
+title: 'Lit Attribute Testing Pitfall (Historical)'
 order: 15
 tags: docs
-section: Reference
+section: Archive
 ---
 
 # Lit Custom Attribute Names: A Testing Pitfall
+
+> **Archive — historical debugging note.** The snippets and attribute list record a past test failure, not the current component API. See [Library Usage](./library-usage.md) for supported inputs and the [Developer Guide](./developer-guide.md) for current test commands.
 
 ## The Bug
 
