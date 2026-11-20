@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 
 import { KalendusApiClient, KalendusHttpError } from './kalendus-api-client.js';
-import type { CalendarEntry, CalendarState, KalendusClientOptions } from './types.js';
+import type { CalendarEntry, CalendarState, KalendusClientOptions, StreamState } from './types.js';
 
 interface ReactiveControllerHost {
     addController(controller: ReactiveController): void;
@@ -77,11 +77,11 @@ export class KalendusLitAdapter implements ReactiveController {
     private _entries: CalendarEntry[] = [];
     private _loading = false;
     private _error: Error | null = null;
-    private _syncError: Error | null = null;
     private _target: CalendarTarget | null = null;
     private _connected = false;
     private _unsubInvalidate?: () => void;
     private _unsubReconcile?: () => void;
+    private _unsubStreamState?: () => void;
     private _controller?: AbortController;
     private _generation = 0;
     private _currentStart = '';
@@ -106,8 +106,12 @@ export class KalendusLitAdapter implements ReactiveController {
     get loading(): boolean {
         return this._loading;
     }
+    /** Error from the current REST range load, not the stream. */
     get error(): Error | null {
-        return this._error ?? this._syncError;
+        return this._error;
+    }
+    get streamState(): StreamState {
+        return this._client.streamState;
     }
     get client(): KalendusApiClient {
         return this._client;
@@ -127,21 +131,14 @@ export class KalendusLitAdapter implements ReactiveController {
         );
         this.hostUpdated();
         if (!this._target && this.options.initialState) this.setState(this.options.initialState);
+        this._unsubStreamState = this._client.onStreamStateChange(() => this._host.requestUpdate());
         if (this.options.enableSync) {
             this._unsubInvalidate = this._client.onInvalidate(this._queueSyncRefresh);
-            this._unsubReconcile = this._client.onReconcile(() => {
-                if (this._syncError) {
-                    this._syncError = null;
-                    this._host.requestUpdate();
-                }
-                this._queueSyncRefresh();
-            });
-            this._syncError = null;
+            this._unsubReconcile = this._client.onReconcile(this._queueSyncRefresh);
             try {
                 this._client.connect();
-            } catch (error) {
-                this._syncError = error instanceof Error ? error : new Error(String(error));
-                this._host.requestUpdate();
+            } catch {
+                /* Startup failure is already reflected in streamState; REST stays independent. */
             }
         }
     }
@@ -181,6 +178,7 @@ export class KalendusLitAdapter implements ReactiveController {
         this._target = null;
         this._unsubInvalidate?.();
         this._unsubReconcile?.();
+        this._unsubStreamState?.();
         this._client.disconnect();
         this._visibleKey = '';
         this._resetRange();

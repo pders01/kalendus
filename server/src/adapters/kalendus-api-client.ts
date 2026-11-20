@@ -7,6 +7,7 @@ import type {
     CreateEventPayload,
     EventSummary,
     KalendusClientOptions,
+    StreamState,
     StreamTransport,
     SyncMessage,
     UpdateEventPayload,
@@ -35,14 +36,25 @@ export function toCalendarEntry(api: ApiCalendarEntry): CalendarEntry {
 
 function notify<Args extends unknown[]>(
     callbacks: ReadonlySet<(...args: Args) => void>,
+    isCurrent: () => boolean,
     ...args: Args
 ) {
     for (const callback of [...callbacks]) {
+        if (!isCurrent()) return;
+        if (!callbacks.has(callback)) continue;
         try {
             callback(...args);
         } catch {
             /* isolate consumers */
         }
+    }
+}
+
+function closeStream(source?: StreamTransport): void {
+    try {
+        source?.close();
+    } catch {
+        /* The transport is already detached; do not forward arbitrary transport errors. */
     }
 }
 
@@ -60,7 +72,9 @@ export class KalendusHttpError extends Error {
 /** Authenticated fetch plus an injectable SSE transport; safe to import without a DOM. */
 export class KalendusApiClient {
     private readonly _baseUrl: string;
-    private _eventSource: StreamTransport | null = null;
+    private _connection?: { source?: StreamTransport };
+    private _streamState: StreamState = { status: 'disconnected' };
+    private _streamStateCallbacks = new Set<(state: StreamState) => void>();
     private _syncCallbacks = new Set<(msg: SyncMessage) => void>();
     private _invalidateCallbacks = new Set<() => void>();
     private _reconcileCallbacks = new Set<() => void>();
@@ -173,40 +187,87 @@ export class KalendusApiClient {
         }
     }
 
-    /** Open a reconnecting transport. For header auth, a custom streamFactory is mandatory. */
+    get streamState(): StreamState {
+        return this._streamState;
+    }
+
+    private setStreamState(state: StreamState): void {
+        if (state.status !== 'error' && this._streamState.status === state.status) return;
+        this._streamState = state;
+        notify(this._streamStateCallbacks, () => this._streamState === state, state);
+    }
+
+    private nativeStreamProblem(): string | undefined {
+        if (this.options.headers !== undefined)
+            return 'Header-auth SSE requires streamFactory; native EventSource cannot send headers';
+        if (this.options.credentials === 'omit')
+            return 'SSE credentials: omit requires streamFactory; native EventSource sends same-origin cookies';
+        if (
+            this.options.fetch !== undefined &&
+            this.options.allowNativeEventSourceWithCustomFetch !== true
+        )
+            return 'SSE with custom fetch requires streamFactory (or allowNativeEventSourceWithCustomFetch for native cookie auth)';
+        if (typeof EventSource === 'undefined') return 'SSE requires EventSource or streamFactory';
+        return undefined;
+    }
+
+    /** Open a reconnecting transport. Synchronous startup failure also sets streamState. */
     connect(): void {
-        if (this._eventSource) return;
-        const factory =
-            this.options.streamFactory ??
-            ((url, init) => {
-                if (typeof EventSource === 'undefined')
-                    throw new Error('SSE requires EventSource or streamFactory');
-                if (this.options.headers)
-                    throw new Error(
-                        'Header-auth SSE requires streamFactory; native EventSource cannot send headers',
-                    );
-                if (this.options.credentials === 'omit')
-                    throw new Error(
-                        'SSE credentials: omit requires streamFactory; native EventSource sends same-origin cookies',
-                    );
-                return new EventSource(url, { withCredentials: init.withCredentials });
-            });
-        const source = factory(this.url('/stream'), {
-            withCredentials: this.options.credentials === 'include',
-            credentials: this.options.credentials ?? 'same-origin',
-        });
-        this._eventSource = source;
-        const invalidate = () => {
-            if (this._eventSource === source) notify(this._invalidateCallbacks);
-        };
+        if (this._connection) return;
+        const connection: { source?: StreamTransport } = (this._connection = {});
+        const isCurrent = () => this._connection === connection;
+        this.setStreamState({ status: 'connecting' });
+        if (!isCurrent()) return;
+
+        let problem: string | undefined;
+        try {
+            const { streamFactory } = this.options;
+            problem = streamFactory ? undefined : this.nativeStreamProblem();
+            if (!problem) {
+                const url = this.url('/stream');
+                const credentials = this.options.credentials ?? 'same-origin';
+                const withCredentials = credentials === 'include';
+                const source = streamFactory
+                    ? streamFactory(url, { withCredentials, credentials })
+                    : new EventSource(url, { withCredentials });
+                if (!isCurrent()) {
+                    closeStream(source);
+                    return;
+                }
+                connection.source = source;
+                let attached = false;
+                this.listenToStream(source, () => attached && isCurrent());
+                attached = true;
+                return;
+            }
+        } catch {
+            /* Constructor/factory/listener errors may contain credentials or URLs. */
+        }
+        const error = new Error(problem ?? 'Could not start the SSE transport');
+        if (isCurrent()) this.stopStream({ status: 'error', phase: 'startup', error });
+        throw error;
+    }
+
+    private listenToStream(source: StreamTransport, isCurrent: () => boolean): void {
+        const invalidate = () => notify(this._invalidateCallbacks, isCurrent);
         source.addEventListener('invalidated', invalidate);
+        source.addEventListener('error', () => {
+            if (!isCurrent() || this._streamState.status === 'error') return;
+            this.setStreamState({
+                status: 'error',
+                phase: 'transport',
+                error: new Error('SSE transport is unavailable'),
+            });
+        });
         source.addEventListener('connected', () => {
+            if (!isCurrent()) return;
+            this.setStreamState({ status: 'connected' });
             // Includes initial connect and every reconnect: missed messages have no replay log.
-            if (this._eventSource === source) notify(this._reconcileCallbacks);
+            notify(this._reconcileCallbacks, isCurrent);
         });
         for (const type of ['created', 'updated', 'deleted'] as const) {
             source.addEventListener(type, (event) => {
-                if (this._eventSource !== source) return;
+                if (!isCurrent()) return;
                 let data: SyncMessage['data'];
                 try {
                     data = JSON.parse((event as MessageEvent).data) as SyncMessage['data'];
@@ -214,17 +275,31 @@ export class KalendusApiClient {
                     return;
                 }
                 if (!data || typeof data.id !== 'string') return;
-                notify(this._syncCallbacks, { type, data });
+                notify(this._syncCallbacks, isCurrent, { type, data });
                 // Current clients can refresh against both old and new servers.
                 invalidate();
             });
         }
     }
 
+    private stopStream(state: StreamState): void {
+        const connection = this._connection;
+        const previous = this._streamState;
+        this._connection = undefined;
+        closeStream(connection?.source);
+        if (!this._connection && this._streamState === previous) this.setStreamState(state);
+    }
+
     disconnect(): void {
-        const source = this._eventSource;
-        this._eventSource = null;
-        source?.close();
+        this.stopStream({ status: 'disconnected' });
+    }
+
+    /** Subscribe to transitions; read streamState for the current snapshot. */
+    onStreamStateChange(callback: (state: StreamState) => void): () => void {
+        this._streamStateCallbacks.add(callback);
+        return () => {
+            this._streamStateCallbacks.delete(callback);
+        };
     }
 
     /** Compatibility: only record-bearing mutation events, never default invalidations. */

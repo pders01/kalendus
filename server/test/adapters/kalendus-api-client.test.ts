@@ -1,11 +1,199 @@
 import { expect } from 'chai';
 
+import type {
+    ApiCalendarEntry,
+    KalendusClientOptions,
+    StreamFactory,
+    StreamState,
+} from '../../src/adapters/index.js';
 import { KalendusApiClient, toCalendarEntry } from '../../src/adapters/kalendus-api-client.js';
-import type { ApiCalendarEntry } from '../../src/adapters/types.js';
+
+const withEventSource = async (value: unknown, check: () => void | Promise<void>) => {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, 'EventSource');
+    Object.defineProperty(globalThis, 'EventSource', { configurable: true, value });
+    try {
+        await check();
+    } finally {
+        if (previous) Object.defineProperty(globalThis, 'EventSource', previous);
+        else Reflect.deleteProperty(globalThis, 'EventSource');
+    }
+};
+
+class FixtureStream extends EventTarget {
+    closed = false;
+    close() {
+        this.closed = true;
+    }
+}
+
+type NativeOpen = FixtureStream & { url: string; init: EventSourceInit };
+
+const withNativeFixture = async (check: (opens: NativeOpen[]) => void | Promise<void>) => {
+    const opens: NativeOpen[] = [];
+    class NativeStream extends FixtureStream {
+        constructor(
+            readonly url: string,
+            readonly init: EventSourceInit,
+        ) {
+            super();
+            opens.push(this);
+        }
+    }
+    await withEventSource(NativeStream, () => check(opens));
+};
 
 describe('KalendusApiClient', () => {
+    it('does not open native SSE when only custom fetch supplies bearer auth', async () => {
+        await withNativeFixture(async (opens) => {
+            let restReads = 0;
+            const backend: typeof fetch = async (_url, init) => {
+                if (new Headers(init?.headers).get('Authorization') !== 'Bearer fixture-token')
+                    return new Response(null, { status: 401 });
+                restReads++;
+                return Response.json([]);
+            };
+            const client = new KalendusApiClient({
+                baseUrl: 'https://api.example',
+                calendarId: 'cal1',
+                fetch: (url, init) => {
+                    const headers = new Headers(init?.headers);
+                    headers.set('Authorization', 'Bearer fixture-token');
+                    return backend(url, { ...init, headers });
+                },
+            });
+            const range = ['2026-03-15', '2026-03-17'] as const;
+            expect(await client.fetchEvents(...range)).to.deep.equal([]);
+            expect(restReads).to.equal(1);
+            expect(() => client.connect()).to.throw('streamFactory');
+            expect(opens).to.have.length(0);
+            expect(client.streamState).to.include({ status: 'error', phase: 'startup' });
+            expect(await client.fetchEvents(...range)).to.deep.equal([]);
+            expect(restReads).to.equal(2);
+        });
+    });
+
+    it('preserves native cookies by default or with explicit opt-in for a REST fetch fixture', async () => {
+        await withNativeFixture((opens) => {
+            const options = { baseUrl: '/calendar-api', calendarId: 'cal1' };
+            const defaultClient = new KalendusApiClient(options);
+            defaultClient.connect();
+            defaultClient.connect();
+            expect(opens).to.have.length(1);
+            expect(opens[0].url).to.equal('/calendar-api/api/calendars/cal1/stream');
+            expect(opens[0].init).to.deep.equal({ withCredentials: false });
+            expect(defaultClient.streamState.status).to.equal('connecting');
+            opens[0].dispatchEvent(new Event('connected'));
+            expect(defaultClient.streamState.status).to.equal('connected');
+            defaultClient.disconnect();
+            expect(opens[0].closed).to.equal(true);
+
+            const optIn = {
+                ...options,
+                fetch: async () => Response.json([]),
+                allowNativeEventSourceWithCustomFetch: true,
+                credentials: 'include',
+            } satisfies KalendusClientOptions;
+            const cookieClient = new KalendusApiClient(optIn);
+            cookieClient.connect();
+            expect(opens).to.have.length(2);
+            expect(opens[1].init).to.deep.equal({ withCredentials: true });
+            cookieClient.disconnect();
+
+            for (const incompatible of [
+                { headers: () => ({ Authorization: 'Bearer fixture-token' }) },
+                { credentials: 'omit' as const },
+            ]) {
+                const client = new KalendusApiClient({ ...optIn, ...incompatible });
+                expect(() => client.connect()).to.throw('streamFactory');
+            }
+            expect(opens).to.have.length(2);
+        });
+    });
+
+    it('imports the adapter barrel and constructs clients without EventSource', async () => {
+        await withEventSource(undefined, async () => {
+            const { KalendusApiClient, KalendusLitAdapter } =
+                await import('../../src/adapters/index.js');
+            const options = { baseUrl: '', calendarId: 'cal1' };
+            const adapter = new KalendusLitAdapter(
+                { addController() {}, requestUpdate() {} },
+                {
+                    ...options,
+                    enableSync: true,
+                },
+            );
+            expect(adapter.streamState.status).to.equal('disconnected');
+            const client = new KalendusApiClient(options);
+            expect(() => client.connect()).to.throw('SSE requires EventSource or streamFactory');
+            expect(client.streamState).to.include({ status: 'error', phase: 'startup' });
+            client.disconnect();
+            expect(client.streamState.status).to.equal('disconnected');
+        });
+    });
+
+    it('cleans up partial startup without forwarding raw errors or events from a failed attachment', () => {
+        const stream = new FixtureStream();
+        let fail = true;
+        const badStream = {
+            addEventListener(type: string, listener: (event: Event) => void) {
+                stream.addEventListener(type, listener);
+                if (type === 'connected')
+                    throw new Error('https://api.example/?token=fixture-secret');
+            },
+            close: () => stream.close(),
+        };
+        const goodStream = new FixtureStream();
+        const streamFactory: StreamFactory = () => (fail ? badStream : goodStream);
+        const client = new KalendusApiClient({ baseUrl: '', calendarId: 'cal1', streamFactory });
+        const states: StreamState[] = [];
+        const off = client.onStreamStateChange((state) => states.push(state));
+        let reconciles = 0;
+        client.onReconcile(() => reconciles++);
+        expect(() => client.connect()).to.throw(/^Could not start the SSE transport$/);
+        expect(stream.closed).to.equal(true);
+        expect(states.map(({ status }) => status)).to.deep.equal(['connecting', 'error']);
+        expect(client.streamState).to.include({ status: 'error', phase: 'startup' });
+        if (client.streamState.status !== 'error') throw new Error('Expected startup failure');
+        expect(client.streamState.error.message).to.equal('Could not start the SSE transport');
+        stream.dispatchEvent(new Event('connected'));
+        expect(reconciles).to.equal(0);
+        expect(states).to.have.length(2);
+
+        off();
+        fail = false;
+        client.connect();
+        stream.dispatchEvent(new Event('connected'));
+        expect(reconciles).to.equal(0);
+        expect(client.streamState.status).to.equal('connecting');
+        goodStream.dispatchEvent(new Event('connected'));
+        expect(reconciles).to.equal(1);
+        expect(states).to.have.length(2);
+        client.disconnect();
+    });
+
+    it('stops a named event mid-notification when a subscriber disconnects', () => {
+        const stream = new FixtureStream();
+        const client = new KalendusApiClient({
+            baseUrl: '',
+            calendarId: 'cal1',
+            streamFactory: () => stream,
+        });
+        const states: string[] = [];
+        client.onStreamStateChange(({ status }) => {
+            if (status === 'connected') client.disconnect();
+        });
+        client.onStreamStateChange(({ status }) => states.push(status));
+        let reconciles = 0;
+        client.onReconcile(() => reconciles++);
+        client.connect();
+        stream.dispatchEvent(new Event('connected'));
+        expect(reconciles).to.equal(0);
+        expect(states).to.deep.equal(['connecting', 'disconnected']);
+        expect(stream.closed).to.equal(true);
+    });
+
     it('separates change notifications from record delivery and reconnect', () => {
-        const stream = Object.assign(new EventTarget(), { close() {} });
+        const stream = new FixtureStream();
         const client = new KalendusApiClient({
             baseUrl: '',
             calendarId: 'cal1',

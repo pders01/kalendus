@@ -14,6 +14,8 @@ export type { KalendusLitAdapterOptions, CalendarTarget } from './kalendus-lit-a
 // Shared adapter types
 export type {
     CalendarState,
+    StreamFactory,
+    StreamState,
     StreamTransport,
     CalendarDate,
     CalendarTime,

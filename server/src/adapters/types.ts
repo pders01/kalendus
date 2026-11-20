@@ -60,6 +60,23 @@ export interface StreamTransport {
     close(): void;
 }
 
+/** A separately authenticated stream. Return a fresh transport; emit events after setup. */
+export type StreamFactory = (
+    url: string,
+    init: { withCredentials: boolean; credentials: RequestCredentials },
+) => StreamTransport;
+
+/** Transport health only. Connected means the server sent its named `connected` event. */
+export type StreamState =
+    | { readonly status: 'disconnected' }
+    | { readonly status: 'connecting' }
+    | { readonly status: 'connected' }
+    | {
+          readonly status: 'error';
+          readonly phase: 'startup' | 'transport';
+          readonly error: Error;
+      };
+
 /** Options for the API client. Native EventSource cannot attach arbitrary auth headers. */
 export interface KalendusClientOptions {
     baseUrl: string;
@@ -69,9 +86,13 @@ export interface KalendusClientOptions {
     headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
     /** Opt in per known legacy record; consulted only for exact 00:00–23:59 times. */
     isLegacyAllDay?: (entry: ApiCalendarEntry) => boolean;
-    /** Supply an authenticated/reconnecting transport for bearer-token SSE. */
-    streamFactory?: (
-        url: string,
-        init: { withCredentials: boolean; credentials: RequestCredentials },
-    ) => StreamTransport;
+    /** Required for SSE with header auth or `credentials: 'omit'`. Also required with a
+     * custom fetch unless the cookie-safe native opt-in below is set. REST alone needs no factory.
+     */
+    streamFactory?: StreamFactory;
+    /** Confirm that `/stream` can safely use native cookies and needs nothing the custom
+     * REST fetch adds or changes (e.g. auth, URL or cookie policy). Does not override the
+     * restrictions on `headers` or `credentials: 'omit'`. Never use for bearer-auth SSE.
+     */
+    allowNativeEventSourceWithCustomFetch?: true;
 }

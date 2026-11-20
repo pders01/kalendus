@@ -75,7 +75,7 @@ function clickHeader(host: AdapterHost, selector: string) {
 }
 
 describe('Real Lit calendar/adapter integration', () => {
-    it('does not silently use native EventSource for header auth or cookie-omitting credentials', () => {
+    it('does not fall back to native EventSource for header auth, custom fetch or omitted cookies', () => {
         expect(() =>
             new KalendusApiClient({
                 baseUrl: '',
@@ -88,6 +88,14 @@ describe('Real Lit calendar/adapter integration', () => {
                 baseUrl: '',
                 calendarId: 'private',
                 credentials: 'omit',
+            }).connect(),
+        ).to.throw('streamFactory');
+        expect(() =>
+            new KalendusApiClient({
+                baseUrl: '',
+                calendarId: 'private',
+                // A REST fixture is just as opaque as a wrapper that adds bearer auth.
+                fetch: async () => Response.json([]),
             }).connect(),
         ).to.throw('streamFactory');
     });

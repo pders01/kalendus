@@ -82,6 +82,9 @@ class Stream extends EventTarget implements StreamTransport {
     closed = false;
     close() {
         this.closed = true;
+        // Exercise transport callbacks already queued when the owner tears down.
+        this.dispatchEvent(new Event('error'));
+        this.connected();
     }
     connected() {
         this.dispatchEvent(new MessageEvent('connected', { data: '{}' }));
@@ -214,37 +217,49 @@ describe('Adapter public state contract (nonbrowser)', () => {
         adapter.hostDisconnected();
     });
 
-    it('does not hide a stream startup error after a late REST load', async () => {
+    it('keeps a sanitized stream startup error separate from REST and recovers on named connected', async () => {
         const host = new Host();
-        const startup = new Error('stream not available');
         const stream = new Stream();
         let unavailable = true;
+        let reads = 0;
         const adapter = new KalendusLitAdapter(host as never, {
             baseUrl: '',
             calendarId: 'calendar',
             enableSync: true,
             streamFactory: () => {
-                if (unavailable) throw startup;
+                if (unavailable) throw new Error('Bearer fixture-secret');
                 return stream;
             },
-            fetch: async () => response('available'),
+            fetch: async () => response(`revision-${++reads}`),
         });
         adapter.hostConnected();
-        expect(adapter.error).to.equal(startup);
+        const startup = adapter.streamState;
+        expect(startup).to.include({ status: 'error', phase: 'startup' });
+        if (startup.status !== 'error') throw new Error('Expected startup failure');
+        expect(startup.error.message).to.equal('Could not start the SSE transport');
+        expect(adapter.error).to.equal(null);
 
         const target = new Target(state('2024-03-10', '2024-03-11', 'day'));
         host.renderRoot.querySelector = () => target;
         adapter.hostUpdated();
         await flush();
-        expect(adapter.entries[0].id).to.equal('available');
-        expect(adapter.error).to.equal(startup);
+        expect(adapter.entries[0].id).to.equal('revision-1');
+        expect(adapter.error).to.equal(null);
+        expect(adapter.streamState).to.equal(startup);
+        expect(adapter.loading).to.equal(false);
 
         unavailable = false;
         adapter.client.connect();
+        stream.dispatchEvent(new Event('open'));
+        await flush();
+        expect(adapter.streamState.status).to.equal('connecting');
+        expect(reads).to.equal(1);
         stream.connected();
         await flush();
-        expect(adapter.error).to.equal(null);
+        expect(adapter.streamState.status).to.equal('connected');
+        expect(adapter.entries[0].id).to.equal('revision-2');
         adapter.hostDisconnected();
+        expect(adapter.streamState.status).to.equal('disconnected');
     });
 
     it('clips Month spillover to the wire domain without modifying the visible range', async () => {
@@ -404,22 +419,54 @@ describe('Adapter public state contract (nonbrowser)', () => {
         streams[0].connected();
         await flush();
         expect(requests).to.equal(2);
-        // No mutation messages arrived during outage; reconnect must still replace entries.
+        expect(adapter.streamState.status).to.equal('connected');
+
+        const beforeError = host.updates;
+        streams[0].dispatchEvent(new MessageEvent('error', { data: 'Bearer fixture-secret' }));
+        streams[0].dispatchEvent(new Event('open'));
+        streams[0].dispatchEvent(new Event('error')); // rejected retry, no server `connected`
+        await flush();
+        expect(host.updates).to.equal(beforeError + 1);
+        expect(requests).to.equal(2);
+        expect(adapter.entries[0].id).to.equal('revision-2');
+        expect(adapter.error).to.equal(null);
+        expect(adapter.loading).to.equal(false);
+        const outage = adapter.streamState;
+        expect(outage).to.include({ status: 'error', phase: 'transport' });
+        if (outage.status !== 'error') throw new Error('Expected transport failure');
+        expect(outage.error.message).to.equal('SSE transport is unavailable');
+
+        // No mutation messages arrived during outage; named success still replaces entries.
         streams[0].connected();
         await flush();
+        expect(adapter.streamState.status).to.equal('connected');
         expect(adapter.entries[0].id).to.equal('revision-3');
+
+        const beforeDetach = host.updates;
         adapter.hostDisconnected();
         expect(streams[0].closed).to.equal(true);
+        expect(adapter.streamState.status).to.equal('disconnected');
         target.navigate(state('2024-03-11', '2024-03-12', 'day'));
         await flush();
         expect(requests).to.equal(3);
+        expect(host.updates).to.equal(beforeDetach);
+
         adapter.hostConnected();
         await flush();
         expect(requests).to.equal(4);
+        const afterReattach = host.updates;
         streams[0].connected();
+        streams[0].dispatchEvent(new Event('error'));
+        streams[0].dispatchEvent(new MessageEvent('updated', { data: '{"id":"stale"}' }));
         streams[0].dispatchEvent(new MessageEvent('invalidated', { data: '{}' }));
         await flush();
         expect(requests).to.equal(4);
+        expect(host.updates).to.equal(afterReattach);
+        expect(adapter.streamState.status).to.equal('connecting');
+        streams[1].connected();
+        await flush();
+        expect(adapter.streamState.status).to.equal('connected');
+        expect(adapter.entries[0].id).to.equal('revision-5');
         adapter.hostDisconnected();
     });
 
@@ -749,9 +796,6 @@ describe('Adapter public state contract (nonbrowser)', () => {
         expect(streamInit).to.deep.equal({ withCredentials: true, credentials: 'include' });
         client.disconnect();
         expect(stream.closed).to.equal(true);
-        // Node has no EventSource; lack of a custom transport is reported, not a global import crash.
-        expect(() =>
-            new KalendusApiClient({ baseUrl: '', calendarId: 'calendar' }).connect(),
-        ).to.throw();
+        expect(client.streamState.status).to.equal('disconnected');
     });
 });
