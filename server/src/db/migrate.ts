@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
@@ -10,7 +10,21 @@ export function migrateDb(db: Db): void {
     migrate(db, { migrationsFolder: fileURLToPath(new URL('../migrations/', import.meta.url)) });
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+/** Fallback for Node versions before import.meta.main (22.18). */
+function isEntryScript(): boolean {
+    const entry = process.argv[1];
+    if (!entry) return false;
+    // In eval/print mode argv[1] is a user argument, not an entry script.
+    if (process.execArgv.some((arg) => /^(?:-[ep]|--eval|--print)(?:=|$)/.test(arg))) return false;
+    try {
+        return realpathSync(entry) === realpathSync(fileURLToPath(import.meta.url));
+    } catch {
+        // Hosts may supply an argv value that is not a file.
+        return false;
+    }
+}
+
+if (import.meta.main ?? isEntryScript()) {
     const db = createDb();
     try {
         migrateDb(db);

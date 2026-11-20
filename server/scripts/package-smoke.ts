@@ -10,7 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import ts from 'typescript';
 
@@ -193,7 +193,8 @@ try {
     run(['tar', '-xzf', tarball, '-C', unpacked]);
     const scope = join(fixture, 'node_modules', '@jpahd');
     mkdirSync(scope, { recursive: true });
-    symlinkSync(join(unpacked, 'package'), join(scope, 'kalendus-server'), 'dir');
+    const installed = join(scope, 'kalendus-server');
+    symlinkSync(join(unpacked, 'package'), installed, 'dir');
     const caller = join(fixture, 'unrelated-cwd');
     mkdirSync(caller);
     const database = join(fixture, 'custom', 'nested', 'calendar.db');
@@ -230,11 +231,52 @@ try {
     );
     run(['node', join(caller, 'verify-seed.mjs')], caller, { DATABASE_URL: database });
     if (!existsSync(database)) throw new Error('Custom DATABASE_URL was not created');
-    run(['node', join(unpacked, 'package', 'dist', 'db', 'migrate.js')], caller, {
-        DATABASE_URL: join(fixture, 'cli', 'custom.db'),
+    const migrationCli = join(installed, 'dist', 'db', 'migrate.js');
+    const importDirectory = join(fixture, 'import-only');
+    run(
+        [
+            'node',
+            '--input-type=module',
+            '--eval',
+            `await import('@jpahd/kalendus-server/migrate'); await import('@jpahd/kalendus-server');`,
+            // Even if argv[1] names the CLI, eval mode is not direct execution.
+            migrationCli,
+        ],
+        caller,
+        { DATABASE_URL: join(importDirectory, 'custom.db') },
+    );
+    if (existsSync(importDirectory))
+        throw new Error('Importing migrations touched the database path');
+
+    const cliDatabase = join(fixture, 'cli', 'custom#calendar.db');
+    const cliUrl = pathToFileURL(cliDatabase).href;
+    run(['node', migrationCli], caller, { DATABASE_URL: cliUrl });
+    if (!existsSync(cliDatabase))
+        throw new Error('Linked migration CLI did not create its database');
+    writeFileSync(
+        join(caller, 'verify-migration.mjs'),
+        `
+        import assert from 'node:assert/strict';
+        import { createDb, databasePath, calendars, events } from '@jpahd/kalendus-server';
+        const filename = process.argv[2];
+        const url = process.env.DATABASE_URL;
+        assert.equal(databasePath(filename), filename);
+        assert.equal(databasePath(url), filename);
+        assert.equal(databasePath(':memory:'), ':memory:');
+        for (const suffix of ['?mode=ro', '#fragment', '?', '#']) {
+            assert.throws(() => databasePath(url + suffix), /must not contain a query or fragment/);
+        }
+        const db = createDb();
+        try {
+            assert.deepEqual(db.select().from(calendars).all(), []);
+            assert.deepEqual(db.select().from(events).all(), []);
+            assert.ok(db.$client.prepare('SELECT 1 FROM __drizzle_migrations LIMIT 1').get());
+        } finally { db.$client.close(); }
+    `,
+    );
+    run(['node', join(caller, 'verify-migration.mjs'), cliDatabase], caller, {
+        DATABASE_URL: cliUrl,
     });
-    if (!existsSync(join(fixture, 'cli', 'custom.db')))
-        throw new Error('Packaged migration CLI ignored DATABASE_URL');
     const runtime = Bun.spawn(['node', join(unpacked, 'package', 'dist', 'index.js')], {
         cwd: caller,
         env: {
@@ -273,7 +315,7 @@ try {
         await reader.cancel();
     }
     console.log(
-        'PASS packed exports, migration SQL/journal assets, idempotent custom-path migration, seed, standalone CLI/runtime, CRUD, and closed default (unrelated cwd).',
+        'PASS packed exports, side-effect-free migration imports, linked CLI schema, idempotent custom-path migration, seed, runtime, CRUD, and closed default (unrelated cwd).',
     );
 } finally {
     rmSync(fixture, { recursive: true, force: true });
