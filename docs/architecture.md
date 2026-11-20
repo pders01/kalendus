@@ -35,7 +35,6 @@ src/
 │   ├── SlotManager.ts           # Slot naming & CSS position generation
 │   ├── allDayLayout.ts          # All-day event row allocation
 │   ├── weekStartHelper.ts       # Week start offset & locale mapping
-│   ├── DirectionalCalendarDateCalculator.ts
 │   ├── weekDisplayContext.ts    # Condensed week display logic
 │   ├── colorParser.ts           # Color parsing & contrast utils
 │   └── getColorTextWithContrast.ts

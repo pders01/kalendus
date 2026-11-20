@@ -80,11 +80,10 @@ describe('ViewStateController', () => {
     });
 
     describe('Month navigation', () => {
-        it('should navigate to next month', () => {
-            controller.setActiveDate({ day: 1, month: 3, year: 2024 });
+        it('navigates from the 31st to the first of the next month', () => {
+            controller.setActiveDate({ day: 31, month: 3, year: 2024 });
             controller.navigateNext();
-            expect(controller.activeDate.month).to.equal(4);
-            expect(controller.activeDate.year).to.equal(2024);
+            expect(controller.activeDate).to.deep.equal({ day: 1, month: 4, year: 2024 });
         });
 
         it('should wrap from December to January', () => {

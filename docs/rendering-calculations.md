@@ -305,21 +305,10 @@ function getDaysRange(dateInterval: CalendarDateInterval): [Date, Date, number] 
 
 ### Directional Date Navigation
 
-```typescript
-class DirectionalCalendarDateCalculator {
-    getDateByMonthInDirection(): CalendarDate {
-        // Navigate by months for month view
-    }
-
-    getDateByDayInDirection(): CalendarDate {
-        // Navigate by days for day view
-    }
-
-    getDateByWeekInDirection(): CalendarDate {
-        // Navigate by weeks for week view (7 days)
-    }
-}
-```
+The current `ViewStateController` handles navigation with civil-date arithmetic.
+Day and Week navigation step by one and seven days, respectively. Month
+navigation selects the first day of the destination month rather than clamping
+the original day (for example, January 31 advances to February 1).
 
 ## Condensed Week Rendering
 
@@ -460,7 +449,7 @@ To verify pixel-perfect alignment:
 - `src/components/Week.ts` - Week view implementation
 - `src/components/Month.ts` - Month view implementation
 - `src/lms-calendar.ts` - Main calendar and entry rendering
-- `src/lib/DirectionalCalendarDateCalculator.ts` - Date navigation
+- `src/lib/ViewStateController.ts` - View state and date navigation
 - `src/lib/LayoutCalculator.ts` - Overlap and positioning calculations
 - `src/lib/SlotManager.ts` - Slot assignment and CSS generation
 - `src/lib/allDayLayout.ts` - All-day event row allocation
