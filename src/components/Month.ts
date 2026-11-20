@@ -549,15 +549,14 @@ export default class Month extends LitElement {
     }
 
     override render(): TemplateResult<1> {
-        const dates = getMonthCalendarArray(
-            this._displayDate ?? this.activeDate,
-            this.firstDayOfWeek,
-        );
+        const displayed = this._displayDate ?? this.activeDate;
+        const dates = getMonthCalendarArray(displayed, this.firstDayOfWeek);
         const today = this._today.date;
         const current = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-        const focused = dateSlotKey(this._focusedDate ?? this.activeDate);
+        let focused = dateSlotKey(this._focusedDate ?? displayed);
+        // A changed week start can remove a focused spillover date.
+        if (!dates.some((date) => dateSlotKey(date) === focused)) focused = dateSlotKey(displayed);
         const selected = this.selectedDate ? dateSlotKey(this.selectedDate) : undefined;
-        const displayed = this._displayDate ?? this.activeDate;
         const tracedDates = new Set(this.trace.map((entry) => dateSlotKey(entry.date.start)));
         const format = getMessageFormatters(this.locale);
         const number = new Intl.NumberFormat(normalizeLocale(this.locale));
@@ -567,7 +566,7 @@ export default class Month extends LitElement {
         const countsOnly =
             this.compact && this.spans.some((week) => week.some((span) => span.row > 1));
         return html`${this.trace.length ? html`<span class="sr-only" id="traced-event">${this.trace[0].heading || getMessages(this.locale).noTitle}</span>` : nothing}
-        <div class="month-strip"><div class="row-metrics" aria-hidden="true"></div><div class="month" ?data-previews=${!!this.previewRows} data-span-presentation=${countsOnly ? 'counts' : 'individual'} role="grid" aria-label=${formatLocalizedDate(1, (this._displayDate ?? this.activeDate).month, (this._displayDate ?? this.activeDate).year, this.locale)}>
+        <div class="month-strip"><div class="row-metrics" aria-hidden="true"></div><div class="month" ?data-previews=${!!this.previewRows} data-span-presentation=${countsOnly ? 'counts' : 'individual'} role="grid" aria-label=${formatLocalizedDate(1, displayed.month, displayed.year, this.locale)}>
             <div class="weekdays" role="row">${getWeekdayOrder(this.firstDayOfWeek).map((day) => html`<span class="weekday" role="columnheader">${getLocalizedWeekdayShort(day, this.locale)}</span>`)}</div>
             ${Array.from(
                 { length: 6 },

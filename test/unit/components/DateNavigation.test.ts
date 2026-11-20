@@ -131,6 +131,30 @@ describe('Date composite boundaries and week controls', () => {
         expect(stops(), 'real navigation resets the roving tab stop').to.deep.equal(['2026-4-15']);
     });
 
+    it('retains a Month date tab stop when the focused spillover cell leaves the grid', async () => {
+        const first = { year: 2026, month: 3, day: 1 };
+        const calendar = await fixture<Calendar>(html`
+            <lms-calendar locale="en" .activeDate=${first} .firstDayOfWeek=${1}
+                style="width:900px;height:600px"></lms-calendar>
+        `);
+        const month = calendar.shadowRoot!.querySelector('lms-calendar-month')!;
+        const root = month.shadowRoot!;
+        await month.focusDate();
+        await sendKeys({ press: 'ArrowLeft' });
+        await settle();
+        const spillover = dateButton(month, '2026-2-28');
+        expect(root.activeElement).to.equal(spillover);
+        expect(spillover.tabIndex).to.equal(0);
+        expect(calendar.activeDate).to.deep.equal(first);
+
+        calendar.firstDayOfWeek = 0;
+        await settle();
+        expect(root.contains(spillover)).to.equal(false);
+        expect([...root.querySelectorAll('.indicator[tabindex="0"]')]).to.deep.equal([
+            dateButton(month, '2026-3-1'),
+        ]);
+    });
+
     it('keeps a full year to 24 ordinary stops and exposes week activation through F2/Escape', async () => {
         const el = await fixture<Year>(
             html`<lms-calendar-year .activeDate=${date} style="height:600px;width:900px"></lms-calendar-year>`,
