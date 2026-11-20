@@ -139,11 +139,14 @@ async function checkLocaleOutage(browser, url, chunkUrl, localeProbe) {
 async function checkThemingExample(page, calendar) {
     const example = docsExample('docs/theming.md', '### Quick Examples', 'css');
     await page.addStyleTag({ content: `:root { color-scheme: light dark; }\n${example}` });
+    await calendar.locator('lms-calendar-entry').waitFor();
     for (const colorScheme of ['dark', 'light']) {
         await page.emulateMedia({ colorScheme });
-        const contrast = await calendar.evaluate((host) => {
+        const styles = await calendar.evaluate((host) => {
             const header = host.shadowRoot.querySelector('lms-calendar-header');
             const period = header.shadowRoot.querySelector('.view-detail.active');
+            const controls = getComputedStyle(header.shadowRoot.querySelector('.controls'));
+            const entry = host.shadowRoot.querySelector('lms-calendar-month > lms-calendar-entry');
             const surface = host.shadowRoot.querySelector('.calendar-container');
             const pixel = document
                 .createElement('canvas')
@@ -161,11 +164,23 @@ async function checkThemingExample(page, calendar) {
             pixel.fillStyle = getComputedStyle(period).color;
             pixel.fillRect(0, 0, 1, 1);
             const foreground = luminance(pixel.getImageData(0, 0, 1, 1).data);
-            return (
-                (Math.max(background, foreground) + 0.05) /
-                (Math.min(background, foreground) + 0.05)
-            );
+            return {
+                contrast:
+                    (Math.max(background, foreground) + 0.05) /
+                    (Math.min(background, foreground) + 0.05),
+                entryRadius: getComputedStyle(entry.shadowRoot.querySelector('.main'))
+                    .borderTopLeftRadius,
+                headerHeight: parseFloat(controls.minHeight),
+                headerFontSize: parseFloat(controls.fontSize),
+            };
         });
+        const { contrast, entryRadius, headerHeight, headerFontSize } = styles;
+        assert.equal(entryRadius, '6px', `Theming example card radius in ${colorScheme}`);
+        assert.equal(
+            headerHeight,
+            4 * headerFontSize,
+            `Theming example header minimum in ${colorScheme}`,
+        );
         assert.ok(
             contrast >= 4.5,
             `Theming example period contrast in ${colorScheme}: ${contrast}`,
@@ -221,11 +236,45 @@ window.smoke = { calendar, states, localeResults, localeErrors, registered: cale
         const edits = enableEntryInteractions(calendar);
         let request;
         calendar.addEventListener('entry-change-request', event => { request = event.detail; }, { once: true });
-        const entry = calendar.entries[0];
-        const proposed = edits.requestChange(entry, { kind: 'resize', edge: 'end' }, 15);
+        const original = calendar.entries;
+        const [entry] = original;
+        const before = structuredClone(entry);
+        const dispatched = edits.requestChange(entry, { kind: 'resize', edge: 'end' }, 15);
         edits.dispose();
-        return proposed && request?.entry === entry && request?.proposed.time.end.minute === 15 &&
-            entry.time.end.minute === 0 && calendar.entries[0] === entry;
+        await calendar.updateComplete;
+        return {
+            proposed: dispatched && request?.entry === entry && request?.proposed.time.end.minute === 15,
+            keptOriginal: calendar.entries === original && calendar.entries[0] === entry,
+            current: entry,
+            before,
+        };
+    },
+    async adopt() {
+        const [entry] = calendar.entries;
+        const other = { ...entry, id: 'other', heading: 'Unchanged entry' };
+        const original = [entry, other];
+        calendar.entries = original;
+        await calendar.updateComplete;
+        const before = structuredClone(entry);
+        const { edits } = await import('./documented-edits.ts');
+        try {
+            let request;
+            calendar.addEventListener('entry-change-request', event => { request = event.detail; }, { once: true });
+            const dispatched = edits.requestChange(entry, { kind: 'resize', edge: 'end' }, 15);
+            await calendar.updateComplete;
+            return {
+                dispatched,
+                requestedOriginal: request?.entry === entry,
+                replaced: calendar.entries !== original && calendar.entries[0] !== entry &&
+                    calendar.entries[0] === request?.proposed,
+                preservedSibling: calendar.entries.length === 2 && calendar.entries[1] === other,
+                original: entry,
+                before,
+                current: calendar.entries[0],
+            };
+        } finally {
+            edits.dispose();
+        }
     } };
 `,
     );
@@ -286,7 +335,20 @@ window.smoke = { calendar, states, localeResults, localeErrors, registered: cale
                 assert.equal(localeChunks.size, 1, 'Expected one lazy locale chunk for Arabic');
                 const [arabicChunkUrl] = localeChunks;
                 assert.equal(await page.evaluate(() => window.smoke.registered), true);
-                assert.equal(await page.evaluate(() => window.smoke.propose()), true);
+                const { proposed, keptOriginal, current, before } = await page.evaluate(() =>
+                    window.smoke.propose(),
+                );
+                assert.equal(proposed, true, 'Expected a packed entry-change request');
+                assert.equal(
+                    keptOriginal,
+                    true,
+                    'Ignoring the request must keep the original references',
+                );
+                assert.deepEqual(
+                    current,
+                    before,
+                    'Ignoring the request must not mutate the original entry',
+                );
                 const calendar = page.locator('lms-calendar');
                 await calendar.locator('.indicator[data-date="2026-11-17"]').click();
                 await calendar.locator('.agenda-event').getByText('Packed workshop').waitFor();
@@ -347,7 +409,10 @@ window.smoke = { calendar, states, localeResults, localeErrors, registered: cale
                     'Studio check-in',
                 );
                 await quickStart.getByText('Studio check-in', { exact: true }).waitFor();
+                // The radius applies to wide Month cards, not the compact Agenda rows.
+                await page.setViewportSize({ width: 1440, height: 830 });
                 await checkThemingExample(page, quickStart);
+                await page.setViewportSize({ width: 440, height: 830 });
 
                 await page.goto(`${url}static-recipe/index.html`);
                 const recipe = page.locator('#demo');
@@ -361,10 +426,32 @@ window.smoke = { calendar, states, localeResults, localeErrors, registered: cale
                 await year.locator('lms-calendar-year').waitFor();
                 assert.equal(await year.evaluate((node) => node.yearDensityMode), 'heatmap');
                 assert.equal(await year.evaluate((node) => node.yearDrillTarget), 'day');
+
+                // Test app-owned adoption on a fresh mount, separate from the ignored proposal.
+                await page.goto(url);
+                await page.waitForFunction(() => window.smoke?.registered);
+                const { before: originalEntry, ...adoption } = await page.evaluate(() =>
+                    window.smoke.adopt(),
+                );
+                assert.deepEqual(
+                    adoption,
+                    {
+                        dispatched: true,
+                        requestedOriginal: true,
+                        replaced: true,
+                        preservedSibling: true,
+                        original: originalEntry,
+                        current: {
+                            ...originalEntry,
+                            time: { ...originalEntry.time, end: { hour: 10, minute: 15 } },
+                        },
+                    },
+                    'The displayed Events handler must adopt the canonical proposal',
+                );
                 assert.deepEqual(errors, []);
                 await checkLocaleOutage(browser, url, arabicChunkUrl, localeProbe);
                 console.log(
-                    `PASS packed ${name} runtime: lazy Arabic catalog, HTTP 503 fallback and recovery after reload, Month → Agenda → Week, timed inspector, bad collection diagnostic, displayed quick start/static HTML, and Theming recipe contrast`,
+                    `PASS packed ${name} runtime: lazy Arabic catalog, HTTP 503 fallback and recovery after reload, Month → Agenda → Week, timed inspector, bad collection diagnostic, displayed quick start/static HTML, Events proposal adoption, and Theming recipe styles and contrast`,
                 );
             } finally {
                 await browser.close();
@@ -434,7 +521,8 @@ try {
     writeFileSync(join(consumer, 'quick-start.ts'), quickStart);
     writeFileSync(
         join(consumer, 'documented-edits.ts'),
-        docsExample('docs/events.md', '## Entry change requests (opt-in)', 'ts'),
+        // Keep the displayed code verbatim; export its controller for the app-owned request.
+        `${docsExample('docs/events.md', '## Entry change requests (opt-in)', 'ts')}\nexport { edits };\n`,
     );
     writeFileSync(
         join(consumer, 'index.ts'),
